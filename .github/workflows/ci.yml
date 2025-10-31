@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  api:
+    name: API - Build, Lint & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kalimere_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for database
+        run: npx wait-on tcp:127.0.0.1:5432
+
+      - name: Recreate test database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -c 'DROP DATABASE IF EXISTS kalimere_test;' postgres
+          psql -h 127.0.0.1 -U postgres -c 'CREATE DATABASE kalimere_test;' postgres
+
+      - name: Apply migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/kalimere_test
+        run: npm run db:migrate --workspace api
+
+      - name: TypeScript compilation
+        run: npm run build --workspace api
+
+      - name: Lint
+        run: npm run lint --workspace api
+
+      - name: Run tests
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/kalimere_dev
+          APP_ORIGIN: http://localhost:3000
+          URL: http://localhost:3000
+          JWT_SECRET: "1234567890123456789012345678901234567890"
+          GOOGLE_CLIENT_ID: dummy-google-client-id
+          GOOGLE_CLIENT_SECRET: dummy-google-client-secret
+          TWILIO_SID: AC00000000000000000000000000000000
+          TWILIO_AUTH_TOKEN: 00000000000000000000000000000000
+          TWILIO_WHATSAPP_FROM: whatsapp:+15555550100
+        run: npm run coverage --workspace api
+
+      - name: API coverage summary
+        if: always()
+        run: |
+          node .github/scripts/coverage-summary.js api "API Coverage" > api-coverage.md || true
+          cat api-coverage.md >> $GITHUB_STEP_SUMMARY || true
+
+      - name: API coverage comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: API Coverage
+          path: api-coverage.md
+
+      - name: Cleanup database
+        if: always()
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -c 'DROP DATABASE IF EXISTS kalimere_test;' postgres
+
+  frontend:
+    name: Frontend - Build, Lint & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    env:
+      VITE_API_BASE_URL: http://localhost:3000/api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript compilation
+        run: npm run type-check --workspace front
+
+      - name: Lint
+        run: npm run lint --workspace front
+
+      - name: Run tests
+        run: npm run test:coverage --workspace front
+
+      - name: Format check
+        run: npm run format:check --workspace front
+
+      - name: Frontend coverage summary
+        if: always()
+        run: |
+          node .github/scripts/coverage-summary.js front "Frontend Coverage" > front-coverage.md || true
+          cat front-coverage.md >> $GITHUB_STEP_SUMMARY || true
+
+      - name: Frontend coverage comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: Frontend Coverage
+          path: front-coverage.md

@@ -1,0 +1,15 @@
+{
+  "name": "bon",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "workspaces": ["api", "front", "types"],
+  "scripts": {
+    "format": "prettier \"api/**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yml,yaml}\" \"front/**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yml,yaml}\" --write",
+    "format:check": "prettier \"api/**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yml,yaml}\" \"front/**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yml,yaml}\" --check",
+    "check": "npm run format:check && npm run lint --workspace api && npm run type-check --workspace api && npm run test --workspace api && npm run lint --workspace front && npm run type-check --workspace front && npm run test --workspace front"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}

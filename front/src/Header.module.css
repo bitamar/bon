@@ -1,0 +1,7 @@
+.branding {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
