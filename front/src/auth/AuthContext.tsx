@@ -13,7 +13,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const queryClient = useQueryClient();
   const { data, isPending } = useQuery({
     queryKey: queryKeys.me(),
@@ -21,11 +21,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     staleTime: 5 * 60 * 1000,
   });
 
-  const user = (data?.user as AuthUser | undefined) ?? null;
+  const user = data?.user ?? null;
   const hydrated = !isPending;
 
   const loginWithGoogle = useCallback(() => {
-    window.location.href = getGoogleLoginUrl();
+    globalThis.location.href = getGoogleLoginUrl();
   }, []);
 
   const logout = useCallback(async () => {

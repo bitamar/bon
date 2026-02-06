@@ -2,16 +2,19 @@ import type { FastifyLoggerOptions } from 'fastify';
 import pino, { type LoggerOptions as PinoLoggerOptions } from 'pino';
 import { env } from '../env.js';
 
-const defaultLevel =
-  env.LOG_LEVEL ??
-  (env.NODE_ENV === 'test' ? 'warn' : env.NODE_ENV === 'development' ? 'debug' : 'info');
+function resolveDefaultLevel(): string {
+  if (env.LOG_LEVEL != null) return env.LOG_LEVEL;
+  if (env.NODE_ENV === 'test') return 'warn';
+  if (env.NODE_ENV === 'development') return 'debug';
+  return 'info';
+}
+
+const defaultLevel = resolveDefaultLevel();
 
 type LoggerConfig = Partial<FastifyLoggerOptions & PinoLoggerOptions>;
 
 export function createLogger(options: LoggerConfig = {}): LoggerConfig {
-  const existingFormatters = (options.formatters ?? {}) as NonNullable<
-    PinoLoggerOptions['formatters']
-  >;
+  const existingFormatters: NonNullable<PinoLoggerOptions['formatters']> = options.formatters ?? {};
   const formatters: NonNullable<PinoLoggerOptions['formatters']> = {
     ...existingFormatters,
     level: existingFormatters.level ?? ((label: string) => ({ level: label })),

@@ -124,7 +124,7 @@ function patchPgMemQuery<T extends { query: pg.Pool['query'] }>(queryable: T): T
         return originalQuery.apply(this, [sanitizedConfig, ...args]);
       }
 
-      const maybeCallback = args.length > 0 ? args[args.length - 1] : undefined;
+      const maybeCallback = args.length > 0 ? args.at(-1) : undefined;
 
       if (typeof maybeCallback === 'function') {
         const originalCallback = maybeCallback as (err: unknown, result: unknown) => void;
@@ -141,9 +141,9 @@ function patchPgMemQuery<T extends { query: pg.Pool['query'] }>(queryable: T): T
         return originalQuery.apply(this, [sanitizedConfig, ...patchedArgs]);
       }
 
-      const result = originalQuery.apply(this, [sanitizedConfig, ...args]) as unknown;
+      const result = originalQuery.apply(this, [sanitizedConfig, ...args]);
       if (isPromiseLike(result)) {
-        return (result as PromiseLike<unknown>).then((queryResult) =>
+        return result.then((queryResult) =>
           mapRowsToArrays(queryResult as QueryResultObject)
         );
       }
@@ -155,7 +155,7 @@ function patchPgMemQuery<T extends { query: pg.Pool['query'] }>(queryable: T): T
       return result;
     }
 
-    return originalQuery.apply(this, [queryTextOrConfig as unknown, ...args]);
+    return originalQuery.apply(this, [queryTextOrConfig, ...args]);
   } as typeof queryable.query;
 
   marker[PG_MEM_PATCHED] = true;
