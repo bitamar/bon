@@ -5,8 +5,8 @@ if (!import.meta.env.VITE_API_BASE_URL) {
   vi.stubEnv('VITE_API_BASE_URL', 'http://localhost');
 }
 
-if (!window.matchMedia) {
-  window.matchMedia = (query: string) => ({
+if (!globalThis.matchMedia) {
+  globalThis.matchMedia = (query: string) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -18,12 +18,12 @@ if (!window.matchMedia) {
   });
 }
 
-if (!('ResizeObserver' in window)) {
+if (!('ResizeObserver' in globalThis)) {
   class ResizeObserver {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
+    observe() { /* noop */ }
+    unobserve() { /* noop */ }
+    disconnect() { /* noop */ }
   }
   // @ts-expect-error - we're defining it for the test environment
-  window.ResizeObserver = ResizeObserver;
+  globalThis.ResizeObserver = ResizeObserver;
 }

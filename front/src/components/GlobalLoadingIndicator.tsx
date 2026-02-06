@@ -9,7 +9,7 @@ export function useGlobalLoading() {
   return useContext(GlobalLoadingContext);
 }
 
-export function GlobalLoadingIndicator({ children }: { children?: ReactNode }) {
+export function GlobalLoadingIndicator({ children }: Readonly<{ children?: ReactNode }>) {
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
   const busy = isFetching + isMutating > 0;

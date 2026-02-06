@@ -6,22 +6,22 @@ import { users, sessions } from '../../src/db/schema.js';
 import { resetDb } from '../utils/db.js';
 import { eq } from 'drizzle-orm';
 
+async function insertUser() {
+  const [user] = await db
+    .insert(users)
+    .values({
+      email: `user-${randomUUID()}@example.com`,
+      name: 'Session Tester',
+    })
+    .returning();
+  if (!user) throw new Error('Failed to insert test user');
+  return user;
+}
+
 describe('auth/session', () => {
   beforeEach(async () => {
     await resetDb();
   });
-
-  async function insertUser() {
-    const [user] = await db
-      .insert(users)
-      .values({
-        email: `user-${randomUUID()}@example.com`,
-        name: 'Session Tester',
-      })
-      .returning();
-    if (!user) throw new Error('Failed to insert test user');
-    return user;
-  }
 
   it('persists new sessions and returns session data', async () => {
     const user = await insertUser();

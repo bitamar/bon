@@ -35,7 +35,7 @@ export function StatusCard({
   primaryAction,
   secondaryAction,
   align = 'center',
-}: StatusCardProps) {
+}: Readonly<StatusCardProps>) {
   const stackAlign = align === 'start' ? 'flex-start' : 'center';
   const textAlign = align === 'start' ? 'left' : 'center';
 

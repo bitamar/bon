@@ -6,7 +6,7 @@ export function injectAuthed(app: FastifyInstance, sessionId: string, options: I
   return app.inject({
     ...options,
     headers: {
-      ...(options.headers ?? {}),
+      ...options.headers,
       cookie: options.headers?.cookie ? `${options.headers.cookie}; ${cookieHeader}` : cookieHeader,
     },
     cookies: {

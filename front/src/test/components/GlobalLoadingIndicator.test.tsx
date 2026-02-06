@@ -22,11 +22,11 @@ function LoadingConsumer() {
 }
 
 describe('GlobalLoadingIndicator', () => {
-  let timeoutSpy: MockInstance<typeof global.setTimeout>;
+  let timeoutSpy: MockInstance<typeof globalThis.setTimeout>;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    timeoutSpy = vi.spyOn(global, 'setTimeout');
+    timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     useIsFetchingMock.mockReset();
     useIsMutatingMock.mockReset();
   });

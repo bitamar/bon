@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
-import { normalizeError, notFound } from '../lib/app-error.js';
+import { type AppError, normalizeError, notFound } from '../lib/app-error.js';
 import { env } from '../env.js';
 
 const errorsPluginFn: FastifyPluginAsync = async (app) => {
@@ -18,50 +18,13 @@ const errorsPluginFn: FastifyPluginAsync = async (app) => {
       logFields.userId = request.user.id;
     }
 
-    if (!exposeToClient) {
-      request.log.error(logFields, 'request_failed');
-    } else {
-      request.log.debug(logFields, 'request_failed');
-    }
-
-    const body: Record<string, unknown> = {
-      error: normalized.code,
-      requestId: request.id,
-    };
-
-    if (exposeToClient && normalized.message) {
-      body['message'] = normalized.message;
-    }
-
-    if (exposeToClient && normalized.details !== undefined) {
-      body['details'] = normalized.details;
-    }
-
-    if (exposeToClient && normalized.extras) {
-      for (const [key, value] of Object.entries(normalized.extras)) {
-        if (value !== undefined) body[key] = value;
-      }
-    }
-
     if (exposeToClient) {
-      if (
-        body['max'] === undefined &&
-        isRecord(normalized.details) &&
-        typeof normalized.details['max'] === 'number'
-      ) {
-        body['max'] = normalized.details['max'];
-      }
-      if (body['reset'] === undefined && isRecord(normalized.details)) {
-        const fromDetails =
-          typeof normalized.details['reset'] === 'number'
-            ? normalized.details['reset']
-            : typeof normalized.details['ttl'] === 'number'
-              ? normalized.details['ttl']
-              : undefined;
-        if (fromDetails !== undefined) body['reset'] = fromDetails;
-      }
+      request.log.debug(logFields, 'request_failed');
+    } else {
+      request.log.error(logFields, 'request_failed');
     }
 
+    const body = buildErrorBody(normalized, exposeToClient, request.id);
     return reply.status(normalized.statusCode).send(body);
   });
 
@@ -85,6 +48,47 @@ const errorsPluginFn: FastifyPluginAsync = async (app) => {
 export const errorPlugin = fp(errorsPluginFn, {
   name: 'error-plugin',
 });
+
+function buildErrorBody(
+  normalized: AppError,
+  exposeToClient: boolean,
+  requestId: string
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    error: normalized.code,
+    requestId,
+  };
+
+  if (!exposeToClient) return body;
+
+  if (normalized.message) body['message'] = normalized.message;
+  if (normalized.details !== undefined) body['details'] = normalized.details;
+
+  if (normalized.extras) {
+    for (const [key, value] of Object.entries(normalized.extras)) {
+      if (value !== undefined) body[key] = value;
+    }
+  }
+
+  applyRateLimitFields(body, normalized.details);
+  return body;
+}
+
+function applyRateLimitFields(body: Record<string, unknown>, details: unknown): void {
+  if (!isRecord(details)) return;
+
+  if (body['max'] === undefined && typeof details['max'] === 'number') {
+    body['max'] = details['max'];
+  }
+
+  if (body['reset'] !== undefined) return;
+
+  if (typeof details['reset'] === 'number') {
+    body['reset'] = details['reset'];
+  } else if (typeof details['ttl'] === 'number') {
+    body['reset'] = details['ttl'];
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;

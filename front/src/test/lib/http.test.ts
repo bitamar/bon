@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { fetchJson, HttpError } from '../../lib/http';
 
 const fetchMock = vi.fn();
-const originalFetch = global.fetch;
+const originalFetch = globalThis.fetch;
 
 describe('fetchJson', () => {
   beforeEach(() => {
@@ -11,7 +11,7 @@ describe('fetchJson', () => {
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
   });
 
   afterAll(() => {

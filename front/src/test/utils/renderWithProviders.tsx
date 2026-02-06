@@ -43,5 +43,5 @@ export function renderWithProviders(
     );
   };
 
-  return render(ui, { wrapper: Wrapper, ...(renderOptions ?? {}) });
+  return render(ui, { wrapper: Wrapper, ...renderOptions });
 }

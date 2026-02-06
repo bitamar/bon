@@ -40,9 +40,9 @@ describe('RouteErrorBoundary', () => {
       return <div>Loaded content</div>;
     };
 
-    const originalLocation = window.location;
+    const originalLocation = globalThis.location;
     const reloadSpy = vi.fn();
-    const locationSpy = vi.spyOn(window, 'location', 'get');
+    const locationSpy = vi.spyOn(globalThis, 'location', 'get');
     locationSpy.mockReturnValue({
       ...originalLocation,
       reload: reloadSpy,

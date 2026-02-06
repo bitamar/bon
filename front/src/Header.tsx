@@ -7,10 +7,10 @@ import classes from './Header.module.css';
 export default function Header({
   opened,
   setOpened,
-}: {
+}: Readonly<{
   opened: boolean;
   setOpened: React.Dispatch<React.SetStateAction<boolean>>;
-}) {
+}>) {
   const { logout, user } = useAuth();
   return (
     <AppShell.Header>

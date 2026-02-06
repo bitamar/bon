@@ -10,7 +10,7 @@ import { Settings } from './pages/Settings';
 import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 
-function ProtectedRoute({ children }: { children: ReactNode }) {
+function ProtectedRoute({ children }: Readonly<{ children: ReactNode }>) {
   const { user, isHydrated } = useAuth();
   if (!isHydrated) {
     return (

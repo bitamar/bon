@@ -43,7 +43,7 @@ class RouteErrorBoundaryInner extends Component<
           description={message}
           primaryAction={{ label: 'Try again', onClick: this.handleReset }}
           secondaryAction={
-            <Button variant="subtle" onClick={() => window.location.reload()}>
+            <Button variant="subtle" onClick={() => globalThis.location.reload()}>
               Reload page
             </Button>
           }
@@ -55,7 +55,7 @@ class RouteErrorBoundaryInner extends Component<
   }
 }
 
-export function RouteErrorBoundary({ children }: { children: ReactNode }) {
+export function RouteErrorBoundary({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
   return (
     <RouteErrorBoundaryInner

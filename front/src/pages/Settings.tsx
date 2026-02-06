@@ -43,7 +43,7 @@ export function Settings() {
     errorToast: { fallbackMessage: 'Saving settings failed' },
     onSuccess: (data: SettingsResponse) => {
       queryClient.setQueryData(queryKeys.settings(), data);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.me() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.me() });
     },
   });
 
@@ -67,7 +67,7 @@ export function Settings() {
           title="Unable to load settings"
           description={message}
           align="start"
-          primaryAction={{ label: 'Try again', onClick: () => void settingsQuery.refetch() }}
+          primaryAction={{ label: 'Try again', onClick: () => { settingsQuery.refetch(); } }}
         />
       </Stack>
     );

@@ -38,7 +38,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
             description={message}
             primaryAction={{ label: 'Try again', onClick: this.handleReset }}
             secondaryAction={
-              <Button variant="subtle" onClick={() => window.location.reload()}>
+              <Button variant="subtle" onClick={() => globalThis.location.reload()}>
                 Reload page
               </Button>
             }

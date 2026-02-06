@@ -18,7 +18,7 @@ export async function fetchJson<T>(path: string, init: RequestInit = {}): Promis
     credentials: 'include',
     headers: {
       ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-      ...(init.headers || {}),
+      ...init.headers,
     },
     ...init,
   });

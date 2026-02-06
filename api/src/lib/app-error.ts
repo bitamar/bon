@@ -57,7 +57,7 @@ export function normalizeError(error: unknown): AppError {
 
     const validation =
       'validation' in error
-        ? ((error as FastifyError & { validation?: unknown }).validation ?? undefined)
+        ? (error.validation ?? undefined)
         : undefined;
     const additional = collectAdditionalFields(error);
     const extras = deriveExtras(statusCode, additional);
