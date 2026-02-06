@@ -20,10 +20,15 @@ if (!globalThis.matchMedia) {
 
 if (!('ResizeObserver' in globalThis)) {
   class ResizeObserver {
-    observe() { /* noop */ }
-    unobserve() { /* noop */ }
-    disconnect() { /* noop */ }
+    observe() {
+      /* noop */
+    }
+    unobserve() {
+      /* noop */
+    }
+    disconnect() {
+      /* noop */
+    }
   }
-  // @ts-expect-error - we're defining it for the test environment
   globalThis.ResizeObserver = ResizeObserver;
 }

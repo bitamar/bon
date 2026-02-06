@@ -67,7 +67,12 @@ export function Settings() {
           title="Unable to load settings"
           description={message}
           align="start"
-          primaryAction={{ label: 'Try again', onClick: () => { settingsQuery.refetch(); } }}
+          primaryAction={{
+            label: 'Try again',
+            onClick: () => {
+              settingsQuery.refetch();
+            },
+          }}
         />
       </Stack>
     );

@@ -55,10 +55,7 @@ export function normalizeError(error: unknown): AppError {
         : undefined;
     const code = chooseErrorCode(statusCode, baseCode);
 
-    const validation =
-      'validation' in error
-        ? (error.validation ?? undefined)
-        : undefined;
+    const validation = 'validation' in error ? (error.validation ?? undefined) : undefined;
     const additional = collectAdditionalFields(error);
     const extras = deriveExtras(statusCode, additional);
     const strippedAdditional = stripKnownExtras(additional);

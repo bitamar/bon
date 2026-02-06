@@ -143,9 +143,7 @@ function patchPgMemQuery<T extends { query: pg.Pool['query'] }>(queryable: T): T
 
       const result = originalQuery.apply(this, [sanitizedConfig, ...args]);
       if (isPromiseLike(result)) {
-        return result.then((queryResult) =>
-          mapRowsToArrays(queryResult as QueryResultObject)
-        );
+        return result.then((queryResult) => mapRowsToArrays(queryResult as QueryResultObject));
       }
 
       if (result && typeof result === 'object') {
