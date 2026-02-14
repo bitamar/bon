@@ -5,6 +5,7 @@
     "buildCommand": "npm run build --workspace api"
   },
   "deploy": {
+    "preDeployCommand": "npm run db:migrate --workspace api",
     "startCommand": "npm run start --workspace api",
     "healthcheckPath": "/health",
     "restartPolicyType": "ON_FAILURE",
