@@ -61,7 +61,7 @@ export function TeamManagement() {
     validate: {
       email: (value) => {
         if (!value) return 'כתובת אימייל נדרשת';
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'כתובת אימייל לא תקינה';
+        if (!/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(value)) return 'כתובת אימייל לא תקינה';
         return null;
       },
     },
