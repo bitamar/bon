@@ -62,11 +62,11 @@ function buildErrorBody(
   if (!exposeToClient) return body;
 
   if (normalized.message) body['message'] = normalized.message;
-  if (normalized.details !== undefined) body['details'] = normalized.details;
+  if (normalized.details != null) body['details'] = normalized.details;
 
   if (normalized.extras) {
     for (const [key, value] of Object.entries(normalized.extras)) {
-      if (value !== undefined) body[key] = value;
+      if (value != null) body[key] = value;
     }
   }
 
@@ -77,11 +77,11 @@ function buildErrorBody(
 function applyRateLimitFields(body: Record<string, unknown>, details: unknown): void {
   if (!isRecord(details)) return;
 
-  if (body['max'] === undefined && typeof details['max'] === 'number') {
+  if (body['max'] == null && typeof details['max'] === 'number') {
     body['max'] = details['max'];
   }
 
-  if (body['reset'] !== undefined) return;
+  if (body['reset'] != null) return;
 
   if (typeof details['reset'] === 'number') {
     body['reset'] = details['reset'];
@@ -91,5 +91,5 @@ function applyRateLimitFields(body: Record<string, unknown>, details: unknown): 
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === 'object' && value != null;
 }

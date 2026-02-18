@@ -5,8 +5,14 @@ import Navbar from './Navbar';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { BusinessProvider, useBusiness } from './contexts/BusinessContext';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
+import { Onboarding } from './pages/Onboarding';
+import { BusinessList } from './pages/BusinessList';
+import { BusinessSettings } from './pages/BusinessSettings';
+import { TeamManagement } from './pages/TeamManagement';
+import { InvitationAccept } from './pages/InvitationAccept';
 import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 
@@ -29,6 +35,25 @@ function PlainLayout() {
       <Outlet />
     </RouteErrorBoundary>
   );
+}
+
+function OnboardingGuard({ children }: Readonly<{ children: ReactNode }>) {
+  const { businesses, isLoading } = useBusiness();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <Center h="100%">
+        <Loader size="sm" aria-label="Loading businesses" role="status" />
+      </Center>
+    );
+  }
+
+  if (businesses.length === 0 && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return children;
 }
 
 function ProtectedLayout() {
@@ -66,7 +91,9 @@ function ProtectedLayout() {
         }}
       >
         <RouteErrorBoundary>
-          <Outlet />
+          <OnboardingGuard>
+            <Outlet />
+          </OnboardingGuard>
         </RouteErrorBoundary>
       </AppShell.Main>
     </AppShell>
@@ -80,17 +107,33 @@ export default function AppRoutes() {
         <Routes>
           <Route element={<PlainLayout />}>
             <Route path="/login" element={<Login />} />
+            <Route
+              path="/onboarding"
+              element={
+                <ProtectedRoute>
+                  <BusinessProvider>
+                    <Onboarding />
+                  </BusinessProvider>
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
           <Route
             element={
               <ProtectedRoute>
-                <ProtectedLayout />
+                <BusinessProvider>
+                  <ProtectedLayout />
+                </BusinessProvider>
               </ProtectedRoute>
             }
           >
             <Route path="/" element={<Dashboard />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/businesses" element={<BusinessList />} />
+            <Route path="/business/settings" element={<BusinessSettings />} />
+            <Route path="/business/team" element={<TeamManagement />} />
+            <Route path="/invitations/accept" element={<InvitationAccept />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

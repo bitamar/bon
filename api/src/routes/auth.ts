@@ -23,7 +23,7 @@ export async function authRoutes(app: FastifyInstance) {
     const candidate = typeof origin === 'string' && origin.length > 0 ? origin : referer;
     if (typeof candidate === 'string' && candidate.length > 0) {
       const parsed = parseOriginHeader(candidate);
-      if (parsed && isHostAllowed(parsed.host, env.APP_ORIGIN_HOST)) {
+      if (parsed?.host && isHostAllowed(parsed.host, env.APP_ORIGIN_HOST)) {
         appOrigin = env.APP_ORIGIN;
       }
     }

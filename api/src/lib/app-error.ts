@@ -144,15 +144,15 @@ function collectAdditionalFields(error: FastifyError): Record<string, unknown> |
   for (const key of Object.keys(source)) {
     if (exclusions.has(key)) continue;
     const value = source[key];
-    if (value !== undefined) result[key] = value;
+    if (value != null) result[key] = value;
   }
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
 function mergeDetails(validation: unknown, additional: Record<string, unknown> | undefined) {
-  if (validation === undefined && additional === undefined) return undefined;
-  if (validation !== undefined && additional === undefined) return validation;
-  if (validation === undefined && additional !== undefined) return additional;
+  if (validation == null && additional == null) return undefined;
+  if (validation != null && additional == null) return validation;
+  if (validation == null && additional != null) return additional;
   return { validation, ...additional } satisfies Record<string, unknown>;
 }
 
@@ -200,4 +200,10 @@ export function conflict(
   options: Omit<AppErrorOptions, 'statusCode' | 'code'> & { code?: string }
 ) {
   return new AppError({ statusCode: 409, code: options.code ?? 'conflict', ...options });
+}
+
+export function forbidden(
+  options: Omit<AppErrorOptions, 'statusCode' | 'code'> & { code?: string } = {}
+) {
+  return new AppError({ statusCode: 403, code: options.code ?? 'forbidden', ...options });
 }

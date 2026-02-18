@@ -12,7 +12,10 @@ import {
 import { env } from './env.js';
 import { authRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/users.js';
+import { businessRoutes } from './routes/businesses.js';
+import { invitationRoutes } from './routes/invitations.js';
 import { authPlugin } from './plugins/auth.js';
+import { businessContextPlugin } from './plugins/business-context.js';
 import { errorPlugin } from './plugins/errors.js';
 import { loggingPlugin } from './plugins/logging.js';
 import { createLogger } from './lib/logger.js';
@@ -27,15 +30,10 @@ export async function buildServer(options: FastifyServerOptions = {}) {
     genReqId:
       genReqId ??
       ((request) => {
-        const requestIdHeader = request.headers['x-request-id'];
-        if (typeof requestIdHeader === 'string' && requestIdHeader.length > 0) {
-          const first = requestIdHeader.split(',')[0]?.trim();
-          if (first && first.length > 0) return first;
-        }
-        if (Array.isArray(requestIdHeader) && requestIdHeader.length > 0) {
-          const [first] = requestIdHeader;
-          if (typeof first === 'string' && first.length > 0) return first;
-        }
+        const header = request.headers['x-request-id'];
+        const raw = Array.isArray(header) ? header[0] : header?.split(',')[0];
+        const requestId = raw?.trim();
+        if (requestId?.length) return requestId;
         return randomUUID();
       }),
   }).withTypeProvider<ZodTypeProvider>();
@@ -72,10 +70,13 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   });
   await app.register(loggingPlugin);
   await app.register(authPlugin);
+  await app.register(businessContextPlugin);
   await app.register(errorPlugin);
 
   await app.register(authRoutes);
   await app.register(userRoutes);
+  await app.register(businessRoutes);
+  await app.register(invitationRoutes);
   app.get('/health', async () => ({ ok: true }));
 
   return app;

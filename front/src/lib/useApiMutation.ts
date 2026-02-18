@@ -39,7 +39,7 @@ export function useApiMutation<TData, TError = unknown, TVariables = void, TCont
   return useMutation({
     ...rest,
     onSuccess: (data, variables, context) => {
-      if (successToast !== false && successToast) {
+      if (successToast) {
         showSuccessNotification(successToast.message, successToast.title);
       }
       onSuccess?.(data, variables, context, undefined as never);

@@ -3,6 +3,7 @@ import { IconChevronDown, IconLogout, IconSettings } from '@tabler/icons-react';
 import { useAuth } from './auth/AuthContext';
 import { Link } from 'react-router-dom';
 import classes from './Header.module.css';
+import { TenantSwitcher } from './components/TenantSwitcher';
 
 export default function Header({
   opened,
@@ -29,6 +30,7 @@ export default function Header({
         </Group>
 
         <Group>
+          <TenantSwitcher />
           <Menu shadow="md" width={220}>
             <Menu.Target>
               <Button

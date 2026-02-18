@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import Header from '../../Header';
 import { AuthProvider, useAuth } from '../../auth/AuthContext';
+import { useBusiness } from '../../contexts/BusinessContext';
 import { renderWithProviders } from '../utils/renderWithProviders';
 import { AppShell } from '@mantine/core';
 
@@ -13,8 +14,13 @@ vi.mock('../../auth/AuthContext', async (importOriginal) => {
   };
 });
 
+vi.mock('../../contexts/BusinessContext', () => ({
+  useBusiness: vi.fn(),
+}));
+
 describe('Header', () => {
   const useAuthMock = vi.mocked(useAuth);
+  const useBusinessMock = vi.mocked(useBusiness);
 
   it('renders user name and logout menu', () => {
     useAuthMock.mockReturnValue({
@@ -29,6 +35,13 @@ describe('Header', () => {
       loginWithGoogle: vi.fn(),
       isHydrated: true,
     } as ReturnType<typeof useAuth>);
+
+    useBusinessMock.mockReturnValue({
+      activeBusiness: null,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
 
     const setOpened = vi.fn();
     renderWithProviders(
@@ -64,6 +77,13 @@ describe('Header', () => {
       loginWithGoogle: vi.fn(),
       isHydrated: true,
     } as ReturnType<typeof useAuth>);
+
+    useBusinessMock.mockReturnValue({
+      activeBusiness: null,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
 
     renderWithProviders(
       <AuthProvider>
