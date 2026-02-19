@@ -13,12 +13,6 @@ import {
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 
-vi.mock('openid-client', () => ({
-  discovery: vi.fn().mockResolvedValue({}),
-  ClientSecretPost: (secret: string) => ({ secret }),
-  authorizationCodeGrant: vi.fn(),
-}));
-
 describe('routes/businesses', () => {
   const ctx = setupIntegrationTest();
 

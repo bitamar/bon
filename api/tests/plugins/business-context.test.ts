@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { injectAuthed } from '../utils/inject.js';
 import {
@@ -9,12 +9,6 @@ import {
   createMemberInBusiness,
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
-
-vi.mock('openid-client', () => ({
-  discovery: vi.fn().mockResolvedValue({}),
-  ClientSecretPost: (secret: string) => ({ secret }),
-  authorizationCodeGrant: vi.fn(),
-}));
 
 describe('plugins/business-context', () => {
   const ctx = setupIntegrationTest();

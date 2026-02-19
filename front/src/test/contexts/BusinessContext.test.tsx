@@ -47,6 +47,17 @@ function renderBusinessContext() {
   );
 }
 
+function renderWithTwoBusinesses() {
+  vi.mocked(fetchBusinesses).mockResolvedValue({ businesses: [mockBusiness1, mockBusiness2] });
+  renderBusinessContext();
+}
+
+async function waitForFirstBusinessActive() {
+  await waitFor(() => {
+    expect(screen.getByTestId('active').textContent).toBe('Acme Ltd');
+  });
+}
+
 describe('BusinessContext', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -62,22 +73,16 @@ describe('BusinessContext', () => {
   });
 
   it('auto-selects first business when fetchBusinesses returns a list', async () => {
-    vi.mocked(fetchBusinesses).mockResolvedValue({ businesses: [mockBusiness1, mockBusiness2] });
+    renderWithTwoBusinesses();
 
-    renderBusinessContext();
-
-    await waitFor(() => {
-      expect(screen.getByTestId('active').textContent).toBe('Acme Ltd');
-    });
+    await waitForFirstBusinessActive();
 
     expect(screen.getByTestId('count').textContent).toBe('2');
   });
 
   it('reads activeBusinessId from localStorage on initialization', async () => {
     localStorage.setItem('bon:activeBusiness', 'biz-2');
-    vi.mocked(fetchBusinesses).mockResolvedValue({ businesses: [mockBusiness1, mockBusiness2] });
-
-    renderBusinessContext();
+    renderWithTwoBusinesses();
 
     await waitFor(() => {
       expect(screen.getByTestId('loading').textContent).toBe('false');

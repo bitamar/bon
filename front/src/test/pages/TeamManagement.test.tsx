@@ -51,6 +51,12 @@ const teamListWithNonOwner = {
   ],
 };
 
+async function renderTeamWithMembers() {
+  vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
+  renderWithProviders(<TeamManagement />);
+  await screen.findByText('Alice');
+}
+
 describe('TeamManagement page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -84,20 +90,14 @@ describe('TeamManagement page', () => {
   });
 
   it('renders team table with member name and email', async () => {
-    vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
+    await renderTeamWithMembers();
 
-    renderWithProviders(<TeamManagement />);
-
-    expect(await screen.findByText('Alice')).toBeInTheDocument();
+    expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByText('alice@example.com')).toBeInTheDocument();
   });
 
   it('"הסר" button is not shown for owner', async () => {
-    vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
-
-    renderWithProviders(<TeamManagement />);
-
-    await screen.findByText('Alice');
+    await renderTeamWithMembers();
 
     expect(screen.queryByRole('button', { name: 'הסר' })).not.toBeInTheDocument();
   });
@@ -121,11 +121,7 @@ describe('TeamManagement page', () => {
   it('clicking "הזמן משתמש" opens invite modal', async () => {
     const user = userEvent.setup();
 
-    vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
-
-    renderWithProviders(<TeamManagement />);
-
-    await screen.findByText('Alice');
+    await renderTeamWithMembers();
 
     await user.click(screen.getByRole('button', { name: 'הזמן משתמש' }));
 
@@ -137,11 +133,7 @@ describe('TeamManagement page', () => {
   it('submitting invite form with invalid email shows validation error', async () => {
     const user = userEvent.setup();
 
-    vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
-
-    renderWithProviders(<TeamManagement />);
-
-    await screen.findByText('Alice');
+    await renderTeamWithMembers();
 
     await user.click(screen.getByRole('button', { name: 'הזמן משתמש' }));
 
@@ -161,12 +153,8 @@ describe('TeamManagement page', () => {
   it('submitting invite form with valid email calls createInvitation', async () => {
     const user = userEvent.setup();
 
-    vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
     vi.mocked(invitationsApi.createInvitation).mockResolvedValue(undefined);
-
-    renderWithProviders(<TeamManagement />);
-
-    await screen.findByText('Alice');
+    await renderTeamWithMembers();
 
     await user.click(screen.getByRole('button', { name: 'הזמן משתמש' }));
 
