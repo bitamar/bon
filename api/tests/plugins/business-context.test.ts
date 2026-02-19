@@ -5,7 +5,8 @@ import {
   createAuthedUser,
   createUser,
   createTestBusiness,
-  addUserToBusiness,
+  createOwnerWithBusiness,
+  createMemberInBusiness,
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 
@@ -20,9 +21,7 @@ describe('plugins/business-context', () => {
 
   describe('requireBusinessAccess', () => {
     it('sets businessContext for a member and allows access', async () => {
-      const { user, sessionId } = await createAuthedUser();
-      const business = await createTestBusiness(user.id);
-      await addUserToBusiness(user.id, business.id, 'owner');
+      const { sessionId, business } = await createOwnerWithBusiness();
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
@@ -51,9 +50,7 @@ describe('plugins/business-context', () => {
 
   describe('requireBusinessRole', () => {
     it('allows owner to access an owner/admin-only route', async () => {
-      const { user, sessionId } = await createAuthedUser();
-      const business = await createTestBusiness(user.id);
-      await addUserToBusiness(user.id, business.id, 'owner');
+      const { sessionId, business } = await createOwnerWithBusiness();
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'PUT',
@@ -65,11 +62,7 @@ describe('plugins/business-context', () => {
     });
 
     it('returns 404 when user role is insufficient (role=user)', async () => {
-      const { user, sessionId } = await createAuthedUser();
-      const ownerUser = await createUser({ email: `owner-${randomUUID()}@example.com` });
-      const business = await createTestBusiness(ownerUser.id);
-      await addUserToBusiness(ownerUser.id, business.id, 'owner');
-      await addUserToBusiness(user.id, business.id, 'user');
+      const { sessionId, business } = await createMemberInBusiness('user');
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'PUT',
@@ -84,11 +77,10 @@ describe('plugins/business-context', () => {
   describe('ensureBusinessContext', () => {
     it('returns 404 when no userBusiness found for a non-existent businessId', async () => {
       const { sessionId } = await createAuthedUser();
-      const fakeId = randomUUID();
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
-        url: `/businesses/${fakeId}`,
+        url: `/businesses/${randomUUID()}`,
       });
 
       expect(res.statusCode).toBe(404);

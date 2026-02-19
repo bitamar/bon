@@ -11,7 +11,7 @@ import {
   updateInvitationStatus,
   findExistingInvitation,
 } from '../../src/repositories/invitation-repository.js';
-import { createUser, createTestBusiness } from '../utils/businesses.js';
+import { createUser, createTestBusiness, createPendingInvitation } from '../utils/businesses.js';
 
 describe('invitation-repository', () => {
   beforeEach(async () => {
@@ -51,21 +51,12 @@ describe('invitation-repository', () => {
     it('finds an invitation by token', async () => {
       const user = await createUser();
       const business = await createTestBusiness(user.id);
-      const token = randomUUID();
+      const inv = await createPendingInvitation(business.id, user.id, 'find-token@example.com');
 
-      await db.insert(businessInvitations).values({
-        businessId: business.id,
-        email: 'find-token@example.com',
-        role: 'admin',
-        invitedByUserId: user.id,
-        token,
-        expiresAt: new Date(Date.now() + 86400000),
-      });
-
-      const result = await findInvitationByToken(token);
+      const result = await findInvitationByToken(inv.token);
 
       expect(result).not.toBeNull();
-      expect(result?.token).toBe(token);
+      expect(result?.token).toBe(inv.token);
     });
 
     it('returns null for a wrong token', async () => {
@@ -79,15 +70,7 @@ describe('invitation-repository', () => {
     it('returns invitations with joined businessName and invitedByName', async () => {
       const user = await createUser();
       const business = await createTestBusiness(user.id);
-
-      await db.insert(businessInvitations).values({
-        businessId: business.id,
-        email: 'team@example.com',
-        role: 'user',
-        invitedByUserId: user.id,
-        token: randomUUID(),
-        expiresAt: new Date(Date.now() + 86400000),
-      });
+      await createPendingInvitation(business.id, user.id, 'team@example.com');
 
       const results = await findInvitationsByBusinessId(business.id);
 
@@ -105,34 +88,23 @@ describe('invitation-repository', () => {
       const business = await createTestBusiness(user.id);
       const targetEmail = `pending-${randomUUID()}@example.com`;
 
-      const pendingToken = randomUUID();
-      const acceptedToken = randomUUID();
+      const pending = await createPendingInvitation(business.id, user.id, targetEmail);
 
-      await db.insert(businessInvitations).values([
-        {
-          businessId: business.id,
-          email: targetEmail,
-          role: 'user',
-          invitedByUserId: user.id,
-          token: pendingToken,
-          expiresAt: new Date(Date.now() + 86400000),
-          status: 'pending',
-        },
-        {
-          businessId: business.id,
-          email: `other-${randomUUID()}@example.com`,
-          role: 'admin',
-          invitedByUserId: user.id,
-          token: acceptedToken,
-          expiresAt: new Date(Date.now() + 86400000),
-          status: 'accepted',
-        },
-      ]);
+      // insert a non-pending one
+      await db.insert(businessInvitations).values({
+        businessId: business.id,
+        email: `other-${randomUUID()}@example.com`,
+        role: 'admin',
+        invitedByUserId: user.id,
+        token: randomUUID(),
+        expiresAt: new Date(Date.now() + 86400000),
+        status: 'accepted',
+      });
 
       const results = await findPendingInvitationsByEmail(targetEmail);
 
       expect(results).toHaveLength(1);
-      expect(results[0].token).toBe(pendingToken);
+      expect(results[0].token).toBe(pending.token);
       expect(results[0].businessName).toBe(business.name);
       expect(results[0].invitedByName).toBe(user.name);
     });
@@ -142,20 +114,8 @@ describe('invitation-repository', () => {
       const business = await createTestBusiness(user.id);
       const targetEmail = `declined-${randomUUID()}@example.com`;
 
-      const inv = await db
-        .insert(businessInvitations)
-        .values({
-          businessId: business.id,
-          email: targetEmail,
-          role: 'user',
-          invitedByUserId: user.id,
-          token: randomUUID(),
-          expiresAt: new Date(Date.now() + 86400000),
-          status: 'pending',
-        })
-        .returning();
-
-      await updateInvitationStatus(inv[0].id, 'declined', new Date());
+      const inv = await createPendingInvitation(business.id, user.id, targetEmail);
+      await updateInvitationStatus(inv.id, 'declined', new Date());
 
       const results = await findPendingInvitationsByEmail(targetEmail);
 
@@ -167,20 +127,9 @@ describe('invitation-repository', () => {
     it('sets status to accepted and records acceptedAt', async () => {
       const user = await createUser();
       const business = await createTestBusiness(user.id);
-      const inv = await db
-        .insert(businessInvitations)
-        .values({
-          businessId: business.id,
-          email: 'accept-me@example.com',
-          role: 'user',
-          invitedByUserId: user.id,
-          token: randomUUID(),
-          expiresAt: new Date(Date.now() + 86400000),
-        })
-        .returning();
+      const inv = await createPendingInvitation(business.id, user.id, 'accept-me@example.com');
 
-      const timestamp = new Date();
-      const result = await updateInvitationStatus(inv[0].id, 'accepted', timestamp);
+      const result = await updateInvitationStatus(inv.id, 'accepted', new Date());
 
       expect(result?.status).toBe('accepted');
       expect(result?.acceptedAt).toBeTruthy();
@@ -190,20 +139,9 @@ describe('invitation-repository', () => {
     it('sets status to declined and records declinedAt', async () => {
       const user = await createUser();
       const business = await createTestBusiness(user.id);
-      const inv = await db
-        .insert(businessInvitations)
-        .values({
-          businessId: business.id,
-          email: 'decline-me@example.com',
-          role: 'user',
-          invitedByUserId: user.id,
-          token: randomUUID(),
-          expiresAt: new Date(Date.now() + 86400000),
-        })
-        .returning();
+      const inv = await createPendingInvitation(business.id, user.id, 'decline-me@example.com');
 
-      const timestamp = new Date();
-      const result = await updateInvitationStatus(inv[0].id, 'declined', timestamp);
+      const result = await updateInvitationStatus(inv.id, 'declined', new Date());
 
       expect(result?.status).toBe('declined');
       expect(result?.declinedAt).toBeTruthy();
@@ -217,14 +155,7 @@ describe('invitation-repository', () => {
       const business = await createTestBusiness(user.id);
       const email = `existing-${randomUUID()}@example.com`;
 
-      await db.insert(businessInvitations).values({
-        businessId: business.id,
-        email,
-        role: 'user',
-        invitedByUserId: user.id,
-        token: randomUUID(),
-        expiresAt: new Date(Date.now() + 86400000),
-      });
+      await createPendingInvitation(business.id, user.id, email);
 
       const result = await findExistingInvitation(business.id, email);
 
@@ -238,19 +169,8 @@ describe('invitation-repository', () => {
       const business = await createTestBusiness(user.id);
       const email = `changed-${randomUUID()}@example.com`;
 
-      const inv = await db
-        .insert(businessInvitations)
-        .values({
-          businessId: business.id,
-          email,
-          role: 'user',
-          invitedByUserId: user.id,
-          token: randomUUID(),
-          expiresAt: new Date(Date.now() + 86400000),
-        })
-        .returning();
-
-      await updateInvitationStatus(inv[0].id, 'accepted', new Date());
+      const inv = await createPendingInvitation(business.id, user.id, email);
+      await updateInvitationStatus(inv.id, 'accepted', new Date());
 
       const result = await findExistingInvitation(business.id, email);
 

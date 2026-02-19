@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { randomUUID } from 'node:crypto';
 import { injectAuthed } from '../utils/inject.js';
 import * as businessService from '../../src/services/business-service.js';
 import { conflict } from '../../src/lib/app-error.js';
@@ -8,6 +7,8 @@ import {
   createAuthedUser,
   createUser,
   createTestBusiness,
+  createOwnerWithBusiness,
+  createMemberInBusiness,
   addUserToBusiness,
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
@@ -85,13 +86,8 @@ describe('routes/businesses', () => {
 
   describe('GET /businesses', () => {
     it('returns list of all businesses the user belongs to', async () => {
-      const { user, sessionId } = await createAuthedUser();
-
-      const regNum1 = makeRegNum();
-      const regNum2 = makeRegNum();
-      const biz1 = await createTestBusiness(user.id, { registrationNumber: regNum1 });
-      const biz2 = await createTestBusiness(user.id, { registrationNumber: regNum2 });
-      await addUserToBusiness(user.id, biz1.id, 'owner');
+      const { user, sessionId, business: biz1 } = await createOwnerWithBusiness();
+      const biz2 = await createTestBusiness(user.id);
       await addUserToBusiness(user.id, biz2.id, 'admin');
 
       vi.spyOn(businessService, 'listBusinessesForUser').mockResolvedValueOnce({
@@ -100,7 +96,7 @@ describe('routes/businesses', () => {
             id: biz1.id,
             name: biz1.name,
             businessType: biz1.businessType,
-            registrationNumber: regNum1,
+            registrationNumber: biz1.registrationNumber,
             isActive: biz1.isActive,
             role: 'owner',
           },
@@ -108,7 +104,7 @@ describe('routes/businesses', () => {
             id: biz2.id,
             name: biz2.name,
             businessType: biz2.businessType,
-            registrationNumber: regNum2,
+            registrationNumber: biz2.registrationNumber,
             isActive: biz2.isActive,
             role: 'admin',
           },
@@ -128,9 +124,7 @@ describe('routes/businesses', () => {
 
   describe('GET /businesses/:businessId', () => {
     it('returns business for a member', async () => {
-      const { user, sessionId } = await createAuthedUser();
-      const business = await createTestBusiness(user.id);
-      await addUserToBusiness(user.id, business.id, 'owner');
+      const { sessionId, business } = await createOwnerWithBusiness();
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
@@ -144,7 +138,7 @@ describe('routes/businesses', () => {
 
     it('returns 404 for non-member', async () => {
       const { sessionId } = await createAuthedUser();
-      const otherUser = await createUser({ email: `other-${randomUUID()}@example.com` });
+      const otherUser = await createUser();
       const business = await createTestBusiness(otherUser.id);
 
       const res = await injectAuthed(ctx.app, sessionId, {
@@ -158,9 +152,7 @@ describe('routes/businesses', () => {
 
   describe('PUT /businesses/:businessId', () => {
     it('updates business for owner', async () => {
-      const { user, sessionId } = await createAuthedUser();
-      const business = await createTestBusiness(user.id);
-      await addUserToBusiness(user.id, business.id, 'owner');
+      const { sessionId, business } = await createOwnerWithBusiness();
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'PUT',
@@ -174,11 +166,7 @@ describe('routes/businesses', () => {
     });
 
     it('returns 404 for user with role=user', async () => {
-      const { user, sessionId } = await createAuthedUser();
-      const ownerUser = await createUser({ email: `owner-${randomUUID()}@example.com` });
-      const business = await createTestBusiness(ownerUser.id);
-      await addUserToBusiness(ownerUser.id, business.id, 'owner');
-      await addUserToBusiness(user.id, business.id, 'user');
+      const { sessionId, business } = await createMemberInBusiness('user');
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'PUT',
@@ -192,9 +180,7 @@ describe('routes/businesses', () => {
 
   describe('GET /businesses/:businessId/team', () => {
     it('returns team array for member', async () => {
-      const { user, sessionId } = await createAuthedUser();
-      const business = await createTestBusiness(user.id);
-      await addUserToBusiness(user.id, business.id, 'owner');
+      const { sessionId, business } = await createOwnerWithBusiness();
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
@@ -210,11 +196,8 @@ describe('routes/businesses', () => {
 
   describe('DELETE /businesses/:businessId/team/:userId', () => {
     it('allows owner to remove a user-role member', async () => {
-      const { user: owner, sessionId } = await createAuthedUser();
-      const business = await createTestBusiness(owner.id);
-      await addUserToBusiness(owner.id, business.id, 'owner');
-
-      const member = await createUser({ email: `member-${randomUUID()}@example.com` });
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const member = await createUser();
       await addUserToBusiness(member.id, business.id, 'user');
 
       const res = await injectAuthed(ctx.app, sessionId, {
@@ -227,11 +210,8 @@ describe('routes/businesses', () => {
     });
 
     it('returns 403 when trying to remove an owner', async () => {
-      const { user: owner, sessionId } = await createAuthedUser();
-      const business = await createTestBusiness(owner.id);
-      await addUserToBusiness(owner.id, business.id, 'owner');
-
-      const otherOwner = await createUser({ email: `owner2-${randomUUID()}@example.com` });
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const otherOwner = await createUser();
       await addUserToBusiness(otherOwner.id, business.id, 'owner');
 
       const res = await injectAuthed(ctx.app, sessionId, {
