@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BusinessSettings } from '../../pages/BusinessSettings';
 import { renderWithProviders } from '../utils/renderWithProviders';
@@ -141,5 +141,92 @@ describe('BusinessSettings page', () => {
     const callArgs = vi.mocked(businessesApi.updateBusiness).mock.calls[0];
     expect(callArgs?.[0]).toBe('biz-1');
     expect(callArgs?.[1]).not.toHaveProperty('registrationNumber');
+  });
+
+  it('shows phone validation error when phone is invalid', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: activeBusinessStub,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: mockBusiness,
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+
+    const phoneInput = await screen.findByRole('textbox', { name: /טלפון/ });
+    await user.type(phoneInput, '12345');
+
+    await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('מספר טלפון לא תקין')).toBeInTheDocument();
+    });
+  });
+
+  it('shows email validation error when email is invalid', async () => {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: activeBusinessStub,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: mockBusiness,
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+
+    const emailInput = await screen.findByRole('textbox', { name: /אימייל/ });
+    fireEvent.change(emailInput, { target: { value: 'not-an-email' } });
+
+    const form = screen.getByRole('button', { name: 'שמור שינויים' }).closest('form')!;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText('כתובת אימייל לא תקינה')).toBeInTheDocument();
+    });
+  });
+
+  it('populates form from fetched business with null optional fields', async () => {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: activeBusinessStub,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: {
+        ...mockBusiness,
+        postalCode: null,
+        phone: null,
+        email: null,
+        invoiceNumberPrefix: null,
+      },
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+
+    const nameInput = await screen.findByRole('textbox', { name: /שם העסק/ });
+    expect(nameInput).toHaveValue('Test Co');
+
+    const phoneInput = screen.getByRole('textbox', { name: /טלפון/ });
+    expect(phoneInput).toHaveValue('');
   });
 });

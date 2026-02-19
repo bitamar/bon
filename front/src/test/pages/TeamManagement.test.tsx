@@ -197,10 +197,10 @@ describe('TeamManagement page', () => {
       expect(screen.getByText('הסרת משתמש')).toBeInTheDocument();
     });
 
-    const confirmButton = screen.getAllByRole('button', { name: 'הסר' }).find((btn) => {
-      return btn.closest('[role="dialog"]') !== null;
-    });
-    await user.click(confirmButton!);
+    const buttons = screen.getAllByRole('button', { name: 'הסר' });
+    const confirmButton = buttons.find((btn) => btn.closest('[role="dialog"]') !== null);
+    if (!confirmButton) throw new Error('confirm button not found in dialog');
+    await user.click(confirmButton);
 
     await waitFor(() => {
       expect(businessesApi.removeTeamMember).toHaveBeenCalledWith('biz-1', 'u-2');

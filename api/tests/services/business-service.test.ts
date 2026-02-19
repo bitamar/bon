@@ -29,7 +29,7 @@ function makeBusinessInput(overrides: Partial<{ registrationNumber: string; name
     name: overrides.name ?? 'Acme Ltd',
     businessType: 'licensed_dealer' as const,
     registrationNumber:
-      overrides.registrationNumber ?? `${randomUUID().replace(/-/g, '').slice(0, 9)}`,
+      overrides.registrationNumber ?? `${randomUUID().replaceAll('-', '').slice(0, 9)}`,
     streetAddress: '1 Main St',
     city: 'Tel Aviv',
   };
@@ -132,6 +132,26 @@ describe('business-service', () => {
       ).rejects.toMatchObject({
         statusCode: 404,
       });
+    });
+
+    it('updates logoUrl when provided', async () => {
+      const user = await createUser();
+      const { business } = await createBusiness(user.id, makeBusinessInput());
+
+      const result = await updateBusinessById(business.id, 'owner', {
+        logoUrl: 'https://example.com/logo.png',
+      });
+
+      expect(result.business.logoUrl).toBe('https://example.com/logo.png');
+    });
+
+    it('updates isActive to false when provided', async () => {
+      const user = await createUser();
+      const { business } = await createBusiness(user.id, makeBusinessInput());
+
+      const result = await updateBusinessById(business.id, 'owner', { isActive: false });
+
+      expect(result.business.isActive).toBe(false);
     });
   });
 

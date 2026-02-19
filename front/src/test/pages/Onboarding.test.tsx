@@ -87,6 +87,53 @@ describe('Onboarding page', () => {
     });
   });
 
+  it('switching from exempt_dealer to licensed_dealer with 9-digit registrationNumber auto-populates vatNumber', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<Onboarding />);
+
+    // First select exempt_dealer
+    await user.click(screen.getByText('עוסק פטור'));
+
+    await waitFor(() => {
+      const vatInput = screen.getByRole('textbox', { name: /מספר מע"מ/ });
+      expect(vatInput).toBeDisabled();
+    });
+
+    // Type a valid 9-digit registration number while exempt
+    const regInput = screen.getByRole('textbox', { name: /מספר רישום/ });
+    await user.type(regInput, '987654321');
+
+    // Now switch back to licensed_dealer
+    await user.click(screen.getByText('עוסק מורשה'));
+
+    await waitFor(() => {
+      const vatInput = screen.getByRole('textbox', { name: /מספר עוסק מורשה/ });
+      expect(vatInput).toHaveValue('987654321');
+    });
+  });
+
+  it('switching from exempt_dealer to licensed_dealer without 9-digit registrationNumber does not auto-populate vatNumber', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<Onboarding />);
+
+    // First select exempt_dealer
+    await user.click(screen.getByText('עוסק פטור'));
+
+    // Type a partial (non-9-digit) registration number while exempt
+    const regInput = screen.getByRole('textbox', { name: /מספר רישום/ });
+    await user.type(regInput, '123');
+
+    // Switch back to licensed_dealer
+    await user.click(screen.getByText('עוסק מורשה'));
+
+    await waitFor(() => {
+      const vatInput = screen.getByRole('textbox', { name: /מספר עוסק מורשה/ });
+      expect(vatInput).toHaveValue('');
+    });
+  });
+
   it('successful submission calls createBusiness with correct payload', async () => {
     const user = userEvent.setup();
 

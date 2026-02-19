@@ -62,10 +62,10 @@ describe('routes/auth', () => {
   });
 
   it('GET /auth/google/callback without cookie returns 400', async () => {
-    const app = Fastify();
-    await app.register(cookie, { secret: 's' });
-    await app.register(errorPlugin);
-    await app.register(authRoutes);
+    const { finishGoogleAuth } = await import('../../src/auth/service.js');
+    vi.mocked(finishGoogleAuth).mockResolvedValueOnce({ ok: false, error: 'missing_cookie' });
+
+    const app = await buildApp();
     const res = await app.inject({ method: 'GET', url: '/auth/google/callback?code=x&state=s' });
     expect(res.statusCode).toBe(400);
     const body = res.json();
@@ -182,7 +182,9 @@ describe('routes/auth', () => {
 
       expect(res.statusCode).toBe(302);
       expect(res.headers.location).toBe('http://localhost:5173/');
-      expect(res.headers['set-cookie']).toMatch(/session=/);
+      const setCookie = res.headers['set-cookie'];
+      const cookieStr = Array.isArray(setCookie) ? setCookie.join('; ') : String(setCookie ?? '');
+      expect(cookieStr).toMatch(/session=/);
       await app.close();
     });
   });

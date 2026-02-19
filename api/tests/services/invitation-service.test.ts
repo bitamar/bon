@@ -29,7 +29,7 @@ async function createBusiness(userId: string, registrationNumber?: string) {
     .values({
       name: 'Test Business',
       businessType: 'licensed_dealer',
-      registrationNumber: registrationNumber ?? `${randomUUID().replace(/-/g, '').slice(0, 9)}`,
+      registrationNumber: registrationNumber ?? `${randomUUID().replaceAll('-', '').slice(0, 9)}`,
       streetAddress: '1 Main St',
       city: 'Tel Aviv',
       createdByUserId: userId,
@@ -285,6 +285,34 @@ describe('invitation-service', () => {
         where: (t, { eq }) => eq(t.id, inv.id),
       });
       expect(updatedInv?.status).toBe('declined');
+    });
+
+    it('throws notFound for unknown token', async () => {
+      const user = await createUser();
+
+      await expect(
+        declineInvitation(
+          'nonexistenttoken00000000000000000000000000000000000000000000000000',
+          user.id,
+          user.email
+        )
+      ).rejects.toMatchObject({ statusCode: 404, code: 'invitation_not_found' });
+    });
+
+    it('throws badRequest for non-pending invitation', async () => {
+      const owner = await createUser();
+      const business = await createBusiness(owner.id);
+      const invitee = await createUser();
+
+      const inv = await insertInvitation(business.id, owner.id, {
+        email: invitee.email,
+        status: 'accepted',
+      });
+
+      await expect(declineInvitation(inv.token, invitee.id, invitee.email)).rejects.toMatchObject({
+        statusCode: 400,
+        code: 'invitation_not_pending',
+      });
     });
 
     it('throws forbidden for email mismatch', async () => {

@@ -9,6 +9,11 @@ vi.mock('../../api/businesses', () => ({ fetchBusinesses: vi.fn() }));
 
 import { fetchBusinesses } from '../../api/businesses';
 
+function _NoBusinessProvider() {
+  useBusiness();
+  return null;
+}
+
 const mockBusiness1 = {
   id: 'biz-1',
   name: 'Acme Ltd',
@@ -111,15 +116,24 @@ describe('BusinessContext', () => {
     });
   });
 
+  it('clears activeBusiness when saved localStorage id is not in list and list is empty', async () => {
+    localStorage.setItem('bon:activeBusiness', 'biz-unknown');
+    vi.mocked(fetchBusinesses).mockResolvedValue({ businesses: [] });
+
+    renderBusinessContext();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading').textContent).toBe('false');
+    });
+
+    expect(screen.getByTestId('active').textContent).toBe('none');
+    expect(screen.getByTestId('count').textContent).toBe('0');
+  });
+
   it('useBusiness throws when used outside BusinessProvider', () => {
     const restore = suppressConsoleError('useBusiness must be used within BusinessProvider');
 
-    function NoProvider() {
-      useBusiness();
-      return null;
-    }
-
-    expect(() => renderWithProviders(<NoProvider />)).toThrow(
+    expect(() => renderWithProviders(<_NoBusinessProvider />)).toThrow(
       'useBusiness must be used within BusinessProvider'
     );
 

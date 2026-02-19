@@ -16,6 +16,25 @@ async function buildApp(envOverrides: Record<string, unknown>) {
   return app;
 }
 
+// Like buildApp, but also returns AppError from the same module instance so that
+// `instanceof AppError` checks inside errorPlugin work correctly after vi.resetModules().
+async function buildAppWithFreshImports(envOverrides: Record<string, unknown>) {
+  vi.resetModules();
+  vi.doMock('../../src/env.js', () => ({
+    env: {
+      NODE_ENV: 'development',
+      ...envOverrides,
+    },
+  }));
+  const [{ errorPlugin }, { AppError: FreshAppError }] = await Promise.all([
+    import('../../src/plugins/errors.js'),
+    import('../../src/lib/app-error.js'),
+  ]);
+  const app = Fastify({ logger: { level: 'silent' } });
+  await app.register(errorPlugin);
+  return { app, AppError: FreshAppError };
+}
+
 describe('errorPlugin', () => {
   afterEach(async () => {
     vi.resetModules();
@@ -79,10 +98,12 @@ describe('errorPlugin', () => {
 
   describe('applyRateLimitFields', () => {
     it('populates max and reset from details when present as numbers', async () => {
-      const app = await buildApp({ NODE_ENV: 'development' });
+      const { app, AppError: FreshAppError } = await buildAppWithFreshImports({
+        NODE_ENV: 'development',
+      });
 
       app.get('/rate-limit-details', async () => {
-        throw new AppError({
+        throw new FreshAppError({
           statusCode: 429,
           code: 'too_many_requests',
           message: 'Too many requests',
@@ -100,10 +121,12 @@ describe('errorPlugin', () => {
     });
 
     it('populates reset from details.ttl when details.reset is absent', async () => {
-      const app = await buildApp({ NODE_ENV: 'development' });
+      const { app, AppError: FreshAppError } = await buildAppWithFreshImports({
+        NODE_ENV: 'development',
+      });
 
       app.get('/rate-limit-ttl', async () => {
-        throw new AppError({
+        throw new FreshAppError({
           statusCode: 429,
           code: 'too_many_requests',
           message: 'Too many requests',
@@ -121,10 +144,12 @@ describe('errorPlugin', () => {
     });
 
     it('does not overwrite reset when already set on body via extras', async () => {
-      const app = await buildApp({ NODE_ENV: 'development' });
+      const { app, AppError: FreshAppError } = await buildAppWithFreshImports({
+        NODE_ENV: 'development',
+      });
 
       app.get('/rate-limit-extras-reset', async () => {
-        throw new AppError({
+        throw new FreshAppError({
           statusCode: 429,
           code: 'too_many_requests',
           message: 'Too many requests',

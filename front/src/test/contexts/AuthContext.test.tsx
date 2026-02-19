@@ -13,6 +13,11 @@ vi.mock('../../auth/api', () => ({
 
 import { getMe, logout as apiLogout } from '../../auth/api';
 
+function NoAuthProvider() {
+  useAuth();
+  return null;
+}
+
 function TestConsumer() {
   const { user, isHydrated, loginWithGoogle, logout } = useAuth();
   return (
@@ -136,12 +141,7 @@ describe('AuthContext', () => {
   it('useAuth throws when used outside AuthProvider', () => {
     const restore = suppressConsoleError('useAuth must be used within AuthProvider');
 
-    function NoProvider() {
-      useAuth();
-      return null;
-    }
-
-    expect(() => renderWithProviders(<NoProvider />)).toThrow(
+    expect(() => renderWithProviders(<NoAuthProvider />)).toThrow(
       'useAuth must be used within AuthProvider'
     );
 

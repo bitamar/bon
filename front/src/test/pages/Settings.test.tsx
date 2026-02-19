@@ -112,4 +112,51 @@ describe('Settings page', () => {
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalledTimes(2));
   });
+
+  it('populates name and phone as empty string when fetched values are null', async () => {
+    getSettingsMock.mockResolvedValue({
+      user: {
+        id: 'u1',
+        email: 'user@example.com',
+        name: null,
+        avatarUrl: null,
+        phone: null,
+      },
+    });
+
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    expect(await screen.findByLabelText(/Name/)).toHaveValue('');
+    expect(await screen.findByLabelText(/Phone/)).toHaveValue('');
+  });
+
+  it('submits null for name and phone when inputs are blank or whitespace-only', async () => {
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    const nameInput = await screen.findByLabelText(/Name/);
+    const phoneInput = await screen.findByLabelText(/Phone/);
+
+    fireEvent.change(nameInput, { target: { value: '   ' } });
+    fireEvent.change(phoneInput, { target: { value: '   ' } });
+
+    const user = userEvent.setup();
+    updateSettingsMock.mockResolvedValue({
+      user: {
+        id: 'u1',
+        email: 'user@example.com',
+        name: null,
+        avatarUrl: null,
+        phone: null,
+      },
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(updateSettingsMock).toHaveBeenCalled());
+    expect(updateSettingsMock.mock.calls[0]?.[0]).toEqual({ name: null, phone: null });
+  });
 });
