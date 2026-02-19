@@ -5,69 +5,14 @@ import { buildServer } from '../../src/app.js';
 import { resetDb } from '../utils/db.js';
 import { injectAuthed } from '../utils/inject.js';
 import { db } from '../../src/db/client.js';
-import { users, businesses, userBusinesses, businessInvitations } from '../../src/db/schema.js';
-import * as sessionModule from '../../src/auth/session.js';
+import { users, businessInvitations } from '../../src/db/schema.js';
+import { createAuthedUser, createTestBusiness, addUserToBusiness } from '../utils/businesses.js';
 
 vi.mock('openid-client', () => ({
   discovery: vi.fn().mockResolvedValue({}),
   ClientSecretPost: (secret: string) => ({ secret }),
   authorizationCodeGrant: vi.fn(),
 }));
-
-async function createAuthedUser(overrides: Partial<typeof users.$inferInsert> = {}) {
-  const [user] = await db
-    .insert(users)
-    .values({
-      email: overrides.email ?? `user-${randomUUID()}@example.com`,
-      name: overrides.name ?? 'Tester',
-    })
-    .returning();
-
-  const sessionId = `session-${randomUUID()}`;
-  const now = new Date();
-  vi.spyOn(sessionModule, 'getSession').mockResolvedValue({
-    id: sessionId,
-    user,
-    createdAt: now,
-    lastAccessedAt: now,
-  });
-
-  return { user, sessionId };
-}
-
-async function createTestBusiness(
-  userId: string,
-  overrides: Partial<typeof businesses.$inferInsert> = {}
-) {
-  const now = new Date();
-  const [business] = await db
-    .insert(businesses)
-    .values({
-      name: 'Test Business',
-      businessType: 'licensed_dealer',
-      registrationNumber: `REG-${randomUUID().slice(0, 9)}`,
-      streetAddress: '1 Main St',
-      city: 'Tel Aviv',
-      createdByUserId: userId,
-      createdAt: now,
-      updatedAt: now,
-      ...overrides,
-    })
-    .returning();
-  return business!;
-}
-
-async function addUserToBusiness(
-  userId: string,
-  businessId: string,
-  role: 'owner' | 'admin' | 'user'
-) {
-  const [ub] = await db
-    .insert(userBusinesses)
-    .values({ userId, businessId, role, createdAt: new Date() })
-    .returning();
-  return ub!;
-}
 
 async function createPendingInvitation(
   businessId: string,
