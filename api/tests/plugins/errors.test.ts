@@ -76,4 +76,70 @@ describe('errorPlugin', () => {
 
     await app.close();
   });
+
+  describe('applyRateLimitFields', () => {
+    it('populates max and reset from details when present as numbers', async () => {
+      const app = await buildApp({ NODE_ENV: 'development' });
+
+      app.get('/rate-limit-details', async () => {
+        throw new AppError({
+          statusCode: 429,
+          code: 'too_many_requests',
+          message: 'Too many requests',
+          details: { max: 10, reset: 30 },
+        });
+      });
+
+      const res = await app.inject({ method: 'GET', url: '/rate-limit-details' });
+      expect(res.statusCode).toBe(429);
+      const body = res.json() as Record<string, unknown>;
+      expect(body['max']).toBe(10);
+      expect(body['reset']).toBe(30);
+
+      await app.close();
+    });
+
+    it('populates reset from details.ttl when details.reset is absent', async () => {
+      const app = await buildApp({ NODE_ENV: 'development' });
+
+      app.get('/rate-limit-ttl', async () => {
+        throw new AppError({
+          statusCode: 429,
+          code: 'too_many_requests',
+          message: 'Too many requests',
+          details: { max: 5, ttl: 60 },
+        });
+      });
+
+      const res = await app.inject({ method: 'GET', url: '/rate-limit-ttl' });
+      expect(res.statusCode).toBe(429);
+      const body = res.json() as Record<string, unknown>;
+      expect(body['max']).toBe(5);
+      expect(body['reset']).toBe(60);
+
+      await app.close();
+    });
+
+    it('does not overwrite reset when already set on body via extras', async () => {
+      const app = await buildApp({ NODE_ENV: 'development' });
+
+      app.get('/rate-limit-extras-reset', async () => {
+        throw new AppError({
+          statusCode: 429,
+          code: 'too_many_requests',
+          message: 'Too many requests',
+          extras: { reset: 99 },
+          details: { reset: 42 },
+        });
+      });
+
+      const res = await app.inject({ method: 'GET', url: '/rate-limit-extras-reset' });
+      expect(res.statusCode).toBe(429);
+      const body = res.json() as Record<string, unknown>;
+      // extras.reset (99) is written to body first; applyRateLimitFields should not overwrite it
+      expect(body['reset']).toBe(99);
+
+      await app.close();
+    });
+  });
 });

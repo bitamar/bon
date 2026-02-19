@@ -171,4 +171,39 @@ describe('TeamManagement page', () => {
     expect(callArgs?.[0]).toBe('biz-1');
     expect(callArgs?.[1]?.email).toBe('newuser@example.com');
   });
+
+  it('shows "אין חברי צוות" StatusCard when team is empty', async () => {
+    vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue({ team: [] });
+
+    renderWithProviders(<TeamManagement />);
+
+    expect(await screen.findByText('אין חברי צוות')).toBeInTheDocument();
+    expect(screen.getByText('הזמן משתמשים לצוות כדי לשתף פעולה')).toBeInTheDocument();
+  });
+
+  it('confirm remove button calls removeTeamMember and invalidates query', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListWithNonOwner);
+    vi.mocked(businessesApi.removeTeamMember).mockResolvedValue(undefined);
+
+    renderWithProviders(<TeamManagement />);
+
+    await screen.findByText('Bob');
+
+    await user.click(screen.getByRole('button', { name: 'הסר' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('הסרת משתמש')).toBeInTheDocument();
+    });
+
+    const confirmButton = screen.getAllByRole('button', { name: 'הסר' }).find((btn) => {
+      return btn.closest('[role="dialog"]') !== null;
+    });
+    await user.click(confirmButton!);
+
+    await waitFor(() => {
+      expect(businessesApi.removeTeamMember).toHaveBeenCalledWith('biz-1', 'u-2');
+    });
+  });
 });

@@ -1,9 +1,10 @@
-import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { resetDb } from '../utils/db.js';
 import { db } from '../../src/db/client.js';
 import { users } from '../../src/db/schema.js';
 import { getSettingsFromUser, updateSettingsForUser } from '../../src/services/user-service.js';
+import * as userRepository from '../../src/repositories/user-repository.js';
 
 async function createUser(overrides: Partial<typeof users.$inferInsert> = {}) {
   const [user] = await db
@@ -59,5 +60,21 @@ describe('user-service', () => {
     });
     expect(row?.name).toBe('After Update');
     expect(row?.phone).toBe('050-7654321');
+  });
+
+  it('throws conflict with code duplicate_phone when updateUserById throws a 23505 error', async () => {
+    const pgError = Object.assign(new Error('duplicate key value violates unique constraint'), {
+      code: '23505',
+    });
+    const spy = vi.spyOn(userRepository, 'updateUserById').mockRejectedValueOnce(pgError);
+
+    await expect(
+      updateSettingsForUser(randomUUID(), { phone: '050-0000000' })
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'duplicate_phone',
+    });
+
+    spy.mockRestore();
   });
 });
