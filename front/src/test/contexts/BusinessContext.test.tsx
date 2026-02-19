@@ -9,7 +9,7 @@ vi.mock('../../api/businesses', () => ({ fetchBusinesses: vi.fn() }));
 
 import { fetchBusinesses } from '../../api/businesses';
 
-function _NoBusinessProvider() {
+function NoBusinessProvider() {
   useBusiness();
   return null;
 }
@@ -133,7 +133,7 @@ describe('BusinessContext', () => {
   it('useBusiness throws when used outside BusinessProvider', () => {
     const restore = suppressConsoleError('useBusiness must be used within BusinessProvider');
 
-    expect(() => renderWithProviders(<_NoBusinessProvider />)).toThrow(
+    expect(() => renderWithProviders(<NoBusinessProvider />)).toThrow(
       'useBusiness must be used within BusinessProvider'
     );
 
