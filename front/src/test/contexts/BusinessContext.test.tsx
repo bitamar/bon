@@ -39,6 +39,14 @@ function TestConsumer() {
   );
 }
 
+function renderBusinessContext() {
+  return renderWithProviders(
+    <BusinessProvider>
+      <TestConsumer />
+    </BusinessProvider>
+  );
+}
+
 describe('BusinessContext', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -48,11 +56,7 @@ describe('BusinessContext', () => {
   it('isLoading is true initially', () => {
     vi.mocked(fetchBusinesses).mockReturnValue(new Promise(() => {}));
 
-    renderWithProviders(
-      <BusinessProvider>
-        <TestConsumer />
-      </BusinessProvider>
-    );
+    renderBusinessContext();
 
     expect(screen.getByTestId('loading').textContent).toBe('true');
   });
@@ -60,11 +64,7 @@ describe('BusinessContext', () => {
   it('auto-selects first business when fetchBusinesses returns a list', async () => {
     vi.mocked(fetchBusinesses).mockResolvedValue({ businesses: [mockBusiness1, mockBusiness2] });
 
-    renderWithProviders(
-      <BusinessProvider>
-        <TestConsumer />
-      </BusinessProvider>
-    );
+    renderBusinessContext();
 
     await waitFor(() => {
       expect(screen.getByTestId('active').textContent).toBe('Acme Ltd');
@@ -77,11 +77,7 @@ describe('BusinessContext', () => {
     localStorage.setItem('bon:activeBusiness', 'biz-2');
     vi.mocked(fetchBusinesses).mockResolvedValue({ businesses: [mockBusiness1, mockBusiness2] });
 
-    renderWithProviders(
-      <BusinessProvider>
-        <TestConsumer />
-      </BusinessProvider>
-    );
+    renderBusinessContext();
 
     await waitFor(() => {
       expect(screen.getByTestId('loading').textContent).toBe('false');
@@ -95,11 +91,7 @@ describe('BusinessContext', () => {
     localStorage.setItem('bon:activeBusiness', 'biz-unknown');
     vi.mocked(fetchBusinesses).mockResolvedValue({ businesses: [mockBusiness1, mockBusiness2] });
 
-    renderWithProviders(
-      <BusinessProvider>
-        <TestConsumer />
-      </BusinessProvider>
-    );
+    renderBusinessContext();
 
     await waitFor(() => {
       expect(screen.getByTestId('active').textContent).toBe('Acme Ltd');
@@ -109,11 +101,7 @@ describe('BusinessContext', () => {
   it('switchBusiness updates the activeBusiness', async () => {
     vi.mocked(fetchBusinesses).mockResolvedValue({ businesses: [mockBusiness1, mockBusiness2] });
 
-    renderWithProviders(
-      <BusinessProvider>
-        <TestConsumer />
-      </BusinessProvider>
-    );
+    renderBusinessContext();
 
     await waitFor(() => {
       expect(screen.getByTestId('active').textContent).toBe('Acme Ltd');

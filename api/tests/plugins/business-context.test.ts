@@ -1,12 +1,13 @@
-import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
-import { buildServer } from '../../src/app.js';
-import { resetDb } from '../utils/db.js';
 import { injectAuthed } from '../utils/inject.js';
-import { db } from '../../src/db/client.js';
-import { users } from '../../src/db/schema.js';
-import { createAuthedUser, createTestBusiness, addUserToBusiness } from '../utils/businesses.js';
+import {
+  createAuthedUser,
+  createUser,
+  createTestBusiness,
+  addUserToBusiness,
+} from '../utils/businesses.js';
+import { setupIntegrationTest } from '../utils/server.js';
 
 vi.mock('openid-client', () => ({
   discovery: vi.fn().mockResolvedValue({}),
@@ -15,24 +16,7 @@ vi.mock('openid-client', () => ({
 }));
 
 describe('plugins/business-context', () => {
-  let app: FastifyInstance;
-
-  beforeAll(async () => {
-    app = await buildServer({ logger: false });
-  });
-
-  afterAll(async () => {
-    await app.close();
-  });
-
-  beforeEach(async () => {
-    await resetDb();
-  });
-
-  afterEach(async () => {
-    vi.restoreAllMocks();
-    await resetDb();
-  });
+  const ctx = setupIntegrationTest();
 
   describe('requireBusinessAccess', () => {
     it('sets businessContext for a member and allows access', async () => {
@@ -40,8 +24,7 @@ describe('plugins/business-context', () => {
       const business = await createTestBusiness(user.id);
       await addUserToBusiness(user.id, business.id, 'owner');
 
-      // GET /businesses/:businessId exercises requireBusinessAccess
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
         url: `/businesses/${business.id}`,
       });
@@ -54,14 +37,10 @@ describe('plugins/business-context', () => {
 
     it('returns 404 for a non-member', async () => {
       const { sessionId } = await createAuthedUser();
+      const otherUser = await createUser({ email: `other-${randomUUID()}@example.com` });
+      const business = await createTestBusiness(otherUser.id);
 
-      const [otherUser] = await db
-        .insert(users)
-        .values({ email: `other-${randomUUID()}@example.com`, name: 'Other' })
-        .returning();
-      const business = await createTestBusiness(otherUser!.id);
-
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
         url: `/businesses/${business.id}`,
       });
@@ -76,8 +55,7 @@ describe('plugins/business-context', () => {
       const business = await createTestBusiness(user.id);
       await addUserToBusiness(user.id, business.id, 'owner');
 
-      // PUT /businesses/:businessId requires owner or admin
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'PUT',
         url: `/businesses/${business.id}`,
         payload: { name: 'New Name' },
@@ -88,17 +66,12 @@ describe('plugins/business-context', () => {
 
     it('returns 404 when user role is insufficient (role=user)', async () => {
       const { user, sessionId } = await createAuthedUser();
-
-      const [ownerUser] = await db
-        .insert(users)
-        .values({ email: `owner-${randomUUID()}@example.com`, name: 'Owner' })
-        .returning();
-      const business = await createTestBusiness(ownerUser!.id);
-      await addUserToBusiness(ownerUser!.id, business.id, 'owner');
+      const ownerUser = await createUser({ email: `owner-${randomUUID()}@example.com` });
+      const business = await createTestBusiness(ownerUser.id);
+      await addUserToBusiness(ownerUser.id, business.id, 'owner');
       await addUserToBusiness(user.id, business.id, 'user');
 
-      // PUT /businesses/:businessId requires owner or admin; user with role=user should be blocked
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'PUT',
         url: `/businesses/${business.id}`,
         payload: { name: 'Hacked Name' },
@@ -113,12 +86,11 @@ describe('plugins/business-context', () => {
       const { sessionId } = await createAuthedUser();
       const fakeId = randomUUID();
 
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
         url: `/businesses/${fakeId}`,
       });
 
-      // requireBusinessAccess throws notFound when no userBusiness found
       expect(res.statusCode).toBe(404);
     });
   });

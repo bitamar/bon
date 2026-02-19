@@ -1,12 +1,15 @@
-import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
-import { buildServer } from '../../src/app.js';
-import { resetDb } from '../utils/db.js';
-import { injectAuthed } from '../utils/inject.js';
 import { db } from '../../src/db/client.js';
-import { users, businessInvitations } from '../../src/db/schema.js';
-import { createAuthedUser, createTestBusiness, addUserToBusiness } from '../utils/businesses.js';
+import { businessInvitations } from '../../src/db/schema.js';
+import { injectAuthed } from '../utils/inject.js';
+import {
+  createAuthedUser,
+  createUser,
+  createTestBusiness,
+  addUserToBusiness,
+} from '../utils/businesses.js';
+import { setupIntegrationTest } from '../utils/server.js';
 
 vi.mock('openid-client', () => ({
   discovery: vi.fn().mockResolvedValue({}),
@@ -39,24 +42,7 @@ async function createPendingInvitation(
 }
 
 describe('routes/invitations', () => {
-  let app: FastifyInstance;
-
-  beforeAll(async () => {
-    app = await buildServer({ logger: false });
-  });
-
-  afterAll(async () => {
-    await app.close();
-  });
-
-  beforeEach(async () => {
-    await resetDb();
-  });
-
-  afterEach(async () => {
-    vi.restoreAllMocks();
-    await resetDb();
-  });
+  const ctx = setupIntegrationTest();
 
   describe('POST /businesses/:businessId/invitations', () => {
     it('allows owner to invite a user', async () => {
@@ -64,7 +50,7 @@ describe('routes/invitations', () => {
       const business = await createTestBusiness(user.id);
       await addUserToBusiness(user.id, business.id, 'owner');
 
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'POST',
         url: `/businesses/${business.id}/invitations`,
         payload: { email: 'invite@example.com', role: 'user' },
@@ -76,16 +62,12 @@ describe('routes/invitations', () => {
 
     it('returns 404 for user with role=user', async () => {
       const { user, sessionId } = await createAuthedUser();
-
-      const [ownerUser] = await db
-        .insert(users)
-        .values({ email: `owner-${randomUUID()}@example.com`, name: 'Owner' })
-        .returning();
-      const business = await createTestBusiness(ownerUser!.id);
-      await addUserToBusiness(ownerUser!.id, business.id, 'owner');
+      const ownerUser = await createUser({ email: `owner-${randomUUID()}@example.com` });
+      const business = await createTestBusiness(ownerUser.id);
+      await addUserToBusiness(ownerUser.id, business.id, 'owner');
       await addUserToBusiness(user.id, business.id, 'user');
 
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'POST',
         url: `/businesses/${business.id}/invitations`,
         payload: { email: 'invite@example.com', role: 'user' },
@@ -102,7 +84,7 @@ describe('routes/invitations', () => {
       const inviteeEmail = `invitee-${randomUUID()}@example.com`;
       await createPendingInvitation(business.id, user.id, inviteeEmail);
 
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'POST',
         url: `/businesses/${business.id}/invitations`,
         payload: { email: inviteeEmail, role: 'user' },
@@ -120,7 +102,7 @@ describe('routes/invitations', () => {
       await addUserToBusiness(user.id, business.id, 'owner');
       await createPendingInvitation(business.id, user.id, `inv-${randomUUID()}@example.com`);
 
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
         url: `/businesses/${business.id}/invitations`,
       });
@@ -137,14 +119,11 @@ describe('routes/invitations', () => {
       const inviteeEmail = `invitee-${randomUUID()}@example.com`;
       const { sessionId } = await createAuthedUser({ email: inviteeEmail });
 
-      const [ownerUser] = await db
-        .insert(users)
-        .values({ email: `owner-${randomUUID()}@example.com`, name: 'Owner' })
-        .returning();
-      const business = await createTestBusiness(ownerUser!.id);
-      await createPendingInvitation(business.id, ownerUser!.id, inviteeEmail);
+      const ownerUser = await createUser({ email: `owner-${randomUUID()}@example.com` });
+      const business = await createTestBusiness(ownerUser.id);
+      await createPendingInvitation(business.id, ownerUser.id, inviteeEmail);
 
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
         url: '/invitations/mine',
       });
@@ -161,14 +140,11 @@ describe('routes/invitations', () => {
       const inviteeEmail = `invitee-${randomUUID()}@example.com`;
       const { sessionId } = await createAuthedUser({ email: inviteeEmail });
 
-      const [ownerUser] = await db
-        .insert(users)
-        .values({ email: `owner-${randomUUID()}@example.com`, name: 'Owner' })
-        .returning();
-      const business = await createTestBusiness(ownerUser!.id);
-      const inv = await createPendingInvitation(business.id, ownerUser!.id, inviteeEmail);
+      const ownerUser = await createUser({ email: `owner-${randomUUID()}@example.com` });
+      const business = await createTestBusiness(ownerUser.id);
+      const inv = await createPendingInvitation(business.id, ownerUser.id, inviteeEmail);
 
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'POST',
         url: `/invitations/${inv.token}/accept`,
       });
@@ -180,18 +156,15 @@ describe('routes/invitations', () => {
     it('returns 403 when invitation email does not match user email', async () => {
       const { sessionId } = await createAuthedUser({ email: `user-${randomUUID()}@example.com` });
 
-      const [ownerUser] = await db
-        .insert(users)
-        .values({ email: `owner-${randomUUID()}@example.com`, name: 'Owner' })
-        .returning();
-      const business = await createTestBusiness(ownerUser!.id);
+      const ownerUser = await createUser({ email: `owner-${randomUUID()}@example.com` });
+      const business = await createTestBusiness(ownerUser.id);
       const inv = await createPendingInvitation(
         business.id,
-        ownerUser!.id,
+        ownerUser.id,
         `different-${randomUUID()}@example.com`
       );
 
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'POST',
         url: `/invitations/${inv.token}/accept`,
       });
@@ -205,14 +178,11 @@ describe('routes/invitations', () => {
       const inviteeEmail = `invitee-${randomUUID()}@example.com`;
       const { sessionId } = await createAuthedUser({ email: inviteeEmail });
 
-      const [ownerUser] = await db
-        .insert(users)
-        .values({ email: `owner-${randomUUID()}@example.com`, name: 'Owner' })
-        .returning();
-      const business = await createTestBusiness(ownerUser!.id);
-      const inv = await createPendingInvitation(business.id, ownerUser!.id, inviteeEmail);
+      const ownerUser = await createUser({ email: `owner-${randomUUID()}@example.com` });
+      const business = await createTestBusiness(ownerUser.id);
+      const inv = await createPendingInvitation(business.id, ownerUser.id, inviteeEmail);
 
-      const res = await injectAuthed(app, sessionId, {
+      const res = await injectAuthed(ctx.app, sessionId, {
         method: 'POST',
         url: `/invitations/${inv.token}/decline`,
       });

@@ -1,8 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { resetDb } from '../utils/db.js';
-import { db } from '../../src/db/client.js';
-import { businesses, users } from '../../src/db/schema.js';
 import {
   findUserBusiness,
   insertUserBusiness,
@@ -10,29 +8,7 @@ import {
   findBusinessesForUser,
   findTeamMembers,
 } from '../../src/repositories/user-business-repository.js';
-
-async function createTestUser() {
-  const [user] = await db
-    .insert(users)
-    .values({ email: `ub-repo-${randomUUID()}@example.com`, name: 'UB Test User' })
-    .returning();
-  return user;
-}
-
-async function createTestBusiness(userId: string) {
-  const [business] = await db
-    .insert(businesses)
-    .values({
-      name: 'UB Test Business',
-      businessType: 'limited_company',
-      registrationNumber: randomUUID(),
-      streetAddress: '3 Rothschild Blvd',
-      city: 'Tel Aviv',
-      createdByUserId: userId,
-    })
-    .returning();
-  return business;
-}
+import { createUser, createTestBusiness } from '../utils/businesses.js';
 
 describe('user-business-repository', () => {
   beforeEach(async () => {
@@ -45,7 +21,7 @@ describe('user-business-repository', () => {
 
   describe('insertUserBusiness', () => {
     it('inserts and returns a user-business record', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
 
       const result = await insertUserBusiness({
@@ -63,7 +39,7 @@ describe('user-business-repository', () => {
 
   describe('findUserBusiness', () => {
     it('finds a user-business record by userId and businessId', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
 
       await insertUserBusiness({ userId: user.id, businessId: business.id, role: 'admin' });
@@ -85,7 +61,7 @@ describe('user-business-repository', () => {
 
   describe('deleteUserBusiness', () => {
     it('removes the user-business record', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
 
       await insertUserBusiness({ userId: user.id, businessId: business.id, role: 'user' });
@@ -99,7 +75,7 @@ describe('user-business-repository', () => {
 
   describe('findBusinessesForUser', () => {
     it('returns a list with role and business details for a user', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
 
       await insertUserBusiness({ userId: user.id, businessId: business.id, role: 'owner' });
@@ -115,7 +91,7 @@ describe('user-business-repository', () => {
     });
 
     it('returns an empty list when the user has no businesses', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const results = await findBusinessesForUser(user.id);
       expect(results).toHaveLength(0);
     });
@@ -123,7 +99,7 @@ describe('user-business-repository', () => {
 
   describe('findTeamMembers', () => {
     it('returns a list with user name, email, and role for a business', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
 
       await insertUserBusiness({ userId: user.id, businessId: business.id, role: 'owner' });
@@ -138,7 +114,7 @@ describe('user-business-repository', () => {
     });
 
     it('returns an empty list when the business has no members', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
       const results = await findTeamMembers(business.id);
       expect(results).toHaveLength(0);

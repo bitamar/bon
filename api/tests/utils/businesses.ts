@@ -8,6 +8,17 @@ export function makeRegNum(): string {
   return String(randomInt(100_000_000, 1_000_000_000));
 }
 
+export async function createUser(overrides: Partial<typeof users.$inferInsert> = {}) {
+  const [user] = await db
+    .insert(users)
+    .values({
+      email: overrides.email ?? `user-${randomUUID()}@example.com`,
+      name: overrides.name ?? 'Test User',
+    })
+    .returning();
+  return user!;
+}
+
 export async function createAuthedUser(overrides: Partial<typeof users.$inferInsert> = {}) {
   const [user] = await db
     .insert(users)

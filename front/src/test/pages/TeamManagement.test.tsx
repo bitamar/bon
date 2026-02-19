@@ -54,6 +54,12 @@ const teamListWithNonOwner = {
 describe('TeamManagement page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: activeBusinessStub,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
   });
 
   it('shows "לא נבחר עסק" when no activeBusiness', () => {
@@ -70,13 +76,6 @@ describe('TeamManagement page', () => {
   });
 
   it('shows loading state while fetching team', () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchTeamMembers).mockReturnValue(new Promise(() => {}));
 
     renderWithProviders(<TeamManagement />);
@@ -85,13 +84,6 @@ describe('TeamManagement page', () => {
   });
 
   it('renders team table with member name and email', async () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
 
     renderWithProviders(<TeamManagement />);
@@ -101,13 +93,6 @@ describe('TeamManagement page', () => {
   });
 
   it('"הסר" button is not shown for owner', async () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
 
     renderWithProviders(<TeamManagement />);
@@ -119,13 +104,6 @@ describe('TeamManagement page', () => {
 
   it('clicking "הסר" on non-owner opens delete confirmation modal', async () => {
     const user = userEvent.setup();
-
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
 
     vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListWithNonOwner);
 
@@ -143,13 +121,6 @@ describe('TeamManagement page', () => {
   it('clicking "הזמן משתמש" opens invite modal', async () => {
     const user = userEvent.setup();
 
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
 
     renderWithProviders(<TeamManagement />);
@@ -165,13 +136,6 @@ describe('TeamManagement page', () => {
 
   it('submitting invite form with invalid email shows validation error', async () => {
     const user = userEvent.setup();
-
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
 
     vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
 
@@ -196,13 +160,6 @@ describe('TeamManagement page', () => {
 
   it('submitting invite form with valid email calls createInvitation', async () => {
     const user = userEvent.setup();
-
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
 
     vi.mocked(businessesApi.fetchTeamMembers).mockResolvedValue(teamListResponse);
     vi.mocked(invitationsApi.createInvitation).mockResolvedValue(undefined);

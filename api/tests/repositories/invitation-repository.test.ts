@@ -2,7 +2,7 @@ import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { resetDb } from '../utils/db.js';
 import { db } from '../../src/db/client.js';
-import { businesses, businessInvitations, users } from '../../src/db/schema.js';
+import { businessInvitations } from '../../src/db/schema.js';
 import {
   insertInvitation,
   findInvitationByToken,
@@ -11,29 +11,7 @@ import {
   updateInvitationStatus,
   findExistingInvitation,
 } from '../../src/repositories/invitation-repository.js';
-
-async function createTestUser() {
-  const [user] = await db
-    .insert(users)
-    .values({ email: `inv-repo-${randomUUID()}@example.com`, name: 'Inviter User' })
-    .returning();
-  return user;
-}
-
-async function createTestBusiness(userId: string) {
-  const [business] = await db
-    .insert(businesses)
-    .values({
-      name: 'Invitation Test Business',
-      businessType: 'licensed_dealer',
-      registrationNumber: randomUUID(),
-      streetAddress: '10 Dizengoff St',
-      city: 'Tel Aviv',
-      createdByUserId: userId,
-    })
-    .returning();
-  return business;
-}
+import { createUser, createTestBusiness } from '../utils/businesses.js';
 
 describe('invitation-repository', () => {
   beforeEach(async () => {
@@ -46,7 +24,7 @@ describe('invitation-repository', () => {
 
   describe('insertInvitation', () => {
     it('inserts and returns an invitation record', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
       const token = randomUUID();
       const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
@@ -71,7 +49,7 @@ describe('invitation-repository', () => {
 
   describe('findInvitationByToken', () => {
     it('finds an invitation by token', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
       const token = randomUUID();
 
@@ -99,7 +77,7 @@ describe('invitation-repository', () => {
 
   describe('findInvitationsByBusinessId', () => {
     it('returns invitations with joined businessName and invitedByName', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
 
       await db.insert(businessInvitations).values({
@@ -123,7 +101,7 @@ describe('invitation-repository', () => {
 
   describe('findPendingInvitationsByEmail', () => {
     it('returns only pending invitations for the given email', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
       const targetEmail = `pending-${randomUUID()}@example.com`;
 
@@ -160,7 +138,7 @@ describe('invitation-repository', () => {
     });
 
     it('does not return non-pending invitations for the email', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
       const targetEmail = `declined-${randomUUID()}@example.com`;
 
@@ -187,7 +165,7 @@ describe('invitation-repository', () => {
 
   describe('updateInvitationStatus', () => {
     it('sets status to accepted and records acceptedAt', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
       const inv = await db
         .insert(businessInvitations)
@@ -210,7 +188,7 @@ describe('invitation-repository', () => {
     });
 
     it('sets status to declined and records declinedAt', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
       const inv = await db
         .insert(businessInvitations)
@@ -235,7 +213,7 @@ describe('invitation-repository', () => {
 
   describe('findExistingInvitation', () => {
     it('finds a pending invitation for a business and email', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
       const email = `existing-${randomUUID()}@example.com`;
 
@@ -256,7 +234,7 @@ describe('invitation-repository', () => {
     });
 
     it('returns null after the invitation status has been changed', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
       const email = `changed-${randomUUID()}@example.com`;
 

@@ -1,36 +1,12 @@
 import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { resetDb } from '../utils/db.js';
-import { db } from '../../src/db/client.js';
-import { businesses, users } from '../../src/db/schema.js';
 import {
   insertBusiness,
   findBusinessById,
   updateBusiness,
 } from '../../src/repositories/business-repository.js';
-
-async function createTestUser() {
-  const [user] = await db
-    .insert(users)
-    .values({ email: `biz-repo-${randomUUID()}@example.com`, name: 'Test User' })
-    .returning();
-  return user;
-}
-
-async function createTestBusiness(userId: string) {
-  const [business] = await db
-    .insert(businesses)
-    .values({
-      name: 'Test Business',
-      businessType: 'licensed_dealer',
-      registrationNumber: randomUUID(),
-      streetAddress: '1 Main St',
-      city: 'Tel Aviv',
-      createdByUserId: userId,
-    })
-    .returning();
-  return business;
-}
+import { createUser, createTestBusiness } from '../utils/businesses.js';
 
 describe('business-repository', () => {
   beforeEach(async () => {
@@ -43,7 +19,7 @@ describe('business-repository', () => {
 
   describe('insertBusiness', () => {
     it('inserts and returns a business record with correct fields', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const regNum = randomUUID();
 
       const result = await insertBusiness({
@@ -69,7 +45,7 @@ describe('business-repository', () => {
 
   describe('findBusinessById', () => {
     it('finds a business by id', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
 
       const result = await findBusinessById(business.id);
@@ -88,7 +64,7 @@ describe('business-repository', () => {
 
   describe('updateBusiness', () => {
     it('updates the name field and returns the updated record', async () => {
-      const user = await createTestUser();
+      const user = await createUser();
       const business = await createTestBusiness(user.id);
 
       const result = await updateBusiness(business.id, { name: 'Updated Name' });
