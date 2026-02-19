@@ -45,7 +45,7 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
       }
     }
 
-    if (activeBusinessId && !businesses.find((b) => b.id === activeBusinessId)) {
+    if (activeBusinessId && !businesses.some((b) => b.id === activeBusinessId)) {
       if (businesses.length > 0) {
         const firstBusiness = businesses[0];
         if (firstBusiness) {

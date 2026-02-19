@@ -29,12 +29,12 @@ function BusinessCard({
   isActive,
   onSwitch,
   onEdit,
-}: {
+}: Readonly<{
   business: BusinessListItem;
   isActive: boolean;
   onSwitch: () => void;
   onEdit: () => void;
-}) {
+}>) {
   const canEdit = business.role === 'owner' || business.role === 'admin';
 
   return (

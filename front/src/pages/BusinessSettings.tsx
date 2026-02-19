@@ -57,7 +57,8 @@ export function BusinessSettings() {
         return null;
       },
       email: (value) => {
-        if (value && !/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(value)) return 'כתובת אימייל לא תקינה';
+        if (value && !/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(value))
+          return 'כתובת אימייל לא תקינה';
         return null;
       },
     },

@@ -58,7 +58,7 @@ function getVatTooltip(businessType: BusinessType) {
   }
 }
 
-function InfoTooltip({ label }: { label: string }) {
+function InfoTooltip({ label }: Readonly<{ label: string }>) {
   return (
     <Tooltip label={label} multiline w={240} withArrow>
       <ActionIcon variant="subtle" color="gray" size="sm">
@@ -88,7 +88,7 @@ export function Onboarding() {
       defaultVatRate: 1700,
     },
     validate: {
-      name: (value) => (!value.trim() ? 'שם העסק נדרש' : null),
+      name: (value) => (value.trim() ? null : 'שם העסק נדרש'),
       registrationNumber: (value) => {
         if (!value.trim()) return 'מספר רישום נדרש';
         if (!/^\d{9}$/.test(value)) return 'מספר רישום חייב להיות 9 ספרות';
@@ -101,8 +101,8 @@ export function Onboarding() {
         }
         return null;
       },
-      streetAddress: (value) => (!value.trim() ? 'כתובת רחוב נדרשת' : null),
-      city: (value) => (!value.trim() ? 'עיר נדרשת' : null),
+      streetAddress: (value) => (value.trim() ? null : 'כתובת רחוב נדרשת'),
+      city: (value) => (value.trim() ? null : 'עיר נדרשת'),
       postalCode: (value) => {
         if (value && !/^\d{7}$/.test(value)) return 'מיקוד חייב להיות 7 ספרות';
         return null;
