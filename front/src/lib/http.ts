@@ -13,7 +13,7 @@ export class HttpError extends Error {
 }
 
 export async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const hasBody = init.body !== undefined && init.body !== null;
+  const hasBody = init.body != null;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: 'include',
     headers: {
@@ -26,8 +26,8 @@ export async function fetchJson<T>(path: string, init: RequestInit = {}): Promis
   if (!response.ok) {
     const body = await response.json().catch(() => undefined);
     const message =
-      (body && (body as { error?: string; message?: string }).error) ||
-      (body && (body as { message?: string }).message) ||
+      (body as { error?: string; message?: string })?.error ||
+      (body as { message?: string })?.message ||
       `Request failed: ${response.status}`;
     throw new HttpError(response.status, message, body);
   }

@@ -53,7 +53,7 @@ const loggingPluginFn: FastifyPluginAsync = async (app) => {
   app.addHook('onResponse', async (request, reply) => {
     const start = requestStartTimes.get(request);
     const responseTime = typeof start === 'number' ? performance.now() - start : undefined;
-    if (start !== undefined) {
+    if (start != null) {
       requestStartTimes.delete(request);
     }
     request.log.info(
