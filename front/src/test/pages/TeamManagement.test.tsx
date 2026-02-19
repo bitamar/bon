@@ -126,7 +126,7 @@ describe('TeamManagement page', () => {
     await user.click(screen.getByRole('button', { name: 'הזמן משתמש' }));
 
     await waitFor(() => {
-      expect(screen.getByText('הזמן משתמש')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'הזמן משתמש' })).toBeInTheDocument();
     });
   });
 
