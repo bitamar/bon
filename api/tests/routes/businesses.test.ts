@@ -1,5 +1,5 @@
 import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../../src/app.js';
 import { resetDb } from '../utils/db.js';
@@ -18,7 +18,7 @@ vi.mock('openid-client', () => ({
 
 // Registration numbers must be exactly 9 digits to pass schema validation
 function makeRegNum(): string {
-  return String(Math.floor(100000000 + Math.random() * 900000000));
+  return String(randomInt(100_000_000, 1_000_000_000));
 }
 
 async function createAuthedUser(overrides: Partial<typeof users.$inferInsert> = {}) {
