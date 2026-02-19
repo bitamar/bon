@@ -94,23 +94,15 @@ describe('BusinessContext', () => {
 
   it('falls back to first business when saved localStorage id is not in list', async () => {
     localStorage.setItem('bon:activeBusiness', 'biz-unknown');
-    vi.mocked(fetchBusinesses).mockResolvedValue({ businesses: [mockBusiness1, mockBusiness2] });
+    renderWithTwoBusinesses();
 
-    renderBusinessContext();
-
-    await waitFor(() => {
-      expect(screen.getByTestId('active').textContent).toBe('Acme Ltd');
-    });
+    await waitForFirstBusinessActive();
   });
 
   it('switchBusiness updates the activeBusiness', async () => {
-    vi.mocked(fetchBusinesses).mockResolvedValue({ businesses: [mockBusiness1, mockBusiness2] });
+    renderWithTwoBusinesses();
 
-    renderBusinessContext();
-
-    await waitFor(() => {
-      expect(screen.getByTestId('active').textContent).toBe('Acme Ltd');
-    });
+    await waitForFirstBusinessActive();
 
     await userEvent.click(screen.getByRole('button', { name: 'switch' }));
 
