@@ -62,9 +62,9 @@ describe('Onboarding page', () => {
     vi.resetAllMocks();
   });
 
-  it('renders the form with "BON" title visible', () => {
+  it('renders the form with "bon" title visible', () => {
     renderWithProviders(<Onboarding />);
-    expect(screen.getByRole('heading', { name: 'BON' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'bon' })).toBeInTheDocument();
   });
 
   it('renders with no pre-selected business type', () => {
@@ -183,13 +183,11 @@ describe('Onboarding page', () => {
 
     renderWithProviders(<Onboarding />);
 
-    const payload = await fillAndSubmit(user, {
+    await fillAndSubmit(user, {
       type: 'עוסק מורשה',
       name: 'New Co',
       registrationNumber: '123456789',
     }).catch(() => undefined);
-
-    void payload;
 
     await waitFor(() => {
       expect(screen.getByText('מספר רישום זה כבר קיים במערכת')).toBeInTheDocument();

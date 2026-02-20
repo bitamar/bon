@@ -21,8 +21,7 @@ import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
 import { extractErrorMessage } from '../lib/notifications';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
-import type { UpdateBusinessBody } from '@bon/types/businesses';
-import type { BusinessType } from '@bon/types/businesses';
+import type { UpdateBusinessBody, BusinessType } from '@bon/types/businesses';
 
 function getVatLabel(businessType: BusinessType): string {
   switch (businessType) {

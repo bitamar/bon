@@ -11,8 +11,8 @@ import {
   Stack,
   Text,
   TextInput,
-  Title,
 } from '@mantine/core';
+import { BrandLogo } from '../components/BrandLogo';
 import { useForm } from '@mantine/form';
 import { useApiMutation } from '../lib/useApiMutation';
 import { createBusiness } from '../api/businesses';
@@ -118,19 +118,23 @@ export function Onboarding() {
   });
 
   return (
-    <Center style={{ minHeight: '100dvh' }} p="md">
+    <Center
+      style={{
+        minHeight: '100dvh',
+        background: 'linear-gradient(150deg, #fffbf5 0%, #ecf5e0 100%)',
+      }}
+      p="md"
+    >
       <Container size={480} w="100%">
         <Stack gap="xl">
-          <Stack gap="xs" align="center">
-            <Title order={1} ta="center">
-              BON
-            </Title>
-            <Text size="lg" ta="center" c="dimmed">
-              בואו ניצור את העסק הראשון שלכם
-            </Text>
-          </Stack>
+          <BrandLogo subtitle="צור את העסק שלך" />
 
-          <Paper shadow="md" radius="lg" p="xl" withBorder>
+          <Paper
+            shadow="xs"
+            radius="xl"
+            p="xl"
+            style={{ border: '1px solid var(--mantine-color-lime-2)' }}
+          >
             <form onSubmit={onSubmit}>
               <Stack gap="md">
                 <Radio.Group
@@ -138,41 +142,44 @@ export function Onboarding() {
                   onChange={handleBusinessTypeChange}
                 >
                   <Stack gap="xs">
-                    <Radio.Card value="licensed_dealer" radius="md" p="md" withBorder>
-                      <Group wrap="nowrap" align="flex-start">
-                        <Radio.Indicator />
-                        <Stack gap={4}>
-                          <Text fw={500}>עוסק מורשה</Text>
-                          <Text size="sm" c="dimmed">
-                            עסק יחיד או שותפות שגובה מע״מ. מחזור שנתי מעל ₪120,000
-                          </Text>
-                        </Stack>
-                      </Group>
-                    </Radio.Card>
-
-                    <Radio.Card value="exempt_dealer" radius="md" p="md" withBorder>
-                      <Group wrap="nowrap" align="flex-start">
-                        <Radio.Indicator />
-                        <Stack gap={4}>
-                          <Text fw={500}>עוסק פטור</Text>
-                          <Text size="sm" c="dimmed">
-                            עצמאי שמחזורו מתחת ל-₪120,000. פטור מגביית מע״מ
-                          </Text>
-                        </Stack>
-                      </Group>
-                    </Radio.Card>
-
-                    <Radio.Card value="limited_company" radius="md" p="md" withBorder>
-                      <Group wrap="nowrap" align="flex-start">
-                        <Radio.Indicator />
-                        <Stack gap={4}>
-                          <Text fw={500}>חברה בע״מ</Text>
-                          <Text size="sm" c="dimmed">
-                            חברה פרטית הרשומה ברשם החברות (ח.פ.)
-                          </Text>
-                        </Stack>
-                      </Group>
-                    </Radio.Card>
+                    {(
+                      [
+                        [
+                          'licensed_dealer',
+                          'עוסק מורשה',
+                          'עסק יחיד או שותפות שגובה מע״מ. מחזור שנתי מעל ₪120,000',
+                        ],
+                        [
+                          'exempt_dealer',
+                          'עוסק פטור',
+                          'עצמאי שמחזורו מתחת ל-₪120,000. פטור מגביית מע״מ',
+                        ],
+                        ['limited_company', 'חברה בע״מ', 'חברה פרטית הרשומה ברשם החברות (ח.פ.)'],
+                      ] as const
+                    ).map(([value, label, description]) => (
+                      <Radio.Card
+                        key={value}
+                        value={value}
+                        radius="md"
+                        p="md"
+                        withBorder
+                        style={
+                          form.values.businessType === value
+                            ? { borderColor: 'var(--mantine-color-lime-6)' }
+                            : undefined
+                        }
+                      >
+                        <Group wrap="nowrap" align="flex-start">
+                          <Radio.Indicator />
+                          <Stack gap={4}>
+                            <Text fw={500}>{label}</Text>
+                            <Text size="sm" c="dimmed">
+                              {description}
+                            </Text>
+                          </Stack>
+                        </Group>
+                      </Radio.Card>
+                    ))}
                   </Stack>
                 </Radio.Group>
 
@@ -185,25 +192,29 @@ export function Onboarding() {
                   לא בטוח? קרא עוד
                 </Anchor>
 
-                <TextInput
-                  label={getNameLabel()}
-                  required
-                  {...form.getInputProps('name')}
-                  disabled={isPending}
-                />
+                {form.values.businessType && (
+                  <>
+                    <TextInput
+                      label={getNameLabel()}
+                      required
+                      {...form.getInputProps('name')}
+                      disabled={isPending}
+                    />
 
-                <TextInput
-                  label={getRegistrationLabel()}
-                  required
-                  placeholder="123456789"
-                  maxLength={9}
-                  {...form.getInputProps('registrationNumber')}
-                  disabled={isPending}
-                />
+                    <TextInput
+                      label={getRegistrationLabel()}
+                      required
+                      placeholder="123456789"
+                      maxLength={9}
+                      {...form.getInputProps('registrationNumber')}
+                      disabled={isPending}
+                    />
 
-                <Button type="submit" size="lg" fullWidth loading={isPending}>
-                  צור עסק
-                </Button>
+                    <Button type="submit" size="lg" fullWidth loading={isPending}>
+                      צור עסק
+                    </Button>
+                  </>
+                )}
               </Stack>
             </form>
           </Paper>
@@ -215,23 +226,24 @@ export function Onboarding() {
         onClose={() => setTypeModalOpen(false)}
         title="סוגי עסקים בישראל"
         centered
+        padding={32}
       >
-        <Stack gap="md">
-          <Stack gap={4}>
+        <Stack gap="xl">
+          <Stack gap="xs">
             <Text fw={600}>עוסק מורשה</Text>
             <Text size="sm" c="dimmed">
               עצמאי או שותפות עם מחזור שנתי מעל ₪120,000. חייב לגבות מע״מ מלקוחותיו ולהעביר לרשות
               המיסים. מקבל מספר עוסק מורשה (ע.מ.) מרשות המיסים.
             </Text>
           </Stack>
-          <Stack gap={4}>
+          <Stack gap="xs">
             <Text fw={600}>עוסק פטור</Text>
             <Text size="sm" c="dimmed">
               עצמאי עם מחזור שנתי מתחת ל-₪120,000. פטור מגביית מע״מ ואינו מנפיק חשבוניות מס. מזדהה
               באמצעות תעודת זהות.
             </Text>
           </Stack>
-          <Stack gap={4}>
+          <Stack gap="xs">
             <Text fw={600}>חברה בע״מ</Text>
             <Text size="sm" c="dimmed">
               ישות משפטית נפרדת הרשומה ברשם החברות. מקבלת מספר חברה (ח.פ.) ייחודי. חייבת בגביית

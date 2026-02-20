@@ -45,7 +45,7 @@ describe('App routing', () => {
 
     renderApp();
 
-    await waitFor(() => expect(screen.getByText('ברוכים הבאים')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('חשבוניות בקלות')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /כניסה עם Google/i })).toBeInTheDocument();
   });
 
@@ -63,6 +63,6 @@ describe('App routing', () => {
     expect(screen.getByLabelText('Loading user')).toBeInTheDocument();
 
     resolveGetMe?.(null);
-    await waitFor(() => expect(screen.getByText('ברוכים הבאים')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('חשבוניות בקלות')).toBeInTheDocument());
   });
 });
