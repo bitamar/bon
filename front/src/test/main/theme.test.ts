@@ -3,15 +3,16 @@ import { lightModeCssVariablesResolver, mantineThemeOverride } from '../../theme
 
 describe('theme configuration', () => {
   it('exposes light background color for the app shell', () => {
-    expect(mantineThemeOverride.other?.['lightAppBackground']).toBe('#f0fafa');
+    expect(mantineThemeOverride.other?.['lightAppBackground']).toBe('#fffbf5');
   });
 
   it('forces softer default text color in light mode via css resolver', () => {
     const resolver = lightModeCssVariablesResolver(
       {} as Parameters<typeof lightModeCssVariablesResolver>[0]
     );
-    expect(resolver.light['--mantine-color-text']).toBe('#3d3d3d');
-    expect(resolver.dark).toEqual({});
+    expect(resolver.light['--mantine-color-text']).toBe('#2d2820');
+    expect(resolver.light['--mantine-color-body']).toBe('#fffbf5');
+    expect(resolver.dark).toEqual({ '--mantine-color-body': '#1c1610' });
     expect(resolver.variables).toEqual({});
   });
 });

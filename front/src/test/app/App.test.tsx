@@ -45,10 +45,8 @@ describe('App routing', () => {
 
     renderApp();
 
-    await waitFor(() =>
-      expect(screen.getByText('Sign in with Google to continue.')).toBeInTheDocument()
-    );
-    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('ברוכים הבאים')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /כניסה עם Google/i })).toBeInTheDocument();
   });
 
   it('shows loader before hydration completes', async () => {
@@ -65,8 +63,6 @@ describe('App routing', () => {
     expect(screen.getByLabelText('Loading user')).toBeInTheDocument();
 
     resolveGetMe?.(null);
-    await waitFor(() =>
-      expect(screen.getByText('Sign in with Google to continue.')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('ברוכים הבאים')).toBeInTheDocument());
   });
 });
