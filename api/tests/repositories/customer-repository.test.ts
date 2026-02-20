@@ -10,6 +10,35 @@ import {
 } from '../../src/repositories/customer-repository.js';
 import { createUser, createTestBusiness } from '../utils/businesses.js';
 
+// ── helpers ────────────────────────────────────────────────────────────────
+
+async function setupBusiness() {
+  const user = await createUser();
+  const business = await createTestBusiness(user.id);
+  return { user, business };
+}
+
+async function insertTestCustomer(businessId: string, overrides: Record<string, unknown> = {}) {
+  const now = new Date();
+  return insertCustomer({
+    businessId,
+    name: 'Test Customer',
+    taxId: null,
+    taxIdType: 'none',
+    isLicensedDealer: false,
+    email: null,
+    phone: null,
+    streetAddress: null,
+    city: null,
+    postalCode: null,
+    contactName: null,
+    notes: null,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  });
+}
+
 describe('customer-repository', () => {
   beforeEach(async () => {
     await resetDb();
@@ -18,35 +47,6 @@ describe('customer-repository', () => {
   afterEach(async () => {
     await resetDb();
   });
-
-  // ── helpers ──────────────────────────────────────────────────────────────
-
-  async function setupBusiness() {
-    const user = await createUser();
-    const business = await createTestBusiness(user.id);
-    return { user, business };
-  }
-
-  async function insertTestCustomer(businessId: string, overrides: Record<string, unknown> = {}) {
-    const now = new Date();
-    return insertCustomer({
-      businessId,
-      name: 'Test Customer',
-      taxId: null,
-      taxIdType: 'none',
-      isLicensedDealer: false,
-      email: null,
-      phone: null,
-      streetAddress: null,
-      city: null,
-      postalCode: null,
-      contactName: null,
-      notes: null,
-      createdAt: now,
-      updatedAt: now,
-      ...overrides,
-    });
-  }
 
   // ── insertCustomer ──────────────────────────────────────────────────────
 

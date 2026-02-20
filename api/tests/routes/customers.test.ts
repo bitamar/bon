@@ -56,12 +56,8 @@ describe('routes/customers', () => {
     });
   }
 
-  async function createTestCustomer(
-    sessionId: string,
-    businessId: string,
-    payload: object = { name: 'Test Customer' }
-  ) {
-    const res = await postCustomer(sessionId, businessId, payload);
+  async function createTestCustomer(sessionId: string, businessId: string, payload?: object) {
+    const res = await postCustomer(sessionId, businessId, payload ?? { name: 'Test Customer' });
     return (res.json() as { customer: { id: string } }).customer;
   }
 

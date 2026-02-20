@@ -52,7 +52,7 @@ export type CreateCustomerInput = {
 };
 
 export type UpdateCustomerInput = {
-  name?: string | null | undefined;
+  name?: string | undefined;
   taxId?: string | null | undefined;
   taxIdType?: 'company_id' | 'vat_number' | 'personal_id' | 'none' | null | undefined;
   isLicensedDealer?: boolean | undefined;
