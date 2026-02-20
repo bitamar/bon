@@ -33,7 +33,7 @@ export default [
         {
           selector: "CallExpression[callee.property.name='replace'][arguments.0.regex.flags=/g/]",
           message:
-            'Prefer String#replaceAll() over String#replace() with a /g regex. Drop the g flag and use replaceAll().',
+            'Prefer String#replaceAll() over String#replace() with a /g regex. Keep the g flag and use replaceAll().',
         },
       ],
     },
