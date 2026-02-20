@@ -37,31 +37,31 @@ function serializeCustomer(record: CustomerRecord): CustomerDto {
 
 export type CreateCustomerInput = {
   name: string;
-  taxId?: string;
-  taxIdType?: 'company_id' | 'vat_number' | 'personal_id' | 'none';
-  isLicensedDealer?: boolean;
-  email?: string;
-  phone?: string;
-  streetAddress?: string;
-  city?: string;
-  postalCode?: string;
-  contactName?: string;
-  notes?: string;
+  taxId?: string | undefined;
+  taxIdType?: 'company_id' | 'vat_number' | 'personal_id' | 'none' | undefined;
+  isLicensedDealer?: boolean | undefined;
+  email?: string | undefined;
+  phone?: string | undefined;
+  streetAddress?: string | undefined;
+  city?: string | undefined;
+  postalCode?: string | undefined;
+  contactName?: string | undefined;
+  notes?: string | undefined;
 };
 
 export type UpdateCustomerInput = {
-  name?: string | null;
-  taxId?: string | null;
-  taxIdType?: 'company_id' | 'vat_number' | 'personal_id' | 'none' | null;
-  isLicensedDealer?: boolean;
-  email?: string | null;
-  phone?: string | null;
-  streetAddress?: string | null;
-  city?: string | null;
-  postalCode?: string | null;
-  contactName?: string | null;
-  notes?: string | null;
-  isActive?: boolean;
+  name?: string | null | undefined;
+  taxId?: string | null | undefined;
+  taxIdType?: 'company_id' | 'vat_number' | 'personal_id' | 'none' | null | undefined;
+  isLicensedDealer?: boolean | undefined;
+  email?: string | null | undefined;
+  phone?: string | null | undefined;
+  streetAddress?: string | null | undefined;
+  city?: string | null | undefined;
+  postalCode?: string | null | undefined;
+  contactName?: string | null | undefined;
+  notes?: string | null | undefined;
+  isActive?: boolean | undefined;
 };
 
 export async function createCustomer(businessId: string, input: CreateCustomerInput) {

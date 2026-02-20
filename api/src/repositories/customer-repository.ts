@@ -44,9 +44,7 @@ export async function searchCustomers(
   }
 
   if (query) {
-    conditions.push(
-      or(ilike(customers.name, `%${query}%`), ilike(customers.taxId, `%${query}%`))!
-    );
+    conditions.push(or(ilike(customers.name, `%${query}%`), ilike(customers.taxId, `%${query}%`))!);
   }
 
   return db

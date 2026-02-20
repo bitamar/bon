@@ -87,11 +87,7 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req) => {
       ensureBusinessContext(req);
-      return updateCustomerById(
-        req.businessContext.businessId,
-        req.params.customerId,
-        req.body
-      );
+      return updateCustomerById(req.businessContext.businessId, req.params.customerId, req.body);
     }
   );
 

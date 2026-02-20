@@ -15,6 +15,13 @@
       "when": 1771353794082,
       "tag": "0001_chief_nico_minoru",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771576995794,
+      "tag": "0002_dizzy_kid_colt",
+      "breakpoints": true
     }
   ]
 }
