@@ -72,6 +72,7 @@ export function Settings() {
             onClick: () => {
               settingsQuery.refetch();
             },
+            loading: settingsQuery.isFetching,
           }}
         />
       </Stack>

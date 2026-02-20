@@ -118,6 +118,7 @@ export function TeamManagement() {
           primaryAction={{
             label: 'נסה שוב',
             onClick: () => teamQuery.refetch(),
+            loading: teamQuery.isFetching,
           }}
         />
       </Container>

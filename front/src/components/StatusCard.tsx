@@ -11,6 +11,7 @@ interface StatusCardProps {
   primaryAction?: {
     label: string;
     onClick: () => void;
+    loading?: boolean;
   };
   secondaryAction?: ReactNode;
   align?: 'center' | 'start';
@@ -71,7 +72,9 @@ export function StatusCard({
               </Text>
             )}
             {primaryAction && (
-              <Button onClick={primaryAction.onClick}>{primaryAction.label}</Button>
+              <Button onClick={primaryAction.onClick} loading={primaryAction.loading === true}>
+                {primaryAction.label}
+              </Button>
             )}
             {secondaryAction}
           </>

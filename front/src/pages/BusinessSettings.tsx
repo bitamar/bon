@@ -163,6 +163,7 @@ export function BusinessSettings() {
           primaryAction={{
             label: 'נסה שוב',
             onClick: () => businessQuery.refetch(),
+            loading: businessQuery.isFetching,
           }}
         />
       </Container>
