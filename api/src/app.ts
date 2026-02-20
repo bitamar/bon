@@ -14,6 +14,7 @@ import { authRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/users.js';
 import { businessRoutes } from './routes/businesses.js';
 import { invitationRoutes } from './routes/invitations.js';
+import { customerRoutes } from './routes/customers.js';
 import { authPlugin } from './plugins/auth.js';
 import { businessContextPlugin } from './plugins/business-context.js';
 import { errorPlugin } from './plugins/errors.js';
@@ -77,6 +78,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(userRoutes);
   await app.register(businessRoutes);
   await app.register(invitationRoutes);
+  await app.register(customerRoutes);
   app.get('/health', async () => ({ ok: true }));
 
   return app;

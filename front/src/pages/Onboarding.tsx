@@ -1,16 +1,18 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActionIcon,
+  Anchor,
   Button,
   Center,
+  Collapse,
   Container,
-  Divider,
   Group,
-  Input,
+  Modal,
   NumberInput,
   Paper,
   Radio,
   Stack,
+  Stepper,
   Text,
   TextInput,
   Title,
@@ -24,11 +26,25 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../lib/queryKeys';
 import type { BusinessType, CreateBusinessBody } from '@bon/types/businesses';
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
+import { HttpError } from '../lib/http';
+
+function validateIsraeliId(id: string): boolean {
+  if (!/^\d{9}$/.test(id)) return false;
+  const digits = id.split('').map(Number);
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let val = (digits[i] ?? 0) * ((i % 2) + 1);
+    if (val > 9) val -= 9;
+    sum += val;
+  }
+  return sum % 10 === 0;
+}
 
 function getVatLabel(businessType: BusinessType) {
   switch (businessType) {
     case 'licensed_dealer':
-      return 'מספר עוסק מורשה (ע.מ.)';
+      return 'מספר רישום מע״מ';
     case 'limited_company':
       return 'מספר מע"מ';
     case 'exempt_dealer':
@@ -71,11 +87,15 @@ function InfoTooltip({ label }: Readonly<{ label: string }>) {
 export function Onboarding() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [step, setStep] = useState(0);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [typeModalOpen, setTypeModalOpen] = useState(false);
+  const vatManuallyEdited = useRef(false);
 
   const form = useForm<CreateBusinessBody>({
     initialValues: {
       name: '',
-      businessType: 'licensed_dealer',
+      businessType: '' as BusinessType,
       registrationNumber: '',
       vatNumber: undefined,
       streetAddress: '',
@@ -88,21 +108,23 @@ export function Onboarding() {
       defaultVatRate: 1700,
     },
     validate: {
-      name: (value) => (value.trim() ? null : 'שם העסק נדרש'),
-      registrationNumber: (value) => {
-        if (!value.trim()) return 'מספר רישום נדרש';
+      name: (value) => (value?.trim() ? null : 'שם נדרש'),
+      registrationNumber: (value, values) => {
+        if (!value?.trim()) return 'מספר רישום נדרש';
         if (!/^\d{9}$/.test(value)) return 'מספר רישום חייב להיות 9 ספרות';
-        return null;
-      },
-      vatNumber: (value, values) => {
-        if (values.businessType !== 'exempt_dealer') {
-          if (!value) return 'מספר מע"מ נדרש';
-          if (!/^\d{9}$/.test(value)) return 'מספר מע"מ חייב להיות 9 ספרות';
+        if (values.businessType === 'exempt_dealer' && !validateIsraeliId(value)) {
+          return 'מספר ת.ז. לא תקין';
         }
         return null;
       },
-      streetAddress: (value) => (value.trim() ? null : 'כתובת רחוב נדרשת'),
-      city: (value) => (value.trim() ? null : 'עיר נדרשת'),
+      vatNumber: (value, values) => {
+        if (values.businessType === 'exempt_dealer') return null;
+        if (!value) return 'מספר מע"מ נדרש';
+        if (!/^\d{9}$/.test(value)) return 'מספר מע"מ חייב להיות 9 ספרות';
+        return null;
+      },
+      streetAddress: (value) => (value?.trim() ? null : 'כתובת רחוב נדרשת'),
+      city: (value) => (value?.trim() ? null : 'עיר נדרשת'),
       postalCode: (value) => {
         if (value && !/^\d{7}$/.test(value)) return 'מיקוד חייב להיות 7 ספרות';
         return null;
@@ -126,23 +148,19 @@ export function Onboarding() {
       queryClient.invalidateQueries({ queryKey: queryKeys.userBusinesses() });
       navigate('/');
     },
-  });
-
-  const onSubmit = form.onSubmit((values) => {
-    const payload: CreateBusinessBody = {
-      ...values,
-      vatNumber: values.vatNumber || undefined,
-      postalCode: values.postalCode || undefined,
-      phone: values.phone || undefined,
-      email: values.email || undefined,
-      invoiceNumberPrefix: values.invoiceNumberPrefix || undefined,
-    };
-    createMutation.mutate(payload);
+    onError: (error) => {
+      if (
+        error instanceof HttpError &&
+        (error.body as { code?: string } | undefined)?.code === 'duplicate_registration_number'
+      ) {
+        setStep(1);
+        form.setFieldError('registrationNumber', 'מספר רישום זה כבר קיים במערכת');
+      }
+    },
   });
 
   const isPending = createMutation.isPending;
   const isExempt = form.values.businessType === 'exempt_dealer';
-  const vatManuallyEdited = useRef(false);
 
   const handleRegistrationNumberBlur = () => {
     const regNum = form.values.registrationNumber;
@@ -152,15 +170,74 @@ export function Onboarding() {
   };
 
   const handleBusinessTypeChange = (value: string) => {
-    form.setFieldValue('businessType', value as BusinessType);
-    vatManuallyEdited.current = false;
-    if (value === 'exempt_dealer') {
+    const prev = form.values.businessType;
+    const next = value as BusinessType;
+    form.setFieldValue('businessType', next);
+
+    if (prev !== next) {
+      form.setFieldValue('name', '');
+      form.setFieldValue('registrationNumber', '');
       form.setFieldValue('vatNumber', undefined);
-    } else {
-      const regNum = form.values.registrationNumber;
-      if (/^\d{9}$/.test(regNum)) {
-        form.setFieldValue('vatNumber', regNum);
-      }
+      vatManuallyEdited.current = false;
+    }
+  };
+
+  const goToStep1 = () => {
+    if (!form.values.businessType) return;
+    setStep(1);
+  };
+
+  const goToStep2 = () => {
+    const fields: (keyof CreateBusinessBody)[] = ['name', 'registrationNumber'];
+    if (form.values.businessType !== 'exempt_dealer') fields.push('vatNumber');
+    const results = fields.map((f) => form.validateField(f));
+    if (results.some((r) => r.hasError)) return;
+    setStep(2);
+  };
+
+  const onSubmit = form.onSubmit((values) => {
+    const payload: CreateBusinessBody = {
+      ...values,
+      vatNumber:
+        values.businessType === 'exempt_dealer' ? undefined : values.vatNumber || undefined,
+      postalCode: values.postalCode || undefined,
+      phone: values.phone || undefined,
+      email: values.email || undefined,
+      invoiceNumberPrefix: values.invoiceNumberPrefix || undefined,
+      defaultVatRate: values.businessType === 'exempt_dealer' ? 0 : values.defaultVatRate,
+    };
+    createMutation.mutate(payload);
+  });
+
+  const handleStepClick = (clicked: number) => {
+    if (clicked < step) {
+      setStep(clicked);
+    }
+  };
+
+  const getRegistrationLabel = () => {
+    switch (form.values.businessType) {
+      case 'exempt_dealer':
+        return 'מספר תעודת זהות (ת.ז.)';
+      case 'licensed_dealer':
+        return 'מספר עוסק מורשה (ע.מ.)';
+      case 'limited_company':
+        return 'מספר חברה (ח.פ.)';
+      default:
+        return 'מספר רישום';
+    }
+  };
+
+  const getNameLabel = () => {
+    switch (form.values.businessType) {
+      case 'exempt_dealer':
+        return 'שם מלא (כפי שמופיע בתעודת הזהות)';
+      case 'licensed_dealer':
+        return 'שם העסק';
+      case 'limited_company':
+        return 'שם החברה';
+      default:
+        return 'שם';
     }
   };
 
@@ -175,46 +252,31 @@ export function Onboarding() {
             <Text size="lg" ta="center" c="dimmed">
               בואו ניצור את העסק הראשון שלכם
             </Text>
-            <Text size="sm" ta="center" c="dimmed">
-              מלאו את הפרטים הבאים כדי להתחיל להנפיק חשבוניות
-            </Text>
           </Stack>
 
-          <Paper component="form" onSubmit={onSubmit} shadow="md" radius="lg" p="xl" withBorder>
+          <Paper shadow="md" radius="lg" p="xl" withBorder>
             <Stack gap="xl">
-              {/* Business Details */}
-              <Stack gap="md">
-                <Text fw={600} size="lg">
-                  פרטי העסק
-                </Text>
+              <Stepper active={step} onStepClick={handleStepClick}>
+                <Stepper.Step label="סוג עסק" />
+                <Stepper.Step label="פרטי העסק" />
+                <Stepper.Step label="כתובת ויצירת קשר" />
+              </Stepper>
 
-                <TextInput
-                  label="שם העסק"
-                  description="שם העסק כפי שיופיע בחשבוניות"
-                  required
-                  data-autofocus
-                  rightSection={
-                    <InfoTooltip label="זהו השם המלא של העסק שלך כפי שהוא רשום ברשות המיסים ויופיע בכל חשבונית שתנפיק" />
-                  }
-                  {...form.getInputProps('name')}
-                  disabled={isPending}
-                />
-
-                <Stack gap="xs">
-                  <Input.Label required>סוג עסק</Input.Label>
-                  <Input.Description>בחרו את סוג העסק המתאים למבנה העסקי שלכם</Input.Description>
+              {/* Step 0: Business type */}
+              {step === 0 && (
+                <Stack gap="md">
                   <Radio.Group
                     {...form.getInputProps('businessType')}
                     onChange={handleBusinessTypeChange}
                   >
-                    <Stack gap="xs" mt="xs">
+                    <Stack gap="xs">
                       <Radio.Card value="licensed_dealer" radius="md" p="md" withBorder>
                         <Group wrap="nowrap" align="flex-start">
                           <Radio.Indicator />
                           <Stack gap={4}>
                             <Text fw={500}>עוסק מורשה</Text>
                             <Text size="sm" c="dimmed">
-                              עסק הגובה מע״מ מלקוחותיו ומעביר לרשות המיסים
+                              עסק יחיד או שותפות שגובה מע״מ. מחזור שנתי מעל ₪120,000
                             </Text>
                           </Stack>
                         </Group>
@@ -226,7 +288,7 @@ export function Onboarding() {
                           <Stack gap={4}>
                             <Text fw={500}>עוסק פטור</Text>
                             <Text size="sm" c="dimmed">
-                              עסק שפטור מגביית מע״מ עד תקרת מחזור מסוימת
+                              עצמאי שמחזורו מתחת ל-₪120,000. פטור מגביית מע״מ
                             </Text>
                           </Stack>
                         </Group>
@@ -238,146 +300,192 @@ export function Onboarding() {
                           <Stack gap={4}>
                             <Text fw={500}>חברה בע״מ</Text>
                             <Text size="sm" c="dimmed">
-                              חברה פרטית מוגבלת הרשומה ברשם החברות
+                              חברה פרטית הרשומה ברשם החברות (ח.פ.)
                             </Text>
                           </Stack>
                         </Group>
                       </Radio.Card>
                     </Stack>
                   </Radio.Group>
+
+                  <Anchor component="button" size="sm" onClick={() => setTypeModalOpen(true)}>
+                    לא בטוח? קרא עוד
+                  </Anchor>
+
+                  <Button
+                    size="lg"
+                    fullWidth
+                    disabled={!form.values.businessType}
+                    onClick={goToStep1}
+                  >
+                    המשך
+                  </Button>
                 </Stack>
+              )}
 
-                <TextInput
-                  label="מספר רישום"
-                  description="9 ספרות - ח.פ. או ע.מ."
-                  required
-                  placeholder="123456789"
-                  rightSection={
-                    <InfoTooltip label="מספר ח.פ. (חברה פרטית) או מספר עוסק מורשה בן 9 ספרות כפי שמופיע ברישיון העסק ובמסמכי רשות המיסים" />
-                  }
-                  {...form.getInputProps('registrationNumber')}
-                  onBlur={(e) => {
-                    form.getInputProps('registrationNumber').onBlur(e);
-                    handleRegistrationNumberBlur();
-                  }}
-                  disabled={isPending}
-                />
+              {/* Step 1: Legal identity */}
+              {step === 1 && (
+                <Stack gap="md">
+                  {form.values.businessType === 'exempt_dealer' && (
+                    <Text size="sm" c="dimmed">
+                      כעוסק פטור, שמך האישי הוא שם העסק שיופיע בחשבוניות.
+                    </Text>
+                  )}
 
-                <TextInput
-                  label={getVatLabel(form.values.businessType)}
-                  description={getVatDescription(form.values.businessType)}
-                  required={!isExempt}
-                  placeholder={isExempt ? '' : '123456789'}
-                  rightSection={<InfoTooltip label={getVatTooltip(form.values.businessType)} />}
-                  {...form.getInputProps('vatNumber')}
-                  onChange={(e) => {
-                    vatManuallyEdited.current = true;
-                    form.getInputProps('vatNumber').onChange(e);
-                  }}
-                  disabled={isPending || isExempt}
-                />
-              </Stack>
-
-              <Divider />
-
-              {/* Address */}
-              <Stack gap="md">
-                <Text fw={600} size="lg">
-                  כתובת
-                </Text>
-
-                <TextInput
-                  label="רחוב ומספר"
-                  description="כתובת העסק כפי שתופיע בחשבוניות"
-                  required
-                  {...form.getInputProps('streetAddress')}
-                  disabled={isPending}
-                />
-
-                <Group grow>
                   <TextInput
-                    label="עיר"
-                    description="שם העיר או הישוב"
+                    label={getNameLabel()}
                     required
-                    {...form.getInputProps('city')}
+                    data-autofocus
+                    {...form.getInputProps('name')}
                     disabled={isPending}
                   />
+
                   <TextInput
-                    label="מיקוד"
-                    description="7 ספרות (אופציונלי)"
-                    placeholder="1234567"
-                    {...form.getInputProps('postalCode')}
+                    label={getRegistrationLabel()}
+                    required
+                    placeholder="123456789"
+                    {...form.getInputProps('registrationNumber')}
+                    onBlur={(e) => {
+                      form.getInputProps('registrationNumber').onBlur(e);
+                      handleRegistrationNumberBlur();
+                    }}
                     disabled={isPending}
                   />
-                </Group>
-              </Stack>
 
-              <Divider />
+                  {form.values.businessType !== 'exempt_dealer' && (
+                    <TextInput
+                      label={getVatLabel(form.values.businessType)}
+                      description={getVatDescription(form.values.businessType)}
+                      required
+                      placeholder="123456789"
+                      rightSection={<InfoTooltip label={getVatTooltip(form.values.businessType)} />}
+                      {...form.getInputProps('vatNumber')}
+                      onChange={(e) => {
+                        vatManuallyEdited.current = true;
+                        form.getInputProps('vatNumber').onChange(e);
+                      }}
+                      disabled={isPending}
+                    />
+                  )}
 
-              {/* Contact */}
-              <Stack gap="md">
-                <Text fw={600} size="lg">
-                  פרטי קשר
-                </Text>
+                  <Group justify="space-between">
+                    <Button variant="default" onClick={() => setStep(0)}>
+                      חזרה
+                    </Button>
+                    <Button onClick={goToStep2}>המשך</Button>
+                  </Group>
+                </Stack>
+              )}
 
-                <TextInput
-                  label="טלפון"
-                  description="מספר טלפון שיופיע בחשבוניות"
-                  placeholder="0501234567"
-                  {...form.getInputProps('phone')}
-                  disabled={isPending}
-                />
+              {/* Step 2: Address and contact */}
+              {step === 2 && (
+                <form onSubmit={onSubmit}>
+                  <Stack gap="xl">
+                    <AddressAutocomplete form={form} disabled={isPending} />
 
-                <TextInput
-                  label='דוא"ל'
-                  description="כתובת אימייל לקבלת התראות ושליחת חשבוניות"
-                  type="email"
-                  placeholder="info@example.com"
-                  {...form.getInputProps('email')}
-                  disabled={isPending}
-                />
-              </Stack>
+                    <Stack gap="md">
+                      <Text fw={600} size="lg">
+                        פרטי קשר
+                      </Text>
 
-              <Divider />
+                      <TextInput
+                        label="מספר טלפון"
+                        placeholder="0501234567"
+                        {...form.getInputProps('phone')}
+                        disabled={isPending}
+                      />
 
-              {/* Invoice Settings */}
-              <Stack gap="md">
-                <Text fw={600} size="lg">
-                  הגדרות חשבוניות
-                </Text>
+                      <TextInput
+                        label='דוא"ל'
+                        type="email"
+                        placeholder="info@example.com"
+                        {...form.getInputProps('email')}
+                        disabled={isPending}
+                      />
+                    </Stack>
 
-                <TextInput
-                  label="קידומת מספר חשבונית"
-                  description="אופציונלי - טקסט שיופיע לפני מספר החשבונית"
-                  placeholder="INV"
-                  rightSection={
-                    <InfoTooltip label="קידומת שתופיע לפני מספר החשבונית, לדוגמה: INV-0001 או חש-0001. ניתן להשאיר ריק" />
-                  }
-                  {...form.getInputProps('invoiceNumberPrefix')}
-                  disabled={isPending}
-                />
+                    <Stack gap="xs">
+                      <Anchor
+                        component="button"
+                        size="sm"
+                        type="button"
+                        onClick={() => setAdvancedOpen((o) => !o)}
+                      >
+                        {advancedOpen ? 'הגדרות מתקדמות ▴' : 'הגדרות מתקדמות ▾'}
+                      </Anchor>
+                      <Collapse in={advancedOpen}>
+                        <Stack gap="md" pt="xs">
+                          <TextInput
+                            label="קידומת מספר חשבונית"
+                            placeholder="INV"
+                            rightSection={
+                              <InfoTooltip label="קידומת שתופיע לפני מספר החשבונית, לדוגמה: INV-0001 או חש-0001. ניתן להשאיר ריק" />
+                            }
+                            {...form.getInputProps('invoiceNumberPrefix')}
+                            disabled={isPending}
+                          />
 
-                <NumberInput
-                  label="מספר חשבונית התחלתי"
-                  description="המספר ממנו יתחילו החשבוניות שלך"
-                  min={1}
-                  allowNegative={false}
-                  allowDecimal={false}
-                  rightSection={
-                    <InfoTooltip label="בדרך כלל 1, אלא אם אתם עוברים ממערכת אחרת ורוצים להמשיך מהמספר האחרון" />
-                  }
-                  {...form.getInputProps('startingInvoiceNumber')}
-                  disabled={isPending}
-                />
-              </Stack>
+                          <NumberInput
+                            label="מספר חשבונית ראשונה"
+                            min={1}
+                            allowNegative={false}
+                            allowDecimal={false}
+                            rightSection={
+                              <InfoTooltip label="בדרך כלל 1, אלא אם אתם עוברים ממערכת אחרת ורוצים להמשיך מהמספר האחרון" />
+                            }
+                            {...form.getInputProps('startingInvoiceNumber')}
+                            disabled={isPending}
+                          />
+                        </Stack>
+                      </Collapse>
+                    </Stack>
 
-              <Button type="submit" size="lg" fullWidth mt="md" loading={isPending}>
-                צור עסק והתחל להנפיק חשבוניות
-              </Button>
+                    <Group justify="space-between">
+                      <Button variant="default" type="button" onClick={() => setStep(1)}>
+                        חזרה
+                      </Button>
+                      <Button type="submit" size="lg" loading={isPending}>
+                        צור עסק והתחל להנפיק חשבוניות
+                      </Button>
+                    </Group>
+                  </Stack>
+                </form>
+              )}
             </Stack>
           </Paper>
         </Stack>
       </Container>
+
+      <Modal
+        opened={typeModalOpen}
+        onClose={() => setTypeModalOpen(false)}
+        title="סוגי עסקים בישראל"
+        centered
+      >
+        <Stack gap="md">
+          <Stack gap={4}>
+            <Text fw={600}>עוסק מורשה</Text>
+            <Text size="sm" c="dimmed">
+              עצמאי או שותפות עם מחזור שנתי מעל ₪120,000. חייב לגבות מע״מ מלקוחותיו ולהעביר לרשות
+              המיסים. מקבל מספר עוסק מורשה (ע.מ.) מרשות המיסים.
+            </Text>
+          </Stack>
+          <Stack gap={4}>
+            <Text fw={600}>עוסק פטור</Text>
+            <Text size="sm" c="dimmed">
+              עצמאי עם מחזור שנתי מתחת ל-₪120,000. פטור מגביית מע״מ ואינו מנפיק חשבוניות מס. מזדהה
+              באמצעות תעודת זהות.
+            </Text>
+          </Stack>
+          <Stack gap={4}>
+            <Text fw={600}>חברה בע״מ</Text>
+            <Text size="sm" c="dimmed">
+              ישות משפטית נפרדת הרשומה ברשם החברות. מקבלת מספר חברה (ח.פ.) ייחודי. חייבת בגביית
+              מע״מ.
+            </Text>
+          </Stack>
+        </Stack>
+      </Modal>
     </Center>
   );
 }

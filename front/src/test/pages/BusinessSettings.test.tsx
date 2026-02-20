@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { BusinessSettings } from '../../pages/BusinessSettings';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
@@ -8,6 +7,15 @@ vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/businesses', () => ({
   fetchBusiness: vi.fn(),
   updateBusiness: vi.fn(),
+}));
+vi.mock('../../api/address', () => ({
+  fetchAllCities: vi.fn().mockResolvedValue([]),
+  fetchAllStreetsForCity: vi.fn().mockResolvedValue([]),
+  filterOptions: vi.fn((options: { name: string }[], query: string) => {
+    const q = query.trim();
+    if (!q) return options;
+    return options.filter((o) => o.name.includes(q));
+  }),
 }));
 
 import { useBusiness } from '../../contexts/BusinessContext';
@@ -44,6 +52,12 @@ const activeBusinessStub = {
 describe('BusinessSettings page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: activeBusinessStub,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
   });
 
   it('shows "לא נבחר עסק" when activeBusiness is null', () => {
@@ -60,13 +74,6 @@ describe('BusinessSettings page', () => {
   });
 
   it('shows loading state while fetching', async () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchBusiness).mockReturnValue(new Promise(() => {}));
 
     renderWithProviders(<BusinessSettings />);
@@ -75,13 +82,6 @@ describe('BusinessSettings page', () => {
   });
 
   it('shows form with business name when loaded', async () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
       business: mockBusiness,
       role: 'owner' as const,
@@ -91,18 +91,10 @@ describe('BusinessSettings page', () => {
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
-    const nameInput = await screen.findByRole('textbox', { name: /שם העסק/ });
-    expect(nameInput).toHaveValue('Test Co');
+    expect(await screen.findByRole('textbox', { name: /שם העסק/ })).toHaveValue('Test Co');
   });
 
   it('shows error state when fetchBusiness rejects', async () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchBusiness).mockRejectedValue(new Error('Network error'));
 
     renderWithProviders(<BusinessSettings />);
@@ -111,15 +103,6 @@ describe('BusinessSettings page', () => {
   });
 
   it('submitting form calls updateBusiness without registrationNumber', async () => {
-    const user = userEvent.setup();
-
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
       business: mockBusiness,
       role: 'owner' as const,
@@ -134,7 +117,9 @@ describe('BusinessSettings page', () => {
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
     await screen.findByRole('textbox', { name: /שם העסק/ });
 
-    await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
+    );
 
     await waitFor(() => expect(businessesApi.updateBusiness).toHaveBeenCalled());
 
@@ -144,15 +129,6 @@ describe('BusinessSettings page', () => {
   });
 
   it('shows phone validation error when phone is invalid', async () => {
-    const user = userEvent.setup();
-
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
       business: mockBusiness,
       role: 'owner' as const,
@@ -162,10 +138,12 @@ describe('BusinessSettings page', () => {
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
-    const phoneInput = await screen.findByRole('textbox', { name: /טלפון/ });
-    await user.type(phoneInput, '12345');
-
-    await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
+    fireEvent.change(await screen.findByRole('textbox', { name: /טלפון/ }), {
+      target: { value: '12345' },
+    });
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
+    );
 
     await waitFor(() => {
       expect(screen.getByText('מספר טלפון לא תקין')).toBeInTheDocument();
@@ -173,13 +151,6 @@ describe('BusinessSettings page', () => {
   });
 
   it('shows email validation error when email is invalid', async () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
       business: mockBusiness,
       role: 'owner' as const,
@@ -189,11 +160,12 @@ describe('BusinessSettings page', () => {
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
-    const emailInput = await screen.findByRole('textbox', { name: /אימייל/ });
-    fireEvent.change(emailInput, { target: { value: 'not-an-email' } });
-
-    const form = screen.getByRole('button', { name: 'שמור שינויים' }).closest('form')!;
-    fireEvent.submit(form);
+    fireEvent.change(await screen.findByRole('textbox', { name: /אימייל/ }), {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
+    );
 
     await waitFor(() => {
       expect(screen.getByText('כתובת אימייל לא תקינה')).toBeInTheDocument();
@@ -201,13 +173,6 @@ describe('BusinessSettings page', () => {
   });
 
   it('populates form from fetched business with null optional fields', async () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-
     vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
       business: {
         ...mockBusiness,
@@ -223,10 +188,32 @@ describe('BusinessSettings page', () => {
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
-    const nameInput = await screen.findByRole('textbox', { name: /שם העסק/ });
-    expect(nameInput).toHaveValue('Test Co');
+    expect(await screen.findByRole('textbox', { name: /שם העסק/ })).toHaveValue('Test Co');
+    expect(screen.getByRole('textbox', { name: /טלפון/ })).toHaveValue('');
+  });
 
-    const phoneInput = screen.getByRole('textbox', { name: /טלפון/ });
-    expect(phoneInput).toHaveValue('');
+  it('shows business type label', async () => {
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: mockBusiness,
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    expect(await screen.findByText('עוסק מורשה')).toBeInTheDocument();
+  });
+
+  it('pre-populates city and street from existing business data', async () => {
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: { ...mockBusiness, city: 'TLV', streetAddress: '1 Main' },
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+
+    expect(await screen.findByRole('textbox', { name: /^עיר/ })).toHaveValue('TLV');
+    expect(screen.getByRole('textbox', { name: /^רחוב/ })).toHaveValue('1 Main');
   });
 });
