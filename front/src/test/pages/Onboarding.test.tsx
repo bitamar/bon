@@ -50,7 +50,7 @@ async function fillAndSubmit(
   const regInput = screen.getByRole('textbox', { name: /מספר/ });
   await user.clear(regInput);
   await user.type(regInput, opts.registrationNumber);
-  await user.click(screen.getByRole('button', { name: 'צור עסק' }));
+  await user.click(screen.getByRole('button', { name: 'יצירת עסק' }));
   await waitFor(() => expect(businessesApi.createBusiness).toHaveBeenCalled());
   return vi.mocked(businessesApi.createBusiness).mock.calls[0]?.[0];
 }
@@ -122,7 +122,7 @@ describe('Onboarding page', () => {
     await selectBusinessType(user, 'עוסק פטור');
     await user.type(screen.getByRole('textbox', { name: /שם מלא/ }), 'ישראל ישראלי');
     await user.type(screen.getByRole('textbox', { name: /מספר תעודת זהות/ }), '123456789');
-    await user.click(screen.getByRole('button', { name: 'צור עסק' }));
+    await user.click(screen.getByRole('button', { name: 'יצירת עסק' }));
 
     await waitFor(() => {
       expect(screen.getByText('מספר ת.ז. לא תקין')).toBeInTheDocument();

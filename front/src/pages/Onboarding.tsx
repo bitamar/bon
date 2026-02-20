@@ -56,7 +56,7 @@ export function Onboarding() {
 
   const createMutation = useApiMutation({
     mutationFn: createBusiness,
-    successToast: { message: 'העסק נוצר! השלם את הפרופיל כדי להנפיק חשבוניות.' },
+    successToast: { message: 'העסק נוצר! יש להשלים את הפרופיל כדי להנפיק חשבוניות.' },
     errorToast: { fallbackMessage: 'שגיאה ביצירת העסק' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.userBusinesses() });
@@ -84,7 +84,7 @@ export function Onboarding() {
   const getRegistrationLabel = () => {
     switch (form.values.businessType) {
       case 'exempt_dealer':
-        return 'מספר תעודת זהות (ת.ז.)';
+        return 'מספר תעודת זהות';
       case 'licensed_dealer':
         return 'מספר עוסק מורשה (ע.מ.)';
       case 'limited_company':
@@ -127,7 +127,7 @@ export function Onboarding() {
     >
       <Container size={480} w="100%">
         <Stack gap="xl">
-          <BrandLogo subtitle="צור את העסק שלך" />
+          <BrandLogo subtitle="יצירת העסק שלך" />
 
           <Paper
             shadow="xs"
@@ -189,7 +189,7 @@ export function Onboarding() {
                   size="sm"
                   onClick={() => setTypeModalOpen(true)}
                 >
-                  לא בטוח? קרא עוד
+                  לא בטוחים? מידע נוסף
                 </Anchor>
 
                 {form.values.businessType && (
@@ -211,7 +211,7 @@ export function Onboarding() {
                     />
 
                     <Button type="submit" size="lg" fullWidth loading={isPending}>
-                      צור עסק
+                      יצירת עסק
                     </Button>
                   </>
                 )}
