@@ -50,7 +50,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
       return cb(null, isHostAllowed(parsed.host, env.APP_ORIGIN_HOST));
     },
     credentials: true,
-    methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
     exposedHeaders: ['Set-Cookie'],
     preflight: true,

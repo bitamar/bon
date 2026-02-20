@@ -31,6 +31,14 @@ export async function updateCustomer(
   return rows[0] ?? null;
 }
 
+export async function findCustomerByTaxId(businessId: string, taxId: string) {
+  const rows = await db
+    .select({ id: customers.id, name: customers.name })
+    .from(customers)
+    .where(and(eq(customers.businessId, businessId), eq(customers.taxId, taxId)));
+  return rows[0] ?? null;
+}
+
 export async function searchCustomers(
   businessId: string,
   query: string | undefined,
@@ -59,6 +67,8 @@ export async function searchCustomers(
       taxIdType: customers.taxIdType,
       isLicensedDealer: customers.isLicensedDealer,
       city: customers.city,
+      email: customers.email,
+      streetAddress: customers.streetAddress,
       isActive: customers.isActive,
     })
     .from(customers)

@@ -206,6 +206,14 @@ export function conflict(
   return new AppError({ statusCode: 409, code: options.code ?? 'conflict', ...options });
 }
 
+export function extractConstraintName(err: unknown): string | undefined {
+  if (!err || typeof err !== 'object') return undefined;
+  const constraint = (err as Record<string, unknown>)['constraint'];
+  if (typeof constraint === 'string') return constraint;
+  if ('cause' in err) return extractConstraintName((err as { cause: unknown }).cause);
+  return undefined;
+}
+
 export function forbidden(
   options: Omit<AppErrorOptions, 'statusCode' | 'code'> & { code?: string } = {}
 ) {

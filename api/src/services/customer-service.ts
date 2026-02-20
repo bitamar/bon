@@ -1,6 +1,7 @@
 import {
   insertCustomer,
   findCustomerById,
+  findCustomerByTaxId,
   updateCustomer,
   searchCustomers,
   type CustomerRecord,
@@ -65,6 +66,22 @@ export type UpdateCustomerInput = {
   isActive?: boolean | undefined;
 };
 
+async function throwDuplicateTaxIdConflict(
+  businessId: string,
+  taxId: string | null
+): Promise<never> {
+  let details: { existingCustomerId: string; existingCustomerName: string } | undefined;
+
+  if (taxId) {
+    const existing = await findCustomerByTaxId(businessId, taxId);
+    if (existing) {
+      details = { existingCustomerId: existing.id, existingCustomerName: existing.name };
+    }
+  }
+
+  throw conflict({ code: 'duplicate_tax_id', details });
+}
+
 export async function createCustomer(businessId: string, input: CreateCustomerInput) {
   const now = new Date();
 
@@ -91,7 +108,7 @@ export async function createCustomer(businessId: string, input: CreateCustomerIn
     return { customer: serializeCustomer(customer) } satisfies CustomerResponse;
   } catch (err: unknown) {
     if (isErrorWithCode(err, '23505')) {
-      throw conflict({ code: 'duplicate_tax_id' });
+      await throwDuplicateTaxIdConflict(businessId, input.taxId ?? null);
     }
     throw err;
   }
@@ -119,7 +136,7 @@ function buildCustomerUpdates(input: UpdateCustomerInput, now: Date): Record<str
   if (input.notes !== undefined) updates['notes'] = input.notes;
   if (input.isActive != null) {
     updates['isActive'] = input.isActive;
-    if (!input.isActive) updates['deletedAt'] = now;
+    updates['deletedAt'] = input.isActive ? null : now;
   }
   return updates;
 }
@@ -142,7 +159,7 @@ export async function updateCustomerById(
     return { customer: serializeCustomer(customer) } satisfies CustomerResponse;
   } catch (err: unknown) {
     if (isErrorWithCode(err, '23505')) {
-      throw conflict({ code: 'duplicate_tax_id' });
+      await throwDuplicateTaxIdConflict(businessId, input.taxId ?? null);
     }
     throw err;
   }
@@ -164,6 +181,8 @@ export async function listCustomers(
       taxIdType: r.taxIdType,
       isLicensedDealer: r.isLicensedDealer,
       city: r.city ?? null,
+      email: r.email ?? null,
+      streetAddress: r.streetAddress ?? null,
       isActive: r.isActive,
     })),
   } satisfies CustomerListResponse;

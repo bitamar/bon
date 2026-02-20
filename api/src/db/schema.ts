@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { isNull, relations } from 'drizzle-orm';
+import { isNotNull, isNull, relations } from 'drizzle-orm';
 
 export const businessTypeEnum = pgEnum('business_type', [
   'licensed_dealer',
@@ -213,7 +213,9 @@ export const customers = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    unique('customers_business_id_tax_id_unique').on(table.businessId, table.taxId),
+    uniqueIndex('customers_business_id_tax_id_unique')
+      .on(table.businessId, table.taxId)
+      .where(isNotNull(table.taxId)),
     index('customers_business_id_idx').on(table.businessId),
   ]
 );
