@@ -1,6 +1,6 @@
 # T03 — Lightweight Business Onboarding
 
-**Status**: 🔄 In Progress (`fix/onboarding-and-fixes`)
+**Status**: 🔄 In Progress (`simpler-onboarding`)
 **Phase**: 0 — Foundation
 **Requires**: T01
 **Blocks**: T04, T05
@@ -54,9 +54,10 @@ Validation:
 
 ### Behavior
 - Changing business type clears registration number only (name is preserved — label changes but content is still valid)
-- On submit for `exempt_dealer`: set `defaultVatRate = 0` (exempt from VAT)
-- On submit: POST to create business → redirect to `/business/settings` with toast: "העסק נוצר! השלם את הפרופיל כדי להנפיק חשבוניות."
-- Duplicate registration number error: if API returns `duplicate_registration_number`, show inline error on the registrationNumber field
+- On submit for `exempt_dealer`: `defaultVatRate = 0` is enforced server-side (frontend does not send it)
+- On submit: POST to create business → optimistic cache update → redirect to `/business/settings` with toast: "העסק נוצר בהצלחה!"
+- Duplicate registration number error: if API returns `duplicate_registration_number`, show inline error on the registrationNumber field (no toast). Generic toast only for other errors.
+- Cancel link: shown only when user already has existing businesses (uses `useBusiness().businesses.length`)
 
 ### Fields removed from onboarding
 - VAT number
@@ -113,25 +114,30 @@ Add `vatNumber` field to the settings form:
 
 ## Acceptance Criteria
 
-- [ ] Single-page form: business type + name + registration number (no stepper)
-- [ ] Labels adapt per business type (see tables above)
-- [ ] Israeli ID checksum validation for ת.ז. (עוסק פטור)
-- [ ] Registration number: 9-digit validation with correct error messages
-- [ ] Changing type clears registration number only (name preserved)
-- [ ] `exempt_dealer` submit sets `defaultVatRate = 0` (enforced server-side too)
-- [ ] Duplicate registration number → inline error on field
-- [ ] After submit: redirect to `/business/settings` with success toast
-- [ ] Backend accepts business creation without address/VAT/phone/email
-- [ ] Settings page: VAT number field added (hidden for exempt_dealer, per-type labels)
-- [ ] Settings page: `vatNumber` initialized from API response
-- [ ] `updateBusinessBodySchema` includes `vatNumber`
-- [ ] Existing tests updated, new test for minimal creation payload
-- [ ] `npm run check` passes
+- [x] Single-page form: business type + name + registration number (no stepper)
+- [x] Labels adapt per business type (see tables above)
+- [x] Israeli ID checksum validation for ת.ז. (עוסק פטור)
+- [x] Registration number: 9-digit validation with correct error messages
+- [x] Changing type clears registration number only (name preserved)
+- [x] `exempt_dealer` submit sets `defaultVatRate = 0` (enforced server-side too)
+- [x] Duplicate registration number → inline error on field (no toast; generic toast for other errors)
+- [x] After submit: optimistic cache update + redirect to `/business/settings` with success toast
+- [x] Backend accepts business creation without address/VAT/phone/email
+- [x] Settings page: VAT number field added (hidden for exempt_dealer, per-type labels)
+- [x] Settings page: `vatNumber` initialized from API response
+- [x] `updateBusinessBodySchema` includes `vatNumber`
+- [x] Existing tests updated, new test for minimal creation payload
+- [x] `npm run check` passes
+- [x] All UI text in Hebrew (error messages, toasts, labels, navigation)
+- [x] All forms use `noValidate` (suppress browser English validation)
+- [x] Loading spinners on all action buttons
+- [x] Conditional cancel link for users with existing businesses
+- [ ] Deployed to production
 
 ---
 
 ## Links
 
-- Branch: `fix/onboarding-and-fixes`
+- Branch: `simpler-onboarding`
 - PR: —
 - Deployed: ⬜

@@ -105,6 +105,7 @@ describe('business-service', () => {
       // can detect it via isErrorWithCode — the same check that runs against real PostgreSQL.
       const pgError = Object.assign(new Error('duplicate key value violates unique constraint'), {
         code: '23505',
+        constraint: 'businesses_registration_number_unique',
       });
       const spy = vi.spyOn(businessRepository, 'insertBusiness').mockRejectedValueOnce(pgError);
 
