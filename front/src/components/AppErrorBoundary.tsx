@@ -32,7 +32,7 @@ export class AppErrorBoundary extends Component<
 
   override render() {
     if (this.state.hasError) {
-      const message = extractErrorMessage(this.state.error, 'אירעה שגיאה בלתי צפויה');
+      const message = extractErrorMessage(this.state.error, 'משהו לא עבד כמו שצריך');
       return (
         <Stack p="xl" mih="100vh" justify="center" align="center">
           <StatusCard

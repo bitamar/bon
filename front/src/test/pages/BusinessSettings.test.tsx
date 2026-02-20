@@ -99,7 +99,7 @@ describe('BusinessSettings page', () => {
 
     renderWithProviders(<BusinessSettings />);
 
-    expect(await screen.findByText('שגיאה בטעינת נתוני העסק')).toBeInTheDocument();
+    expect(await screen.findByText('לא הצלחנו לטעון את נתוני העסק')).toBeInTheDocument();
   });
 
   it('submitting form calls updateBusiness without registrationNumber', async () => {

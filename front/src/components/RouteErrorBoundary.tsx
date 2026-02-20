@@ -35,7 +35,7 @@ class RouteErrorBoundaryInner extends Component<
 
   override render() {
     if (this.state.hasError) {
-      const message = extractErrorMessage(this.state.error, 'אירעה שגיאה בלתי צפויה');
+      const message = extractErrorMessage(this.state.error, 'משהו לא עבד כמו שצריך');
       return (
         <StatusCard
           status="error"
