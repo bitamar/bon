@@ -14,7 +14,10 @@ const Env = z.object({
     .union([z.coerce.number().int().positive(), z.string()])
     .default('1 minute'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  NODE_ENV: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z.enum(['development', 'test', 'production']).default('production')
+  ),
 });
 
 const parsed = Env.parse(process.env);
