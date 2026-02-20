@@ -46,13 +46,14 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         params: customerParamSchema,
         body: createCustomerBodySchema,
         response: {
-          200: customerResponseSchema,
+          201: customerResponseSchema,
         },
       },
     },
-    async (req) => {
+    async (req, reply) => {
       ensureBusinessContext(req);
-      return createCustomer(req.businessContext.businessId, req.body);
+      const result = await createCustomer(req.businessContext.businessId, req.body);
+      return reply.status(201).send(result);
     }
   );
 
@@ -73,7 +74,7 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     }
   );
 
-  app.put(
+  app.patch(
     '/businesses/:businessId/customers/:customerId',
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],

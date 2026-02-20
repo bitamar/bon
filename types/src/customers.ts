@@ -52,14 +52,21 @@ export const createCustomerBodySchema = z
     path: ['taxId'],
   })
   .superRefine((data, ctx) => {
-    if (data.taxIdType === 'personal_id' && data.taxId && !validateIsraeliId(data.taxId)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'מספר ת.ז. לא תקין', path: ['taxId'] });
+    if (
+      data.taxId &&
+      data.taxIdType &&
+      data.taxIdType !== 'none' &&
+      !validateIsraeliId(data.taxId)
+    ) {
+      const msg =
+        data.taxIdType === 'personal_id' ? 'מספר ת.ז. לא תקין' : 'מספר מזהה לא תקין (ספרת ביקורת)';
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: msg, path: ['taxId'] });
     }
   });
 
 export const updateCustomerBodySchema = z
   .object({
-    name: optionalNullableString,
+    name: nonEmptyString.optional(),
     taxId: z.union([z.string().trim().regex(/^\d{9}$/), z.literal(null)]).optional(),
     taxIdType: z.union([taxIdTypeSchema, z.literal(null)]).optional(),
     isLicensedDealer: z.boolean().optional(),
@@ -78,8 +85,15 @@ export const updateCustomerBodySchema = z
     path: ['taxId'],
   })
   .superRefine((data, ctx) => {
-    if (data.taxIdType === 'personal_id' && data.taxId && !validateIsraeliId(data.taxId)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'מספר ת.ז. לא תקין', path: ['taxId'] });
+    if (
+      data.taxId &&
+      data.taxIdType &&
+      data.taxIdType !== 'none' &&
+      !validateIsraeliId(data.taxId)
+    ) {
+      const msg =
+        data.taxIdType === 'personal_id' ? 'מספר ת.ז. לא תקין' : 'מספר מזהה לא תקין (ספרת ביקורת)';
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: msg, path: ['taxId'] });
     }
   });
 
@@ -90,6 +104,8 @@ export const customerListItemSchema = z.object({
   taxIdType: taxIdTypeSchema,
   isLicensedDealer: z.boolean(),
   city: nullableString,
+  email: nullableString,
+  streetAddress: nullableString,
   isActive: z.boolean(),
 });
 

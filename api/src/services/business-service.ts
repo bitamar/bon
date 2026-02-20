@@ -13,7 +13,13 @@ import {
   deleteUserBusiness,
   findUserBusiness,
 } from '../repositories/user-business-repository.js';
-import { conflict, forbidden, isErrorWithCode, notFound } from '../lib/app-error.js';
+import {
+  conflict,
+  extractConstraintName,
+  forbidden,
+  isErrorWithCode,
+  notFound,
+} from '../lib/app-error.js';
 import {
   businessSchema,
   businessResponseSchema,
@@ -21,14 +27,6 @@ import {
   teamListResponseSchema,
   type BusinessRole,
 } from '@bon/types/businesses';
-
-function extractConstraintName(err: unknown): string | undefined {
-  if (!err || typeof err !== 'object') return undefined;
-  const constraint = (err as Record<string, unknown>)['constraint'];
-  if (typeof constraint === 'string') return constraint;
-  if ('cause' in err) return extractConstraintName((err as { cause: unknown }).cause);
-  return undefined;
-}
 
 export type BusinessDto = z.infer<typeof businessSchema>;
 export type BusinessResponse = z.infer<typeof businessResponseSchema>;
