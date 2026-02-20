@@ -14,7 +14,7 @@ describe('Navbar', () => {
       </AppShell>
     );
 
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByText('ראשי')).toBeInTheDocument();
+    expect(screen.getByText('הגדרות')).toBeInTheDocument();
   });
 });

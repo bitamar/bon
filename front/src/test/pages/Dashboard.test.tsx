@@ -7,10 +7,8 @@ describe('Dashboard page', () => {
   it('renders the dashboard intro card', () => {
     renderWithProviders(<Dashboard />);
 
-    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.getByText("You're all set.")).toBeInTheDocument();
-    expect(
-      screen.getByText(/This starter leaves the business logic up to you/i)
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ראשי' })).toBeInTheDocument();
+    expect(screen.getByText('הכל מוכן.')).toBeInTheDocument();
+    expect(screen.getByText(/המערכת מוכנה לשימוש/)).toBeInTheDocument();
   });
 });

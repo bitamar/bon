@@ -10,7 +10,7 @@ export default function Navbar() {
         <NavLink
           component={Link}
           to="/"
-          label="Dashboard"
+          label="ראשי"
           leftSection={<IconHome2 size={18} />}
           active={pathname === '/'}
         />
@@ -31,7 +31,7 @@ export default function Navbar() {
         <NavLink
           component={Link}
           to="/settings"
-          label="Settings"
+          label="הגדרות"
           leftSection={<IconSettings size={18} />}
           active={pathname.startsWith('/settings')}
         />

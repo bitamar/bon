@@ -36,7 +36,7 @@ describe('App routing', () => {
   it('renders protected dashboard when authenticated', async () => {
     renderApp();
 
-    await waitFor(() => expect(screen.getAllByText('Dashboard')[0]).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('ראשי')[0]).toBeInTheDocument());
     expect(screen.getByText('bon starter')).toBeInTheDocument();
   });
 

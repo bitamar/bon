@@ -19,9 +19,10 @@ import { createBusiness } from '../api/businesses';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../lib/queryKeys';
-import type { BusinessType } from '@bon/types/businesses';
+import type { BusinessListResponse, BusinessType } from '@bon/types/businesses';
 import { validateIsraeliId } from '@bon/types/validation';
 import { HttpError } from '../lib/http';
+import { showErrorNotification } from '../lib/notifications';
 
 type OnboardingFormValues = {
   name: string;
@@ -57,9 +58,21 @@ export function Onboarding() {
   const createMutation = useApiMutation({
     mutationFn: createBusiness,
     successToast: { message: 'העסק נוצר! יש להשלים את הפרופיל כדי להנפיק חשבוניות.' },
-    errorToast: { fallbackMessage: 'שגיאה ביצירת העסק' },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.userBusinesses() });
+    errorToast: false,
+    onSuccess: (data) => {
+      queryClient.setQueryData<BusinessListResponse>(queryKeys.userBusinesses(), (old) => ({
+        businesses: [
+          ...(old?.businesses ?? []),
+          {
+            id: data.business.id,
+            name: data.business.name,
+            businessType: data.business.businessType,
+            registrationNumber: data.business.registrationNumber,
+            isActive: data.business.isActive,
+            role: data.role,
+          },
+        ],
+      }));
       navigate('/business/settings');
     },
     onError: (error) => {
@@ -68,6 +81,8 @@ export function Onboarding() {
         (error.body as { code?: string } | undefined)?.code === 'duplicate_registration_number'
       ) {
         form.setFieldError('registrationNumber', 'מספר רישום זה כבר קיים במערכת');
+      } else {
+        showErrorNotification('שגיאה ביצירת העסק');
       }
     },
   });

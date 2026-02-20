@@ -43,12 +43,12 @@ export default function Header({
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Item component={Link} to="/settings" leftSection={<IconSettings size={16} />}>
-                Settings
+                הגדרות
               </Menu.Item>
 
               <Divider my="xs" />
               <Menu.Item leftSection={<IconLogout size={16} />} color="red" onClick={logout}>
-                Sign out
+                התנתקות
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>

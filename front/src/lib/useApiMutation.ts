@@ -19,7 +19,7 @@ interface ErrorToastConfig {
   title?: string;
 }
 
-const DEFAULT_ERROR_MESSAGE = 'Action failed';
+const DEFAULT_ERROR_MESSAGE = 'הפעולה נכשלה';
 
 export type ApiMutationOptions<
   TData,

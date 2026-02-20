@@ -5,13 +5,12 @@ export function Dashboard() {
   return (
     <Container size="lg" mt="xl">
       <Stack gap="md">
-        <PageTitle order={3}>Dashboard</PageTitle>
+        <PageTitle order={3}>ראשי</PageTitle>
         <Card withBorder radius="lg" p="lg">
           <Stack gap="sm">
-            <Text fw={600}>You&apos;re all set.</Text>
+            <Text fw={600}>הכל מוכן.</Text>
             <Text c="dimmed" size="sm">
-              This starter leaves the business logic up to you. Wire up new pages, connect data
-              sources, and shape the experience to match your product.
+              המערכת מוכנה לשימוש. ניתן להתחיל להוסיף לקוחות וליצור חשבוניות.
             </Text>
           </Stack>
         </Card>
