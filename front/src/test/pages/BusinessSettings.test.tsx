@@ -99,7 +99,7 @@ describe('BusinessSettings page', () => {
 
     renderWithProviders(<BusinessSettings />);
 
-    expect(await screen.findByText('שגיאה בטעינת נתוני העסק')).toBeInTheDocument();
+    expect(await screen.findByText('לא הצלחנו לטעון את נתוני העסק')).toBeInTheDocument();
   });
 
   it('submitting form calls updateBusiness without registrationNumber', async () => {
@@ -201,6 +201,63 @@ describe('BusinessSettings page', () => {
     renderWithProviders(<BusinessSettings />);
 
     expect(await screen.findByText('עוסק מורשה')).toBeInTheDocument();
+  });
+
+  it('shows vatNumber field for licensed_dealer and populates from API', async () => {
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: { ...mockBusiness, vatNumber: '987654321' },
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+
+    expect(await screen.findByRole('textbox', { name: /מספר רישום מע״מ/ })).toHaveValue(
+      '987654321'
+    );
+  });
+
+  it('hides vatNumber field for exempt_dealer', async () => {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: { ...activeBusinessStub, businessType: 'exempt_dealer' },
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: { ...mockBusiness, businessType: 'exempt_dealer' as const },
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+
+    expect(screen.queryByRole('textbox', { name: /מספר רישום מע״מ/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /מספר מע"מ/ })).not.toBeInTheDocument();
+  });
+
+  it('shows vatNumber validation error when value is not 9 digits', async () => {
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: mockBusiness,
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+
+    fireEvent.change(await screen.findByRole('textbox', { name: /מספר רישום מע״מ/ }), {
+      target: { value: '12345' },
+    });
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('מספר רישום חייב להיות 9 ספרות')).toBeInTheDocument();
+    });
   });
 
   it('pre-populates city and street from existing business data', async () => {

@@ -36,7 +36,7 @@ describe('App routing', () => {
   it('renders protected dashboard when authenticated', async () => {
     renderApp();
 
-    await waitFor(() => expect(screen.getAllByText('Dashboard')[0]).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('ראשי')[0]).toBeInTheDocument());
     expect(screen.getByText('bon starter')).toBeInTheDocument();
   });
 
@@ -45,7 +45,7 @@ describe('App routing', () => {
 
     renderApp();
 
-    await waitFor(() => expect(screen.getByText('ברוכים הבאים')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('חשבוניות בקלות')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /כניסה עם Google/i })).toBeInTheDocument();
   });
 
@@ -63,6 +63,6 @@ describe('App routing', () => {
     expect(screen.getByLabelText('Loading user')).toBeInTheDocument();
 
     resolveGetMe?.(null);
-    await waitFor(() => expect(screen.getByText('ברוכים הבאים')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('חשבוניות בקלות')).toBeInTheDocument());
   });
 });

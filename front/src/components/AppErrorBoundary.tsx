@@ -32,17 +32,17 @@ export class AppErrorBoundary extends Component<
 
   override render() {
     if (this.state.hasError) {
-      const message = extractErrorMessage(this.state.error, 'An unexpected error occurred');
+      const message = extractErrorMessage(this.state.error, 'משהו לא עבד כמו שצריך');
       return (
         <Stack p="xl" mih="100vh" justify="center" align="center">
           <StatusCard
             status="error"
-            title="Something went wrong"
+            title="משהו השתבש"
             description={message}
-            primaryAction={{ label: 'Try again', onClick: this.handleReset }}
+            primaryAction={{ label: 'נסה שוב', onClick: this.handleReset }}
             secondaryAction={
               <Button variant="subtle" onClick={() => globalThis.location.reload()}>
-                Reload page
+                טען מחדש
               </Button>
             }
           />

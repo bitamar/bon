@@ -71,7 +71,7 @@ export function TeamManagement() {
     mutationFn: ({ businessId, data }: { businessId: string; data: CreateInvitationBody }) =>
       createInvitation(businessId, data),
     successToast: { message: 'ההזמנה נשלחה בהצלחה' },
-    errorToast: { fallbackMessage: 'שגיאה בשליחת ההזמנה' },
+    errorToast: { fallbackMessage: 'לא הצלחנו לשלוח את ההזמנה, נסו שוב' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invitations(activeBusiness!.id) });
       closeInvite();
@@ -83,7 +83,7 @@ export function TeamManagement() {
     mutationFn: ({ businessId, userId }: { businessId: string; userId: string }) =>
       removeTeamMember(businessId, userId),
     successToast: { message: 'המשתמש הוסר בהצלחה' },
-    errorToast: { fallbackMessage: 'שגיאה בהסרת המשתמש' },
+    errorToast: { fallbackMessage: 'לא הצלחנו להסיר את המשתמש, נסו שוב' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.teamMembers(activeBusiness!.id) });
       closeDelete();
@@ -108,16 +108,17 @@ export function TeamManagement() {
   }
 
   if (teamQuery.error) {
-    const message = extractErrorMessage(teamQuery.error, 'שגיאה בטעינת נתוני הצוות');
+    const message = extractErrorMessage(teamQuery.error, 'לא הצלחנו לטעון את נתוני הצוות');
     return (
       <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
         <StatusCard
           status="error"
-          title="שגיאה בטעינת נתוני הצוות"
+          title="לא הצלחנו לטעון את נתוני הצוות"
           description={message}
           primaryAction={{
             label: 'נסה שוב',
             onClick: () => teamQuery.refetch(),
+            loading: teamQuery.isFetching,
           }}
         />
       </Container>
@@ -218,7 +219,7 @@ export function TeamManagement() {
         centered
         overlayProps={{ blur: 2 }}
       >
-        <form onSubmit={onInviteSubmit}>
+        <form onSubmit={onInviteSubmit} noValidate>
           <Stack gap="md">
             <TextInput
               label="אימייל"

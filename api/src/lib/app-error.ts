@@ -41,7 +41,11 @@ export function extractErrorCode(error: unknown): string | undefined {
 }
 
 export function isErrorWithCode(error: unknown, code: string): boolean {
-  return extractErrorCode(error) === code;
+  if (extractErrorCode(error) === code) return true;
+  if (error && typeof error === 'object' && 'cause' in error) {
+    return isErrorWithCode((error as { cause: unknown }).cause, code);
+  }
+  return false;
 }
 
 export function normalizeError(error: unknown): AppError {

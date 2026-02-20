@@ -3,7 +3,6 @@ import { MemoryRouter, type MemoryRouterProps } from 'react-router-dom';
 import { render, type RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
-import { useState } from 'react';
 
 export interface RenderWithProvidersOptions {
   router?: MemoryRouterProps;
@@ -21,27 +20,22 @@ export function renderWithProviders(
     document.body.appendChild(portalRoot);
   }
 
-  const Wrapper = ({ children }: { children: React.ReactNode }) => {
-    const [queryClient] = useState(
-      () =>
-        new QueryClient({
-          defaultOptions: {
-            queries: { retry: false },
-            mutations: { retry: false },
-          },
-        })
-    );
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
 
-    return (
-      <DirectionProvider>
-        <MantineProvider>
-          <QueryClientProvider client={queryClient}>
-            <MemoryRouter {...router}>{children}</MemoryRouter>
-          </QueryClientProvider>
-        </MantineProvider>
-      </DirectionProvider>
-    );
-  };
+  const Wrapper = ({ children }: Readonly<{ children: React.ReactNode }>) => (
+    <DirectionProvider>
+      <MantineProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter {...router}>{children}</MemoryRouter>
+        </QueryClientProvider>
+      </MantineProvider>
+    </DirectionProvider>
+  );
 
-  return render(ui, { wrapper: Wrapper, ...renderOptions });
+  return { ...render(ui, { wrapper: Wrapper, ...renderOptions }), queryClient };
 }

@@ -10,7 +10,7 @@ export function extractErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export function showSuccessNotification(message: string, title = 'Success') {
+export function showSuccessNotification(message: string, title = 'הצלחה') {
   notifications.show({
     title,
     message,
@@ -18,7 +18,7 @@ export function showSuccessNotification(message: string, title = 'Success') {
   });
 }
 
-export function showErrorNotification(message: string, title = 'Something went wrong') {
+export function showErrorNotification(message: string, title = 'משהו השתבש') {
   notifications.show({
     title,
     message,

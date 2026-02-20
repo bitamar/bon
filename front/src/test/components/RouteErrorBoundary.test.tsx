@@ -54,12 +54,12 @@ describe('RouteErrorBoundary', () => {
       </RouteErrorBoundary>
     );
 
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByText('משהו השתבש')).toBeInTheDocument();
     expect(screen.getByText('Route failed')).toBeInTheDocument();
     expect(useQueryClientMock).toHaveBeenCalled();
 
-    const retryButton = screen.getByRole('button', { name: 'Try again' });
-    const reloadButton = screen.getByRole('button', { name: 'Reload page' });
+    const retryButton = screen.getByRole('button', { name: 'נסה שוב' });
+    const reloadButton = screen.getByRole('button', { name: 'טען מחדש' });
     fireEvent.click(reloadButton);
     expect(reloadSpy).toHaveBeenCalled();
 

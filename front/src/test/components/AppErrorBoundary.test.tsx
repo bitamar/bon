@@ -37,11 +37,11 @@ describe('AppErrorBoundary', () => {
       </AppErrorBoundary>
     );
 
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByText('משהו השתבש')).toBeInTheDocument();
     expect(screen.getByText('Boom')).toBeInTheDocument();
 
-    const retryButton = screen.getByRole('button', { name: 'Try again' });
-    const reloadButton = screen.getByRole('button', { name: 'Reload page' });
+    const retryButton = screen.getByRole('button', { name: 'נסה שוב' });
+    const reloadButton = screen.getByRole('button', { name: 'טען מחדש' });
     fireEvent.click(reloadButton);
     expect(reloadSpy).toHaveBeenCalled();
 

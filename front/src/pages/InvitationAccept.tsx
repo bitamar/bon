@@ -15,7 +15,7 @@ export function InvitationAccept() {
   const acceptMutation = useApiMutation({
     mutationFn: acceptInvitation,
     successToast: { message: 'ההזמנה התקבלה בהצלחה' },
-    errorToast: { fallbackMessage: 'שגיאה בקבלת ההזמנה' },
+    errorToast: { fallbackMessage: 'לא הצלחנו לקבל את ההזמנה, נסו שוב' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.userBusinesses() });
       queryClient.invalidateQueries({ queryKey: queryKeys.myInvitations() });
@@ -26,7 +26,7 @@ export function InvitationAccept() {
   const declineMutation = useApiMutation({
     mutationFn: declineInvitation,
     successToast: { message: 'ההזמנה נדחתה' },
-    errorToast: { fallbackMessage: 'שגיאה בדחיית ההזמנה' },
+    errorToast: { fallbackMessage: 'לא הצלחנו לדחות את ההזמנה, נסו שוב' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.myInvitations() });
       navigate('/businesses');

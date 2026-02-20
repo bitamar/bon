@@ -49,9 +49,9 @@ describe('Settings page', () => {
 
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
-    expect(await screen.findByRole('heading', { name: 'Profile settings' })).toBeInTheDocument();
-    expect(await screen.findByLabelText(/Name/)).toHaveValue('User Test');
-    expect(await screen.findByLabelText(/Phone/)).toHaveValue('050-9999999');
+    expect(await screen.findByRole('heading', { name: 'הגדרות פרופיל' })).toBeInTheDocument();
+    expect(await screen.findByLabelText(/שם/)).toHaveValue('User Test');
+    expect(await screen.findByLabelText(/טלפון/)).toHaveValue('050-9999999');
   });
 
   it('submits updated settings', async () => {
@@ -59,15 +59,15 @@ describe('Settings page', () => {
 
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
-    const nameInput = await screen.findByLabelText(/Name/);
-    const phoneInput = await screen.findByLabelText(/Phone/);
+    const nameInput = await screen.findByLabelText(/שם/);
+    const phoneInput = await screen.findByLabelText(/טלפון/);
 
     fireEvent.change(nameInput, { target: { value: 'New Name' } });
     fireEvent.change(phoneInput, { target: { value: '050-1111111' } });
 
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
 
     await waitFor(() => expect(updateSettingsMock).toHaveBeenCalled());
     expect(updateSettingsMock.mock.calls[0]?.[0]).toEqual({
@@ -109,7 +109,7 @@ describe('Settings page', () => {
     await waitFor(() => expect(screen.getByText('Network error')).toBeInTheDocument());
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await user.click(screen.getByRole('button', { name: 'נסה שוב' }));
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalledTimes(2));
   });
 
@@ -128,8 +128,8 @@ describe('Settings page', () => {
 
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
-    expect(await screen.findByLabelText(/Name/)).toHaveValue('');
-    expect(await screen.findByLabelText(/Phone/)).toHaveValue('');
+    expect(await screen.findByLabelText(/שם/)).toHaveValue('');
+    expect(await screen.findByLabelText(/טלפון/)).toHaveValue('');
   });
 
   it('submits null for name and phone when inputs are blank or whitespace-only', async () => {
@@ -137,8 +137,8 @@ describe('Settings page', () => {
 
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
-    const nameInput = await screen.findByLabelText(/Name/);
-    const phoneInput = await screen.findByLabelText(/Phone/);
+    const nameInput = await screen.findByLabelText(/שם/);
+    const phoneInput = await screen.findByLabelText(/טלפון/);
 
     fireEvent.change(nameInput, { target: { value: '   ' } });
     fireEvent.change(phoneInput, { target: { value: '   ' } });
@@ -154,7 +154,7 @@ describe('Settings page', () => {
       },
     });
 
-    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
 
     await waitFor(() => expect(updateSettingsMock).toHaveBeenCalled());
     expect(updateSettingsMock.mock.calls[0]?.[0]).toEqual({ name: null, phone: null });

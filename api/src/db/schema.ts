@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { relations, sql } from 'drizzle-orm';
+import { isNull, relations } from 'drizzle-orm';
 
 export const businessTypeEnum = pgEnum('business_type', [
   'licensed_dealer',
@@ -66,8 +66,8 @@ export const businesses = pgTable('businesses', {
   businessType: businessTypeEnum('business_type').notNull(),
   registrationNumber: text('registration_number').notNull().unique(),
   vatNumber: text('vat_number').unique(),
-  streetAddress: text('street_address').notNull(),
-  city: text('city').notNull(),
+  streetAddress: text('street_address'),
+  city: text('city'),
   postalCode: text('postal_code'),
   phone: text('phone'),
   email: text('email'),
@@ -108,7 +108,7 @@ export const userBusinesses = pgTable(
     // Partial unique: a user can only be an active member once, but removed rows are kept for history
     uniqueIndex('user_businesses_active_unique')
       .on(table.userId, table.businessId)
-      .where(sql`${table.removedAt} IS NULL`),
+      .where(isNull(table.removedAt)),
     index('user_businesses_business_id_idx').on(table.businessId),
   ]
 );

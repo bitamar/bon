@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { lightModeCssVariablesResolver, mantineThemeOverride } from '../../theme';
 
 describe('theme configuration', () => {
+  it('uses lime as primary color', () => {
+    expect(mantineThemeOverride.primaryColor).toBe('lime');
+  });
+
   it('exposes light background color for the app shell', () => {
     expect(mantineThemeOverride.other?.['lightAppBackground']).toBe('#fffbf5');
   });

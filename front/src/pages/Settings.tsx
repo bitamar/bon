@@ -39,8 +39,8 @@ export function Settings() {
 
   const updateSettingsMutation = useApiMutation({
     mutationFn: updateSettings,
-    successToast: { message: 'Settings saved' },
-    errorToast: { fallbackMessage: 'Saving settings failed' },
+    successToast: { message: 'ההגדרות נשמרו בהצלחה' },
+    errorToast: { fallbackMessage: 'לא הצלחנו לשמור את ההגדרות, נסו שוב' },
     onSuccess: (data: SettingsResponse) => {
       queryClient.setQueryData(queryKeys.settings(), data);
       queryClient.invalidateQueries({ queryKey: queryKeys.me() });
@@ -50,28 +50,26 @@ export function Settings() {
   if (settingsQuery.isPending) {
     return (
       <Stack gap="md">
-        <StatusCard status="loading" title="Loading settings…" align="start" />
+        <StatusCard status="loading" title="טוען הגדרות…" align="start" />
       </Stack>
     );
   }
 
   if (settingsQuery.error) {
-    const message = extractErrorMessage(
-      settingsQuery.error,
-      'Something went wrong while fetching settings'
-    );
+    const message = extractErrorMessage(settingsQuery.error, 'לא הצלחנו לטעון את ההגדרות');
     return (
       <Stack gap="md">
         <StatusCard
           status="error"
-          title="Unable to load settings"
+          title="לא הצלחנו לטעון את ההגדרות"
           description={message}
           align="start"
           primaryAction={{
-            label: 'Try again',
+            label: 'נסה שוב',
             onClick: () => {
               settingsQuery.refetch();
             },
+            loading: settingsQuery.isFetching,
           }}
         />
       </Stack>
@@ -89,8 +87,8 @@ export function Settings() {
   return (
     <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
       <Stack gap="md">
-        <PageTitle order={3}>Profile settings</PageTitle>
-        <Card component="form" onSubmit={onSubmit} withBorder radius="lg" p="lg">
+        <PageTitle order={3}>הגדרות פרופיל</PageTitle>
+        <Card component="form" onSubmit={onSubmit} noValidate withBorder radius="lg" p="lg">
           <Stack gap="md">
             <Switch
               checked={colorScheme === 'dark'}
@@ -101,19 +99,19 @@ export function Settings() {
               offLabel={<IconSun size={14} />}
             />
             <TextInput
-              label="Name"
+              label="שם"
               required
               value={name}
               onChange={({ currentTarget }) => setName(currentTarget.value)}
             />
             <TextInput
-              label="Phone"
+              label="טלפון"
               value={phone}
               onChange={({ currentTarget }) => setPhone(currentTarget.value)}
             />
             <Group justify="flex-end">
               <Button type="submit" loading={updateSettingsMutation.isPending}>
-                Save changes
+                שמור שינויים
               </Button>
             </Group>
           </Stack>
