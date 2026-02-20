@@ -16,6 +16,8 @@ export interface AddressFormAdapter {
 interface AddressAutocompleteProps {
   form: AddressFormAdapter;
   disabled?: boolean;
+  initialCity?: string;
+  initialStreetAddress?: string;
 }
 
 const MAX_DROPDOWN_ITEMS = 20;
@@ -25,11 +27,16 @@ function buildStreetAddress(streetName: string, houseNumber: string, aptDetails:
   return aptDetails ? `${base}, ${aptDetails}` : base;
 }
 
-export function AddressAutocomplete({ form, disabled }: AddressAutocompleteProps) {
-  const [cityQuery, setCityQuery] = useState('');
+export function AddressAutocomplete({
+  form,
+  disabled,
+  initialCity = '',
+  initialStreetAddress = '',
+}: AddressAutocompleteProps) {
+  const [cityQuery, setCityQuery] = useState(initialCity);
   const [selectedCityCode, setSelectedCityCode] = useState<string | null>(null);
   // Street is split into three sub-fields, all combined into form.streetAddress
-  const [streetName, setStreetName] = useState('');
+  const [streetName, setStreetName] = useState(initialStreetAddress);
   const [houseNumber, setHouseNumber] = useState('');
   const [aptDetails, setAptDetails] = useState('');
   // After selecting a street option, Mantine refocuses the TextInput which would reopen the

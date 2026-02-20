@@ -253,4 +253,28 @@ describe('BusinessSettings page', () => {
 
     expect(await screen.findByText('עוסק מורשה')).toBeInTheDocument();
   });
+
+  it('pre-populates city and street from existing business data', async () => {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: activeBusinessStub,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: { ...mockBusiness, city: 'TLV', streetAddress: '1 Main' },
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+
+    const cityInput = await screen.findByRole('textbox', { name: /^עיר/ });
+    expect(cityInput).toHaveValue('TLV');
+
+    const streetInput = screen.getByRole('textbox', { name: /^רחוב/ });
+    expect(streetInput).toHaveValue('1 Main');
+  });
 });

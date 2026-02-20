@@ -145,6 +145,9 @@ export function BusinessSettings() {
     updateMutation.mutate({ id: activeBusiness.id, data: updateData });
   });
 
+  const initialCity = businessQuery.data?.business.city ?? '';
+  const initialStreetAddress = businessQuery.data?.business.streetAddress ?? '';
+
   return (
     <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
       <Stack gap="md">
@@ -166,7 +169,13 @@ export function BusinessSettings() {
 
             <Divider label="כתובת" labelPosition="center" />
 
-            <AddressAutocomplete form={form} disabled={updateMutation.isPending} />
+            <AddressAutocomplete
+              key={`addr-${initialCity}`}
+              form={form}
+              disabled={updateMutation.isPending}
+              initialCity={initialCity}
+              initialStreetAddress={initialStreetAddress}
+            />
 
             <Divider label="פרטי קשר" labelPosition="center" />
 
