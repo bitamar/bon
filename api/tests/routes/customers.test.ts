@@ -13,15 +13,30 @@ import { setupIntegrationTest } from '../utils/server.js';
 describe('routes/customers', () => {
   const ctx = setupIntegrationTest();
 
+  // ── helpers ────────────────────────────────────────────────────────────────
+
+  async function postCustomer(sessionId: string, businessId: string, payload: object) {
+    return injectAuthed(ctx.app, sessionId, {
+      method: 'POST',
+      url: `/businesses/${businessId}/customers`,
+      payload,
+    });
+  }
+
+  async function setupNonMemberScenario() {
+    const { sessionId } = await createAuthedUser();
+    const ownerUser = await createUser();
+    const business = await createTestBusiness(ownerUser.id);
+    return { sessionId, business };
+  }
+
+  // ── POST ───────────────────────────────────────────────────────────────────
+
   describe('POST /businesses/:businessId/customers', () => {
     it('creates a customer with name only', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 
-      const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'POST',
-        url: `/businesses/${business.id}/customers`,
-        payload: { name: 'Acme Corp' },
-      });
+      const res = await postCustomer(sessionId, business.id, { name: 'Acme Corp' });
 
       expect(res.statusCode).toBe(200);
       const body = res.json() as { customer: { name: string; taxId: null } };
@@ -32,17 +47,13 @@ describe('routes/customers', () => {
     it('creates a customer with full fields', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 
-      const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'POST',
-        url: `/businesses/${business.id}/customers`,
-        payload: {
-          name: 'Acme Corp',
-          taxId: '123456789',
-          taxIdType: 'company_id',
-          isLicensedDealer: true,
-          email: 'acme@example.com',
-          city: 'Tel Aviv',
-        },
+      const res = await postCustomer(sessionId, business.id, {
+        name: 'Acme Corp',
+        taxId: '123456789',
+        taxIdType: 'company_id',
+        isLicensedDealer: true,
+        email: 'acme@example.com',
+        city: 'Tel Aviv',
       });
 
       expect(res.statusCode).toBe(200);
@@ -65,16 +76,8 @@ describe('routes/customers', () => {
     });
 
     it('returns 404 for non-member business', async () => {
-      const { sessionId } = await createAuthedUser();
-      const ownerUser = await createUser();
-      const business = await createTestBusiness(ownerUser.id);
-
-      const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'POST',
-        url: `/businesses/${business.id}/customers`,
-        payload: { name: 'Test' },
-      });
-
+      const { sessionId, business } = await setupNonMemberScenario();
+      const res = await postCustomer(sessionId, business.id, { name: 'Test' });
       expect(res.statusCode).toBe(404);
     });
 
@@ -85,16 +88,14 @@ describe('routes/customers', () => {
         conflict({ code: 'duplicate_tax_id' })
       );
 
-      const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'POST',
-        url: `/businesses/${business.id}/customers`,
-        payload: { name: 'Acme', taxId: '123456789' },
-      });
+      const res = await postCustomer(sessionId, business.id, { name: 'Acme', taxId: '123456789' });
 
       expect(res.statusCode).toBe(409);
       expect(res.json()).toMatchObject({ error: 'duplicate_tax_id' });
     });
   });
+
+  // ── GET list ───────────────────────────────────────────────────────────────
 
   describe('GET /businesses/:businessId/customers', () => {
     it('returns customer list for a member', async () => {
@@ -106,8 +107,7 @@ describe('routes/customers', () => {
       });
 
       expect(res.statusCode).toBe(200);
-      const body = res.json() as { customers: unknown[] };
-      expect(Array.isArray(body.customers)).toBe(true);
+      expect(Array.isArray((res.json() as { customers: unknown[] }).customers)).toBe(true);
     });
 
     it('accepts q and active query params', async () => {
@@ -122,9 +122,7 @@ describe('routes/customers', () => {
     });
 
     it('returns 404 for non-member', async () => {
-      const { sessionId } = await createAuthedUser();
-      const ownerUser = await createUser();
-      const business = await createTestBusiness(ownerUser.id);
+      const { sessionId, business } = await setupNonMemberScenario();
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
@@ -135,15 +133,13 @@ describe('routes/customers', () => {
     });
   });
 
+  // ── GET single ─────────────────────────────────────────────────────────────
+
   describe('GET /businesses/:businessId/customers/:customerId', () => {
     it('returns customer by id', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 
-      const createRes = await injectAuthed(ctx.app, sessionId, {
-        method: 'POST',
-        url: `/businesses/${business.id}/customers`,
-        payload: { name: 'Test Customer' },
-      });
+      const createRes = await postCustomer(sessionId, business.id, { name: 'Test Customer' });
       const { customer } = createRes.json() as { customer: { id: string } };
 
       const res = await injectAuthed(ctx.app, sessionId, {
@@ -169,15 +165,13 @@ describe('routes/customers', () => {
     });
   });
 
+  // ── PUT ────────────────────────────────────────────────────────────────────
+
   describe('PUT /businesses/:businessId/customers/:customerId', () => {
     it('updates customer name', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 
-      const createRes = await injectAuthed(ctx.app, sessionId, {
-        method: 'POST',
-        url: `/businesses/${business.id}/customers`,
-        payload: { name: 'Old Name' },
-      });
+      const createRes = await postCustomer(sessionId, business.id, { name: 'Old Name' });
       const { customer } = createRes.json() as { customer: { id: string } };
 
       const res = await injectAuthed(ctx.app, sessionId, {
@@ -187,20 +181,17 @@ describe('routes/customers', () => {
       });
 
       expect(res.statusCode).toBe(200);
-      const body = res.json() as { customer: { name: string } };
-      expect(body.customer.name).toBe('New Name');
+      expect((res.json() as { customer: { name: string } }).customer.name).toBe('New Name');
     });
   });
+
+  // ── DELETE ─────────────────────────────────────────────────────────────────
 
   describe('DELETE /businesses/:businessId/customers/:customerId', () => {
     it('soft-deletes a customer (sets isActive=false)', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 
-      const createRes = await injectAuthed(ctx.app, sessionId, {
-        method: 'POST',
-        url: `/businesses/${business.id}/customers`,
-        payload: { name: 'To Delete' },
-      });
+      const createRes = await postCustomer(sessionId, business.id, { name: 'To Delete' });
       const { customer } = createRes.json() as { customer: { id: string } };
 
       const delRes = await injectAuthed(ctx.app, sessionId, {
@@ -211,13 +202,11 @@ describe('routes/customers', () => {
       expect(delRes.statusCode).toBe(200);
       expect(delRes.json()).toMatchObject({ ok: true });
 
-      // Verify it's inactive
       const getRes = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
         url: `/businesses/${business.id}/customers/${customer.id}`,
       });
-      const body = getRes.json() as { customer: { isActive: boolean } };
-      expect(body.customer.isActive).toBe(false);
+      expect((getRes.json() as { customer: { isActive: boolean } }).customer.isActive).toBe(false);
     });
   });
 });

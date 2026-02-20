@@ -163,6 +163,27 @@ If you added code to work around a limitation (e.g. a filter heuristic for a UI 
 - **Every new repository method must have a test**
 - Tests are not optional. A PR without tests for new code is incomplete and must be rejected.
 
+### Test DRY — No Duplicated Setup Blocks
+
+SonarQube enforces a duplication threshold. Repeated blocks in tests **will fail the quality gate**.
+
+**Rules:**
+- If the same 3+ lines appear in more than one test, extract a named helper function at the top of the `describe` block
+- Mock setup that every test in a `describe` needs goes in `beforeEach`, not repeated per test
+- Multi-step UI interactions (e.g. select city → select street) must be extracted as named async helpers
+
+**Patterns to extract:**
+
+| Pattern | Extract as |
+|---|---|
+| `vi.mocked(useBusiness).mockReturnValue(...)` in every test | `beforeEach` default, override per test only when different |
+| Route helper: `injectAuthed(app, sessionId, { method, url, payload })` repeated per suite | `async function postThing(sessionId, id, payload)` inside `describe` |
+| Multi-step navigation: click type → click next → wait for field | `async function goToStep1(user, type)` |
+| City → street selection in autocomplete tests | `async function selectCity(user, name)` + `selectStreet(user, name)` |
+| Auth + business setup for non-member scenario | `async function setupNonMember()` returning `{ sessionId, business }` |
+
+**Where to put helpers:** Inside the `describe` block, above the `it` blocks, clearly separated with a comment (`// ── helpers ──`).
+
 ### UI Component Patterns
 Never use a plain `<input>` or Mantine `TextInput` where a smarter component exists:
 

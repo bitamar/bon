@@ -34,6 +34,25 @@ function TestForm() {
   return <AddressAutocomplete form={form} />;
 }
 
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+type User = ReturnType<typeof userEvent.setup>;
+
+async function selectCity(user: User, cityName: string) {
+  await user.type(screen.getByRole('textbox', { name: /^עיר/ }), cityName);
+  await waitFor(() => expect(screen.getByText(cityName)).toBeInTheDocument());
+  await user.click(screen.getByText(cityName));
+}
+
+async function selectStreet(user: User, streetName: string) {
+  await waitFor(() => expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled());
+  await user.type(screen.getByRole('textbox', { name: /^רחוב/ }), streetName);
+  await waitFor(() => expect(screen.getByText(streetName)).toBeInTheDocument());
+  await user.click(screen.getByText(streetName));
+}
+
+// ── tests ─────────────────────────────────────────────────────────────────────
+
 describe('AddressAutocomplete', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -87,13 +106,10 @@ describe('AddressAutocomplete', () => {
     vi.mocked(addressApi.fetchAllCities).mockResolvedValue([
       { name: 'תל אביב - יפו', code: '5000 ' },
     ]);
-    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
 
     renderWithProviders(<TestForm />);
 
-    await user.type(screen.getByRole('textbox', { name: /^עיר/ }), 'תל');
-    await waitFor(() => expect(screen.getByText('תל אביב - יפו')).toBeInTheDocument());
-    await user.click(screen.getByText('תל אביב - יפו'));
+    await selectCity(user, 'תל אביב - יפו');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled();
@@ -115,18 +131,8 @@ describe('AddressAutocomplete', () => {
 
     renderWithProviders(<TestForm />);
 
-    await user.type(screen.getByRole('textbox', { name: /^עיר/ }), 'תל');
-    await waitFor(() => expect(screen.getByText('תל אביב - יפו')).toBeInTheDocument());
-    await user.click(screen.getByText('תל אביב - יפו'));
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled();
-    });
-
-    await user.type(screen.getByRole('textbox', { name: /^רחוב/ }), 'דיז');
-
-    await waitFor(() => expect(screen.getByText('דיזנגוף')).toBeInTheDocument());
-    await user.click(screen.getByText('דיזנגוף'));
+    await selectCity(user, 'תל אביב - יפו');
+    await selectStreet(user, 'דיזנגוף');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /^רחוב/ })).toHaveValue('דיזנגוף');
@@ -142,26 +148,16 @@ describe('AddressAutocomplete', () => {
 
     renderWithProviders(<TestForm />);
 
-    // Select city
-    await user.type(screen.getByRole('textbox', { name: /^עיר/ }), 'תל');
-    await waitFor(() => expect(screen.getByText('תל אביב - יפו')).toBeInTheDocument());
-    await user.click(screen.getByText('תל אביב - יפו'));
-
-    // Select street from dropdown
-    await waitFor(() => expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled());
-    await user.type(screen.getByRole('textbox', { name: /^רחוב/ }), 'דיז');
-    await waitFor(() => expect(screen.getByText('דיזנגוף')).toBeInTheDocument());
-    await user.click(screen.getByText('דיזנגוף'));
+    await selectCity(user, 'תל אביב - יפו');
+    await selectStreet(user, 'דיזנגוף');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /^רחוב/ })).toHaveValue('דיזנגוף');
     });
 
-    // Type in the separate house number field — should work without reopening street dropdown
     await user.type(screen.getByRole('textbox', { name: /מספר בית/ }), '5');
 
     expect(screen.getByRole('textbox', { name: /מספר בית/ })).toHaveValue('5');
-    // Street name must be unchanged
     expect(screen.getByRole('textbox', { name: /^רחוב/ })).toHaveValue('דיזנגוף');
   });
 
@@ -170,17 +166,12 @@ describe('AddressAutocomplete', () => {
     vi.mocked(addressApi.fetchAllCities).mockResolvedValue([
       { name: 'תל אביב - יפו', code: '5000 ' },
     ]);
-    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
 
     renderWithProviders(<TestForm />);
 
-    await user.type(screen.getByRole('textbox', { name: /^עיר/ }), 'תל');
-    await waitFor(() => expect(screen.getByText('תל אביב - יפו')).toBeInTheDocument());
-    await user.click(screen.getByText('תל אביב - יפו'));
-
+    await selectCity(user, 'תל אביב - יפו');
     await waitFor(() => expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled());
 
-    // Manually edit city
     await user.clear(screen.getByRole('textbox', { name: /^עיר/ }));
 
     await waitFor(() => {

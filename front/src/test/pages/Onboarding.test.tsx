@@ -38,6 +38,33 @@ const mockCreatedBusiness = {
   updatedAt: '2024-01-01T00:00:00.000Z',
 };
 
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+type User = ReturnType<typeof userEvent.setup>;
+
+async function goToStep1(user: User, type: 'עוסק מורשה' | 'עוסק פטור' | 'חברה בע״מ') {
+  await user.click(screen.getByText(type));
+  await user.click(screen.getByRole('button', { name: 'המשך' }));
+}
+
+async function fillAddress(user: User, cityName: string, streetName: string, houseNum: string) {
+  await waitFor(() => expect(screen.getByRole('textbox', { name: /^עיר/ })).toBeInTheDocument());
+
+  await user.type(screen.getByRole('textbox', { name: /^עיר/ }), cityName);
+  await waitFor(() => expect(screen.getByText(cityName)).toBeInTheDocument());
+  await user.click(screen.getByText(cityName));
+
+  await waitFor(() => expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled());
+
+  await user.type(screen.getByRole('textbox', { name: /^רחוב/ }), streetName);
+  await waitFor(() => expect(screen.getByText(streetName)).toBeInTheDocument());
+  await user.click(screen.getByText(streetName));
+
+  await user.type(screen.getByRole('textbox', { name: /מספר בית/ }), houseNum);
+}
+
+// ── tests ─────────────────────────────────────────────────────────────────────
+
 describe('Onboarding page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -81,16 +108,14 @@ describe('Onboarding page', () => {
 
     await user.click(screen.getByText('עוסק מורשה'));
 
-    const nextButton = screen.getByRole('button', { name: 'המשך' });
-    expect(nextButton).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'המשך' })).not.toBeDisabled();
   });
 
   it('clicking "המשך" on step 0 advances to step 1', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
 
-    await user.click(screen.getByText('עוסק מורשה'));
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    await goToStep1(user, 'עוסק מורשה');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /שם העסק/ })).toBeInTheDocument();
@@ -101,8 +126,7 @@ describe('Onboarding page', () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
 
-    await user.click(screen.getByText('עוסק פטור'));
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    await goToStep1(user, 'עוסק פטור');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /שם מלא/ })).toBeInTheDocument();
@@ -116,8 +140,7 @@ describe('Onboarding page', () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
 
-    await user.click(screen.getByText('עוסק מורשה'));
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    await goToStep1(user, 'עוסק מורשה');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /שם העסק/ })).toBeInTheDocument();
@@ -132,23 +155,15 @@ describe('Onboarding page', () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
 
-    // Select licensed_dealer and go to step 1
-    await user.click(screen.getByText('עוסק מורשה'));
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    await goToStep1(user, 'עוסק מורשה');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /שם העסק/ })).toBeInTheDocument();
     });
 
-    // Fill in name
     await user.type(screen.getByRole('textbox', { name: /שם העסק/ }), 'My Business');
-
-    // Go back to step 0
     await user.click(screen.getByRole('button', { name: 'חזרה' }));
-
-    // Change to exempt_dealer
-    await user.click(screen.getByText('עוסק פטור'));
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    await goToStep1(user, 'עוסק פטור');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /שם מלא/ })).toHaveValue('');
@@ -159,8 +174,7 @@ describe('Onboarding page', () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
 
-    await user.click(screen.getByText('עוסק פטור'));
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    await goToStep1(user, 'עוסק פטור');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /שם מלא/ })).toBeInTheDocument();
@@ -168,7 +182,6 @@ describe('Onboarding page', () => {
 
     await user.type(screen.getByRole('textbox', { name: /שם מלא/ }), 'ישראל ישראלי');
     await user.type(screen.getByRole('textbox', { name: /מספר תעודת זהות/ }), '123456789');
-
     await user.click(screen.getByRole('button', { name: 'המשך' }));
 
     await waitFor(() => {
@@ -180,8 +193,7 @@ describe('Onboarding page', () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
 
-    await user.click(screen.getByText('עוסק מורשה'));
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    await goToStep1(user, 'עוסק מורשה');
 
     await waitFor(() => {
       expect(
@@ -195,8 +207,7 @@ describe('Onboarding page', () => {
     await user.tab();
 
     await waitFor(() => {
-      const vatInput = screen.getByRole('textbox', { name: /מספר רישום מע״מ/ });
-      expect(vatInput).toHaveValue('123456789');
+      expect(screen.getByRole('textbox', { name: /מספר רישום מע״מ/ })).toHaveValue('123456789');
     });
   });
 
@@ -212,11 +223,8 @@ describe('Onboarding page', () => {
 
     renderWithProviders(<Onboarding />);
 
-    // Step 0: select type
-    await user.click(screen.getByText('עוסק מורשה'));
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    await goToStep1(user, 'עוסק מורשה');
 
-    // Step 1: fill legal identity
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /שם העסק/ })).toBeInTheDocument();
     });
@@ -228,28 +236,12 @@ describe('Onboarding page', () => {
     await user.tab();
 
     await waitFor(() => {
-      const vatInput = screen.getByRole('textbox', { name: /מספר רישום מע״מ/ });
-      expect(vatInput).toHaveValue('123456789');
+      expect(screen.getByRole('textbox', { name: /מספר רישום מע״מ/ })).toHaveValue('123456789');
     });
 
     await user.click(screen.getByRole('button', { name: 'המשך' }));
 
-    // Step 2: select city → select street from dropdown → enter house number
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /^עיר/ })).toBeInTheDocument();
-    });
-
-    await user.type(screen.getByRole('textbox', { name: /^עיר/ }), 'TLV');
-    await waitFor(() => expect(screen.getByText('TLV')).toBeInTheDocument());
-    await user.click(screen.getByText('TLV'));
-
-    await waitFor(() => expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled());
-
-    await user.type(screen.getByRole('textbox', { name: /^רחוב/ }), 'Main');
-    await waitFor(() => expect(screen.getByText('Main')).toBeInTheDocument());
-    await user.click(screen.getByText('Main'));
-
-    await user.type(screen.getByRole('textbox', { name: /מספר בית/ }), '1');
+    await fillAddress(user, 'TLV', 'Main', '1');
 
     await user.click(screen.getByRole('button', { name: /צור עסק והתחל להנפיק חשבוניות/ }));
 
@@ -266,55 +258,32 @@ describe('Onboarding page', () => {
   it('for עוסק פטור, payload has vatNumber undefined and defaultVatRate 0', async () => {
     const user = userEvent.setup();
 
-    const exemptBusiness = {
-      ...mockCreatedBusiness,
-      businessType: 'exempt_dealer' as const,
-      vatNumber: null,
-      defaultVatRate: 0,
-    };
-
     vi.mocked(businessesApi.createBusiness).mockResolvedValue({
-      business: exemptBusiness,
+      business: {
+        ...mockCreatedBusiness,
+        businessType: 'exempt_dealer',
+        vatNumber: null,
+        defaultVatRate: 0,
+      },
       role: 'owner',
     });
-
     vi.mocked(addressApi.fetchAllCities).mockResolvedValue([{ name: 'TLV', code: '5000 ' }]);
     vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([{ name: 'Main' }]);
 
     renderWithProviders(<Onboarding />);
 
-    // Step 0: select exempt
-    await user.click(screen.getByText('עוסק פטור'));
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    await goToStep1(user, 'עוסק פטור');
 
-    // Step 1: fill legal identity
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /שם מלא/ })).toBeInTheDocument();
     });
 
     await user.type(screen.getByRole('textbox', { name: /שם מלא/ }), 'ישראל ישראלי');
-
-    // Use a valid Israeli ID: 000000018 has checksum: 0*1+0*2+0*1+0*2+0*1+0*2+0*1+1*2+8*1 = 0+0+0+0+0+0+0+2+8=10 -> valid
+    // 000000018: valid Israeli ID checksum
     await user.type(screen.getByRole('textbox', { name: /מספר תעודת זהות/ }), '000000018');
-
     await user.click(screen.getByRole('button', { name: 'המשך' }));
 
-    // Step 2: select city → select street from dropdown → enter house number
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /^עיר/ })).toBeInTheDocument();
-    });
-
-    await user.type(screen.getByRole('textbox', { name: /^עיר/ }), 'TLV');
-    await waitFor(() => expect(screen.getByText('TLV')).toBeInTheDocument());
-    await user.click(screen.getByText('TLV'));
-
-    await waitFor(() => expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled());
-
-    await user.type(screen.getByRole('textbox', { name: /^רחוב/ }), 'Main');
-    await waitFor(() => expect(screen.getByText('Main')).toBeInTheDocument());
-    await user.click(screen.getByText('Main'));
-
-    await user.type(screen.getByRole('textbox', { name: /מספר בית/ }), '1');
+    await fillAddress(user, 'TLV', 'Main', '1');
 
     await user.click(screen.getByRole('button', { name: /צור עסק והתחל להנפיק חשבוניות/ }));
 
