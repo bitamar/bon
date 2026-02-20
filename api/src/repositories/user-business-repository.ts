@@ -24,28 +24,6 @@ export async function insertUserBusiness(data: UserBusinessInsert) {
   return rows[0] ?? null;
 }
 
-/**
- * Inserts a user-business membership, or reactivates an existing soft-deleted one.
- * Used when a previously removed user accepts a new invitation.
- */
-export async function upsertUserBusiness(data: UserBusinessInsert) {
-  const rows = await db
-    .insert(userBusinesses)
-    .values(data)
-    .onConflictDoUpdate({
-      target: [userBusinesses.userId, userBusinesses.businessId],
-      set: {
-        role: data.role,
-        invitedByUserId: data.invitedByUserId ?? null,
-        invitedAt: data.invitedAt ?? null,
-        acceptedAt: data.acceptedAt ?? null,
-        removedAt: null,
-      },
-    })
-    .returning();
-  return rows[0] ?? null;
-}
-
 export async function deleteUserBusiness(userId: string, businessId: string) {
   await db
     .update(userBusinesses)

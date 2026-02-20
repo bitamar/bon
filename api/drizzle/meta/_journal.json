@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1760085803200,
-      "tag": "0000_purple_scourge",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1771353794082,
-      "tag": "0001_chief_nico_minoru",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1771576995794,
-      "tag": "0002_dizzy_kid_colt",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1771581476979,
-      "tag": "0003_pink_gateway",
+      "when": 1771591992163,
+      "tag": "0000_chubby_captain_britain",
       "breakpoints": true
     }
   ]

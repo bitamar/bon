@@ -222,7 +222,7 @@ function createPgMemPool(
       .filter(Boolean);
 
     for (const statement of statements) {
-      mem.public.none(statement);
+      mem.public.none(statement.replace(/^CREATE INDEX /gm, 'CREATE INDEX IF NOT EXISTS '));
     }
   }
 

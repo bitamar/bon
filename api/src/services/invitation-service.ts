@@ -9,7 +9,7 @@ import {
   findAnyInvitationByBusinessAndEmail,
   resetInvitationToPending,
 } from '../repositories/invitation-repository.js';
-import { upsertUserBusiness, findUserBusiness } from '../repositories/user-business-repository.js';
+import { insertUserBusiness, findUserBusiness } from '../repositories/user-business-repository.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/app-error.js';
 import { invitationListResponseSchema, myInvitationsResponseSchema } from '@bon/types/invitations';
 
@@ -125,8 +125,7 @@ export async function acceptInvitation(token: string, userId: string, userEmail:
     throw conflict({ code: 'already_member' });
   }
 
-  // upsertUserBusiness handles the case where the user was previously removed (soft-deleted)
-  await upsertUserBusiness({
+  await insertUserBusiness({
     userId,
     businessId: invitation.businessId,
     role: invitation.role,

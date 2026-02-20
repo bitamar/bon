@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { useRef, useState } from 'react';
 import {
   ActionIcon,
@@ -123,7 +124,7 @@ export function Onboarding() {
         return null;
       },
       email: (value) => {
-        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'כתובת אימייל לא תקינה';
+        if (value && !z.string().email().safeParse(value).success) return 'כתובת אימייל לא תקינה';
         return null;
       },
     },
