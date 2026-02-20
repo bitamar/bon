@@ -24,6 +24,18 @@ export default [
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/no-explicit-any': 'error',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.property.name='replace']:not([arguments.0.regex])",
+          message: 'Prefer String#replaceAll() over String#replace() with a string argument.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='replace'][arguments.0.regex.flags=/g/]",
+          message:
+            'Prefer String#replaceAll() over String#replace() with a /g regex. Drop the g flag and use replaceAll().',
+        },
+      ],
     },
   },
 ];
