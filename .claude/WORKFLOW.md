@@ -80,27 +80,20 @@ Tests passing locally is necessary but not sufficient.
 - Flag blockers clearly; don't silently work around them
 
 ### Git Discipline
-- One feature per branch
-- Stash unrelated work before starting a new ticket
+- **Always branch from an up-to-date `main`**: `git fetch origin && git checkout -b my-branch origin/main`
+- One feature per branch; keep commits small and focused
+- Never work on a branch that has diverged from main — rebase or start fresh before opening a PR
 - Do not commit customer management code on an onboarding branch
 - Do not commit onboarding fixes on a customer management branch
 
 ---
 
-## Current Ticket Status
+## Ticket Board
 
-| Ticket | Branch | Status |
-|--------|--------|--------|
-| Business Onboarding | `onboarding-steps` | ⚠️ In Progress — not deployed |
-| Customer Management | stashed | 🚫 Blocked — onboarding must deploy first |
+The full ticket list with status, acceptance criteria, and architecture notes is in `.claude/tickets/`.
 
----
+Start with `.claude/tickets/README.md` for the overview and current status.
 
-## Build Order (from PLAN.md)
+**Currently in progress**: T03 (Onboarding UX) + T04 (Customer Backend) on branch `onboarding-steps`
 
-1. **Auth + Multi-Tenancy** ✓ Done and deployed
-2. **Business Onboarding** ← Current
-3. **Customer Management**
-4. **Invoice Creation**
-5. **PDF Generation**
-6. **SHAAM Integration**
+**Blocked until deployed**: T05 (Customer Frontend) and everything after it.

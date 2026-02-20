@@ -6,9 +6,10 @@ import {
   findInvitationsByBusinessId,
   findPendingInvitationsByEmail,
   updateInvitationStatus,
-  findExistingInvitation,
+  findAnyInvitationByBusinessAndEmail,
+  resetInvitationToPending,
 } from '../repositories/invitation-repository.js';
-import { insertUserBusiness, findUserBusiness } from '../repositories/user-business-repository.js';
+import { upsertUserBusiness, findUserBusiness } from '../repositories/user-business-repository.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/app-error.js';
 import { invitationListResponseSchema, myInvitationsResponseSchema } from '@bon/types/invitations';
 
@@ -30,9 +31,17 @@ export async function createInvitation(
   invitedByUserId: string,
   input: CreateInvitationInput
 ) {
-  const existing = await findExistingInvitation(businessId, input.email);
+  const existing = await findAnyInvitationByBusinessAndEmail(businessId, input.email);
+
   if (existing) {
-    throw conflict({ code: 'invitation_already_exists' });
+    if (existing.status === 'pending') {
+      throw conflict({ code: 'invitation_already_exists' });
+    }
+    // Declined or expired — reset to pending so they can be re-invited
+    const token = generateToken();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await resetInvitationToPending(existing.id, token, expiresAt);
+    return;
   }
 
   const now = new Date();
@@ -51,8 +60,6 @@ export async function createInvitation(
   });
 
   if (!invitation) throw new Error('Failed to create invitation');
-
-  return invitation;
 }
 
 export async function listInvitations(businessId: string) {
@@ -118,7 +125,8 @@ export async function acceptInvitation(token: string, userId: string, userEmail:
     throw conflict({ code: 'already_member' });
   }
 
-  await insertUserBusiness({
+  // upsertUserBusiness handles the case where the user was previously removed (soft-deleted)
+  await upsertUserBusiness({
     userId,
     businessId: invitation.businessId,
     role: invitation.role,

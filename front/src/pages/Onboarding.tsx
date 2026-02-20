@@ -26,20 +26,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../lib/queryKeys';
 import type { BusinessType, CreateBusinessBody } from '@bon/types/businesses';
+import { validateIsraeliId } from '@bon/types/validation';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { HttpError } from '../lib/http';
-
-function validateIsraeliId(id: string): boolean {
-  if (!/^\d{9}$/.test(id)) return false;
-  const digits = id.split('').map(Number);
-  let sum = 0;
-  for (let i = 0; i < 9; i++) {
-    let val = (digits[i] ?? 0) * ((i % 2) + 1);
-    if (val > 9) val -= 9;
-    sum += val;
-  }
-  return sum % 10 === 0;
-}
 
 function getVatLabel(businessType: BusinessType) {
   switch (businessType) {
@@ -134,7 +123,7 @@ export function Onboarding() {
         return null;
       },
       email: (value) => {
-        if (value && !/^[^\s@.]+@[^\s@.]+\.[^\s@.]+$/.test(value)) return 'כתובת אימייל לא תקינה';
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'כתובת אימייל לא תקינה';
         return null;
       },
     },

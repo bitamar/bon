@@ -100,6 +100,17 @@ describe('routes/customers', () => {
       expect(res.statusCode).toBe(409);
       expect(res.json()).toMatchObject({ error: 'duplicate_tax_id' });
     });
+
+    it('returns 400 when isLicensedDealer=true without taxId', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+
+      const res = await postCustomer(sessionId, business.id, {
+        name: 'Acme Corp',
+        isLicensedDealer: true,
+      });
+
+      expect(res.statusCode).toBe(400);
+    });
   });
 
   // ── GET list ───────────────────────────────────────────────────────────────
@@ -191,7 +202,7 @@ describe('routes/customers', () => {
   // ── DELETE ─────────────────────────────────────────────────────────────────
 
   describe('DELETE /businesses/:businessId/customers/:customerId', () => {
-    it('soft-deletes a customer (sets isActive=false)', async () => {
+    it('soft-deletes a customer (sets isActive=false and deletedAt)', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
       const customer = await createTestCustomer(sessionId, business.id, 'To Delete');
 
@@ -207,7 +218,10 @@ describe('routes/customers', () => {
         method: 'GET',
         url: `/businesses/${business.id}/customers/${customer.id}`,
       });
-      expect((getRes.json() as { customer: { isActive: boolean } }).customer.isActive).toBe(false);
+      const c = (getRes.json() as { customer: { isActive: boolean; deletedAt: string | null } })
+        .customer;
+      expect(c.isActive).toBe(false);
+      expect(c.deletedAt).not.toBeNull();
     });
   });
 });

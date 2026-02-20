@@ -79,6 +79,29 @@ export async function updateInvitationStatus(
   return rows[0] ?? null;
 }
 
+/** Returns any invitation for this business+email regardless of status. */
+export async function findAnyInvitationByBusinessAndEmail(businessId: string, email: string) {
+  const rows = await db
+    .select()
+    .from(businessInvitations)
+    .where(
+      and(eq(businessInvitations.businessId, businessId), eq(businessInvitations.email, email))
+    );
+  return rows[0] ?? null;
+}
+
+/** Resets a declined or expired invitation back to pending with a new token and expiry. */
+export async function resetInvitationToPending(
+  invitationId: string,
+  token: string,
+  expiresAt: Date
+) {
+  await db
+    .update(businessInvitations)
+    .set({ status: 'pending', token, expiresAt, acceptedAt: null, declinedAt: null })
+    .where(eq(businessInvitations.id, invitationId));
+}
+
 export async function findExistingInvitation(businessId: string, email: string) {
   const rows = await db
     .select()

@@ -2,11 +2,13 @@ import { z } from 'zod';
 import {
   isoDateTime,
   nonEmptyString,
+  nullableIsoDateTime,
   nullableString,
   optionalNullableString,
   uuidSchema,
 } from './common.js';
 import { israeliPhoneSchema, postalCodeSchema } from './businesses.js';
+import { validateIsraeliId } from './validation.js';
 
 export const taxIdTypeSchema = z.enum(['company_id', 'vat_number', 'personal_id', 'none']);
 
@@ -25,6 +27,7 @@ export const customerSchema = z.object({
   contactName: nullableString,
   notes: nullableString,
   isActive: z.boolean(),
+  deletedAt: nullableIsoDateTime,
   createdAt: isoDateTime,
   updatedAt: isoDateTime,
 });
@@ -43,7 +46,16 @@ export const createCustomerBodySchema = z
     contactName: nonEmptyString.optional(),
     notes: z.string().trim().optional(),
   })
-  .strict();
+  .strict()
+  .refine((data) => !data.isLicensedDealer || !!data.taxId, {
+    message: 'עוסק מורשה חייב מספר מזהה (ח.פ./ע.מ.)',
+    path: ['taxId'],
+  })
+  .superRefine((data, ctx) => {
+    if (data.taxIdType === 'personal_id' && data.taxId && !validateIsraeliId(data.taxId)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'מספר ת.ז. לא תקין', path: ['taxId'] });
+    }
+  });
 
 export const updateCustomerBodySchema = z
   .object({
@@ -60,7 +72,16 @@ export const updateCustomerBodySchema = z
     notes: z.union([z.string().trim(), z.literal(null)]).optional(),
     isActive: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .refine((data) => !data.isLicensedDealer || data.taxId !== null, {
+    message: 'עוסק מורשה חייב מספר מזהה (ח.פ./ע.מ.)',
+    path: ['taxId'],
+  })
+  .superRefine((data, ctx) => {
+    if (data.taxIdType === 'personal_id' && data.taxId && !validateIsraeliId(data.taxId)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'מספר ת.ז. לא תקין', path: ['taxId'] });
+    }
+  });
 
 export const customerListItemSchema = z.object({
   id: uuidSchema,

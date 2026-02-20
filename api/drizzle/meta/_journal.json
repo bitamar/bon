@@ -22,6 +22,13 @@
       "when": 1771576995794,
       "tag": "0002_dizzy_kid_colt",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1771581476979,
+      "tag": "0003_pink_gateway",
+      "breakpoints": true
     }
   ]
 }

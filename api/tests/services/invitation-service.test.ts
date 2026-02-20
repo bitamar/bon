@@ -85,15 +85,18 @@ describe('invitation-service', () => {
       const business = await createBusiness(user.id);
       const email = `new-invitee-${randomUUID()}@example.com`;
 
-      const inv = await createInvitation(business.id, user.id, { email, role: 'admin' });
+      await createInvitation(business.id, user.id, { email, role: 'admin' });
 
-      expect(inv.businessId).toBe(business.id);
-      expect(inv.email).toBe(email);
-      expect(inv.role).toBe('admin');
-      expect(inv.status).toBe('pending');
-      expect(typeof inv.token).toBe('string');
-      expect(inv.token).toHaveLength(64);
-      expect(inv.expiresAt.getTime()).toBeGreaterThan(Date.now());
+      const inv = await db.query.businessInvitations.findFirst({
+        where: (t, { eq }) => eq(t.email, email),
+      });
+      expect(inv?.businessId).toBe(business.id);
+      expect(inv?.email).toBe(email);
+      expect(inv?.role).toBe('admin');
+      expect(inv?.status).toBe('pending');
+      expect(typeof inv?.token).toBe('string');
+      expect(inv?.token).toHaveLength(64);
+      expect(inv?.expiresAt.getTime()).toBeGreaterThan(Date.now());
     });
 
     it('throws conflict if pending invitation already exists for same email+business', async () => {

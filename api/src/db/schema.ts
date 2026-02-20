@@ -88,6 +88,7 @@ export const userBusinesses = pgTable(
     invitedByUserId: uuid('invited_by_user_id').references(() => users.id),
     invitedAt: timestamp('invited_at', { withTimezone: true }),
     acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
@@ -187,6 +188,7 @@ export const customers = pgTable(
     contactName: text('contact_name'),
     notes: text('notes'),
     isActive: boolean('is_active').notNull().default(true),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
