@@ -22,6 +22,14 @@ import {
   type BusinessRole,
 } from '@bon/types/businesses';
 
+function extractConstraintName(err: unknown): string | undefined {
+  if (!err || typeof err !== 'object') return undefined;
+  const constraint = (err as Record<string, unknown>)['constraint'];
+  if (typeof constraint === 'string') return constraint;
+  if ('cause' in err) return extractConstraintName((err as { cause: unknown }).cause);
+  return undefined;
+}
+
 export type BusinessDto = z.infer<typeof businessSchema>;
 export type BusinessResponse = z.infer<typeof businessResponseSchema>;
 export type BusinessListResponse = z.infer<typeof businessListResponseSchema>;
@@ -117,7 +125,10 @@ export async function createBusiness(userId: string, input: CreateBusinessInput)
     } satisfies BusinessResponse;
   } catch (err: unknown) {
     if (isErrorWithCode(err, '23505')) {
-      throw conflict({ code: 'duplicate_registration_number' });
+      if (extractConstraintName(err) === 'businesses_registration_number_unique') {
+        throw conflict({ code: 'duplicate_registration_number' });
+      }
+      throw conflict({});
     }
     throw err;
   }

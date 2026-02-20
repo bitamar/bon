@@ -23,6 +23,13 @@ import type { BusinessListResponse, BusinessType } from '@bon/types/businesses';
 import { validateIsraeliId } from '@bon/types/validation';
 import { HttpError } from '../lib/http';
 import { showErrorNotification } from '../lib/notifications';
+import { useBusiness } from '../contexts/BusinessContext';
+
+const BUSINESS_TYPE_OPTIONS = [
+  ['licensed_dealer', 'עוסק מורשה', 'עסק יחיד או שותפות שגובה מע״מ. מחזור שנתי מעל ₪120,000'],
+  ['exempt_dealer', 'עוסק פטור', 'עצמאי שמחזורו מתחת ל-₪120,000. פטור מגביית מע״מ'],
+  ['limited_company', 'חברה בע״מ', 'חברה פרטית הרשומה ברשם החברות (ח.פ.)'],
+] as const;
 
 type OnboardingFormValues = {
   name: string;
@@ -33,6 +40,7 @@ type OnboardingFormValues = {
 export function Onboarding() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { businesses } = useBusiness();
   const [typeModalOpen, setTypeModalOpen] = useState(false);
 
   const form = useForm<OnboardingFormValues>({
@@ -57,7 +65,7 @@ export function Onboarding() {
 
   const createMutation = useApiMutation({
     mutationFn: createBusiness,
-    successToast: { message: 'העסק נוצר! יש להשלים את הפרופיל כדי להנפיק חשבוניות.' },
+    successToast: { message: 'העסק נוצר בהצלחה!' },
     errorToast: false,
     onSuccess: (data) => {
       queryClient.setQueryData<BusinessListResponse>(queryKeys.userBusinesses(), (old) => ({
@@ -81,6 +89,7 @@ export function Onboarding() {
         (error.body as { error?: string } | undefined)?.error === 'duplicate_registration_number'
       ) {
         form.setFieldError('registrationNumber', 'מספר רישום זה כבר קיים במערכת');
+        return;
       }
       showErrorNotification('לא הצלחנו ליצור את העסק, נסו שוב');
     },
@@ -122,12 +131,10 @@ export function Onboarding() {
   };
 
   const onSubmit = form.onSubmit((values) => {
-    if (!values.businessType) return;
     createMutation.mutate({
       name: values.name,
-      businessType: values.businessType,
+      businessType: values.businessType as BusinessType,
       registrationNumber: values.registrationNumber,
-      defaultVatRate: values.businessType === 'exempt_dealer' ? 0 : undefined,
     });
   });
 
@@ -158,21 +165,7 @@ export function Onboarding() {
                   onChange={handleBusinessTypeChange}
                 >
                   <Stack gap="xs">
-                    {(
-                      [
-                        [
-                          'licensed_dealer',
-                          'עוסק מורשה',
-                          'עסק יחיד או שותפות שגובה מע״מ. מחזור שנתי מעל ₪120,000',
-                        ],
-                        [
-                          'exempt_dealer',
-                          'עוסק פטור',
-                          'עצמאי שמחזורו מתחת ל-₪120,000. פטור מגביית מע״מ',
-                        ],
-                        ['limited_company', 'חברה בע״מ', 'חברה פרטית הרשומה ברשם החברות (ח.פ.)'],
-                      ] as const
-                    ).map(([value, label, description]) => (
+                    {BUSINESS_TYPE_OPTIONS.map(([value, label, description]) => (
                       <Radio.Card
                         key={value}
                         value={value}
@@ -222,6 +215,7 @@ export function Onboarding() {
                       required
                       placeholder="123456789"
                       maxLength={9}
+                      inputMode="numeric"
                       {...form.getInputProps('registrationNumber')}
                       disabled={isPending}
                     />
@@ -229,6 +223,18 @@ export function Onboarding() {
                     <Button type="submit" size="lg" fullWidth loading={isPending}>
                       יצירת עסק
                     </Button>
+
+                    {businesses.length > 0 && (
+                      <Anchor
+                        component="button"
+                        type="button"
+                        size="sm"
+                        ta="center"
+                        onClick={() => navigate(-1)}
+                      >
+                        ביטול
+                      </Anchor>
+                    )}
                   </>
                 )}
               </Stack>

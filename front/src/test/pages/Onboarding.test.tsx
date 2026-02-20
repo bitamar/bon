@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Onboarding } from '../../pages/Onboarding';
 import { renderWithProviders } from '../utils/renderWithProviders';
@@ -8,7 +8,29 @@ vi.mock('../../api/businesses', () => ({
   createBusiness: vi.fn(),
 }));
 
+vi.mock('../../contexts/BusinessContext', () => ({
+  useBusiness: vi.fn(() => ({
+    businesses: [],
+    activeBusiness: null,
+    switchBusiness: vi.fn(),
+    isLoading: false,
+  })),
+}));
+
+const { showErrorNotificationMock } = vi.hoisted(() => ({
+  showErrorNotificationMock: vi.fn(),
+}));
+
+vi.mock('../../lib/notifications', () => ({
+  showErrorNotification: showErrorNotificationMock,
+  showSuccessNotification: vi.fn(),
+  extractErrorMessage: vi.fn((e: unknown, fallback: string) =>
+    e instanceof Error ? e.message : fallback
+  ),
+}));
+
 import * as businessesApi from '../../api/businesses';
+import { HttpError } from '../../lib/http';
 
 const mockCreatedBusiness = {
   id: 'biz-new',
@@ -77,6 +99,19 @@ describe('Onboarding page', () => {
     expect(licensedCard).toHaveAttribute('aria-checked', 'false');
     expect(exemptCard).toHaveAttribute('aria-checked', 'false');
     expect(companyCard).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('shows "יש לבחור סוג עסק" error when submitting without a business type', async () => {
+    renderWithProviders(<Onboarding />);
+
+    // The submit button is hidden until a type is selected, so submit via the form element directly
+    const form = document.querySelector('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    await waitFor(() => {
+      expect(screen.getByText('יש לבחור סוג עסק')).toBeInTheDocument();
+    });
   });
 
   it('shows correct labels for עוסק פטור', async () => {
@@ -150,7 +185,7 @@ describe('Onboarding page', () => {
     expect(payload?.defaultVatRate).toBeUndefined();
   });
 
-  it('for עוסק פטור, payload has defaultVatRate 0', async () => {
+  it('for עוסק פטור, payload does not include defaultVatRate', async () => {
     const user = userEvent.setup();
     vi.mocked(businessesApi.createBusiness).mockResolvedValue({
       business: {
@@ -172,13 +207,12 @@ describe('Onboarding page', () => {
     });
 
     expect(payload?.businessType).toBe('exempt_dealer');
-    expect(payload?.defaultVatRate).toBe(0);
+    expect(payload?.defaultVatRate).toBeUndefined();
   });
 
-  it('shows inline error on registrationNumber field when duplicate_registration_number returned', async () => {
+  it('shows inline error without toast for duplicate_registration_number', async () => {
     const user = userEvent.setup();
-    const { HttpError: MockHttpError } = await import('../../lib/http');
-    const error = new MockHttpError(409, 'Conflict', { error: 'duplicate_registration_number' });
+    const error = new HttpError(409, 'Conflict', { error: 'duplicate_registration_number' });
     vi.mocked(businessesApi.createBusiness).mockRejectedValue(error);
 
     renderWithProviders(<Onboarding />);
@@ -191,6 +225,47 @@ describe('Onboarding page', () => {
 
     await waitFor(() => {
       expect(screen.getByText('מספר רישום זה כבר קיים במערכת')).toBeInTheDocument();
+    });
+    expect(showErrorNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it('shows generic error toast for non-409 errors', async () => {
+    const user = userEvent.setup();
+    const error = new HttpError(500, 'Internal Server Error', {});
+    vi.mocked(businessesApi.createBusiness).mockRejectedValue(error);
+
+    renderWithProviders(<Onboarding />);
+
+    await fillAndSubmit(user, {
+      type: 'עוסק מורשה',
+      name: 'New Co',
+      registrationNumber: '123456789',
+    }).catch(() => undefined);
+
+    await waitFor(() => {
+      expect(showErrorNotificationMock).toHaveBeenCalledWith('לא הצלחנו ליצור את העסק, נסו שוב');
+    });
+  });
+
+  it('onSuccess updates the query cache with the new business', async () => {
+    const user = userEvent.setup();
+    vi.mocked(businessesApi.createBusiness).mockResolvedValue({
+      business: mockCreatedBusiness,
+      role: 'owner',
+    });
+
+    const { queryClient } = renderWithProviders(<Onboarding />);
+
+    await fillAndSubmit(user, {
+      type: 'עוסק מורשה',
+      name: 'New Co',
+      registrationNumber: '123456789',
+    });
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<{ businesses: unknown[] }>(['businesses']);
+      expect(cached?.businesses).toHaveLength(1);
+      expect((cached?.businesses[0] as { id: string }).id).toBe('biz-new');
     });
   });
 });
