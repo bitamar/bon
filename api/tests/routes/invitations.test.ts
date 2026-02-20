@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { injectAuthed } from '../utils/inject.js';
+import { db } from '../../src/db/client.js';
+import { businessInvitations } from '../../src/db/schema.js';
+import { eq } from 'drizzle-orm';
 import {
   createAuthedUser,
   createUser,
@@ -53,6 +56,26 @@ describe('routes/invitations', () => {
 
       expect(res.statusCode).toBe(409);
       expect(res.json()).toMatchObject({ error: 'invitation_already_exists' });
+    });
+
+    it('allows re-inviting a user who previously declined', async () => {
+      const { user, sessionId, business } = await createOwnerWithBusiness();
+      const inviteeEmail = `invitee-${randomUUID()}@example.com`;
+      const inv = await createPendingInvitation(business.id, user.id, inviteeEmail);
+      // Mark invitation as declined
+      await db
+        .update(businessInvitations)
+        .set({ status: 'declined' })
+        .where(eq(businessInvitations.id, inv.id));
+
+      const res = await injectAuthed(ctx.app, sessionId, {
+        method: 'POST',
+        url: `/businesses/${business.id}/invitations`,
+        payload: { email: inviteeEmail, role: 'user' },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toMatchObject({ ok: true });
     });
   });
 

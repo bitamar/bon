@@ -94,6 +94,7 @@ export async function createBusiness(userId: string, input: CreateBusinessInput)
       email: input.email ?? null,
       invoiceNumberPrefix: input.invoiceNumberPrefix ?? null,
       startingInvoiceNumber: input.startingInvoiceNumber ?? 1,
+      nextInvoiceNumber: input.startingInvoiceNumber ?? 1,
       defaultVatRate: input.defaultVatRate ?? 1700,
       createdByUserId: userId,
       createdAt: now,
@@ -141,40 +142,22 @@ export async function updateBusinessById(
   }
 
   const now = new Date();
-  const updates: Record<string, unknown> = {
-    updatedAt: now,
-  };
+  const updates: Record<string, unknown> = { updatedAt: now };
 
-  if (input.name != null) {
-    updates['name'] = input.name;
-  }
-  if (input.streetAddress != null) {
-    updates['streetAddress'] = input.streetAddress;
-  }
-  if (input.city != null) {
-    updates['city'] = input.city;
-  }
-  if (input.postalCode != null) {
-    updates['postalCode'] = input.postalCode;
-  }
-  if (input.phone != null) {
-    updates['phone'] = input.phone;
-  }
-  if (input.email != null) {
-    updates['email'] = input.email;
-  }
-  if (input.invoiceNumberPrefix != null) {
+  // Non-nullable fields: only update when a real value is provided
+  if (input.name != null) updates['name'] = input.name;
+  if (input.streetAddress != null) updates['streetAddress'] = input.streetAddress;
+  if (input.city != null) updates['city'] = input.city;
+  if (input.defaultVatRate != null) updates['defaultVatRate'] = input.defaultVatRate;
+  if (input.isActive != null) updates['isActive'] = input.isActive;
+
+  // Nullable fields: update whenever the key is present (including null to clear)
+  if (input.postalCode !== undefined) updates['postalCode'] = input.postalCode;
+  if (input.phone !== undefined) updates['phone'] = input.phone;
+  if (input.email !== undefined) updates['email'] = input.email;
+  if (input.invoiceNumberPrefix !== undefined)
     updates['invoiceNumberPrefix'] = input.invoiceNumberPrefix;
-  }
-  if (input.defaultVatRate != null) {
-    updates['defaultVatRate'] = input.defaultVatRate;
-  }
-  if (input.logoUrl != null) {
-    updates['logoUrl'] = input.logoUrl;
-  }
-  if (input.isActive != null) {
-    updates['isActive'] = input.isActive;
-  }
+  if (input.logoUrl !== undefined) updates['logoUrl'] = input.logoUrl;
 
   const business = await updateBusiness(businessId, updates as Partial<BusinessInsert>);
 

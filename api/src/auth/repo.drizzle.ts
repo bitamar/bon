@@ -20,7 +20,7 @@ export class DrizzleUserRepository implements UserRepository {
       .values({
         email,
         googleId,
-        name,
+        name: name ?? email.split('@')[0] ?? email,
         avatarUrl,
         updatedAt: now,
         lastLoginAt: now,

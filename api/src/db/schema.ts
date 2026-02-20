@@ -1,14 +1,16 @@
 import {
   boolean,
+  index,
   integer,
   pgEnum,
   pgTable,
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 export const businessTypeEnum = pgEnum('business_type', [
   'licensed_dealer',
@@ -33,30 +35,37 @@ export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: text('email').notNull().unique(),
   googleId: text('google_id').unique(),
-  name: text('name'),
+  name: text('name').notNull(),
   avatarUrl: text('avatar_url'),
-  phone: text('phone').unique(),
+  phone: text('phone'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
 });
 
-export const sessions = pgTable('sessions', {
-  id: uuid('id').primaryKey(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }).notNull(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-});
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }).notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('session_user_idx').on(table.userId),
+    index('session_expires_idx').on(table.expiresAt),
+  ]
+);
 
 export const businesses = pgTable('businesses', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   businessType: businessTypeEnum('business_type').notNull(),
   registrationNumber: text('registration_number').notNull().unique(),
-  vatNumber: text('vat_number'),
+  vatNumber: text('vat_number').unique(),
   streetAddress: text('street_address').notNull(),
   city: text('city').notNull(),
   postalCode: text('postal_code'),
@@ -64,9 +73,12 @@ export const businesses = pgTable('businesses', {
   email: text('email'),
   invoiceNumberPrefix: text('invoice_number_prefix'),
   startingInvoiceNumber: integer('starting_invoice_number').notNull().default(1),
+  nextInvoiceNumber: integer('next_invoice_number').notNull().default(1),
+  // stored as basis points: 1700 = 17.00%
   defaultVatRate: integer('default_vat_rate').notNull().default(1700),
   logoUrl: text('logo_url'),
   isActive: boolean('is_active').notNull().default(true),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdByUserId: uuid('created_by_user_id')
     .notNull()
     .references(() => users.id),
@@ -88,11 +100,17 @@ export const userBusinesses = pgTable(
     invitedByUserId: uuid('invited_by_user_id').references(() => users.id),
     invitedAt: timestamp('invited_at', { withTimezone: true }),
     acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => ({
-    uniqueUserBusiness: unique().on(table.userId, table.businessId),
-  })
+  (table) => [
+    // Partial unique: a user can only be an active member once, but removed rows are kept for history
+    uniqueIndex('user_businesses_active_unique')
+      .on(table.userId, table.businessId)
+      .where(sql`${table.removedAt} IS NULL`),
+    index('user_businesses_business_id_idx').on(table.businessId),
+  ]
 );
 
 export const businessInvitations = pgTable(
@@ -108,16 +126,19 @@ export const businessInvitations = pgTable(
     invitedByUserId: uuid('invited_by_user_id')
       .notNull()
       .references(() => users.id),
-    token: text('token').notNull().unique(),
+    token: text('token').notNull(),
     personalMessage: text('personal_message'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     acceptedAt: timestamp('accepted_at', { withTimezone: true }),
     declinedAt: timestamp('declined_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => ({
-    uniqueBusinessEmail: unique().on(table.businessId, table.email),
-  })
+  (table) => [
+    unique('business_invitations_token_unique').on(table.token),
+    unique('business_invitations_business_id_email_unique').on(table.businessId, table.email),
+    index('business_invitations_business_id_idx').on(table.businessId),
+    index('business_invitations_email_idx').on(table.email),
+  ]
 );
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -187,12 +208,14 @@ export const customers = pgTable(
     contactName: text('contact_name'),
     notes: text('notes'),
     isActive: boolean('is_active').notNull().default(true),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => ({
-    uniqueBusinessTaxId: unique().on(table.businessId, table.taxId),
-  })
+  (table) => [
+    unique('customers_business_id_tax_id_unique').on(table.businessId, table.taxId),
+    index('customers_business_id_idx').on(table.businessId),
+  ]
 );
 
 export const customersRelations = relations(customers, ({ one }) => ({

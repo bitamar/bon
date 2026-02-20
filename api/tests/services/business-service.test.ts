@@ -13,6 +13,8 @@ import {
 } from '../../src/services/business-service.js';
 import * as businessRepository from '../../src/repositories/business-repository.js';
 
+// ── helpers ──────────────────────────────────────────────────────────────────
+
 async function createUser(overrides: Partial<typeof users.$inferInsert> = {}) {
   const [user] = await db
     .insert(users)
@@ -34,6 +36,8 @@ function makeBusinessInput(overrides: Partial<{ registrationNumber: string; name
     city: 'Tel Aviv',
   };
 }
+
+// ── tests ─────────────────────────────────────────────────────────────────────
 
 describe('business-service', () => {
   beforeEach(async () => {
@@ -153,6 +157,20 @@ describe('business-service', () => {
 
       expect(result.business.isActive).toBe(false);
     });
+
+    it('clears a nullable field when null is provided', async () => {
+      const user = await createUser();
+      const { business } = await createBusiness(user.id, {
+        ...makeBusinessInput(),
+        phone: '0521234567',
+      });
+
+      expect(business.phone).toBe('0521234567');
+
+      const result = await updateBusinessById(business.id, 'owner', { phone: null });
+
+      expect(result.business.phone).toBeNull();
+    });
   });
 
   describe('listBusinessesForUser', () => {
@@ -174,6 +192,16 @@ describe('business-service', () => {
       expect(result.businesses).toHaveLength(1);
       expect(result.businesses[0].name).toBe('My Biz');
       expect(result.businesses[0].role).toBe('owner');
+    });
+
+    it('excludes inactive businesses', async () => {
+      const user = await createUser();
+      const { business } = await createBusiness(user.id, makeBusinessInput());
+      await updateBusinessById(business.id, 'owner', { isActive: false });
+
+      const result = await listBusinessesForUser(user.id);
+
+      expect(result.businesses).toHaveLength(0);
     });
   });
 
@@ -203,10 +231,29 @@ describe('business-service', () => {
       expect(memberEntry?.name).toBe('Member User');
       expect(typeof memberEntry?.joinedAt).toBe('string');
     });
+
+    it('does not include removed members', async () => {
+      const owner = await createUser();
+      const { business } = await createBusiness(owner.id, makeBusinessInput());
+
+      const member = await createUser();
+      await db.insert(userBusinesses).values({
+        userId: member.id,
+        businessId: business.id,
+        role: 'user',
+        createdAt: new Date(),
+      });
+
+      await removeTeamMember(business.id, member.id, 'owner');
+
+      const result = await listTeamMembers(business.id);
+
+      expect(result.team.some((m) => m.userId === member.id)).toBe(false);
+    });
   });
 
   describe('removeTeamMember', () => {
-    it('owner removes admin — succeeds', async () => {
+    it('owner removes admin — soft-deletes (sets removedAt)', async () => {
       const owner = await createUser();
       const { business } = await createBusiness(owner.id, makeBusinessInput());
 
@@ -223,7 +270,7 @@ describe('business-service', () => {
       const row = await db.query.userBusinesses.findFirst({
         where: (t, { eq, and }) => and(eq(t.userId, admin.id), eq(t.businessId, business.id)),
       });
-      expect(row).toBeUndefined();
+      expect(row?.removedAt).not.toBeNull();
     });
 
     it('throws forbidden with code cannot_remove_owner for owner target', async () => {

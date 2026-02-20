@@ -33,11 +33,10 @@ export function getSettingsFromUser(
 
 export async function updateSettingsForUser(userId: string, input: UpdateSettingsInput) {
   try {
-    const record = await updateUserById(userId, {
-      name: input.name ?? null,
-      phone: input.phone ?? null,
-      updatedAt: new Date(),
-    });
+    const updates: Parameters<typeof updateUserById>[1] = { updatedAt: new Date() };
+    if (input.name != null) updates.name = input.name;
+    if (input.phone !== undefined) updates.phone = input.phone;
+    const record = await updateUserById(userId, updates);
 
     if (!record) throw notFound();
 

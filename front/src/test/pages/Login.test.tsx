@@ -30,8 +30,8 @@ describe('Login page', () => {
       </AuthProvider>
     );
 
-    expect(screen.getByText('bon starter')).toBeInTheDocument();
-    const button = screen.getByRole('button', { name: 'Continue with Google' });
+    expect(screen.getByText('bon')).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: /כניסה עם Google/i });
     expect(button).toBeInTheDocument();
     button.click();
     expect(loginWithGoogle).toHaveBeenCalled();
@@ -51,6 +51,6 @@ describe('Login page', () => {
       </AuthProvider>
     );
 
-    expect(screen.queryByRole('button', { name: 'Continue with Google' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /כניסה עם Google/i })).not.toBeInTheDocument();
   });
 });

@@ -20,7 +20,7 @@ if (container) {
       <QueryClientProvider client={queryClient}>
         <DirectionProvider>
           <MantineProvider
-            defaultColorScheme="dark"
+            defaultColorScheme="light"
             theme={mantineThemeOverride}
             cssVariablesResolver={lightModeCssVariablesResolver}
           >

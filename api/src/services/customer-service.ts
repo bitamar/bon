@@ -30,6 +30,7 @@ function serializeCustomer(record: CustomerRecord): CustomerDto {
     contactName: record.contactName ?? null,
     notes: record.notes ?? null,
     isActive: record.isActive,
+    deletedAt: record.deletedAt ? record.deletedAt.toISOString() : null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };
@@ -116,7 +117,10 @@ function buildCustomerUpdates(input: UpdateCustomerInput, now: Date): Record<str
   if (input.postalCode !== undefined) updates['postalCode'] = input.postalCode;
   if (input.contactName !== undefined) updates['contactName'] = input.contactName;
   if (input.notes !== undefined) updates['notes'] = input.notes;
-  if (input.isActive != null) updates['isActive'] = input.isActive;
+  if (input.isActive != null) {
+    updates['isActive'] = input.isActive;
+    if (!input.isActive) updates['deletedAt'] = now;
+  }
   return updates;
 }
 
