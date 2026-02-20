@@ -27,8 +27,6 @@ describe('routes/businesses', () => {
           name: 'My Shop',
           businessType: 'licensed_dealer',
           registrationNumber: makeRegNum(),
-          streetAddress: '5 Dizengoff St',
-          city: 'Tel Aviv',
         },
       });
 
@@ -36,6 +34,25 @@ describe('routes/businesses', () => {
       const body = res.json() as { business: { name: string }; role: string };
       expect(body.business.name).toBe('My Shop');
       expect(body.role).toBe('owner');
+    });
+
+    it('creates a business with only name, businessType, and registrationNumber', async () => {
+      const { sessionId } = await createAuthedUser();
+
+      const res = await injectAuthed(ctx.app, sessionId, {
+        method: 'POST',
+        url: '/businesses',
+        payload: {
+          name: 'Minimal Biz',
+          businessType: 'licensed_dealer',
+          registrationNumber: makeRegNum(),
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as { business: { streetAddress: unknown; city: unknown } };
+      expect(body.business.streetAddress).toBeNull();
+      expect(body.business.city).toBeNull();
     });
 
     it('returns 401 when unauthenticated', async () => {
@@ -46,8 +63,6 @@ describe('routes/businesses', () => {
           name: 'My Shop',
           businessType: 'licensed_dealer',
           registrationNumber: makeRegNum(),
-          streetAddress: '5 Dizengoff St',
-          city: 'Tel Aviv',
         },
       });
 
@@ -68,8 +83,6 @@ describe('routes/businesses', () => {
           name: 'Another Shop',
           businessType: 'licensed_dealer',
           registrationNumber: makeRegNum(),
-          streetAddress: '10 HaYarkon St',
-          city: 'Haifa',
         },
       });
 

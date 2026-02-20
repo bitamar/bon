@@ -18,6 +18,11 @@ The detail view is what the business owner sees after finalizing. It should feel
 ## Acceptance Criteria
 
 - [ ] "הפק חשבונית" button triggers finalization flow
+- [ ] **Business profile completeness gate** (before any other validation):
+  - [ ] Required fields: name, registrationNumber, streetAddress, city, and vatNumber (non-exempt only)
+  - [ ] If any are missing, show a modal with only the missing fields (not full settings page)
+  - [ ] User fills inline → saves to business → finalization continues
+  - [ ] Drafts are never gated — only finalization
 - [ ] Client-side validation before API call: customer required, ≥1 line item, all amounts > 0
 - [ ] Preview modal: invoice as it will appear (read-only) before confirming
 - [ ] Confirm → `POST /businesses/:id/invoices/:id/finalize`

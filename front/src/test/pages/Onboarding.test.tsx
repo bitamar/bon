@@ -8,23 +8,16 @@ vi.mock('../../api/businesses', () => ({
   createBusiness: vi.fn(),
 }));
 
-vi.mock('../../api/address', () => ({
-  fetchAllCities: vi.fn(),
-  fetchAllStreetsForCity: vi.fn(),
-  filterOptions: vi.fn(),
-}));
-
 import * as businessesApi from '../../api/businesses';
-import * as addressApi from '../../api/address';
 
 const mockCreatedBusiness = {
   id: 'biz-new',
   name: 'New Co',
   businessType: 'licensed_dealer' as const,
   registrationNumber: '123456789',
-  vatNumber: '123456789',
-  streetAddress: '1 Main',
-  city: 'TLV',
+  vatNumber: null,
+  streetAddress: null,
+  city: null,
   postalCode: null,
   phone: null,
   email: null,
@@ -42,37 +35,24 @@ const mockCreatedBusiness = {
 
 type User = ReturnType<typeof userEvent.setup>;
 
-async function goToStep1(user: User, type: 'עוסק מורשה' | 'עוסק פטור' | 'חברה בע״מ') {
+async function selectBusinessType(user: User, type: 'עוסק מורשה' | 'עוסק פטור' | 'חברה בע״מ') {
   await user.click(screen.getByText(type));
-  await user.click(screen.getByRole('button', { name: 'המשך' }));
 }
 
-function setupSubmissionAddressMocks() {
-  vi.mocked(addressApi.fetchAllCities).mockResolvedValue([{ name: 'TLV', code: '5000 ' }]);
-  vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([{ name: 'Main' }]);
-}
-
-async function fillAndSubmit(user: User) {
-  await fillAddress(user, 'TLV', 'Main', '1');
-  await user.click(screen.getByRole('button', { name: /צור עסק והתחל להנפיק חשבוניות/ }));
+async function fillAndSubmit(
+  user: User,
+  opts: { name: string; registrationNumber: string; type: 'עוסק מורשה' | 'עוסק פטור' | 'חברה בע״מ' }
+) {
+  await selectBusinessType(user, opts.type);
+  const nameInput = screen.getByRole('textbox', { name: /שם/ });
+  await user.clear(nameInput);
+  await user.type(nameInput, opts.name);
+  const regInput = screen.getByRole('textbox', { name: /מספר/ });
+  await user.clear(regInput);
+  await user.type(regInput, opts.registrationNumber);
+  await user.click(screen.getByRole('button', { name: 'צור עסק' }));
   await waitFor(() => expect(businessesApi.createBusiness).toHaveBeenCalled());
   return vi.mocked(businessesApi.createBusiness).mock.calls[0]?.[0];
-}
-
-async function fillAddress(user: User, cityName: string, streetName: string, houseNum: string) {
-  await waitFor(() => expect(screen.getByRole('textbox', { name: /^עיר/ })).toBeInTheDocument());
-
-  await user.type(screen.getByRole('textbox', { name: /^עיר/ }), cityName);
-  await waitFor(() => expect(screen.getByText(cityName)).toBeInTheDocument());
-  await user.click(screen.getByText(cityName));
-
-  await waitFor(() => expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled());
-
-  await user.type(screen.getByRole('textbox', { name: /^רחוב/ }), streetName);
-  await waitFor(() => expect(screen.getByText(streetName)).toBeInTheDocument());
-  await user.click(screen.getByText(streetName));
-
-  await user.type(screen.getByRole('textbox', { name: /מספר בית/ }), houseNum);
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -80,15 +60,6 @@ async function fillAddress(user: User, cityName: string, streetName: string, hou
 describe('Onboarding page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([]);
-    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
-    vi.mocked(addressApi.filterOptions).mockImplementation(
-      <T extends { name: string }>(options: T[], query: string): T[] => {
-        const q = query.trim();
-        if (!q) return options;
-        return options.filter((o) => o.name.includes(q));
-      }
-    );
   });
 
   it('renders the form with "BON" title visible', () => {
@@ -96,7 +67,7 @@ describe('Onboarding page', () => {
     expect(screen.getByRole('heading', { name: 'BON' })).toBeInTheDocument();
   });
 
-  it('step 0 renders with no pre-selected business type', () => {
+  it('renders with no pre-selected business type', () => {
     renderWithProviders(<Onboarding />);
 
     const licensedCard = screen.getByText('עוסק מורשה').closest('[role="radio"]');
@@ -108,77 +79,39 @@ describe('Onboarding page', () => {
     expect(companyCard).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('"המשך" on step 0 is disabled when no type is selected', () => {
-    renderWithProviders(<Onboarding />);
-    const nextButton = screen.getByRole('button', { name: 'המשך' });
-    expect(nextButton).toBeDisabled();
-  });
-
-  it('selecting a type enables "המשך"', async () => {
+  it('shows correct labels for עוסק פטור', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
 
-    await user.click(screen.getByText('עוסק מורשה'));
+    await selectBusinessType(user, 'עוסק פטור');
 
-    expect(screen.getByRole('button', { name: 'המשך' })).not.toBeDisabled();
+    expect(screen.getByRole('textbox', { name: /שם מלא/ })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /מספר תעודת זהות/ })).toBeInTheDocument();
   });
 
-  it('clicking "המשך" on step 0 advances to step 1', async () => {
+  it('shows correct labels for עוסק מורשה', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
 
-    await goToStep1(user, 'עוסק מורשה');
+    await selectBusinessType(user, 'עוסק מורשה');
 
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /שם העסק/ })).toBeInTheDocument();
-    });
+    expect(screen.getByRole('textbox', { name: /שם העסק/ })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /מספר עוסק מורשה/ })).toBeInTheDocument();
   });
 
-  it('step 1 shows correct fields for עוסק פטור (no VAT field)', async () => {
+  it('changing type clears registration number but preserves name', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
 
-    await goToStep1(user, 'עוסק פטור');
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /שם מלא/ })).toBeInTheDocument();
-      expect(screen.getByRole('textbox', { name: /מספר תעודת זהות/ })).toBeInTheDocument();
-    });
-
-    expect(screen.queryByRole('textbox', { name: /מספר מע"מ/ })).not.toBeInTheDocument();
-  });
-
-  it('step 1 shows correct fields for עוסק מורשה (has VAT field)', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Onboarding />);
-
-    await goToStep1(user, 'עוסק מורשה');
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /שם העסק/ })).toBeInTheDocument();
-      expect(
-        screen.getByRole('textbox', { name: /מספר עוסק מורשה \(ע\.מ\.\)/ })
-      ).toBeInTheDocument();
-      expect(screen.getByRole('textbox', { name: /מספר רישום מע״מ/ })).toBeInTheDocument();
-    });
-  });
-
-  it('going back to step 0 and changing type resets step 1 fields', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Onboarding />);
-
-    await goToStep1(user, 'עוסק מורשה');
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /שם העסק/ })).toBeInTheDocument();
-    });
-
+    await selectBusinessType(user, 'עוסק מורשה');
     await user.type(screen.getByRole('textbox', { name: /שם העסק/ }), 'My Business');
-    await user.click(screen.getByRole('button', { name: 'חזרה' }));
-    await goToStep1(user, 'עוסק פטור');
+    await user.type(screen.getByRole('textbox', { name: /מספר עוסק מורשה/ }), '123456789');
+
+    await selectBusinessType(user, 'עוסק פטור');
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /שם מלא/ })).toHaveValue('');
+      expect(screen.getByRole('textbox', { name: /שם מלא/ })).toHaveValue('My Business');
+      expect(screen.getByRole('textbox', { name: /מספר תעודת זהות/ })).toHaveValue('');
     });
   });
 
@@ -186,40 +119,13 @@ describe('Onboarding page', () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
 
-    await goToStep1(user, 'עוסק פטור');
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /שם מלא/ })).toBeInTheDocument();
-    });
-
+    await selectBusinessType(user, 'עוסק פטור');
     await user.type(screen.getByRole('textbox', { name: /שם מלא/ }), 'ישראל ישראלי');
     await user.type(screen.getByRole('textbox', { name: /מספר תעודת זהות/ }), '123456789');
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    await user.click(screen.getByRole('button', { name: 'צור עסק' }));
 
     await waitFor(() => {
       expect(screen.getByText('מספר ת.ז. לא תקין')).toBeInTheDocument();
-    });
-  });
-
-  it('registrationNumber blur auto-fills vatNumber for licensed_dealer when 9 digits', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Onboarding />);
-
-    await goToStep1(user, 'עוסק מורשה');
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('textbox', { name: /מספר עוסק מורשה \(ע\.מ\.\)/ })
-      ).toBeInTheDocument();
-    });
-
-    const regInput = screen.getByRole('textbox', { name: /מספר עוסק מורשה \(ע\.מ\.\)/ });
-    await user.click(regInput);
-    await user.type(regInput, '123456789');
-    await user.tab();
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /מספר רישום מע״מ/ })).toHaveValue('123456789');
     });
   });
 
@@ -229,37 +135,22 @@ describe('Onboarding page', () => {
       business: mockCreatedBusiness,
       role: 'owner',
     });
-    setupSubmissionAddressMocks();
 
     renderWithProviders(<Onboarding />);
 
-    await goToStep1(user, 'עוסק מורשה');
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /שם העסק/ })).toBeInTheDocument();
+    const payload = await fillAndSubmit(user, {
+      type: 'עוסק מורשה',
+      name: 'New Co',
+      registrationNumber: '123456789',
     });
 
-    await user.type(screen.getByRole('textbox', { name: /שם העסק/ }), 'New Co');
-
-    const regInput = screen.getByRole('textbox', { name: /מספר עוסק מורשה \(ע\.מ\.\)/ });
-    await user.type(regInput, '123456789');
-    await user.tab();
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /מספר רישום מע״מ/ })).toHaveValue('123456789');
-    });
-
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
-
-    const payload = await fillAndSubmit(user);
     expect(payload?.name).toBe('New Co');
     expect(payload?.registrationNumber).toBe('123456789');
-    expect(payload?.streetAddress).toBe('Main 1');
-    expect(payload?.city).toBe('TLV');
     expect(payload?.businessType).toBe('licensed_dealer');
+    expect(payload?.defaultVatRate).toBeUndefined();
   });
 
-  it('for עוסק פטור, payload has vatNumber undefined and defaultVatRate 0', async () => {
+  it('for עוסק פטור, payload has defaultVatRate 0', async () => {
     const user = userEvent.setup();
     vi.mocked(businessesApi.createBusiness).mockResolvedValue({
       business: {
@@ -270,24 +161,38 @@ describe('Onboarding page', () => {
       },
       role: 'owner',
     });
-    setupSubmissionAddressMocks();
 
     renderWithProviders(<Onboarding />);
 
-    await goToStep1(user, 'עוסק פטור');
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: /שם מלא/ })).toBeInTheDocument();
+    const payload = await fillAndSubmit(user, {
+      type: 'עוסק פטור',
+      name: 'ישראל ישראלי',
+      // 000000018: valid Israeli ID checksum
+      registrationNumber: '000000018',
     });
 
-    await user.type(screen.getByRole('textbox', { name: /שם מלא/ }), 'ישראל ישראלי');
-    // 000000018: valid Israeli ID checksum
-    await user.type(screen.getByRole('textbox', { name: /מספר תעודת זהות/ }), '000000018');
-    await user.click(screen.getByRole('button', { name: 'המשך' }));
-
-    const payload = await fillAndSubmit(user);
     expect(payload?.businessType).toBe('exempt_dealer');
-    expect(payload?.vatNumber).toBeUndefined();
     expect(payload?.defaultVatRate).toBe(0);
+  });
+
+  it('shows inline error on registrationNumber field when duplicate_registration_number returned', async () => {
+    const user = userEvent.setup();
+    const { HttpError: MockHttpError } = await import('../../lib/http');
+    const error = new MockHttpError(409, 'Conflict', { code: 'duplicate_registration_number' });
+    vi.mocked(businessesApi.createBusiness).mockRejectedValue(error);
+
+    renderWithProviders(<Onboarding />);
+
+    const payload = await fillAndSubmit(user, {
+      type: 'עוסק מורשה',
+      name: 'New Co',
+      registrationNumber: '123456789',
+    }).catch(() => undefined);
+
+    void payload;
+
+    await waitFor(() => {
+      expect(screen.getByText('מספר רישום זה כבר קיים במערכת')).toBeInTheDocument();
+    });
   });
 });

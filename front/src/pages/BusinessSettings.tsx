@@ -22,6 +22,29 @@ import { useBusiness } from '../contexts/BusinessContext';
 import { extractErrorMessage } from '../lib/notifications';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import type { UpdateBusinessBody } from '@bon/types/businesses';
+import type { BusinessType } from '@bon/types/businesses';
+
+function getVatLabel(businessType: BusinessType): string {
+  switch (businessType) {
+    case 'licensed_dealer':
+      return 'מספר רישום מע״מ';
+    case 'limited_company':
+      return 'מספר מע"מ';
+    case 'exempt_dealer':
+      return '';
+  }
+}
+
+function getVatDescription(businessType: BusinessType): string {
+  switch (businessType) {
+    case 'licensed_dealer':
+      return 'בדרך כלל זהה למספר הרישום';
+    case 'limited_company':
+      return 'בדרך כלל זהה לח.פ.';
+    case 'exempt_dealer':
+      return '';
+  }
+}
 
 function businessTypeLabel(type: string): string {
   switch (type) {
@@ -50,6 +73,7 @@ export function BusinessSettings() {
   const form = useForm<UpdateBusinessBody & { registrationNumber: string }>({
     initialValues: {
       name: '',
+      vatNumber: undefined,
       streetAddress: '',
       city: '',
       postalCode: undefined,
@@ -61,8 +85,13 @@ export function BusinessSettings() {
     },
     validate: {
       name: (value) => (value?.trim() ? null : 'שם העסק נדרש'),
-      streetAddress: (value) => (value?.trim() ? null : 'כתובת רחוב נדרשת'),
-      city: (value) => (value?.trim() ? null : 'עיר נדרשת'),
+      vatNumber: (value) => {
+        if (!value) return null;
+        if (!/^\d{9}$/.test(value)) return 'מספר רישום חייב להיות 9 ספרות';
+        return null;
+      },
+      streetAddress: () => null,
+      city: () => null,
       postalCode: (value) => {
         if (value && !/^\d{7}$/.test(value)) return 'מיקוד חייב להיות 7 ספרות';
         return null;
@@ -84,6 +113,7 @@ export function BusinessSettings() {
       const { business } = businessQuery.data;
       form.setValues({
         name: business.name ?? '',
+        vatNumber: business.vatNumber ?? undefined,
         streetAddress: business.streetAddress ?? '',
         city: business.city ?? '',
         postalCode: business.postalCode ?? undefined,
@@ -166,6 +196,16 @@ export function BusinessSettings() {
             <TextInput label="שם העסק" required {...form.getInputProps('name')} />
 
             <TextInput label="מספר רישום" disabled {...form.getInputProps('registrationNumber')} />
+
+            {activeBusiness.businessType !== 'exempt_dealer' && (
+              <TextInput
+                label={getVatLabel(activeBusiness.businessType as BusinessType)}
+                description={getVatDescription(activeBusiness.businessType as BusinessType)}
+                placeholder="123456789"
+                maxLength={9}
+                {...form.getInputProps('vatNumber')}
+              />
+            )}
 
             <Divider label="כתובת" labelPosition="center" />
 

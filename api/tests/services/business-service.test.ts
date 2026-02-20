@@ -32,8 +32,6 @@ function makeBusinessInput(overrides: Partial<{ registrationNumber: string; name
     businessType: 'licensed_dealer' as const,
     registrationNumber:
       overrides.registrationNumber ?? `${randomUUID().replaceAll('-', '').slice(0, 9)}`,
-    streetAddress: '1 Main St',
-    city: 'Tel Aviv',
   };
 }
 
@@ -67,6 +65,35 @@ describe('business-service', () => {
       });
       expect(ubRow?.role).toBe('owner');
       expect(ubRow?.userId).toBe(user.id);
+    });
+
+    it('creates business with minimal payload (no address)', async () => {
+      const user = await createUser();
+      const input = {
+        name: 'Minimal Biz',
+        businessType: 'licensed_dealer' as const,
+        registrationNumber: `${randomUUID().replaceAll('-', '').slice(0, 9)}`,
+      };
+
+      const result = await createBusiness(user.id, input);
+
+      expect(result.business.streetAddress).toBeNull();
+      expect(result.business.city).toBeNull();
+      expect(result.business.defaultVatRate).toBe(1700);
+    });
+
+    it('enforces defaultVatRate=0 for exempt_dealer regardless of input', async () => {
+      const user = await createUser();
+      const input = {
+        name: 'Exempt Biz',
+        businessType: 'exempt_dealer' as const,
+        registrationNumber: `${randomUUID().replaceAll('-', '').slice(0, 9)}`,
+        defaultVatRate: 1700,
+      };
+
+      const result = await createBusiness(user.id, input);
+
+      expect(result.business.defaultVatRate).toBe(0);
     });
 
     it('throws conflict on duplicate registrationNumber', async () => {
