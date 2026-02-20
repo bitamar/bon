@@ -32,7 +32,7 @@ Allocation numbers can be requested voluntarily for any amount.
 - Multi-tenant data isolation enforced at repository level
 
 ### Business Management
-- Business creation with registration number (address, VAT, contact info collected later via settings)
+- Business creation with registration number, VAT number, address, invoice settings
 - Business types: עוסק מורשה, עוסק פטור, חברה בע"מ
 - Default VAT rate per business (basis points: 1700 = 17%, 0 = exempt)
 - Invoice number prefix + starting number configuration
@@ -44,25 +44,20 @@ Allocation numbers can be requested voluntarily for any amount.
 - Remove members (owner can remove admin/user, admin cannot remove admin)
 - Accept/decline invitation flow
 
-### Onboarding UX
-- Lightweight single-page onboarding: business type + name + registration number only
-- Per-type field adaptation (label changes for name and reg number based on type)
-- Israeli ID checksum validation for ת.ז. (עוסק פטור)
+### Onboarding UX (simplified — T03)
+- Single-page form: business type + name + registration number (no stepper)
+- Per-type field adaptation (labels, validation, עוסק פטור auto-sets VAT=0)
+- Israeli ID checksum validation for ת.ז.
+- VAT number moved to settings page
+- Address autocomplete via data.gov.il (city → street, cascading, free-text fallback)
 
-### Progressive Business Profile Collection
-Onboarding only collects type + name + registration number. The remaining fields required for invoices are collected progressively:
-
-- **Settings page**: address (via AddressAutocomplete), VAT number, phone, email — editable anytime
-- **Invoice finalization gate** (Phase 2): before finalizing, API checks the business has all legally required fields (name, reg number, address, VAT for non-exempt). If missing, frontend shows a modal with only the missing fields — user fills inline, saves, finalization continues. Drafts are never gated.
-- **Never gated**: phone, email, invoice prefix, logo
-
-### Customer Management ✓
+### Customer Backend (API only — T04)
 - Customer CRUD with soft delete (isActive)
 - Tax ID validation (9-digit, types: company_id/vat_number/personal_id/none)
 - isLicensedDealer flag for future SHAAM trigger logic
-- Address autocomplete reused from onboarding
-- Searchable list (name + tax ID, debounced 150ms)
-- Detail/edit page with invoice history placeholder
+- Searchable list endpoint (name + tax ID, `?q=` parameter)
+- Duplicate taxId detection (409 response — needs patch to include existing customer info)
+- **No frontend yet** — customer pages are T05
 
 ---
 
@@ -397,14 +392,12 @@ loses work. Browser close = draft saved. Explicit "discard" to delete.
 
 **Finalize flow**:
 1. Click "הפק חשבונית"
-2. **Business profile completeness check**: name, registration number, address, and VAT number (non-exempt) must be present. If missing, show a "complete your business profile" modal with only the missing fields — user fills inline, saves, then finalization continues. Drafts are never gated.
-3. Validation runs: customer required, at least one line item, all amounts > 0
-4. Preview modal with the invoice as it will appear (read-only)
-5. Confirm → API call to finalize → number assigned → PDF available → redirect to invoice detail
-6. If SHAAM required: initiate allocation number request in background (non-blocking)
+2. Validation runs: customer required, at least one line item, all amounts > 0
+3. Preview modal with the invoice as it will appear (read-only)
+4. Confirm → API call to finalize → number assigned → PDF available → redirect to invoice detail
+5. If SHAAM required: initiate allocation number request in background (non-blocking)
 
 **Error states**:
-- Incomplete business profile → inline modal to fill missing fields (see step 2)
 - Customer not found / deleted → show warning, prompt to re-select
 - Sequence number conflict (rare race) → show error, offer to retry (will get next number)
 - SHAAM allocation failure → invoice is still finalized, show SHAAM error banner with retry option
@@ -847,14 +840,16 @@ Abstract behind a `StorageService` interface from day one.
 ## Build Order
 
 ```
-✓ Phase 0: Foundation (auth, business mgmt, team)
-↳ In progress: Lightweight onboarding (type + name + reg number only), progressive collection
+✓ Phase 0: Foundation (auth, business mgmt, team, onboarding)
+  T00–T03 all merged to main, awaiting production deploy
 
-→ Phase 1: Customer Management       (~1 week)
-  1.1 Customer schema + API
-  1.2 Customer create/edit form
-  1.3 Customer list with search
-  1.4 Customer detail view
+→ Phase 1: Customer Management
+  🔄 T04: Customer schema + API (merged, needs patch — 12 issues from deep review)
+    Blocking: PUT→PATCH+CORS, 409 response, repo tests, duplicate integration test
+    Medium: partial unique index, checksum all ID types, deletedAt clearing,
+            fragile 23505, search tests, name nullability
+    Low: POST→201, list schema fields for Phase 2
+  → T05: Customer frontend (list + create + edit) — fully specified, blocked on T04 patch + deploy
 
 → Phase 2: Invoice Creation          (~3 weeks)
   2.1 DB schema: invoices, invoice_items, sequences

@@ -34,14 +34,14 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T00](./T00-auth.md) | Auth & Sessions | ✅ | main |
 | [T01](./T01-business-management.md) | Business Management | ✅ | main |
 | [T02](./T02-team-invitations.md) | Team Invitations | ✅ | main |
-| [T03](./T03-onboarding-ux.md) | Business Onboarding UX | 🔄 | simpler-onboarding |
+| [T03](./T03-onboarding-ux.md) | Business Onboarding UX | ✅ | main (PR #4) |
 
 ### Phase 1 — Customers
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T04](./T04-customer-backend.md) | Customer Backend (API + DB) | ✅ | main |
-| [T05](./T05-customer-frontend.md) | Customer Frontend (list + create + edit) | 🔒 | — |
+| [T04](./T04-customer-backend.md) | Customer Backend (API + DB) | 🔄 | main (merged, patch needed — 12 issues) |
+| [T05](./T05-customer-frontend.md) | Customer Frontend (list + create + edit) | 🔒 | — (needs T04 patch + deploy) |
 
 ### Phase 2 — Invoices (Core Product)
 
