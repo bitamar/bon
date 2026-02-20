@@ -88,7 +88,7 @@ export function Settings() {
     <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
       <Stack gap="md">
         <PageTitle order={3}>הגדרות פרופיל</PageTitle>
-        <Card component="form" onSubmit={onSubmit} withBorder radius="lg" p="lg">
+        <Card component="form" onSubmit={onSubmit} noValidate withBorder radius="lg" p="lg">
           <Stack gap="md">
             <Switch
               checked={colorScheme === 'dark'}

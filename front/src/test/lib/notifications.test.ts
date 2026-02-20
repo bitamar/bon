@@ -44,7 +44,7 @@ describe('notifications helpers', () => {
   it('showErrorNotification forwards title and message', () => {
     showErrorNotification('Failed...');
     expect(showMock).toHaveBeenCalledWith({
-      title: 'שגיאה',
+      title: 'משהו השתבש',
       message: 'Failed...',
       color: 'red',
     });

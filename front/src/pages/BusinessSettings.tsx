@@ -182,7 +182,7 @@ export function BusinessSettings() {
     <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
       <Stack gap="md">
         <PageTitle order={3}>הגדרות עסק</PageTitle>
-        <Paper component="form" onSubmit={onSubmit} withBorder radius="lg" p="lg">
+        <Paper component="form" onSubmit={onSubmit} noValidate withBorder radius="lg" p="lg">
           <Stack gap="md">
             <Stack gap={4}>
               <Text size="sm" fw={500}>

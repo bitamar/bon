@@ -151,7 +151,7 @@ export function Onboarding() {
             p="xl"
             style={{ border: '1px solid var(--mantine-color-lime-2)' }}
           >
-            <form onSubmit={onSubmit}>
+            <form onSubmit={onSubmit} noValidate>
               <Stack gap="md">
                 <Radio.Group
                   {...form.getInputProps('businessType')}

@@ -115,7 +115,7 @@ describe('useApiMutation', () => {
     extractErrorMessageMock.mockReturnValueOnce('Default message');
     wrappedOnError(error, undefined, undefined, undefined as never);
 
-    expect(extractErrorMessageMock).toHaveBeenCalledWith(error, 'הפעולה נכשלה');
+    expect(extractErrorMessageMock).toHaveBeenCalledWith(error, 'משהו לא עבד, נסו שוב');
     expect(showErrorNotificationMock).toHaveBeenCalledWith('Default message', undefined);
   });
 });

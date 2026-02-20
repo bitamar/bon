@@ -219,7 +219,7 @@ export function TeamManagement() {
         centered
         overlayProps={{ blur: 2 }}
       >
-        <form onSubmit={onInviteSubmit}>
+        <form onSubmit={onInviteSubmit} noValidate>
           <Stack gap="md">
             <TextInput
               label="אימייל"
