@@ -51,6 +51,14 @@ async function selectStreet(user: User, streetName: string) {
   await user.click(screen.getByText(streetName));
 }
 
+async function renderAndSelectTelAviv(user: User) {
+  vi.mocked(addressApi.fetchAllCities).mockResolvedValue([
+    { name: 'תל אביב - יפו', code: '5000 ' },
+  ]);
+  renderWithProviders(<TestForm />);
+  await selectCity(user, 'תל אביב - יפו');
+}
+
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 describe('AddressAutocomplete', () => {
@@ -103,13 +111,7 @@ describe('AddressAutocomplete', () => {
 
   it('selecting a city enables street, house number, and apartment fields', async () => {
     const user = userEvent.setup();
-    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([
-      { name: 'תל אביב - יפו', code: '5000 ' },
-    ]);
-
-    renderWithProviders(<TestForm />);
-
-    await selectCity(user, 'תל אביב - יפו');
+    await renderAndSelectTelAviv(user);
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled();
@@ -120,18 +122,12 @@ describe('AddressAutocomplete', () => {
 
   it('shows street dropdown and selecting a street populates the street field', async () => {
     const user = userEvent.setup();
-    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([
-      { name: 'תל אביב - יפו', code: '5000 ' },
-    ]);
     vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([
       { name: 'דיזנגוף' },
       { name: 'ככר דיזנגוף' },
       { name: 'רוטשילד' },
     ]);
-
-    renderWithProviders(<TestForm />);
-
-    await selectCity(user, 'תל אביב - יפו');
+    await renderAndSelectTelAviv(user);
     await selectStreet(user, 'דיזנגוף');
 
     await waitFor(() => {
@@ -141,14 +137,8 @@ describe('AddressAutocomplete', () => {
 
   it('typing in house number field does not reopen the street dropdown', async () => {
     const user = userEvent.setup();
-    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([
-      { name: 'תל אביב - יפו', code: '5000 ' },
-    ]);
     vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([{ name: 'דיזנגוף' }]);
-
-    renderWithProviders(<TestForm />);
-
-    await selectCity(user, 'תל אביב - יפו');
+    await renderAndSelectTelAviv(user);
     await selectStreet(user, 'דיזנגוף');
 
     await waitFor(() => {
@@ -163,13 +153,7 @@ describe('AddressAutocomplete', () => {
 
   it('editing city after selection resets and disables street fields', async () => {
     const user = userEvent.setup();
-    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([
-      { name: 'תל אביב - יפו', code: '5000 ' },
-    ]);
-
-    renderWithProviders(<TestForm />);
-
-    await selectCity(user, 'תל אביב - יפו');
+    await renderAndSelectTelAviv(user);
     await waitFor(() => expect(screen.getByRole('textbox', { name: /^רחוב/ })).not.toBeDisabled());
 
     await user.clear(screen.getByRole('textbox', { name: /^עיר/ }));

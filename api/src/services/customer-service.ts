@@ -103,14 +103,8 @@ export async function getCustomerById(businessId: string, customerId: string) {
   return { customer: serializeCustomer(customer) } satisfies CustomerResponse;
 }
 
-export async function updateCustomerById(
-  businessId: string,
-  customerId: string,
-  input: UpdateCustomerInput
-) {
-  const now = new Date();
+function buildCustomerUpdates(input: UpdateCustomerInput, now: Date): Record<string, unknown> {
   const updates: Record<string, unknown> = { updatedAt: now };
-
   if (input.name != null) updates['name'] = input.name;
   if (input.taxId !== undefined) updates['taxId'] = input.taxId;
   if (input.taxIdType !== undefined) updates['taxIdType'] = input.taxIdType ?? 'none';
@@ -123,6 +117,15 @@ export async function updateCustomerById(
   if (input.contactName !== undefined) updates['contactName'] = input.contactName;
   if (input.notes !== undefined) updates['notes'] = input.notes;
   if (input.isActive != null) updates['isActive'] = input.isActive;
+  return updates;
+}
+
+export async function updateCustomerById(
+  businessId: string,
+  customerId: string,
+  input: UpdateCustomerInput
+) {
+  const updates = buildCustomerUpdates(input, new Date());
 
   try {
     const customer = await updateCustomer(

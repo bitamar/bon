@@ -95,7 +95,7 @@ export const customerQuerySchema = z.object({
   limit: z
     .string()
     .regex(/^\d+$/)
-    .transform((v) => parseInt(v, 10))
+    .transform((v) => Number.parseInt(v, 10))
     .optional(),
 });
 

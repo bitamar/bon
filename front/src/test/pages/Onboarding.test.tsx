@@ -47,6 +47,18 @@ async function goToStep1(user: User, type: 'עוסק מורשה' | 'עוסק פ�
   await user.click(screen.getByRole('button', { name: 'המשך' }));
 }
 
+function setupSubmissionAddressMocks() {
+  vi.mocked(addressApi.fetchAllCities).mockResolvedValue([{ name: 'TLV', code: '5000 ' }]);
+  vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([{ name: 'Main' }]);
+}
+
+async function fillAndSubmit(user: User) {
+  await fillAddress(user, 'TLV', 'Main', '1');
+  await user.click(screen.getByRole('button', { name: /צור עסק והתחל להנפיק חשבוניות/ }));
+  await waitFor(() => expect(businessesApi.createBusiness).toHaveBeenCalled());
+  return vi.mocked(businessesApi.createBusiness).mock.calls[0]?.[0];
+}
+
 async function fillAddress(user: User, cityName: string, streetName: string, houseNum: string) {
   await waitFor(() => expect(screen.getByRole('textbox', { name: /^עיר/ })).toBeInTheDocument());
 
@@ -213,13 +225,11 @@ describe('Onboarding page', () => {
 
   it('successful submission calls createBusiness with correct payload for licensed_dealer', async () => {
     const user = userEvent.setup();
-
     vi.mocked(businessesApi.createBusiness).mockResolvedValue({
       business: mockCreatedBusiness,
       role: 'owner',
     });
-    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([{ name: 'TLV', code: '5000 ' }]);
-    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([{ name: 'Main' }]);
+    setupSubmissionAddressMocks();
 
     renderWithProviders(<Onboarding />);
 
@@ -241,13 +251,7 @@ describe('Onboarding page', () => {
 
     await user.click(screen.getByRole('button', { name: 'המשך' }));
 
-    await fillAddress(user, 'TLV', 'Main', '1');
-
-    await user.click(screen.getByRole('button', { name: /צור עסק והתחל להנפיק חשבוניות/ }));
-
-    await waitFor(() => expect(businessesApi.createBusiness).toHaveBeenCalled());
-
-    const payload = vi.mocked(businessesApi.createBusiness).mock.calls[0]?.[0];
+    const payload = await fillAndSubmit(user);
     expect(payload?.name).toBe('New Co');
     expect(payload?.registrationNumber).toBe('123456789');
     expect(payload?.streetAddress).toBe('Main 1');
@@ -257,7 +261,6 @@ describe('Onboarding page', () => {
 
   it('for עוסק פטור, payload has vatNumber undefined and defaultVatRate 0', async () => {
     const user = userEvent.setup();
-
     vi.mocked(businessesApi.createBusiness).mockResolvedValue({
       business: {
         ...mockCreatedBusiness,
@@ -267,8 +270,7 @@ describe('Onboarding page', () => {
       },
       role: 'owner',
     });
-    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([{ name: 'TLV', code: '5000 ' }]);
-    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([{ name: 'Main' }]);
+    setupSubmissionAddressMocks();
 
     renderWithProviders(<Onboarding />);
 
@@ -283,13 +285,7 @@ describe('Onboarding page', () => {
     await user.type(screen.getByRole('textbox', { name: /מספר תעודת זהות/ }), '000000018');
     await user.click(screen.getByRole('button', { name: 'המשך' }));
 
-    await fillAddress(user, 'TLV', 'Main', '1');
-
-    await user.click(screen.getByRole('button', { name: /צור עסק והתחל להנפיק חשבוניות/ }));
-
-    await waitFor(() => expect(businessesApi.createBusiness).toHaveBeenCalled());
-
-    const payload = vi.mocked(businessesApi.createBusiness).mock.calls[0]?.[0];
+    const payload = await fillAndSubmit(user);
     expect(payload?.businessType).toBe('exempt_dealer');
     expect(payload?.vatNumber).toBeUndefined();
     expect(payload?.defaultVatRate).toBe(0);

@@ -10,6 +10,15 @@ import {
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 
+// ── module-level helpers ────────────────────────────────────────────────────
+
+async function setupNonMemberScenario() {
+  const { sessionId } = await createAuthedUser();
+  const ownerUser = await createUser();
+  const business = await createTestBusiness(ownerUser.id);
+  return { sessionId, business };
+}
+
 describe('routes/customers', () => {
   const ctx = setupIntegrationTest();
 
@@ -23,11 +32,9 @@ describe('routes/customers', () => {
     });
   }
 
-  async function setupNonMemberScenario() {
-    const { sessionId } = await createAuthedUser();
-    const ownerUser = await createUser();
-    const business = await createTestBusiness(ownerUser.id);
-    return { sessionId, business };
+  async function createTestCustomer(sessionId: string, businessId: string, name = 'Test Customer') {
+    const res = await postCustomer(sessionId, businessId, { name });
+    return (res.json() as { customer: { id: string } }).customer;
   }
 
   // ── POST ───────────────────────────────────────────────────────────────────
@@ -138,9 +145,7 @@ describe('routes/customers', () => {
   describe('GET /businesses/:businessId/customers/:customerId', () => {
     it('returns customer by id', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
-
-      const createRes = await postCustomer(sessionId, business.id, { name: 'Test Customer' });
-      const { customer } = createRes.json() as { customer: { id: string } };
+      const customer = await createTestCustomer(sessionId, business.id);
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
@@ -170,9 +175,7 @@ describe('routes/customers', () => {
   describe('PUT /businesses/:businessId/customers/:customerId', () => {
     it('updates customer name', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
-
-      const createRes = await postCustomer(sessionId, business.id, { name: 'Old Name' });
-      const { customer } = createRes.json() as { customer: { id: string } };
+      const customer = await createTestCustomer(sessionId, business.id, 'Old Name');
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'PUT',
@@ -190,9 +193,7 @@ describe('routes/customers', () => {
   describe('DELETE /businesses/:businessId/customers/:customerId', () => {
     it('soft-deletes a customer (sets isActive=false)', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
-
-      const createRes = await postCustomer(sessionId, business.id, { name: 'To Delete' });
-      const { customer } = createRes.json() as { customer: { id: string } };
+      const customer = await createTestCustomer(sessionId, business.id, 'To Delete');
 
       const delRes = await injectAuthed(ctx.app, sessionId, {
         method: 'DELETE',

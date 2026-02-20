@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, Combobox, Group, Loader, Stack, TextInput, useCombobox } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllCities, fetchAllStreetsForCity, filterOptions } from '../api/address';
@@ -57,7 +57,7 @@ export function AddressAutocomplete({
 
   const { data: allStreets = [], isFetching: streetsLoading } = useQuery({
     queryKey: ['address', 'streets', selectedCityCode],
-    queryFn: () => fetchAllStreetsForCity(selectedCityCode!),
+    queryFn: () => fetchAllStreetsForCity(selectedCityCode ?? ''),
     enabled: selectedCityCode !== null,
     staleTime: 24 * 60 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
@@ -78,6 +78,30 @@ export function AddressAutocomplete({
     setAptDetails('');
     form.setFieldValue('streetAddress', '');
   };
+
+  let cityDropdownContent: React.ReactNode = null;
+  if (filteredCities.length > 0) {
+    cityDropdownContent = filteredCities.map((option) => (
+      <Combobox.Option key={option.code} value={option.name}>
+        {option.name}
+      </Combobox.Option>
+    ));
+  } else if (cityQuery.length > 0 && !citiesLoading) {
+    cityDropdownContent = <Combobox.Empty>לא נמצאו תוצאות</Combobox.Empty>;
+  }
+
+  let streetDropdownContent: React.ReactNode = null;
+  if (streetsLoading) {
+    streetDropdownContent = <Combobox.Empty>טוען רחובות...</Combobox.Empty>;
+  } else if (filteredStreets.length > 0) {
+    streetDropdownContent = filteredStreets.map((option) => (
+      <Combobox.Option key={option.name} value={option.name}>
+        {option.name}
+      </Combobox.Option>
+    ));
+  } else if (streetName.length > 0) {
+    streetDropdownContent = <Combobox.Empty>לא נמצאו תוצאות</Combobox.Empty>;
+  }
 
   return (
     <Stack gap="sm">
@@ -119,17 +143,7 @@ export function AddressAutocomplete({
           />
         </Combobox.Target>
         <Combobox.Dropdown>
-          <Combobox.Options>
-            {filteredCities.length > 0 ? (
-              filteredCities.map((option) => (
-                <Combobox.Option key={option.code} value={option.name}>
-                  {option.name}
-                </Combobox.Option>
-              ))
-            ) : cityQuery.length > 0 && !citiesLoading ? (
-              <Combobox.Empty>לא נמצאו תוצאות</Combobox.Empty>
-            ) : null}
-          </Combobox.Options>
+          <Combobox.Options>{cityDropdownContent}</Combobox.Options>
         </Combobox.Dropdown>
       </Combobox>
 
@@ -178,19 +192,7 @@ export function AddressAutocomplete({
               />
             </Combobox.Target>
             <Combobox.Dropdown>
-              <Combobox.Options>
-                {streetsLoading ? (
-                  <Combobox.Empty>טוען רחובות...</Combobox.Empty>
-                ) : filteredStreets.length > 0 ? (
-                  filteredStreets.map((option) => (
-                    <Combobox.Option key={option.name} value={option.name}>
-                      {option.name}
-                    </Combobox.Option>
-                  ))
-                ) : streetName.length > 0 ? (
-                  <Combobox.Empty>לא נמצאו תוצאות</Combobox.Empty>
-                ) : null}
-              </Combobox.Options>
+              <Combobox.Options>{streetDropdownContent}</Combobox.Options>
             </Combobox.Dropdown>
           </Combobox>
         </Box>

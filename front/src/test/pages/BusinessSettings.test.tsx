@@ -117,7 +117,9 @@ describe('BusinessSettings page', () => {
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
     await screen.findByRole('textbox', { name: /שם העסק/ });
 
-    fireEvent.submit(screen.getByRole('button', { name: 'שמור שינויים' }).closest('form')!);
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
+    );
 
     await waitFor(() => expect(businessesApi.updateBusiness).toHaveBeenCalled());
 
@@ -139,7 +141,9 @@ describe('BusinessSettings page', () => {
     fireEvent.change(await screen.findByRole('textbox', { name: /טלפון/ }), {
       target: { value: '12345' },
     });
-    fireEvent.submit(screen.getByRole('button', { name: 'שמור שינויים' }).closest('form')!);
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
+    );
 
     await waitFor(() => {
       expect(screen.getByText('מספר טלפון לא תקין')).toBeInTheDocument();
@@ -159,7 +163,9 @@ describe('BusinessSettings page', () => {
     fireEvent.change(await screen.findByRole('textbox', { name: /אימייל/ }), {
       target: { value: 'not-an-email' },
     });
-    fireEvent.submit(screen.getByRole('button', { name: 'שמור שינויים' }).closest('form')!);
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
+    );
 
     await waitFor(() => {
       expect(screen.getByText('כתובת אימייל לא תקינה')).toBeInTheDocument();

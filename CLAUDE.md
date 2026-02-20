@@ -19,7 +19,7 @@ If you see in-progress work on a feature that hasn't shipped yet, complete it fi
 
 BON is a B2B2C invoicing platform for the Israeli market. Businesses (B2B) use BON to create, manage, and send tax-compliant invoices to their customers (B2C). The platform integrates with Israel's SHAAM (שע"מ) system for tax authority compliance and supports all Israeli invoicing regulations.
 
-The name "bon" means receipt/invoice. The database references "kalimere" (קלימרה).
+The name "bon" means receipt/invoice.
 
 ## Architecture
 
@@ -99,7 +99,7 @@ npm run build -w front # Build for production
 ```
 
 ### Database
-- Dev: `postgres://postgres:postgres@localhost:5433/kalimere_dev`
+- Dev: `postgres://postgres:postgres@localhost:5433/bon_dev`
 - Test: Uses pg-mem (in-memory) — no external DB needed for tests
 - Migrations: `api/drizzle/` directory, managed by Drizzle Kit
 - Schema: `api/src/db/schema.ts`
