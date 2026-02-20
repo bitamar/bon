@@ -132,7 +132,7 @@ If you added code to work around a limitation (e.g. a filter heuristic for a UI 
 - Prettier: single quotes, trailing commas, 100 char line width
 - Code is scanned by SonarQube. Conform to these rules:
   - Use `.some()` for boolean existence checks — never `.find()` when the result is only used as a boolean
-  - Mark React component props as `Readonly<{...}>` — never a plain inline object type
+  - Mark React component props as `Readonly<>` — always wrap the props type at the usage site, whether it is an inline object type (`Readonly<{ label: string }>`) or a named type/interface (`Readonly<MyProps>`). For class components wrap the first generic: `Component<Readonly<MyProps>, State>`. Never pass a bare type as props.
   - Avoid negated conditions in ternaries — prefer `(cond ? valueIfTrue : valueIfFalse)` over `(!cond ? valueIfFalse : valueIfTrue)`
   - Never use `Math.random()` — use `crypto.randomInt()` or `crypto.randomUUID()` from `node:crypto` instead
 

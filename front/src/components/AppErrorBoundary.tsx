@@ -12,7 +12,10 @@ interface AppErrorBoundaryState {
   error: Error | null;
 }
 
-export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundaryState> {
+export class AppErrorBoundary extends Component<
+  Readonly<AppErrorBoundaryProps>,
+  AppErrorBoundaryState
+> {
   override state: AppErrorBoundaryState = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error): AppErrorBoundaryState {

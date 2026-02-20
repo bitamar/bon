@@ -15,7 +15,7 @@ interface RouteErrorBoundaryInnerState {
 }
 
 class RouteErrorBoundaryInner extends Component<
-  RouteErrorBoundaryInnerProps,
+  Readonly<RouteErrorBoundaryInnerProps>,
   RouteErrorBoundaryInnerState
 > {
   override state: RouteErrorBoundaryInnerState = { hasError: false, error: null };

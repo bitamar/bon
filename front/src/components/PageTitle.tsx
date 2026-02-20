@@ -12,7 +12,7 @@ export function PageTitle({
   style,
   disableLightOverride = false,
   ...rest
-}: PageTitleProps) {
+}: Readonly<PageTitleProps>) {
   const { colorScheme } = useMantineColorScheme();
 
   const lightModeStyles =

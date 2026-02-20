@@ -32,7 +32,7 @@ export function AddressAutocomplete({
   disabled,
   initialCity = '',
   initialStreetAddress = '',
-}: AddressAutocompleteProps) {
+}: Readonly<AddressAutocompleteProps>) {
   const [cityQuery, setCityQuery] = useState(initialCity);
   const [selectedCityCode, setSelectedCityCode] = useState<string | null>(null);
   // Street is split into three sub-fields, all combined into form.streetAddress
