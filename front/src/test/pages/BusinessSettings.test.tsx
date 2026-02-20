@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { BusinessSettings } from '../../pages/BusinessSettings';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
@@ -8,6 +7,15 @@ vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/businesses', () => ({
   fetchBusiness: vi.fn(),
   updateBusiness: vi.fn(),
+}));
+vi.mock('../../api/address', () => ({
+  fetchAllCities: vi.fn().mockResolvedValue([]),
+  fetchAllStreetsForCity: vi.fn().mockResolvedValue([]),
+  filterOptions: vi.fn((options: { name: string }[], query: string) => {
+    const q = query.trim();
+    if (!q) return options;
+    return options.filter((o) => o.name.includes(q));
+  }),
 }));
 
 import { useBusiness } from '../../contexts/BusinessContext';
@@ -111,8 +119,6 @@ describe('BusinessSettings page', () => {
   });
 
   it('submitting form calls updateBusiness without registrationNumber', async () => {
-    const user = userEvent.setup();
-
     vi.mocked(useBusiness).mockReturnValue({
       activeBusiness: activeBusinessStub,
       businesses: [],
@@ -134,7 +140,8 @@ describe('BusinessSettings page', () => {
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
     await screen.findByRole('textbox', { name: /שם העסק/ });
 
-    await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
+    const form = screen.getByRole('button', { name: 'שמור שינויים' }).closest('form')!;
+    fireEvent.submit(form);
 
     await waitFor(() => expect(businessesApi.updateBusiness).toHaveBeenCalled());
 
@@ -144,8 +151,6 @@ describe('BusinessSettings page', () => {
   });
 
   it('shows phone validation error when phone is invalid', async () => {
-    const user = userEvent.setup();
-
     vi.mocked(useBusiness).mockReturnValue({
       activeBusiness: activeBusinessStub,
       businesses: [],
@@ -163,9 +168,10 @@ describe('BusinessSettings page', () => {
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
     const phoneInput = await screen.findByRole('textbox', { name: /טלפון/ });
-    await user.type(phoneInput, '12345');
+    fireEvent.change(phoneInput, { target: { value: '12345' } });
 
-    await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
+    const form = screen.getByRole('button', { name: 'שמור שינויים' }).closest('form')!;
+    fireEvent.submit(form);
 
     await waitFor(() => {
       expect(screen.getByText('מספר טלפון לא תקין')).toBeInTheDocument();
@@ -228,5 +234,23 @@ describe('BusinessSettings page', () => {
 
     const phoneInput = screen.getByRole('textbox', { name: /טלפון/ });
     expect(phoneInput).toHaveValue('');
+  });
+
+  it('shows business type label', async () => {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: activeBusinessStub,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: mockBusiness,
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    expect(await screen.findByText('עוסק מורשה')).toBeInTheDocument();
   });
 });

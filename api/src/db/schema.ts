@@ -22,6 +22,12 @@ export const invitationStatusEnum = pgEnum('invitation_status', [
   'declined',
   'expired',
 ]);
+export const taxIdTypeEnum = pgEnum('tax_id_type', [
+  'company_id',
+  'vat_number',
+  'personal_id',
+  'none',
+]);
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -133,6 +139,7 @@ export const businessesRelations = relations(businesses, ({ one, many }) => ({
   }),
   userBusinesses: many(userBusinesses),
   invitations: many(businessInvitations),
+  customers: many(customers),
 }));
 
 export const userBusinessesRelations = relations(userBusinesses, ({ one }) => ({
@@ -158,5 +165,39 @@ export const businessInvitationsRelations = relations(businessInvitations, ({ on
   invitedByUser: one(users, {
     fields: [businessInvitations.invitedByUserId],
     references: [users.id],
+  }),
+}));
+
+export const customers = pgTable(
+  'customers',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    taxId: text('tax_id'),
+    taxIdType: taxIdTypeEnum('tax_id_type').notNull().default('none'),
+    isLicensedDealer: boolean('is_licensed_dealer').notNull().default(false),
+    email: text('email'),
+    phone: text('phone'),
+    streetAddress: text('street_address'),
+    city: text('city'),
+    postalCode: text('postal_code'),
+    contactName: text('contact_name'),
+    notes: text('notes'),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    uniqueBusinessTaxId: unique().on(table.businessId, table.taxId),
+  })
+);
+
+export const customersRelations = relations(customers, ({ one }) => ({
+  business: one(businesses, {
+    fields: [customers.businessId],
+    references: [businesses.id],
   }),
 }));

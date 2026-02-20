@@ -7,6 +7,7 @@ import {
   NumberInput,
   Paper,
   Stack,
+  Text,
   TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -19,7 +20,21 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
 import { extractErrorMessage } from '../lib/notifications';
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import type { UpdateBusinessBody } from '@bon/types/businesses';
+
+function businessTypeLabel(type: string): string {
+  switch (type) {
+    case 'licensed_dealer':
+      return 'עוסק מורשה';
+    case 'exempt_dealer':
+      return 'עוסק פטור';
+    case 'limited_company':
+      return 'חברה בע״מ';
+    default:
+      return type;
+  }
+}
 
 export function BusinessSettings() {
   const navigate = useNavigate();
@@ -89,7 +104,6 @@ export function BusinessSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.userBusinesses() });
       queryClient.invalidateQueries({ queryKey: queryKeys.business(activeBusiness!.id) });
-      navigate('/businesses');
     },
   });
 
@@ -137,22 +151,22 @@ export function BusinessSettings() {
         <PageTitle order={3}>הגדרות עסק</PageTitle>
         <Paper component="form" onSubmit={onSubmit} withBorder radius="lg" p="lg">
           <Stack gap="md">
+            <Stack gap={4}>
+              <Text size="sm" fw={500}>
+                סוג עסק
+              </Text>
+              <Text size="sm" c="dimmed">
+                {businessTypeLabel(activeBusiness.businessType)}
+              </Text>
+            </Stack>
+
             <TextInput label="שם העסק" required {...form.getInputProps('name')} />
 
             <TextInput label="מספר רישום" disabled {...form.getInputProps('registrationNumber')} />
 
             <Divider label="כתובת" labelPosition="center" />
 
-            <TextInput label="רחוב" required {...form.getInputProps('streetAddress')} />
-
-            <Group grow>
-              <TextInput label="עיר" required {...form.getInputProps('city')} />
-              <TextInput
-                label="מיקוד"
-                placeholder="7 ספרות"
-                {...form.getInputProps('postalCode')}
-              />
-            </Group>
+            <AddressAutocomplete form={form} disabled={updateMutation.isPending} />
 
             <Divider label="פרטי קשר" labelPosition="center" />
 
@@ -165,14 +179,15 @@ export function BusinessSettings() {
             <TextInput label="קידומת מספר חשבונית" {...form.getInputProps('invoiceNumberPrefix')} />
 
             <NumberInput
-              label='אחוז מע"ם (בסיס נקודות - 1700 = 17%)'
+              label='שיעור מע"מ'
+              description='בנקודות בסיס — 1700 = 17%, 0 = פטור ממע"מ'
               min={0}
               max={10000}
               {...form.getInputProps('defaultVatRate')}
             />
 
             <Group justify="space-between">
-              <Button variant="subtle" onClick={() => navigate('/businesses')}>
+              <Button variant="subtle" onClick={() => navigate(-1)}>
                 ביטול
               </Button>
               <Button type="submit" loading={updateMutation.isPending}>
