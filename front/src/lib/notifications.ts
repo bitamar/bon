@@ -18,7 +18,7 @@ export function showSuccessNotification(message: string, title = 'הצלחה') {
   });
 }
 
-export function showErrorNotification(message: string, title = 'שגיאה') {
+export function showErrorNotification(message: string, title = 'משהו השתבש') {
   notifications.show({
     title,
     message,

@@ -129,7 +129,7 @@ export function BusinessSettings() {
     mutationFn: ({ id, data }: { id: string; data: UpdateBusinessBody }) =>
       updateBusiness(id, data),
     successToast: { message: 'השינויים נשמרו בהצלחה' },
-    errorToast: { fallbackMessage: 'שגיאה בשמירת השינויים' },
+    errorToast: { fallbackMessage: 'לא הצלחנו לשמור את השינויים, נסו שוב' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.userBusinesses() });
       queryClient.invalidateQueries({ queryKey: queryKeys.business(activeBusiness!.id) });
@@ -153,12 +153,12 @@ export function BusinessSettings() {
   }
 
   if (businessQuery.error) {
-    const message = extractErrorMessage(businessQuery.error, 'שגיאה בטעינת נתוני העסק');
+    const message = extractErrorMessage(businessQuery.error, 'לא הצלחנו לטעון את נתוני העסק');
     return (
       <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
         <StatusCard
           status="error"
-          title="שגיאה בטעינת נתוני העסק"
+          title="לא הצלחנו לטעון את נתוני העסק"
           description={message}
           primaryAction={{
             label: 'נסה שוב',

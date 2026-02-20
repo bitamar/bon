@@ -40,7 +40,7 @@ export function Settings() {
   const updateSettingsMutation = useApiMutation({
     mutationFn: updateSettings,
     successToast: { message: 'ההגדרות נשמרו בהצלחה' },
-    errorToast: { fallbackMessage: 'שגיאה בשמירת ההגדרות' },
+    errorToast: { fallbackMessage: 'לא הצלחנו לשמור את ההגדרות, נסו שוב' },
     onSuccess: (data: SettingsResponse) => {
       queryClient.setQueryData(queryKeys.settings(), data);
       queryClient.invalidateQueries({ queryKey: queryKeys.me() });
@@ -56,12 +56,12 @@ export function Settings() {
   }
 
   if (settingsQuery.error) {
-    const message = extractErrorMessage(settingsQuery.error, 'שגיאה בטעינת ההגדרות');
+    const message = extractErrorMessage(settingsQuery.error, 'לא הצלחנו לטעון את ההגדרות');
     return (
       <Stack gap="md">
         <StatusCard
           status="error"
-          title="שגיאה בטעינת ההגדרות"
+          title="לא הצלחנו לטעון את ההגדרות"
           description={message}
           align="start"
           primaryAction={{

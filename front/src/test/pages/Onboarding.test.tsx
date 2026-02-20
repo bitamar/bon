@@ -178,7 +178,7 @@ describe('Onboarding page', () => {
   it('shows inline error on registrationNumber field when duplicate_registration_number returned', async () => {
     const user = userEvent.setup();
     const { HttpError: MockHttpError } = await import('../../lib/http');
-    const error = new MockHttpError(409, 'Conflict', { code: 'duplicate_registration_number' });
+    const error = new MockHttpError(409, 'Conflict', { error: 'duplicate_registration_number' });
     vi.mocked(businessesApi.createBusiness).mockRejectedValue(error);
 
     renderWithProviders(<Onboarding />);

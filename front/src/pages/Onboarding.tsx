@@ -78,12 +78,11 @@ export function Onboarding() {
     onError: (error) => {
       if (
         error instanceof HttpError &&
-        (error.body as { code?: string } | undefined)?.code === 'duplicate_registration_number'
+        (error.body as { error?: string } | undefined)?.error === 'duplicate_registration_number'
       ) {
         form.setFieldError('registrationNumber', 'מספר רישום זה כבר קיים במערכת');
-      } else {
-        showErrorNotification('שגיאה ביצירת העסק');
       }
+      showErrorNotification('לא הצלחנו ליצור את העסק, נסו שוב');
     },
   });
 
@@ -136,9 +135,11 @@ export function Onboarding() {
     <Center
       style={{
         minHeight: '100dvh',
+        alignItems: 'flex-start',
         background: 'linear-gradient(150deg, #fffbf5 0%, #ecf5e0 100%)',
       }}
       p="md"
+      pt={{ base: 'xl', sm: 80 }}
     >
       <Container size={480} w="100%">
         <Stack gap="xl">
