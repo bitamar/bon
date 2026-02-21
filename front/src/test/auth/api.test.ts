@@ -76,7 +76,7 @@ describe('auth api', () => {
     const call = fetchJsonMock.mock.calls[0];
     if (!call) throw new Error('Expected fetchJson to be called with arguments');
     const [, init] = call;
-    expect(init?.method).toBe('PUT');
+    expect(init?.method).toBe('PATCH');
     expect(JSON.parse((init?.body as string) ?? '')).toEqual(payload);
     expect(result).toEqual(updated);
   });

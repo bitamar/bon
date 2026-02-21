@@ -159,7 +159,7 @@ describe('businesses api', () => {
   });
 
   describe('updateBusiness', () => {
-    it('calls PUT /businesses/:businessId with correct body and returns BusinessResponse', async () => {
+    it('calls PATCH /businesses/:businessId with correct body and returns BusinessResponse', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -172,7 +172,7 @@ describe('businesses api', () => {
 
       expect(fetchMock).toHaveBeenCalledWith(
         `${import.meta.env.VITE_API_BASE_URL}/businesses/${BIZ_ID}`,
-        expect.objectContaining({ method: 'PUT', credentials: 'include' })
+        expect.objectContaining({ method: 'PATCH', credentials: 'include' })
       );
 
       const call = fetchMock.mock.calls[0];

@@ -1,13 +1,14 @@
 import { z } from 'zod';
 import {
-  insertBusiness,
+  insertBusinessTx,
   findBusinessById,
   updateBusiness,
+  db,
   type BusinessRecord,
   type BusinessInsert,
 } from '../repositories/business-repository.js';
 import {
-  insertUserBusiness,
+  insertUserBusinessTx,
   findBusinessesForUser,
   findTeamMembers,
   deleteUserBusiness,
@@ -89,32 +90,36 @@ export async function createBusiness(userId: string, input: CreateBusinessInput)
   const now = new Date();
 
   try {
-    const business = await insertBusiness({
-      name: input.name,
-      businessType: input.businessType,
-      registrationNumber: input.registrationNumber,
-      vatNumber: input.vatNumber ?? null,
-      streetAddress: input.streetAddress ?? null,
-      city: input.city ?? null,
-      postalCode: input.postalCode ?? null,
-      phone: input.phone ?? null,
-      email: input.email ?? null,
-      invoiceNumberPrefix: input.invoiceNumberPrefix ?? null,
-      startingInvoiceNumber: input.startingInvoiceNumber ?? 1,
-      nextInvoiceNumber: input.startingInvoiceNumber ?? 1,
-      defaultVatRate: input.businessType === 'exempt_dealer' ? 0 : (input.defaultVatRate ?? 1700),
-      createdByUserId: userId,
-      createdAt: now,
-      updatedAt: now,
-    });
+    const business = await db.transaction(async (tx) => {
+      const biz = await insertBusinessTx(tx, {
+        name: input.name,
+        businessType: input.businessType,
+        registrationNumber: input.registrationNumber,
+        vatNumber: input.vatNumber ?? null,
+        streetAddress: input.streetAddress ?? null,
+        city: input.city ?? null,
+        postalCode: input.postalCode ?? null,
+        phone: input.phone ?? null,
+        email: input.email ?? null,
+        invoiceNumberPrefix: input.invoiceNumberPrefix ?? null,
+        startingInvoiceNumber: input.startingInvoiceNumber ?? 1,
+        nextInvoiceNumber: input.startingInvoiceNumber ?? 1,
+        defaultVatRate: input.businessType === 'exempt_dealer' ? 0 : (input.defaultVatRate ?? 1700),
+        createdByUserId: userId,
+        createdAt: now,
+        updatedAt: now,
+      });
 
-    if (!business) throw new Error('Failed to create business');
+      if (!biz) throw new Error('Failed to create business');
 
-    await insertUserBusiness({
-      userId,
-      businessId: business.id,
-      role: 'owner',
-      createdAt: now,
+      await insertUserBusinessTx(tx, {
+        userId,
+        businessId: biz.id,
+        role: 'owner',
+        createdAt: now,
+      });
+
+      return biz;
     });
 
     return {

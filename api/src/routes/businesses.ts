@@ -28,13 +28,14 @@ const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       schema: {
         body: createBusinessBodySchema,
         response: {
-          200: businessResponseSchema,
+          201: businessResponseSchema,
         },
       },
     },
-    async (req) => {
+    async (req, reply) => {
       ensureAuthed(req);
-      return createBusiness(req.user.id, req.body);
+      const result = await createBusiness(req.user.id, req.body);
+      return reply.status(201).send(result);
     }
   );
 
@@ -71,7 +72,7 @@ const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     }
   );
 
-  app.put(
+  app.patch(
     '/businesses/:businessId',
     {
       preHandler: [

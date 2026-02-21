@@ -26,7 +26,7 @@ const userRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     }
   );
 
-  app.put(
+  app.patch(
     '/settings',
     {
       preHandler: app.authenticate,

@@ -37,7 +37,7 @@ export async function updateBusiness(
 ): Promise<BusinessResponse> {
   const payload = updateBusinessBodySchema.parse(data);
   const json = await fetchJson<unknown>(`/businesses/${businessId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
   return businessResponseSchema.parse(json);

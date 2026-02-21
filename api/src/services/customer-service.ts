@@ -6,7 +6,7 @@ import {
   searchCustomers,
   type CustomerRecord,
 } from '../repositories/customer-repository.js';
-import { conflict, isErrorWithCode, notFound } from '../lib/app-error.js';
+import { conflict, extractConstraintName, isErrorWithCode, notFound } from '../lib/app-error.js';
 import {
   type Customer,
   type CustomerResponse,
@@ -108,7 +108,11 @@ export async function createCustomer(businessId: string, input: CreateCustomerIn
     return { customer: serializeCustomer(customer) } satisfies CustomerResponse;
   } catch (err: unknown) {
     if (isErrorWithCode(err, '23505')) {
-      await throwDuplicateTaxIdConflict(businessId, input.taxId ?? null);
+      const constraintName = extractConstraintName(err);
+      if (!constraintName || constraintName === 'customers_business_id_tax_id_unique') {
+        await throwDuplicateTaxIdConflict(businessId, input.taxId ?? null);
+      }
+      throw conflict({});
     }
     throw err;
   }
@@ -159,7 +163,11 @@ export async function updateCustomerById(
     return { customer: serializeCustomer(customer) } satisfies CustomerResponse;
   } catch (err: unknown) {
     if (isErrorWithCode(err, '23505')) {
-      await throwDuplicateTaxIdConflict(businessId, input.taxId ?? null);
+      const constraintName = extractConstraintName(err);
+      if (!constraintName || constraintName === 'customers_business_id_tax_id_unique') {
+        await throwDuplicateTaxIdConflict(businessId, input.taxId ?? null);
+      }
+      throw conflict({});
     }
     throw err;
   }

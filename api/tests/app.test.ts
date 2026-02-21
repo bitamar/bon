@@ -26,12 +26,12 @@ describe('app', () => {
   });
 
   it('enforces rate limits across requests', async () => {
-    const first = await app.inject({ method: 'GET', url: '/health' });
-    const second = await app.inject({ method: 'GET', url: '/health' });
-    const third = await app.inject({ method: 'GET', url: '/health' });
+    const first = await app.inject({ method: 'GET', url: '/me' });
+    const second = await app.inject({ method: 'GET', url: '/me' });
+    const third = await app.inject({ method: 'GET', url: '/me' });
 
-    expect(first.statusCode).toBe(200);
-    expect(second.statusCode).toBe(200);
+    expect(first.statusCode).not.toBe(429);
+    expect(second.statusCode).not.toBe(429);
     const body = third.json();
     expect(third.statusCode).toBe(429);
     expect(body).toMatchObject({
@@ -42,14 +42,21 @@ describe('app', () => {
     expect(body).toHaveProperty('requestId');
   });
 
+  it('health check is excluded from rate limiting', async () => {
+    for (let i = 0; i < 5; i++) {
+      const res = await app.inject({ method: 'GET', url: '/health' });
+      expect(res.statusCode).toBe(200);
+    }
+  });
+
   it('resets rate limit after the configured window', async () => {
-    await app.inject({ method: 'GET', url: '/health' });
-    await app.inject({ method: 'GET', url: '/health' });
-    await app.inject({ method: 'GET', url: '/health' });
+    await app.inject({ method: 'GET', url: '/me' });
+    await app.inject({ method: 'GET', url: '/me' });
+    await app.inject({ method: 'GET', url: '/me' });
 
     await new Promise((resolve) => setTimeout(resolve, 1100));
 
-    const res = await app.inject({ method: 'GET', url: '/health' });
-    expect(res.statusCode).toBe(200);
+    const res = await app.inject({ method: 'GET', url: '/me' });
+    expect(res.statusCode).not.toBe(429);
   });
 });
