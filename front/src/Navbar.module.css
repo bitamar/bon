@@ -11,6 +11,29 @@
   margin-bottom: 8px;
 }
 
+.logoText {
+  text-shadow:
+    0 0 8px rgba(255, 255, 255, 0.6),
+    0 0 20px rgba(255, 255, 255, 0.3),
+    0 0 40px rgba(167, 139, 250, 0.2);
+  animation: logoGlow 4s ease-in-out infinite;
+}
+
+@keyframes logoGlow {
+  0%, 100% {
+    text-shadow:
+      0 0 8px rgba(255, 255, 255, 0.6),
+      0 0 20px rgba(255, 255, 255, 0.3),
+      0 0 40px rgba(167, 139, 250, 0.2);
+  }
+  50% {
+    text-shadow:
+      0 0 12px rgba(255, 255, 255, 0.8),
+      0 0 28px rgba(255, 255, 255, 0.45),
+      0 0 50px rgba(167, 139, 250, 0.35);
+  }
+}
+
 .navLink {
   color: rgba(255, 255, 255, 0.5);
   border-radius: var(--mantine-radius-md);

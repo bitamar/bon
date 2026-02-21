@@ -33,7 +33,7 @@ export default function Navbar() {
   return (
     <AppShell.Navbar className={classes['navbar'] ?? ''}>
       <Box className={classes['logoArea'] ?? ''}>
-        <Text fw={900} fz={24} c="#fff" style={{ letterSpacing: '-0.03em' }}>
+        <Text fw={900} fz={24} c="#fff" style={{ letterSpacing: '-0.03em' }} className={classes['logoText'] ?? ''}>
           bon
         </Text>
       </Box>

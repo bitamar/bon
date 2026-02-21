@@ -1,8 +1,8 @@
 # T06 — Invoice Data Model & VAT Engine
 
-**Status**: 🔒 Blocked (T-API-01 + T04/T05 must deploy first)
+**Status**: ⬜ Next up
 **Phase**: 2 — Invoices
-**Requires**: T-API-01 deployed, T04+T05 verified in production
+**Requires**: T-API-01, T04, T05 (all merged)
 **Blocks**: T07, T08, T09
 
 ---

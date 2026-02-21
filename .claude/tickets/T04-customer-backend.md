@@ -1,8 +1,8 @@
 # T04 — Customer Backend (API + DB)
 
-**Status**: 🔄 Merged (PR #5) — patch items NOT fixed, moved to T-API-01
+**Status**: ✅ Merged (PR #5)
 **Phase**: 1 — Customers
-**Requires**: T03 deployed
+**Requires**: T03
 **Blocks**: T-API-01
 
 ---

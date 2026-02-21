@@ -1,8 +1,8 @@
 # T05 — Customer Frontend (List + Create + Edit)
 
-**Status**: 🔄 Merged (PR #7) — needs T-API-01 fixes + production deploy to be ✅
+**Status**: ✅ Merged (PR #7)
 **Phase**: 1 — Customers
-**Requires**: T-API-01 (API hardening fixes)
+**Requires**: T-API-01
 **Blocks**: T07 (invoice create needs customer search)
 
 ---

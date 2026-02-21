@@ -13,16 +13,16 @@ export function Login() {
     <AnimatedBackground>
       <Center style={{ minHeight: '100dvh' }} px="md">
         <Stack align="center" gap="xl" w={{ base: '100%', xs: 'auto' }}>
-          <Stack align="center" gap={6}>
+          <Stack align="center" gap={0}>
             <Title
               order={1}
-              style={{ fontSize: '4rem', letterSpacing: '-0.04em', fontWeight: 1000 }}
-              c="brand.6"
+              style={{ fontSize: '4rem', letterSpacing: '-0.04em', fontWeight: 1000, textShadow: '0 0 8px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.15)' }}
+              c="white"
             >
               bon
             </Title>
-            <Text size="lg" c="rgba(255, 255, 255, 0.5)" fw={400}>
-              חשבוניות בקלות
+            <Text c="rgba(255, 255, 255, 0.5)" fw={400} style={{ fontSize: 31 }}>
+              חש<span style={{ color: 'white', fontWeight: 700 }}>בונ</span>יות
             </Text>
           </Stack>
 

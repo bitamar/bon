@@ -841,15 +841,12 @@ Abstract behind a `StorageService` interface from day one.
 
 ```
 ✓ Phase 0: Foundation (auth, business mgmt, team, onboarding)
-  T00–T03 all merged to main, awaiting production deploy
+  T00–T03 all merged to main
 
-→ Phase 1: Customer Management
-  🔄 T04: Customer schema + API (merged, needs patch — 12 issues from deep review)
-    Blocking: PUT→PATCH+CORS, 409 response, repo tests, duplicate integration test
-    Medium: partial unique index, checksum all ID types, deletedAt clearing,
-            fragile 23505, search tests, name nullability
-    Low: POST→201, list schema fields for Phase 2
-  → T05: Customer frontend (list + create + edit) — fully specified, blocked on T04 patch + deploy
+✓ Phase 1: Customer Management
+  T04: Customer schema + API (PR #5)
+  T05: Customer frontend (PR #7)
+  T-API-01: API hardening (PR #8)
 
 → Phase 2: Invoice Creation          (~3 weeks)
   2.1 DB schema: invoices, invoice_items, sequences

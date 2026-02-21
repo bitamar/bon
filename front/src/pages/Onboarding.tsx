@@ -153,7 +153,14 @@ export function Onboarding() {
           <Stack align="center" gap={6}>
             <Title
               order={1}
-              style={{ fontSize: '4rem', letterSpacing: '-0.04em', fontWeight: 1000 }}
+              style={{
+                fontSize: '4rem',
+                letterSpacing: '-0.04em',
+                fontWeight: 1000,
+                textShadow:
+                  '0 0 10px rgba(255, 255, 255, 0.7), 0 0 30px rgba(255, 255, 255, 0.4), 0 0 50px rgba(167, 139, 250, 0.25)',
+                animation: 'onboardingGlow 4s ease-in-out infinite',
+              }}
               c="brand.6"
             >
               bon
