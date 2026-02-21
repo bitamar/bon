@@ -101,7 +101,7 @@ describe('business-service', () => {
       const input = makeBusinessInput();
 
       // pg-mem + Drizzle wraps errors in DrizzleQueryError which loses the .code property.
-      // Spy on insertBusinessTx to throw a PG-style error with code '23505' so the service
+      // Spy on insertBusiness to throw a PG-style error with code '23505' so the service
       // can detect it via isErrorWithCode — the same check that runs against real PostgreSQL.
       const pgError = Object.assign(new Error('duplicate key value violates unique constraint'), {
         code: '23505',
