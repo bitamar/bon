@@ -1,8 +1,8 @@
 # T09 — Invoice List & Search
 
-**Status**: 🔒 Blocked (T08 must deploy first)
+**Status**: 🔒 Blocked (T08 must merge first)
 **Phase**: 2 — Invoices
-**Requires**: T08 deployed
+**Requires**: T08 merged
 **Blocks**: T10 (PDF link in list)
 
 ---
@@ -31,7 +31,11 @@ The invoice list is an accountant's working environment. They live here. It must
 
 ## Architecture Notes
 
-<!-- Your notes here — e.g. filtering strategy (server-side from day one), aggregate query design, pagination approach -->
+**`invoiceListQuerySchema`**: Define in this ticket (deferred from T06). Schema with: `status` (comma-sep), `customerId`, `documentType`, `dateFrom`, `dateTo`, `q`, `sort`, `page`, `limit`. Cap limit at 200 (same pattern as customer list).
+
+**`isOverdue` column**: Available in schema from T06 but always `false` until T17 ships the cron job. For MVP display, consider computing overdue client-side from `dueDate` + status, or just show the column and accept it's always false until T17.
+
+**Mixed VAT rate breakdown**: Not stored as a summary — derivable from `invoice_items` per-line `vatRate` and `vatAmountAgora`. If the list view needs a VAT breakdown per rate, compute it from items on demand.
 
 ---
 

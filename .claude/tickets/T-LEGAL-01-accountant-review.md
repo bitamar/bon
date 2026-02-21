@@ -21,7 +21,7 @@ Several design decisions in the invoice schema (T06) have legal/compliance impli
 
 **Our assumption**: Yes — they share a single sequence. Both are "חשבוניות מס" under ITA rules, and all major Israeli software (Greeninvoice, iCount, Rivhit) uses shared numbering.
 
-**Why it matters**: If they need separate sequences, our `invoice_sequences` table needs a different key (currently keyed by documentType, but 305 and 320 would map to the same sequence entry).
+**Why it matters**: Our `invoice_sequences` table is keyed by `sequenceGroup` (not `documentType`). 305 and 320 both map to the `tax_document` group and share one counter. If they need separate sequences, we'd need to split the group.
 
 **What to ask**: "האם חשבונית מס (305) וחשבונית מס קבלה (320) חייבות לשתף רצף מספור אחד, או שמותר רצף נפרד לכל סוג?"
 

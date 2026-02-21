@@ -1,9 +1,9 @@
 # T-API-01 — API Hardening
 
 **Type:** Bug fixes + security hardening
-**Priority:** High — do before T05 deploy
+**Priority:** High
 **Found during:** Full API audit (2026-02-21)
-**Status:** ⬜ Not started
+**Status:** ✅ Merged (PR #8)
 
 ---
 

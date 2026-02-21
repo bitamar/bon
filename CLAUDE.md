@@ -5,13 +5,13 @@ The build plan is in `.claude/PLAN.md`. All agents should read it for context on
 
 The full development workflow (ticket lifecycle, deployment gates, agent rules) is in `.claude/WORKFLOW.md`. Read it before starting any task.
 
-## One Ticket at a Time — Deployment Gate
+## One Ticket at a Time — Merge Gate
 
 **This is the most important rule in this file.**
 
-Never start work on ticket N+1 until ticket N is deployed to production and verified.
+Never start work on ticket N+1 until ticket N is merged to main.
 
-"Tests pass" is not done. "Code merged" is not done. **Deployed and verified** is done.
+"Tests pass" is not done. **Merged to main** is done.
 
 If you see in-progress work on a feature that hasn't shipped yet, complete it first. Do not autonomously move on to the next phase. After finishing a step, report what you did and wait for confirmation before proceeding.
 

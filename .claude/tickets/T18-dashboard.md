@@ -1,8 +1,8 @@
 # T18 — Business Dashboard
 
-**Status**: 🔒 Blocked (T17 must deploy first)
+**Status**: 🔒 Blocked (T17 must merge first)
 **Phase**: 6 — Reporting
-**Requires**: T17 deployed
+**Requires**: T17 merged
 **Blocks**: T19
 
 ---

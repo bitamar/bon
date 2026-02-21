@@ -1,8 +1,8 @@
 # T11 — Email Delivery
 
-**Status**: 🔒 Blocked (T10 must deploy first)
+**Status**: 🔒 Blocked (T10 must merge first)
 **Phase**: 3 — PDF
-**Requires**: T10 deployed
+**Requires**: T10 merged
 **Blocks**: T12
 
 ---

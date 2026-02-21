@@ -180,159 +180,55 @@ In Israel it's harder because the law requires more — but we can still hide th
 
 ### 2.1 Invoice Data Model
 
-Add to `api/src/db/schema.ts`:
+Full schema definition is in the T06 ticket. Key design decisions:
 
-```
-invoices table:
-  id                  uuid PK
-  businessId          uuid FK → businesses
-  customerId          uuid FK → customers (nullable — customer may be deleted)
+- All amounts in **agora** (integer, 1/100 shekel). Never floats for money.
+- **Customer snapshot** on finalization: `customerName`, `customerTaxId`, `customerAddress`, `customerEmail` — immutable copy.
+- **`customerId` FK**: `ON DELETE SET NULL` — customer data survives in snapshot fields.
+- **Status enum**: `draft, finalized, sent, paid, partially_paid, cancelled, credited` — `credited` included from day one.
+- **Credit notes**: line items store **positive amounts**; sign semantics come from `documentType`, not amounts.
+- **`numeric` columns** (`quantity`, `discountPercent`): Drizzle returns strings; service layer converts to `Number()` for API responses.
+- Fields `paymentMethod`, `paymentReference`, `paidAmount` removed — live on `invoice_payments` table (T15).
+- Fields added: `customerEmail`, `isOverdue`, `currency`, `vatExemptionReason`, `credited` status.
 
-  -- Snapshot of customer at time of finalization (immutable copy)
-  customerName        text NOT NULL
-  customerTaxId       text
-  customerAddress     text
-
-  -- Document identity
-  documentType        enum: tax_invoice(305), tax_receipt(320), receipt(400), credit_note(330)
-  sequenceNumber      integer NOT NULL              — assigned on finalization
-  fullNumber          text NOT NULL                 — prefix + formatted number, e.g. "INV-0042"
-
-  -- Dates
-  invoiceDate         date NOT NULL                 — user-selected (the "date" on the invoice)
-  issuedAt            timestamp with tz             — system-set on finalization, immutable
-  dueDate             date                          — optional payment due date
-
-  -- Amounts (all in agora = 1/100 shekel, to avoid floating point)
-  subtotalAgora       integer NOT NULL              — before discount, before VAT
-  discountAgora       integer NOT NULL default 0    — total discount
-  totalExclVatAgora   integer NOT NULL              — after discount, before VAT
-  vatAgora            integer NOT NULL              — total VAT amount
-  totalInclVatAgora   integer NOT NULL              — grand total
-
-  -- Status
-  status              enum: draft, finalized, sent, paid, partially_paid, cancelled
-
-  -- SHAAM
-  allocationNumber    text                          — 9-digit from SHAAM
-  allocationStatus    enum: none, pending, approved, rejected, emergency
-  allocationError     text                          — ITA error code if rejected
-
-  -- Credit note
-  creditedInvoiceId   uuid FK → invoices           — for credit notes only
-
-  -- Metadata
-  notes               text                          — appears on invoice
-  internalNotes       text                          — internal only
-  sentAt              timestamp with tz
-  paidAt              timestamp with tz
-  paidAmount          integer                       — for partial payments
-  paymentMethod       text                          — מזומן, העברה, אשראי, etc.
-  paymentReference    text                          — check number, transfer ref, etc.
-
-  createdAt           timestamp with tz
-  updatedAt           timestamp with tz
-
-  UNIQUE (businessId, documentType, sequenceNumber)
-
-invoice_items table:
-  id              uuid PK
-  invoiceId       uuid FK → invoices (cascade delete)
-  position        integer NOT NULL                  — display order
-  description     text NOT NULL
-  quantity        numeric(12,4) NOT NULL            — supports partial units
-  unitPrice       integer NOT NULL                  — in agora
-  discountPct     numeric(5,2) default 0            — percentage, 0-100
-  lineTotal       integer NOT NULL                  — after discount, before VAT
-  vatRate         integer NOT NULL                  — basis points, e.g. 1700
-  vatAmount       integer NOT NULL                  — calculated, rounded per line
-
-  -- Catalog number (optional, for SHAAM)
-  catalogNumber   text
-
-invoice_sequences table:
-  businessId      uuid FK → businesses
-  documentType    enum (same as invoices)
-  nextNumber      integer NOT NULL default 1
-
-  PRIMARY KEY (businessId, documentType)
-  -- Used with SELECT FOR UPDATE to prevent gaps
-```
-
-**Critical design note on amounts**: All agora. Never store decimals for money.
-`unitPrice` for an item costing ₪100 is stored as `10000`. Display layer divides by 100.
-VAT is calculated per line (`vatAmount = ROUND(lineTotal * vatRate / 10000)`), then summed.
+VAT calculated per line (`vatAmount = ROUND(lineTotal * vatRate / 10000)`), then summed.
 This matches how accountants verify: they check each line, not the total.
 
 ### 2.2 Sequential Numbering (Race-Condition Safe)
 
 This is a correctness requirement, not just a feature.
 
-```
-// In a transaction:
-async function assignInvoiceNumber(
-  tx: Transaction,
-  businessId: string,
-  documentType: DocumentType,
-  prefix: string
-): Promise<{ sequenceNumber: number; fullNumber: string }> {
-  // Upsert with row-level lock
-  const [row] = await tx
-    .insert(invoiceSequences)
-    .values({ businessId, documentType, nextNumber: 1 })
-    .onConflictDoUpdate({
-      target: [invoiceSequences.businessId, invoiceSequences.documentType],
-      set: { nextNumber: sql`${invoiceSequences.nextNumber} + 1` },
-    })
-    .returning({ sequenceNumber: sql<number>`${invoiceSequences.nextNumber} - 1` });
+**Approach**: SELECT FOR UPDATE + UPDATE RETURNING inside the finalization transaction.
+**Sequence model**: `sequenceGroup` enum (`tax_document`, `credit_note`, `receipt`).
+Both 305 and 320 map to `tax_document` and share one counter.
+PK is `(businessId, sequenceGroup)`.
 
-  const sequenceNumber = row.sequenceNumber;
-  const fullNumber = prefix
-    ? `${prefix}-${String(sequenceNumber).padStart(4, '0')}`
-    : String(sequenceNumber).padStart(4, '0');
+**Seeding**: Lazy, on first finalization. `tax_document` seeds from `business.startingInvoiceNumber`,
+others seed from 1. No rows created at business creation time.
 
-  return { sequenceNumber, fullNumber };
-}
-```
+**Format**: `{prefix}-{padded}` with minimum 4-digit padding (`padStart(4, '0')`), grows naturally past 9999.
+
+See T06 ticket for full implementation details.
 
 This must be inside the same transaction that creates the invoice record.
 If the transaction rolls back, the sequence number is burned (gap created) — this is acceptable.
 What is NOT acceptable is two invoices with the same number.
 
-Test: 50 concurrent finalization requests must produce 50 distinct sequential numbers.
+Test: 50 concurrent finalization requests must produce 50 distinct sequential numbers (real Postgres, not pg-mem).
 
 ### 2.3 VAT Calculation Engine
 
-Pure function — easily testable:
+Pure functions in `types/src/vat.ts` — Zod schemas with inferred TS types.
+Works in browser (live preview) and server (authoritative recalculation on finalization).
 
-```
-interface LineItemInput {
-  quantity: number;     // e.g. 2.5
-  unitPriceAgora: number; // e.g. 10000 (= ₪100)
-  discountPct: number;  // e.g. 10 (= 10%)
-  vatRateBasisPoints: number; // e.g. 1700 (= 17%)
-}
+Key decisions:
+- Types defined as **Zod schemas** (not plain interfaces), following `types/` convention.
+- Engine does **not** enforce valid VAT rates — calculates for any rate. Rate validation is the service layer's job (T07).
+- **Credit notes**: positive amounts, same `calculateLine()` — sign applied at document level.
+- **Zero amounts allowed**: `unitPriceAgora = 0` and `discountPercent = 100` are valid. Validation is the service layer's concern.
+- **Rounding order**: round gross first, then round discount, then round VAT. Two rounding ops before lineTotal — intentional, matches per-line accountant verification.
+- **Mixed VAT rates**: no structured breakdown in totals. Per-line VAT is in `invoice_items` — derivable when needed (T12/T09).
 
-interface LineItemResult {
-  lineTotalAgora: number;    // after discount, before VAT
-  vatAmountAgora: number;    // rounded to nearest agora
-  lineTotalInclVatAgora: number;
-}
-
-function calculateLine(item: LineItemInput): LineItemResult {
-  const gross = Math.round(item.quantity * item.unitPriceAgora);
-  const discount = Math.round(gross * item.discountPct / 100);
-  const lineTotal = gross - discount;
-  const vatAmount = Math.round(lineTotal * item.vatRateBasisPoints / 10000);
-  return {
-    lineTotalAgora: lineTotal,
-    vatAmountAgora: vatAmount,
-    lineTotalInclVatAgora: lineTotal + vatAmount,
-  };
-}
-```
-
-All amounts calculated in the browser for live preview, re-validated server-side on save.
 Server is authoritative — client values are discarded and recalculated on finalization.
 
 ### 2.4 Invoice Creation UI — The Happy Path
@@ -688,14 +584,18 @@ invoice_payments table:
 ### 5.2 Credit Notes (חשבונית מס זיכוי)
 
 A credit note is a real invoice document (type 330) that references the original.
-It gets its own sequential number in the 330 sequence.
+It gets its own sequential number in the `credit_note` sequence group.
+
+**Paid invoices CAN be credited** — this is how refunds work in Israeli invoicing.
+The status machine includes `paid → credited`.
 
 Flow:
-1. On a finalized invoice: "הפק חשבונית זיכוי"
+1. On a finalized/sent/paid invoice: "הפק חשבונית זיכוי"
 2. Modal: full credit or partial (adjust amounts)
 3. Credit note created as a new invoice record with `creditedInvoiceId` set
-4. Original invoice status → `credited`
-5. SHAAM: credit note may also need allocation number if above threshold
+4. Credit note line items store **positive amounts** — sign applied at document level
+5. Original invoice status → `credited`
+6. SHAAM: credit note may also need allocation number if above threshold
 
 ### 5.3 Overdue Detection
 
@@ -841,15 +741,12 @@ Abstract behind a `StorageService` interface from day one.
 
 ```
 ✓ Phase 0: Foundation (auth, business mgmt, team, onboarding)
-  T00–T03 all merged to main, awaiting production deploy
+  T00–T03 all merged to main
 
-→ Phase 1: Customer Management
-  🔄 T04: Customer schema + API (merged, needs patch — 12 issues from deep review)
-    Blocking: PUT→PATCH+CORS, 409 response, repo tests, duplicate integration test
-    Medium: partial unique index, checksum all ID types, deletedAt clearing,
-            fragile 23505, search tests, name nullability
-    Low: POST→201, list schema fields for Phase 2
-  → T05: Customer frontend (list + create + edit) — fully specified, blocked on T04 patch + deploy
+✓ Phase 1: Customer Management
+  T04: Customer schema + API (PR #5)
+  T05: Customer frontend (PR #7)
+  T-API-01: API hardening (PR #8)
 
 → Phase 2: Invoice Creation          (~3 weeks)
   2.1 DB schema: invoices, invoice_items, sequences

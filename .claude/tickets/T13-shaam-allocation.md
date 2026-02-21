@@ -1,8 +1,8 @@
 # T13 — SHAAM Allocation Requests
 
-**Status**: 🔒 Blocked (T12 must deploy first)
+**Status**: 🔒 Blocked (T12 must merge first)
 **Phase**: 4 — SHAAM Integration
-**Requires**: T12 deployed
+**Requires**: T12 merged
 **Blocks**: T14
 
 ---

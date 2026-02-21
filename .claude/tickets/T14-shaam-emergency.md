@@ -1,8 +1,8 @@
 # T14 — SHAAM Emergency Numbers & Error Handling
 
-**Status**: 🔒 Blocked (T13 must deploy first)
+**Status**: 🔒 Blocked (T13 must merge first)
 **Phase**: 4 — SHAAM Integration
-**Requires**: T13 deployed
+**Requires**: T13 merged
 **Blocks**: T15
 
 ---

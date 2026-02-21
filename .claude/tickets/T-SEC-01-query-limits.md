@@ -3,6 +3,7 @@
 **Type:** Security hardening
 **Priority:** Medium
 **Found during:** T04 security review
+**Status:** ✅ Merged — subsumed by T-API-01 (PR #8)
 
 ## Problem
 

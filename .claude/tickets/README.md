@@ -18,8 +18,8 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 
 | Symbol | Meaning |
 |--------|---------|
-| ✅ | Deployed to production |
-| 🔄 | In progress (branch open, not deployed) |
+| ✅ | Merged to main |
+| 🔄 | In progress (branch open, not merged) |
 | ⬜ | Not started |
 | 🔒 | Blocked (waiting on a previous ticket) |
 
@@ -40,22 +40,22 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T-API-01](./T-API-01-api-hardening.md) | API Hardening (8 fixes from full audit) | ⬜ | — (next up) |
-| [T-SEC-01](./T-SEC-01-query-limits.md) | Query Limits (subsumed by T-API-01 item 7) | ⬜ | — |
+| [T-API-01](./T-API-01-api-hardening.md) | API Hardening (8 fixes from full audit) | ✅ | main (PR #8) |
+| [T-SEC-01](./T-SEC-01-query-limits.md) | Query Limits (subsumed by T-API-01 item 7) | ✅ | main (PR #8) |
 | [T-LEGAL-01](./T-LEGAL-01-accountant-review.md) | Accountant Review (6 items before invoice launch) | ⬜ | — |
 
 ### Phase 1 — Customers
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T04](./T04-customer-backend.md) | Customer Backend (API + DB) | 🔄 | main (PR #5, merged — patch items NOT fixed, moved to T-API-01) |
-| [T05](./T05-customer-frontend.md) | Customer Frontend (list + create + edit) | 🔄 | main (PR #7, merged — needs T-API-01 fixes + production deploy) |
+| [T04](./T04-customer-backend.md) | Customer Backend (API + DB) | ✅ | main (PR #5) |
+| [T05](./T05-customer-frontend.md) | Customer Frontend (list + create + edit) | ✅ | main (PR #7) |
 
 ### Phase 2 — Invoices (Core Product)
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T06](./T06-invoice-schema.md) | Invoice Data Model & VAT Engine | 🔒 | — |
+| [T06](./T06-invoice-schema.md) | Invoice Data Model & VAT Engine | ⬜ | — (next up) |
 | [T07](./T07-invoice-create-ui.md) | Invoice Create/Edit UI (draft) | 🔒 | — |
 | [T08](./T08-invoice-finalization.md) | Invoice Finalization & Detail View | 🔒 | — |
 | [T09](./T09-invoice-list.md) | Invoice List & Search | 🔒 | — |
@@ -101,6 +101,6 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 
 ## The Gate Rule
 
-**Never start ticket N+1 until ticket N is deployed to production and verified.**
+**Never start ticket N+1 until ticket N is merged to main.**
 
-"Tests pass" is not done. "Code merged" is not done. Deployed and verified is done.
+"Tests pass" is not done. **Merged to main** is done.

@@ -1,8 +1,8 @@
 # T08 — Invoice Finalization & Detail View
 
-**Status**: 🔒 Blocked (T07 must deploy first)
+**Status**: 🔒 Blocked (T07 must merge first)
 **Phase**: 2 — Invoices
-**Requires**: T07 deployed
+**Requires**: T07 merged
 **Blocks**: T09, T10
 
 ---
@@ -43,7 +43,23 @@ The detail view is what the business owner sees after finalizing. It should feel
 
 ## Architecture Notes
 
-<!-- Your notes here — e.g. finalization transaction design, immutability enforcement, how status transitions work, snapshot timing -->
+**Finalization transaction** (single transaction, all-or-nothing):
+1. Validate: must be draft, has customer, has ≥1 line item
+2. Lock + assign sequence number via `assignInvoiceNumber()` (SELECT FOR UPDATE)
+3. Snapshot customer: `customerName`, `customerTaxId`, `customerAddress`, `customerEmail` from current customer record
+4. Recalculate all amounts server-side (discard client values)
+5. Set `issuedAt = now()`, `status = 'finalized'`
+
+**Sequence groups** (from T06): `tax_invoice` and `tax_invoice_receipt` share `tax_document` group. `credit_note` and `receipt` each have their own group. Lazy seeding on first finalization.
+
+**Status machine** (defined in T06, enforced here):
+- `paid → credited` is allowed (refunds via credit note — legally required)
+- `paid → cancelled` is forbidden (must issue credit note instead)
+- Status transition validation should be a utility function reusable by T15/T16
+
+**Customer snapshot includes `customerEmail`** — needed for T11 email delivery records.
+
+**VAT rate validation on finalize**: exempt_dealer → all rates must be 0. Non-exempt → rates must be 0 or 1700.
 
 ---
 
