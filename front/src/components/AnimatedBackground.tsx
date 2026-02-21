@@ -16,7 +16,7 @@ function randomBetween(min: number, max: number) {
 
 function spawnBlob(container: HTMLElement) {
   const blob = document.createElement('div');
-  const [c1, c2] = COLORS[Math.floor(Math.random() * COLORS.length)];
+  const [c1, c2] = COLORS[Math.floor(Math.random() * COLORS.length)] ?? COLORS[0]!;
   const size = randomBetween(120, 800);
   const x = randomBetween(-10, 90);
   const y = randomBetween(-10, 90);
