@@ -24,14 +24,6 @@ export async function insertUserBusiness(data: UserBusinessInsert) {
   return rows[0] ?? null;
 }
 
-export async function insertUserBusinessTx(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  data: UserBusinessInsert
-) {
-  const rows = await tx.insert(userBusinesses).values(data).returning();
-  return rows[0] ?? null;
-}
-
 export async function deleteUserBusiness(userId: string, businessId: string) {
   await db
     .update(userBusinesses)

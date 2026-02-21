@@ -107,7 +107,7 @@ describe('business-service', () => {
         code: '23505',
         constraint: 'businesses_registration_number_unique',
       });
-      const spy = vi.spyOn(businessRepository, 'insertBusinessTx').mockRejectedValueOnce(pgError);
+      const spy = vi.spyOn(businessRepository, 'insertBusiness').mockRejectedValueOnce(pgError);
 
       await expect(createBusiness(user.id, input)).rejects.toMatchObject({
         statusCode: 409,
