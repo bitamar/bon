@@ -37,7 +37,7 @@ describe('notifications helpers', () => {
     expect(showMock).toHaveBeenCalledWith({
       title: 'Great Success',
       message: 'Saved!',
-      color: 'teal',
+      color: 'brand',
     });
   });
 

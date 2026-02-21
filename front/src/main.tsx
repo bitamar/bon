@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { DirectionProvider, MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
+import './theme/global.css';
 import { Notifications } from '@mantine/notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -10,7 +11,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { queryClient } from './lib/queryClient';
 import App from './App';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
-import { lightModeCssVariablesResolver, mantineThemeOverride } from './theme';
+import { bonTheme, cssVariablesResolver } from './theme/theme';
 
 const container = document.getElementById('root');
 
@@ -21,8 +22,8 @@ if (container) {
         <DirectionProvider>
           <MantineProvider
             defaultColorScheme="light"
-            theme={mantineThemeOverride}
-            cssVariablesResolver={lightModeCssVariablesResolver}
+            theme={bonTheme}
+            cssVariablesResolver={cssVariablesResolver}
           >
             <Notifications position="top-right" />
             <BrowserRouter>

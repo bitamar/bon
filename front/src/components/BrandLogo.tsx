@@ -6,7 +6,7 @@ export function BrandLogo({ subtitle }: Readonly<{ subtitle?: string }>) {
       <Title
         order={1}
         style={{ fontSize: '4rem', letterSpacing: '-0.04em', fontWeight: 1000 }}
-        c="lime.9"
+        c="brand.6"
       >
         bon
       </Title>

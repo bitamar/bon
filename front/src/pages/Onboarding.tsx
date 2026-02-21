@@ -2,17 +2,18 @@ import { useState } from 'react';
 import {
   Anchor,
   Button,
-  Center,
   Container,
   Group,
+  MantineProvider,
   Modal,
   Paper,
   Radio,
   Stack,
   Text,
   TextInput,
+  Title,
 } from '@mantine/core';
-import { BrandLogo } from '../components/BrandLogo';
+import { AnimatedBackground } from '../components/AnimatedBackground';
 import { useForm } from '@mantine/form';
 import { useApiMutation } from '../lib/useApiMutation';
 import { createBusiness } from '../api/businesses';
@@ -139,107 +140,127 @@ export function Onboarding() {
   });
 
   return (
-    <Center
-      style={{
-        minHeight: '100dvh',
-        alignItems: 'flex-start',
-        background: 'linear-gradient(150deg, #fffbf5 0%, #ecf5e0 100%)',
-      }}
-      p="md"
-      pt={{ base: 'xl', sm: 80 }}
-    >
-      <Container size={480} w="100%">
+    <AnimatedBackground>
+      <Container
+        size={520}
+        w="100%"
+        px="md"
+        pt={{ base: 'xl', sm: 80 }}
+        pb="xl"
+        style={{ minHeight: '100dvh' }}
+      >
         <Stack gap="xl">
-          <BrandLogo subtitle="יצירת העסק שלך" />
+          <Stack align="center" gap={6}>
+            <Title
+              order={1}
+              style={{ fontSize: '4rem', letterSpacing: '-0.04em', fontWeight: 1000 }}
+              c="brand.6"
+            >
+              bon
+            </Title>
+            <Text size="lg" c="rgba(255, 255, 255, 0.5)" fw={400}>
+              יצירת העסק שלך
+            </Text>
+          </Stack>
 
-          <Paper
-            shadow="xs"
-            radius="xl"
-            p="xl"
-            style={{ border: '1px solid var(--mantine-color-lime-2)' }}
-          >
-            <form onSubmit={onSubmit} noValidate>
-              <Stack gap="md">
-                <Radio.Group
-                  {...form.getInputProps('businessType')}
-                  onChange={handleBusinessTypeChange}
-                >
-                  <Stack gap="xs">
-                    {BUSINESS_TYPE_OPTIONS.map(([value, label, description]) => (
-                      <Radio.Card
-                        key={value}
-                        value={value}
-                        radius="md"
-                        p="md"
-                        withBorder
-                        style={
-                          form.values.businessType === value
-                            ? { borderColor: 'var(--mantine-color-lime-6)' }
-                            : undefined
-                        }
-                      >
-                        <Group wrap="nowrap" align="flex-start">
-                          <Radio.Indicator />
-                          <Stack gap={4}>
-                            <Text fw={500}>{label}</Text>
-                            <Text size="sm" c="dimmed">
-                              {description}
-                            </Text>
-                          </Stack>
-                        </Group>
-                      </Radio.Card>
-                    ))}
-                  </Stack>
-                </Radio.Group>
+          <MantineProvider forceColorScheme="light">
+            <Paper
+              radius="xl"
+              p="xl"
+              className="fadeInUp"
+              style={{
+                background: '#ffffff',
+                border: '1px solid var(--mantine-color-gray-2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              <form onSubmit={onSubmit} noValidate>
+                <Stack gap="md">
+                  <Radio.Group
+                    {...form.getInputProps('businessType')}
+                    onChange={handleBusinessTypeChange}
+                  >
+                    <Stack gap="xs">
+                      {BUSINESS_TYPE_OPTIONS.map(([value, label, description]) => (
+                        <Radio.Card
+                          key={value}
+                          value={value}
+                          radius="md"
+                          p="md"
+                          withBorder
+                          style={
+                            form.values.businessType === value
+                              ? {
+                                  borderColor: 'var(--mantine-color-brand-6)',
+                                  borderRightWidth: 3,
+                                  borderRightColor: 'var(--mantine-color-brand-6)',
+                                }
+                              : { borderColor: 'var(--mantine-color-gray-2)' }
+                          }
+                        >
+                          <Group wrap="nowrap" align="flex-start">
+                            <Radio.Indicator />
+                            <Stack gap={4}>
+                              <Text fw={500}>{label}</Text>
+                              <Text size="sm" c="dimmed">
+                                {description}
+                              </Text>
+                            </Stack>
+                          </Group>
+                        </Radio.Card>
+                      ))}
+                    </Stack>
+                  </Radio.Group>
 
-                <Anchor
-                  component="button"
-                  type="button"
-                  size="sm"
-                  onClick={() => setTypeModalOpen(true)}
-                >
-                  לא בטוחים? מידע נוסף
-                </Anchor>
+                  <Anchor
+                    component="button"
+                    type="button"
+                    size="sm"
+                    onClick={() => setTypeModalOpen(true)}
+                  >
+                    לא בטוחים? מידע נוסף
+                  </Anchor>
 
-                {form.values.businessType && (
-                  <>
-                    <TextInput
-                      label={getNameLabel()}
-                      required
-                      {...form.getInputProps('name')}
-                      disabled={isPending}
-                    />
+                  {form.values.businessType && (
+                    <>
+                      <TextInput
+                        label={getNameLabel()}
+                        required
+                        {...form.getInputProps('name')}
+                        disabled={isPending}
+                      />
 
-                    <TextInput
-                      label={getRegistrationLabel()}
-                      required
-                      placeholder="123456789"
-                      maxLength={9}
-                      inputMode="numeric"
-                      {...form.getInputProps('registrationNumber')}
-                      disabled={isPending}
-                    />
+                      <TextInput
+                        label={getRegistrationLabel()}
+                        required
+                        placeholder="123456789"
+                        maxLength={9}
+                        inputMode="numeric"
+                        {...form.getInputProps('registrationNumber')}
+                        disabled={isPending}
+                      />
 
-                    <Button type="submit" size="lg" fullWidth loading={isPending}>
-                      יצירת עסק
-                    </Button>
+                      <Button type="submit" size="lg" fullWidth loading={isPending}>
+                        יצירת עסק
+                      </Button>
 
-                    {businesses.length > 0 && (
-                      <Anchor
-                        component="button"
-                        type="button"
-                        size="sm"
-                        ta="center"
-                        onClick={() => navigate(-1)}
-                      >
-                        ביטול
-                      </Anchor>
-                    )}
-                  </>
-                )}
-              </Stack>
-            </form>
-          </Paper>
+                      {businesses.length > 0 && (
+                        <Anchor
+                          component="button"
+                          type="button"
+                          size="sm"
+                          ta="center"
+                          onClick={() => navigate(-1)}
+                        >
+                          ביטול
+                        </Anchor>
+                      )}
+                    </>
+                  )}
+                </Stack>
+              </form>
+            </Paper>
+          </MantineProvider>
         </Stack>
       </Container>
 
@@ -274,6 +295,6 @@ export function Onboarding() {
           </Stack>
         </Stack>
       </Modal>
-    </Center>
+    </AnimatedBackground>
   );
 }

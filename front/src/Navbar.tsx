@@ -1,18 +1,51 @@
-import { AppShell, NavLink, ScrollArea } from '@mantine/core';
-import { IconBuilding, IconHome2, IconSettings, IconUsers } from '@tabler/icons-react';
+import {
+  AppShell,
+  Avatar,
+  Box,
+  Group,
+  NavLink,
+  ScrollArea,
+  Text,
+  UnstyledButton,
+} from '@mantine/core';
+import {
+  IconBuilding,
+  IconFileInvoice,
+  IconHome2,
+  IconLogout,
+  IconSettings,
+  IconUsers,
+  IconUsersGroup,
+} from '@tabler/icons-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from './auth/AuthContext';
+import { useBusiness } from './contexts/BusinessContext';
+import classes from './Navbar.module.css';
+
+const navLinkClass = classes['navLink'] ?? '';
+const disabledClass = `${navLinkClass} ${classes['disabledLink'] ?? ''}`;
 
 export default function Navbar() {
   const { pathname } = useLocation();
+  const { user, logout } = useAuth();
+  const { activeBusiness } = useBusiness();
+
   return (
-    <AppShell.Navbar p="md">
-      <ScrollArea type="auto" style={{ height: '100%' }}>
+    <AppShell.Navbar className={classes['navbar'] ?? ''}>
+      <Box className={classes['logoArea'] ?? ''}>
+        <Text fw={900} fz={24} c="#fff" style={{ letterSpacing: '-0.03em' }}>
+          bon
+        </Text>
+      </Box>
+
+      <ScrollArea type="auto" style={{ flex: 1 }} px="xs">
         <NavLink
           component={Link}
           to="/"
           label="ראשי"
           leftSection={<IconHome2 size={18} />}
           active={pathname === '/'}
+          className={navLinkClass}
         />
         <NavLink
           component={Link}
@@ -20,6 +53,19 @@ export default function Navbar() {
           label="עסקים"
           leftSection={<IconBuilding size={18} />}
           active={pathname.startsWith('/businesses') || pathname === '/onboarding'}
+          className={navLinkClass}
+        />
+        <NavLink
+          label="לקוחות"
+          leftSection={<IconUsersGroup size={18} />}
+          disabled
+          className={disabledClass}
+        />
+        <NavLink
+          label="חשבוניות"
+          leftSection={<IconFileInvoice size={18} />}
+          disabled
+          className={disabledClass}
         />
         <NavLink
           component={Link}
@@ -27,6 +73,7 @@ export default function Navbar() {
           label="צוות"
           leftSection={<IconUsers size={18} />}
           active={pathname.startsWith('/business/team')}
+          className={navLinkClass}
         />
         <NavLink
           component={Link}
@@ -34,8 +81,34 @@ export default function Navbar() {
           label="הגדרות"
           leftSection={<IconSettings size={18} />}
           active={pathname.startsWith('/settings')}
+          className={navLinkClass}
         />
       </ScrollArea>
+
+      <Box className={classes['userSection'] ?? ''}>
+        <Group gap="sm" wrap="nowrap">
+          <Avatar size={32} radius="xl" src={user?.avatarUrl ?? null} color="brand">
+            {user?.name?.[0] ?? user?.email?.[0] ?? ''}
+          </Avatar>
+          <Box style={{ flex: 1, overflow: 'hidden' }}>
+            <Text size="sm" fw={500} c="#fff" truncate>
+              {user?.name || user?.email || ''}
+            </Text>
+            {activeBusiness ? (
+              <Text size="xs" c="rgba(255, 255, 255, 0.5)" truncate>
+                {activeBusiness.name}
+              </Text>
+            ) : null}
+          </Box>
+          <UnstyledButton
+            onClick={logout}
+            title="התנתקות"
+            className={classes['logoutButton'] ?? ''}
+          >
+            <IconLogout size={18} />
+          </UnstyledButton>
+        </Group>
+      </Box>
     </AppShell.Navbar>
   );
 }

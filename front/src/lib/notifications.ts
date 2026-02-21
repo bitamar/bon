@@ -14,7 +14,7 @@ export function showSuccessNotification(message: string, title = 'הצלחה') {
   notifications.show({
     title,
     message,
-    color: 'teal',
+    color: 'brand',
   });
 }
 

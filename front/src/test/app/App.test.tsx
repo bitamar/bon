@@ -37,7 +37,7 @@ describe('App routing', () => {
     renderApp();
 
     await waitFor(() => expect(screen.getAllByText('ראשי')[0]).toBeInTheDocument());
-    expect(screen.getByText('bon starter')).toBeInTheDocument();
+    expect(screen.getAllByText('bon')[0]).toBeInTheDocument();
   });
 
   it('redirects to login when unauthenticated', async () => {
