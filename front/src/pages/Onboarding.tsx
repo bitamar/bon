@@ -177,86 +177,86 @@ export function Onboarding() {
               <form onSubmit={onSubmit} noValidate>
                 <Stack gap="md">
                   <Radio.Group
-                  {...form.getInputProps('businessType')}
-                  onChange={handleBusinessTypeChange}
-                >
-                  <Stack gap="xs">
-                    {BUSINESS_TYPE_OPTIONS.map(([value, label, description]) => (
-                      <Radio.Card
-                        key={value}
-                        value={value}
-                        radius="md"
-                        p="md"
-                        withBorder
-                        style={
-                          form.values.businessType === value
-                            ? {
-                                borderColor: 'var(--mantine-color-brand-6)',
-                                borderRightWidth: 3,
-                                borderRightColor: 'var(--mantine-color-brand-6)',
-                              }
-                            : { borderColor: 'var(--mantine-color-gray-2)' }
-                        }
-                      >
-                        <Group wrap="nowrap" align="flex-start">
-                          <Radio.Indicator />
-                          <Stack gap={4}>
-                            <Text fw={500}>{label}</Text>
-                            <Text size="sm" c="dimmed">
-                              {description}
-                            </Text>
-                          </Stack>
-                        </Group>
-                      </Radio.Card>
-                    ))}
-                  </Stack>
-                </Radio.Group>
+                    {...form.getInputProps('businessType')}
+                    onChange={handleBusinessTypeChange}
+                  >
+                    <Stack gap="xs">
+                      {BUSINESS_TYPE_OPTIONS.map(([value, label, description]) => (
+                        <Radio.Card
+                          key={value}
+                          value={value}
+                          radius="md"
+                          p="md"
+                          withBorder
+                          style={
+                            form.values.businessType === value
+                              ? {
+                                  borderColor: 'var(--mantine-color-brand-6)',
+                                  borderRightWidth: 3,
+                                  borderRightColor: 'var(--mantine-color-brand-6)',
+                                }
+                              : { borderColor: 'var(--mantine-color-gray-2)' }
+                          }
+                        >
+                          <Group wrap="nowrap" align="flex-start">
+                            <Radio.Indicator />
+                            <Stack gap={4}>
+                              <Text fw={500}>{label}</Text>
+                              <Text size="sm" c="dimmed">
+                                {description}
+                              </Text>
+                            </Stack>
+                          </Group>
+                        </Radio.Card>
+                      ))}
+                    </Stack>
+                  </Radio.Group>
 
-                <Anchor
-                  component="button"
-                  type="button"
-                  size="sm"
-                  onClick={() => setTypeModalOpen(true)}
-                >
-                  לא בטוחים? מידע נוסף
-                </Anchor>
+                  <Anchor
+                    component="button"
+                    type="button"
+                    size="sm"
+                    onClick={() => setTypeModalOpen(true)}
+                  >
+                    לא בטוחים? מידע נוסף
+                  </Anchor>
 
-                {form.values.businessType && (
-                  <>
-                    <TextInput
-                      label={getNameLabel()}
-                      required
-                      {...form.getInputProps('name')}
-                      disabled={isPending}
-                    />
+                  {form.values.businessType && (
+                    <>
+                      <TextInput
+                        label={getNameLabel()}
+                        required
+                        {...form.getInputProps('name')}
+                        disabled={isPending}
+                      />
 
-                    <TextInput
-                      label={getRegistrationLabel()}
-                      required
-                      placeholder="123456789"
-                      maxLength={9}
-                      inputMode="numeric"
-                      {...form.getInputProps('registrationNumber')}
-                      disabled={isPending}
-                    />
+                      <TextInput
+                        label={getRegistrationLabel()}
+                        required
+                        placeholder="123456789"
+                        maxLength={9}
+                        inputMode="numeric"
+                        {...form.getInputProps('registrationNumber')}
+                        disabled={isPending}
+                      />
 
-                    <Button type="submit" size="lg" fullWidth loading={isPending}>
-                      יצירת עסק
-                    </Button>
+                      <Button type="submit" size="lg" fullWidth loading={isPending}>
+                        יצירת עסק
+                      </Button>
 
-                    {businesses.length > 0 && (
-                      <Anchor
-                        component="button"
-                        type="button"
-                        size="sm"
-                        ta="center"
-                        onClick={() => navigate(-1)}
-                      >
-                        ביטול
-                      </Anchor>
-                    )}
-                  </>
-                )}
+                      {businesses.length > 0 && (
+                        <Anchor
+                          component="button"
+                          type="button"
+                          size="sm"
+                          ta="center"
+                          onClick={() => navigate(-1)}
+                        >
+                          ביטול
+                        </Anchor>
+                      )}
+                    </>
+                  )}
                 </Stack>
               </form>
             </Paper>
