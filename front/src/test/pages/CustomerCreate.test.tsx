@@ -27,33 +27,7 @@ vi.mock('../../lib/notifications', () => ({
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as customersApi from '../../api/customers';
 import { showErrorNotification } from '../../lib/notifications';
-
-// ── helpers ──
-
-const activeBusinessStub = {
-  id: 'biz-1',
-  name: 'Test Co',
-  businessType: 'licensed_dealer',
-  role: 'owner',
-};
-
-function setupActiveBusiness() {
-  vi.mocked(useBusiness).mockReturnValue({
-    activeBusiness: activeBusinessStub,
-    businesses: [],
-    switchBusiness: vi.fn(),
-    isLoading: false,
-  });
-}
-
-function setupNoBusiness() {
-  vi.mocked(useBusiness).mockReturnValue({
-    activeBusiness: null,
-    businesses: [],
-    switchBusiness: vi.fn(),
-    isLoading: false,
-  });
-}
+import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 
 const mockCustomerResponse = {
   customer: {
@@ -112,11 +86,11 @@ function getTaxIdInput() {
 describe('CustomerCreate page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    setupActiveBusiness();
+    mockActiveBusiness(useBusiness);
   });
 
   it('shows error when no active business', () => {
-    setupNoBusiness();
+    mockNoBusiness(useBusiness);
     renderCreate();
     expect(screen.getByText('לא נבחר עסק')).toBeInTheDocument();
   });

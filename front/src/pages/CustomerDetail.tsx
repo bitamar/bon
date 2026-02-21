@@ -1,17 +1,7 @@
 import { useRef } from 'react';
-import {
-  Anchor,
-  Button,
-  Container,
-  Divider,
-  Group,
-  Modal,
-  Paper,
-  Stack,
-  Text,
-} from '@mantine/core';
+import { Button, Container, Divider, Group, Modal, Paper, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
@@ -24,7 +14,7 @@ import { useApiMutation } from '../lib/useApiMutation';
 import { deleteCustomer, fetchCustomer, updateCustomer } from '../api/customers';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
-import { HttpError } from '../lib/http';
+import { handleDuplicateTaxIdError } from '../lib/duplicateTaxIdError';
 import { extractErrorMessage, showErrorNotification } from '../lib/notifications';
 import type { UpdateCustomerBody } from '@bon/types/customers';
 
@@ -65,34 +55,7 @@ export function CustomerDetail() {
     errorToast: false,
     successToast: { message: 'הלקוח עודכן בהצלחה' },
     onError: (error) => {
-      if (error instanceof HttpError && error.status === 409) {
-        const body = error.body as
-          | {
-              error?: string;
-              details?: { existingCustomerId?: string; existingCustomerName?: string };
-            }
-          | undefined;
-        if (body?.error === 'duplicate_tax_id') {
-          if (body.details?.existingCustomerId && body.details?.existingCustomerName) {
-            formRef.current?.setFieldError(
-              'taxId',
-              <>
-                {`מספר מזהה זה כבר קיים עבור ${body.details.existingCustomerName} `}
-                <Anchor
-                  component={Link}
-                  to={`/business/customers/${body.details.existingCustomerId}`}
-                  size="sm"
-                >
-                  עבור ללקוח הקיים
-                </Anchor>
-              </>
-            );
-          } else {
-            formRef.current?.setFieldError('taxId', 'מספר מזהה זה כבר קשור ללקוח קיים');
-          }
-          return;
-        }
-      }
+      if (handleDuplicateTaxIdError(error, formRef)) return;
       showErrorNotification(extractErrorMessage(error, 'משהו לא עבד, נסו שוב'));
     },
     onSuccess: () => {

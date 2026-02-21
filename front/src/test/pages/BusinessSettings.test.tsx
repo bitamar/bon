@@ -20,6 +20,7 @@ vi.mock('../../api/address', () => ({
 
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as businessesApi from '../../api/businesses';
+import { activeBusinessStub } from '../utils/businessStubs';
 
 const mockBusiness = {
   id: 'biz-1',
@@ -40,13 +41,6 @@ const mockBusiness = {
   createdByUserId: 'u-1',
   createdAt: '2024-01-01T00:00:00.000Z',
   updatedAt: '2024-01-01T00:00:00.000Z',
-};
-
-const activeBusinessStub = {
-  id: 'biz-1',
-  name: 'Test Co',
-  businessType: 'licensed_dealer',
-  role: 'owner',
 };
 
 describe('BusinessSettings page', () => {
