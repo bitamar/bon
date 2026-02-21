@@ -1,8 +1,8 @@
 # T05 — Customer Frontend (List + Create + Edit)
 
-**Status**: 🔒 Blocked (T03 + T04 must deploy first)
+**Status**: 🔄 Merged (PR #7) — needs T-API-01 fixes + production deploy to be ✅
 **Phase**: 1 — Customers
-**Requires**: T04 deployed (+ T04 patch: duplicate taxId response must include existing customer info)
+**Requires**: T-API-01 (API hardening fixes)
 **Blocks**: T07 (invoice create needs customer search)
 
 ---

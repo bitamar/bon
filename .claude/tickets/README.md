@@ -36,12 +36,20 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T02](./T02-team-invitations.md) | Team Invitations | ✅ | main |
 | [T03](./T03-onboarding-ux.md) | Business Onboarding UX | ✅ | main (PR #4) |
 
+### Cross-Cutting
+
+| Ticket | Name | Status | Branch |
+|--------|------|--------|--------|
+| [T-API-01](./T-API-01-api-hardening.md) | API Hardening (8 fixes from full audit) | ⬜ | — (next up) |
+| [T-SEC-01](./T-SEC-01-query-limits.md) | Query Limits (subsumed by T-API-01 item 7) | ⬜ | — |
+| [T-LEGAL-01](./T-LEGAL-01-accountant-review.md) | Accountant Review (6 items before invoice launch) | ⬜ | — |
+
 ### Phase 1 — Customers
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T04](./T04-customer-backend.md) | Customer Backend (API + DB) | 🔄 | main (merged, patch needed — 12 issues) |
-| [T05](./T05-customer-frontend.md) | Customer Frontend (list + create + edit) | 🔒 | — (needs T04 patch + deploy) |
+| [T04](./T04-customer-backend.md) | Customer Backend (API + DB) | 🔄 | main (PR #5, merged — patch items NOT fixed, moved to T-API-01) |
+| [T05](./T05-customer-frontend.md) | Customer Frontend (list + create + edit) | 🔄 | main (PR #7, merged — needs T-API-01 fixes + production deploy) |
 
 ### Phase 2 — Invoices (Core Product)
 
