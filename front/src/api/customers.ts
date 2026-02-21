@@ -20,8 +20,8 @@ export async function fetchCustomers(
   if (active) params.set('active', active);
   if (limit) params.set('limit', String(limit));
   const qs = params.toString();
-  const path = `/businesses/${businessId}/customers${qs ? `?${qs}` : ''}`;
-  const json = await fetchJson<unknown>(path);
+  const basePath = `/businesses/${businessId}/customers`;
+  const json = await fetchJson<unknown>(qs ? `${basePath}?${qs}` : basePath);
   return customerListResponseSchema.parse(json);
 }
 

@@ -35,7 +35,7 @@ function buildUpdatePayload(values: CustomerFormValues): UpdateCustomerBody {
 }
 
 export function CustomerDetail() {
-  const { customerId } = useParams<{ customerId: string }>();
+  const { customerId = '' } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeBusiness } = useBusiness();
@@ -45,13 +45,13 @@ export function CustomerDetail() {
   const businessId = activeBusiness?.id ?? '';
 
   const customerQuery = useQuery({
-    queryKey: queryKeys.customer(businessId, customerId ?? ''),
-    queryFn: () => fetchCustomer(businessId, customerId!),
+    queryKey: queryKeys.customer(businessId, customerId),
+    queryFn: () => fetchCustomer(businessId, customerId),
     enabled: !!activeBusiness && !!customerId,
   });
 
   const updateMutation = useApiMutation({
-    mutationFn: (data: UpdateCustomerBody) => updateCustomer(businessId, customerId!, data),
+    mutationFn: (data: UpdateCustomerBody) => updateCustomer(businessId, customerId, data),
     errorToast: false,
     successToast: { message: 'הלקוח עודכן בהצלחה' },
     onError: (error) => {
@@ -59,17 +59,17 @@ export function CustomerDetail() {
       showErrorNotification(extractErrorMessage(error, 'משהו לא עבד, נסו שוב'));
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.customer(businessId, customerId!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customer(businessId, customerId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.customers(businessId) });
     },
   });
 
   const deleteMutation = useApiMutation({
-    mutationFn: () => deleteCustomer(businessId, customerId!),
+    mutationFn: () => deleteCustomer(businessId, customerId),
     successToast: { message: 'הלקוח הוסר בהצלחה' },
     errorToast: { fallbackMessage: 'לא הצלחנו להסיר את הלקוח, נסו שוב' },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.customer(businessId, customerId!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customer(businessId, customerId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.customers(businessId) });
       closeDelete();
       navigate('/business/customers');
@@ -153,7 +153,6 @@ export function CustomerDetail() {
           <Text c="dimmed">חשבוניות יוצגו כאן לאחר הוספת מודול חשבוניות</Text>
 
           <Divider label="מחיקה" labelPosition="center" color="red" />
-          {/* TODO (Phase 2): Block delete if customer has finalized invoices. Show count and explanation. */}
           <Button variant="subtle" color="red" onClick={openDelete}>
             הסר לקוח
           </Button>

@@ -23,6 +23,32 @@ import { useBusiness } from '../contexts/BusinessContext';
 import { extractErrorMessage } from '../lib/notifications';
 import type { TaxIdType } from '@bon/types/customers';
 
+function EmptyState({
+  hasSearchQuery,
+  onAddFirst,
+}: Readonly<{ hasSearchQuery: boolean; onAddFirst: () => void }>) {
+  if (hasSearchQuery) {
+    return (
+      <StatusCard
+        status="notFound"
+        title="לא נמצאו לקוחות"
+        description="נסו לחפש במילות מפתח אחרות"
+      />
+    );
+  }
+  return (
+    <StatusCard
+      status="empty"
+      title="עדיין אין לקוחות"
+      description="הוסיפו לקוח ראשון כדי להתחיל ליצור חשבוניות"
+      primaryAction={{
+        label: 'הוסף לקוח ראשון',
+        onClick: onAddFirst,
+      }}
+    />
+  );
+}
+
 function formatTaxId(taxId: string | null, taxIdType: TaxIdType): string {
   if (!taxId) return 'ללא מספר מזהה';
   if (taxIdType === 'company_id' && taxId.length === 9) {
@@ -118,23 +144,10 @@ export function CustomerList() {
         </Group>
 
         {customers.length === 0 ? (
-          hasSearchQuery ? (
-            <StatusCard
-              status="notFound"
-              title="לא נמצאו לקוחות"
-              description="נסו לחפש במילות מפתח אחרות"
-            />
-          ) : (
-            <StatusCard
-              status="empty"
-              title="עדיין אין לקוחות"
-              description="הוסיפו לקוח ראשון כדי להתחיל ליצור חשבוניות"
-              primaryAction={{
-                label: 'הוסף לקוח ראשון',
-                onClick: () => navigate('/business/customers/new'),
-              }}
-            />
-          )
+          <EmptyState
+            hasSearchQuery={hasSearchQuery}
+            onAddFirst={() => navigate('/business/customers/new')}
+          />
         ) : (
           <Stack gap="xs">
             {customers.map((customer) => (
@@ -165,11 +178,11 @@ export function CustomerList() {
                           עוסק מורשה
                         </Badge>
                       ) : null}
-                      {!customer.isActive ? (
+                      {customer.isActive ? null : (
                         <Badge color="gray" variant="light">
                           לא פעיל
                         </Badge>
-                      ) : null}
+                      )}
                     </Group>
                   </Group>
                 </Paper>
