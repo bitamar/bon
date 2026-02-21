@@ -48,7 +48,8 @@
 
 /* Logo glow animation (used by onboarding inline styles) */
 @keyframes onboardingGlow {
-  0%, 100% {
+  0%,
+  100% {
     text-shadow:
       0 0 10px rgba(255, 255, 255, 0.7),
       0 0 30px rgba(255, 255, 255, 0.4),

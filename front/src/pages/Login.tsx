@@ -16,7 +16,12 @@ export function Login() {
           <Stack align="center" gap={0}>
             <Title
               order={1}
-              style={{ fontSize: '4rem', letterSpacing: '-0.04em', fontWeight: 1000, textShadow: '0 0 8px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.15)' }}
+              style={{
+                fontSize: '4rem',
+                letterSpacing: '-0.04em',
+                fontWeight: 1000,
+                textShadow: '0 0 8px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.15)',
+              }}
               c="white"
             >
               bon

@@ -56,7 +56,7 @@ function spawnBlob(container: HTMLElement) {
         offset: 1,
       },
     ],
-    { duration: lifetime, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' },
+    { duration: lifetime, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
   );
 
   anim.onfinish = () => blob.remove();
