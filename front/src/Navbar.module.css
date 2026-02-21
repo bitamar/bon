@@ -22,12 +22,12 @@
 }
 
 .navLink:hover {
-  background-color: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.8);
+  background-color: #27243f;
+  color: #d5d4da;
 }
 
 .navLink[data-active] {
-  background-color: rgba(139, 92, 246, 0.12);
+  background-color: #281f4a;
   color: #ffffff;
   font-weight: 600;
   border-right: 3px solid #a78bfa;
@@ -57,6 +57,6 @@
 }
 
 .logoutButton:hover {
-  color: rgba(255, 255, 255, 0.85);
-  background-color: rgba(255, 255, 255, 0.08);
+  color: #dfdfe4;
+  background-color: #302d4a;
 }

@@ -15,29 +15,29 @@ vi.mock('../../contexts/BusinessContext', () => ({
   useBusiness: vi.fn(),
 }));
 
+// ── helpers ──
+function setupMocks() {
+  vi.mocked(useAuth).mockReturnValue({
+    user: { id: '1', name: 'Test User', email: 'test@example.com', avatarUrl: null, phone: null },
+    logout: vi.fn(),
+    loginWithGoogle: vi.fn(),
+    isHydrated: true,
+  } as ReturnType<typeof useAuth>);
+
+  vi.mocked(useBusiness).mockReturnValue({
+    activeBusiness: {
+      id: 'biz-1',
+      name: 'Test Co',
+      businessType: 'licensed_dealer',
+      role: 'owner',
+    },
+    businesses: [],
+    switchBusiness: vi.fn(),
+    isLoading: false,
+  });
+}
+
 describe('Navbar', () => {
-  // ── helpers ──
-  function setupMocks() {
-    vi.mocked(useAuth).mockReturnValue({
-      user: { id: '1', name: 'Test User', email: 'test@example.com', avatarUrl: null, phone: null },
-      logout: vi.fn(),
-      loginWithGoogle: vi.fn(),
-      isHydrated: true,
-    } as ReturnType<typeof useAuth>);
-
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: {
-        id: 'biz-1',
-        name: 'Test Co',
-        businessType: 'licensed_dealer',
-        role: 'owner',
-      },
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
-  }
-
   it('renders navigation links', () => {
     setupMocks();
     renderWithProviders(

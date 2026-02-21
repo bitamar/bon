@@ -64,7 +64,7 @@ export function ActivityFeed({
               <Text size="sm">{item.description}</Text>
               <Text size="xs" c="dimmed" mt={2}>
                 {formatRelativeTime(item.timestamp)}
-                {item.amount != null ? ` \u00B7 ${formatCurrency(item.amount)}` : ''}
+                {item.amount == null ? '' : ` \u00B7 ${formatCurrency(item.amount)}`}
               </Text>
             </Timeline.Item>
           );
