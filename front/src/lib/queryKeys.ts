@@ -7,6 +7,9 @@ export const queryKeys = {
   invitations: (businessId: string) => ['businesses', businessId, 'invitations'] as const,
   myInvitations: () => ['invitations', 'mine'] as const,
   invitation: (token: string) => ['invitations', token] as const,
+  customers: (businessId: string) => ['businesses', businessId, 'customers'] as const,
+  customer: (businessId: string, customerId: string) =>
+    ['businesses', businessId, 'customers', customerId] as const,
 };
 
 export type QueryKey = ReturnType<(typeof queryKeys)[keyof typeof queryKeys]>;

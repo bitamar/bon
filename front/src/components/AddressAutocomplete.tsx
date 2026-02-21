@@ -18,6 +18,7 @@ interface AddressAutocompleteProps {
   disabled?: boolean;
   initialCity?: string;
   initialStreetAddress?: string;
+  required?: boolean;
 }
 
 const MAX_DROPDOWN_ITEMS = 20;
@@ -32,6 +33,7 @@ export function AddressAutocomplete({
   disabled,
   initialCity = '',
   initialStreetAddress = '',
+  required = true,
 }: Readonly<AddressAutocompleteProps>) {
   const [cityQuery, setCityQuery] = useState(initialCity);
   const [selectedCityCode, setSelectedCityCode] = useState<string | null>(null);
@@ -122,7 +124,7 @@ export function AddressAutocomplete({
         <Combobox.Target>
           <TextInput
             label="עיר / ישוב"
-            required
+            required={required}
             placeholder="הקלד שם עיר..."
             value={cityQuery}
             onChange={(e) => {
@@ -164,7 +166,7 @@ export function AddressAutocomplete({
             <Combobox.Target>
               <TextInput
                 label="רחוב"
-                required
+                required={required}
                 placeholder={fieldsDisabled ? 'בחר עיר תחילה' : 'הקלד שם רחוב...'}
                 value={streetName}
                 onChange={(e) => {
@@ -199,7 +201,7 @@ export function AddressAutocomplete({
 
         <TextInput
           label="מספר בית"
-          required
+          required={required}
           placeholder="5"
           style={{ width: 88 }}
           value={houseNumber}
@@ -215,7 +217,6 @@ export function AddressAutocomplete({
       {/* Apartment / entrance / floor — optional */}
       <TextInput
         label="דירה / כניסה / קומה"
-        description="אופציונלי"
         placeholder="כניסה א׳, דירה 5"
         value={aptDetails}
         onChange={(e) => {
@@ -229,7 +230,7 @@ export function AddressAutocomplete({
       {/* Postal code */}
       <TextInput
         label="מיקוד"
-        description="7 ספרות (אופציונלי)"
+        description="7 ספרות"
         placeholder="1234567"
         value={postalInputProps.value ?? ''}
         onChange={postalInputProps.onChange}
