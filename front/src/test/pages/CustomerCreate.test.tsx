@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { CustomerCreate } from '../../pages/CustomerCreate';
-import { CustomerForm } from '../../components/CustomerForm';
+import { CustomerForm, type CustomerFormValues } from '../../components/CustomerForm';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
@@ -68,6 +68,23 @@ function renderFormWithTaxIdType(taxIdType: 'company_id' | 'personal_id' | 'vat_
     ...renderWithProviders(
       <CustomerForm
         initialValues={{ taxIdType }}
+        onSubmit={onSubmit}
+        isPending={false}
+        submitLabel="שמור"
+        cancelLabel="ביטול"
+        onCancel={vi.fn()}
+      />
+    ),
+  };
+}
+
+function renderFormWithInitialValues(initialValues: Partial<CustomerFormValues>) {
+  const onSubmit = vi.fn();
+  return {
+    onSubmit,
+    ...renderWithProviders(
+      <CustomerForm
+        initialValues={initialValues}
         onSubmit={onSubmit}
         isPending={false}
         submitLabel="שמור"
@@ -199,5 +216,34 @@ describe('CustomerForm tax ID validation', () => {
   it('shows dynamic name label based on taxIdType', () => {
     renderFormWithTaxIdType('personal_id');
     expect(screen.getByRole('textbox', { name: /שם מלא/ })).toBeInTheDocument();
+  });
+
+  it('resets isLicensedDealer to false when taxId is cleared', async () => {
+    const user = userEvent.setup();
+    renderFormWithInitialValues({
+      taxIdType: 'company_id',
+      taxId: '123456782',
+      isLicensedDealer: true,
+    });
+
+    const taxIdInput = getTaxIdInput();
+    await user.tripleClick(taxIdInput);
+    await user.keyboard('{Backspace}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('switch', { name: /עוסק מורשה/ })).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows and toggles the licensed dealer Switch when taxId is filled', async () => {
+    const user = userEvent.setup();
+    renderFormWithInitialValues({ taxIdType: 'company_id', taxId: '123456782' });
+
+    const toggle = await screen.findByRole('switch', { name: /עוסק מורשה/ });
+    expect(toggle).not.toBeChecked();
+
+    await user.click(toggle);
+
+    expect(screen.getByRole('switch', { name: /עוסק מורשה/ })).toBeChecked();
   });
 });
