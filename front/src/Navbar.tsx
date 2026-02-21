@@ -9,13 +9,13 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import {
+  IconAddressBook,
   IconBuilding,
   IconFileInvoice,
   IconHome2,
   IconLogout,
   IconSettings,
   IconUsers,
-  IconUsersGroup,
 } from '@tabler/icons-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
@@ -56,10 +56,12 @@ export default function Navbar() {
           className={navLinkClass}
         />
         <NavLink
+          component={Link}
+          to="/business/customers"
           label="לקוחות"
-          leftSection={<IconUsersGroup size={18} />}
-          disabled
-          className={disabledClass}
+          leftSection={<IconAddressBook size={18} />}
+          active={pathname.startsWith('/business/customers')}
+          className={navLinkClass}
         />
         <NavLink
           label="חשבוניות"

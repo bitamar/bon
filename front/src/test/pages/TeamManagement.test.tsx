@@ -16,13 +16,7 @@ vi.mock('../../api/invitations', () => ({
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as businessesApi from '../../api/businesses';
 import * as invitationsApi from '../../api/invitations';
-
-const activeBusinessStub = {
-  id: 'biz-1',
-  name: 'Test Co',
-  businessType: 'licensed_dealer',
-  role: 'owner',
-};
+import { activeBusinessStub } from '../utils/businessStubs';
 
 const teamListResponse = {
   team: [
