@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { db } from '../db/client.js';
 import { businesses } from '../db/schema.js';
 
 export type BusinessRecord = (typeof businesses)['$inferSelect'];
