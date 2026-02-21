@@ -47,7 +47,7 @@ describe('plugins/business-context', () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 
       const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'PUT',
+        method: 'PATCH',
         url: `/businesses/${business.id}`,
         payload: { name: 'New Name' },
       });
@@ -59,7 +59,7 @@ describe('plugins/business-context', () => {
       const { sessionId, business } = await createMemberInBusiness('user');
 
       const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'PUT',
+        method: 'PATCH',
         url: `/businesses/${business.id}`,
         payload: { name: 'Hacked Name' },
       });

@@ -1,6 +1,7 @@
 import { and, eq, ilike, or } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { customers } from '../db/schema.js';
+import { escapeLikePattern } from '../lib/query-utils.js';
 
 export type CustomerRecord = (typeof customers)['$inferSelect'];
 export type CustomerInsert = (typeof customers)['$inferInsert'];
@@ -35,7 +36,13 @@ export async function findCustomerByTaxId(businessId: string, taxId: string) {
   const rows = await db
     .select({ id: customers.id, name: customers.name })
     .from(customers)
-    .where(and(eq(customers.businessId, businessId), eq(customers.taxId, taxId)));
+    .where(
+      and(
+        eq(customers.businessId, businessId),
+        eq(customers.taxId, taxId),
+        eq(customers.isActive, true)
+      )
+    );
   return rows[0] ?? null;
 }
 
@@ -52,9 +59,10 @@ export async function searchCustomers(
   }
 
   if (query) {
+    const escaped = escapeLikePattern(query);
     const textSearch = or(
-      ilike(customers.name, `%${query}%`),
-      ilike(customers.taxId, `%${query}%`)
+      ilike(customers.name, `%${escaped}%`),
+      ilike(customers.taxId, `%${escaped}%`)
     );
     if (textSearch) conditions.push(textSearch);
   }

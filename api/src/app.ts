@@ -61,6 +61,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(rateLimit, {
     max: env.RATE_LIMIT_MAX,
     timeWindow: env.RATE_LIMIT_TIME_WINDOW,
+    allowList: (req) => req.url === '/health',
     errorResponseBuilder: (request, context) => ({
       statusCode: 429,
       error: 'too_many_requests',

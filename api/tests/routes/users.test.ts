@@ -75,7 +75,7 @@ describe('routes/users', () => {
     const { user, sessionId } = await createAuthedUser({ name: 'Initial Name', phone: null });
 
     const res = await injectAuthed(app, sessionId, {
-      method: 'PUT',
+      method: 'PATCH',
       url: '/settings',
       payload: { name: 'Updated Name', phone: '050-7654321' },
     });
@@ -100,7 +100,7 @@ describe('routes/users', () => {
 
     const res = await injectAuthed(app, sessionId, {
       headers: { accept: 'application/json', 'content-type': 'application/json' },
-      method: 'PUT',
+      method: 'PATCH',
       url: '/settings',
       payload: { phone: '050-1111111' },
     });

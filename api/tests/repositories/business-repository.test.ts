@@ -18,7 +18,7 @@ describe('business-repository', () => {
   });
 
   describe('insertBusiness', () => {
-    it('inserts and returns a business record with correct fields', async () => {
+    it('inserts and returns a business record', async () => {
       const user = await createUser();
       const regNum = randomUUID();
 

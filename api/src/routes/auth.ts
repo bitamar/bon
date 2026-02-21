@@ -38,47 +38,51 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.redirect(redirectUrl);
   });
 
-  app.get('/auth/google/callback', async (req, reply) => {
-    const repo = new DrizzleUserRepository();
-    const result = await finishGoogleAuth(
-      { config, repo, now: () => new Date(), redirectUri: env.OAUTH_REDIRECT_URI },
-      { requestUrl: req.url, query: req.query, rawCookie: req.cookies['oidc'] }
-    );
+  app.get(
+    '/auth/google/callback',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      const repo = new DrizzleUserRepository();
+      const result = await finishGoogleAuth(
+        { config, repo, now: () => new Date(), redirectUri: env.OAUTH_REDIRECT_URI },
+        { requestUrl: req.url, query: req.query, rawCookie: req.cookies['oidc'] }
+      );
 
-    // Clear temporary cookie regardless of outcome
-    reply.clearCookie(OIDC_COOKIE_NAME, { path: '/' });
+      // Clear temporary cookie regardless of outcome
+      reply.clearCookie(OIDC_COOKIE_NAME, { path: '/' });
 
-    if (!result.ok) {
-      const isServer = result.error === 'oauth_exchange_failed';
-      if (isServer) {
-        req.log.error({ error: result.error }, 'google_callback_exchange_failed');
+      if (!result.ok) {
+        const isServer = result.error === 'oauth_exchange_failed';
+        if (isServer) {
+          req.log.error({ error: result.error }, 'google_callback_exchange_failed');
+          throw new AppError({
+            statusCode: 500,
+            code: result.error,
+            message: 'OAuth exchange failed',
+            expose: false,
+          });
+        }
+        const status = result.error === 'email_unverified' ? 403 : 400;
+        req.log.debug({ error: result.error }, 'google_callback_client_error');
         throw new AppError({
-          statusCode: 500,
+          statusCode: status,
           code: result.error,
-          message: 'OAuth exchange failed',
-          expose: false,
+          message: result.error,
         });
       }
-      const status = result.error === 'email_unverified' ? 403 : 400;
-      req.log.debug({ error: result.error }, 'google_callback_client_error');
-      throw new AppError({
-        statusCode: status,
-        code: result.error,
-        message: result.error,
-      });
-    }
 
-    // Create session and set cookie
-    const session = await createSession(result.data.user);
-    reply.setCookie(SESSION_COOKIE_NAME, session.id, SESSION_COOKIE_OPTIONS);
+      // Create session and set cookie
+      const session = await createSession(result.data.user);
+      reply.setCookie(SESSION_COOKIE_NAME, session.id, SESSION_COOKIE_OPTIONS);
 
-    // On success, redirect back to the SPA (dashboard)
-    const parsedOrigin = parseOriginHeader(result.data.appOrigin);
-    if (!parsedOrigin || !isHostAllowed(parsedOrigin.host, env.APP_ORIGIN_HOST)) {
-      throw badRequest({ code: 'invalid_origin', message: 'Origin is missing or not allowed' });
+      // On success, redirect back to the SPA (dashboard)
+      const parsedOrigin = parseOriginHeader(result.data.appOrigin);
+      if (!parsedOrigin || !isHostAllowed(parsedOrigin.host, env.APP_ORIGIN_HOST)) {
+        throw badRequest({ code: 'invalid_origin', message: 'Origin is missing or not allowed' });
+      }
+      return reply.redirect(`${env.APP_ORIGIN}/`);
     }
-    return reply.redirect(`${env.APP_ORIGIN}/`);
-  });
+  );
 
   // Return current user from session
   app.get('/me', async (req, reply) => {

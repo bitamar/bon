@@ -34,7 +34,7 @@ export async function getSettings(options: RequestOptions = {}): Promise<Setting
 export async function updateSettings(input: UpdateSettingsBody): Promise<SettingsResponse> {
   const payload = updateSettingsBodySchema.parse(input);
   const json = await fetchJson<unknown>('/settings', {
-    method: 'PUT',
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
   return settingsResponseSchema.parse(json);

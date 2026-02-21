@@ -30,7 +30,7 @@ describe('routes/businesses', () => {
         },
       });
 
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(201);
       const body = res.json() as { business: { name: string }; role: string };
       expect(body.business.name).toBe('My Shop');
       expect(body.role).toBe('owner');
@@ -49,7 +49,7 @@ describe('routes/businesses', () => {
         },
       });
 
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(201);
       const body = res.json() as { business: { streetAddress: unknown; city: unknown } };
       expect(body.business.streetAddress).toBeNull();
       expect(body.business.city).toBeNull();
@@ -157,12 +157,12 @@ describe('routes/businesses', () => {
     });
   });
 
-  describe('PUT /businesses/:businessId', () => {
+  describe('PATCH /businesses/:businessId', () => {
     it('updates business for owner', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 
       const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'PUT',
+        method: 'PATCH',
         url: `/businesses/${business.id}`,
         payload: { name: 'Updated Name' },
       });
@@ -176,7 +176,7 @@ describe('routes/businesses', () => {
       const { sessionId, business } = await createMemberInBusiness('user');
 
       const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'PUT',
+        method: 'PATCH',
         url: `/businesses/${business.id}`,
         payload: { name: 'Hacked Name' },
       });

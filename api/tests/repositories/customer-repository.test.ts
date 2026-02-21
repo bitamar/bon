@@ -145,6 +145,19 @@ describe('customer-repository', () => {
 
       expect(result).toBeNull();
     });
+
+    it('returns null for a soft-deleted customer with matching taxId', async () => {
+      const { business } = await setupBusiness();
+      await insertTestCustomer(business.id, {
+        name: 'Deleted',
+        taxId: '515303055',
+        isActive: false,
+      });
+
+      const result = await findCustomerByTaxId(business.id, '515303055');
+
+      expect(result).toBeNull();
+    });
   });
 
   // ── updateCustomer ──────────────────────────────────────────────────────
