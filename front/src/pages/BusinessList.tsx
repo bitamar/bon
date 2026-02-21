@@ -1,5 +1,16 @@
-import { Badge, Button, Card, Container, Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import { IconBuilding, IconPlus } from '@tabler/icons-react';
+import {
+  Badge,
+  Button,
+  Card,
+  Center,
+  Container,
+  Divider,
+  Group,
+  SimpleGrid,
+  Stack,
+  Text,
+} from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
 import { useBusiness } from '../contexts/BusinessContext';
@@ -10,12 +21,6 @@ const BUSINESS_TYPE_LABELS: Record<string, string> = {
   licensed_dealer: 'עוסק מורשה',
   exempt_dealer: 'עוסק פטור',
   limited_company: 'חברה בע"מ',
-};
-
-const ROLE_COLORS: Record<string, string> = {
-  owner: 'violet',
-  admin: 'blue',
-  user: 'gray',
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -39,49 +44,105 @@ function BusinessCard({
 
   return (
     <Card
-      withBorder
-      radius="lg"
-      p="lg"
+      shadow={isActive ? 'md' : 'sm'}
       style={{
-        borderColor: isActive ? 'var(--mantine-color-blue-5)' : undefined,
-        borderWidth: isActive ? 2 : 1,
+        borderColor: isActive ? 'var(--mantine-color-brand-5)' : 'var(--mantine-color-gray-2)',
+        borderWidth: isActive ? 2 : undefined,
+        background: isActive
+          ? 'light-dark(var(--mantine-color-brand-0), rgba(124, 58, 237, 0.08))'
+          : undefined,
+        cursor: 'pointer',
+        transition: 'all 200ms ease',
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = 'var(--mantine-shadow-md)';
+          e.currentTarget.style.borderColor = 'var(--mantine-color-gray-3)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.transform = '';
+          e.currentTarget.style.boxShadow = '';
+          e.currentTarget.style.borderColor = 'var(--mantine-color-gray-2)';
+        }
       }}
     >
-      <Stack gap="md">
-        <Group justify="space-between">
-          <Group gap="xs">
-            <IconBuilding size={20} />
-            <Text fw={600}>{business.name}</Text>
-          </Group>
-          <Badge color={ROLE_COLORS[business.role] as string}>{ROLE_LABELS[business.role]}</Badge>
-        </Group>
-
-        <Stack gap="xs">
-          <Text size="sm" c="dimmed">
+      <Group justify="space-between" align="flex-start" mb="md">
+        <div>
+          <Text fw={600} fz="lg" lh={1.3}>
+            {business.name}
+          </Text>
+          <Text c="dimmed" fz="sm" mt={4}>
             {BUSINESS_TYPE_LABELS[business.businessType]}
           </Text>
-          <Text size="sm" c="dimmed">
-            מספר רישום: {business.registrationNumber}
+        </div>
+        <Badge variant="light" color="brand" size="sm">
+          {ROLE_LABELS[business.role]}
+        </Badge>
+      </Group>
+
+      <Text c="dimmed" fz="xs" className="tabular-nums" mb="md">
+        מספר רישום: {business.registrationNumber}
+      </Text>
+
+      <Divider color="gray.2" mb="md" />
+
+      <Group justify="space-between" align="center">
+        {isActive ? (
+          <Badge variant="dot" color="green" size="sm">
+            עסק פעיל
+          </Badge>
+        ) : (
+          <Button size="xs" variant="light" color="brand" radius="md" onClick={onSwitch}>
+            החלף
+          </Button>
+        )}
+        {canEdit && (
+          <Button size="xs" variant="subtle" color="gray" onClick={onEdit}>
+            ערוך
+          </Button>
+        )}
+      </Group>
+    </Card>
+  );
+}
+
+function AddBusinessCard({ onClick }: Readonly<{ onClick: () => void }>) {
+  return (
+    <Card
+      style={{
+        borderStyle: 'dashed',
+        borderColor: 'var(--mantine-color-gray-3)',
+        borderWidth: 2,
+        cursor: 'pointer',
+        background: 'transparent',
+        transition: 'all 200ms ease',
+      }}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onClick();
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'var(--mantine-color-brand-4)';
+        e.currentTarget.style.background = 'rgba(124, 58, 237, 0.03)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'var(--mantine-color-gray-3)';
+        e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      <Center h="100%" mih={140}>
+        <Stack align="center" gap="xs">
+          <IconPlus size={24} color="var(--mantine-color-gray-4)" />
+          <Text c="dimmed" size="sm">
+            צור עסק חדש
           </Text>
         </Stack>
-
-        <Group justify="space-between">
-          {isActive ? (
-            <Badge color="green" variant="light">
-              עסק פעיל
-            </Badge>
-          ) : (
-            <Button size="xs" variant="light" onClick={onSwitch}>
-              החלף
-            </Button>
-          )}
-          {canEdit && (
-            <Button size="xs" variant="subtle" onClick={onEdit}>
-              ערוך
-            </Button>
-          )}
-        </Group>
-      </Stack>
+      </Center>
     </Card>
   );
 }
@@ -92,7 +153,7 @@ export function BusinessList() {
 
   if (isLoading) {
     return (
-      <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
+      <Container size="lg" py="xl">
         <StatusCard status="loading" title="טוען עסקים..." />
       </Container>
     );
@@ -100,7 +161,7 @@ export function BusinessList() {
 
   if (businesses.length === 0) {
     return (
-      <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
+      <Container size="lg" py="xl">
         <StatusCard
           status="empty"
           title="אין עסקים"
@@ -115,30 +176,26 @@ export function BusinessList() {
   }
 
   return (
-    <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-      <Stack gap="md">
-        <Group justify="space-between">
-          <PageTitle order={3}>העסקים שלי</PageTitle>
-          <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/onboarding')}>
-            צור עסק חדש
-          </Button>
-        </Group>
+    <Container size="lg" py="xl">
+      <PageTitle order={2} mb="xl">
+        העסקים שלי
+      </PageTitle>
 
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-          {businesses.map((business) => (
-            <BusinessCard
-              key={business.id}
-              business={business}
-              isActive={activeBusiness?.id === business.id}
-              onSwitch={() => switchBusiness(business.id)}
-              onEdit={() => {
-                switchBusiness(business.id);
-                navigate('/business/settings');
-              }}
-            />
-          ))}
-        </SimpleGrid>
-      </Stack>
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+        {businesses.map((business) => (
+          <BusinessCard
+            key={business.id}
+            business={business}
+            isActive={activeBusiness?.id === business.id}
+            onSwitch={() => switchBusiness(business.id)}
+            onEdit={() => {
+              switchBusiness(business.id);
+              navigate('/business/settings');
+            }}
+          />
+        ))}
+        <AddBusinessCard onClick={() => navigate('/onboarding')} />
+      </SimpleGrid>
     </Container>
   );
 }

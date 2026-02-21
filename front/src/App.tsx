@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react';
-import { AppShell, Center, Loader, useMantineColorScheme, useMantineTheme } from '@mantine/core';
+import { AppShell, Center, Loader } from '@mantine/core';
 import Header from './Header';
 import Navbar from './Navbar';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
@@ -59,35 +59,29 @@ function OnboardingGuard({ children }: Readonly<{ children: ReactNode }>) {
 function ProtectedLayout() {
   const [opened, setOpened] = useState(false);
   const location = useLocation();
-  const theme = useMantineTheme();
-  const { colorScheme } = useMantineColorScheme();
-  const lightAppBackground = theme.other['lightAppBackground'];
 
   useEffect(() => {
-    // Close mobile navbar when navigating to a new route
     setOpened(false);
   }, [location.pathname]);
 
+  const toggle = () => setOpened((o) => !o);
+
   return (
     <AppShell
-      header={{ height: 64 }}
-      navbar={{ width: 280, breakpoint: 'sm', collapsed: { mobile: !opened } }}
-      padding={{ base: 'xxs', sm: 'md' }}
+      header={{ height: { base: 56, sm: 0 } }}
+      navbar={{ width: 260, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      padding="xl"
     >
       <AppShell.Header>
-        <Header opened={opened} setOpened={setOpened} />
+        <Header opened={opened} toggle={toggle} />
       </AppShell.Header>
 
-      <AppShell.Navbar>
-        <Navbar />
-      </AppShell.Navbar>
+      <Navbar />
 
       <AppShell.Main
         style={{
-          paddingTop: 'var(--app-shell-header-height, 0px)',
-          ...(colorScheme === 'light'
-            ? { backgroundColor: lightAppBackground, color: '#3d3d3d' }
-            : {}),
+          backgroundColor: 'var(--mantine-color-body)',
+          minHeight: '100vh',
         }}
       >
         <RouteErrorBoundary>
