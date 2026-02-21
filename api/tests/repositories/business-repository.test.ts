@@ -2,7 +2,8 @@ import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { resetDb } from '../utils/db.js';
 import {
-  insertBusiness,
+  insertBusinessTx,
+  db,
   findBusinessById,
   updateBusiness,
 } from '../../src/repositories/business-repository.js';
@@ -17,18 +18,20 @@ describe('business-repository', () => {
     await resetDb();
   });
 
-  describe('insertBusiness', () => {
-    it('inserts and returns a business record with correct fields', async () => {
+  describe('insertBusinessTx', () => {
+    it('inserts and returns a business record within a transaction', async () => {
       const user = await createUser();
       const regNum = randomUUID();
 
-      const result = await insertBusiness({
-        name: 'My Shop',
-        businessType: 'exempt_dealer',
-        registrationNumber: regNum,
-        streetAddress: '5 HaYarkon St',
-        city: 'Haifa',
-        createdByUserId: user.id,
+      const result = await db.transaction(async (tx) => {
+        return insertBusinessTx(tx, {
+          name: 'My Shop',
+          businessType: 'exempt_dealer',
+          registrationNumber: regNum,
+          streetAddress: '5 HaYarkon St',
+          city: 'Haifa',
+          createdByUserId: user.id,
+        });
       });
 
       expect(result).not.toBeNull();

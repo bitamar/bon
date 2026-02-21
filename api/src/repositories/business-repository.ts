@@ -1,16 +1,10 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../db/client.js';
 import { businesses } from '../db/schema.js';
 
 export type BusinessRecord = (typeof businesses)['$inferSelect'];
 export type BusinessInsert = (typeof businesses)['$inferInsert'];
 
-export { db };
-
-export async function insertBusiness(data: BusinessInsert) {
-  const rows = await db.insert(businesses).values(data).returning();
-  return rows[0] ?? null;
-}
+export { db } from '../db/client.js';
 
 export async function insertBusinessTx(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
