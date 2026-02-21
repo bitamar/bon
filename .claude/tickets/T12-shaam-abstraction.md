@@ -1,8 +1,8 @@
 # T12 — SHAAM Abstraction & Token Management
 
-**Status**: 🔒 Blocked (T11 must deploy first)
+**Status**: 🔒 Blocked (T11 must merge first)
 **Phase**: 4 — SHAAM Integration
-**Requires**: T11 deployed
+**Requires**: T11 merged
 **Blocks**: T13
 
 ---

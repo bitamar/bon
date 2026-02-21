@@ -1,8 +1,8 @@
 # T20 — Uniform File Export (קובץ במבנה אחיד)
 
-**Status**: 🔒 Blocked (T19 must deploy first)
+**Status**: 🔒 Blocked (T19 must merge first)
 **Phase**: 6 — Reporting
-**Requires**: T19 deployed
+**Requires**: T19 merged
 **Blocks**: T21
 
 ---

@@ -1,8 +1,8 @@
 # T10 — Invoice PDF Generation
 
-**Status**: 🔒 Blocked (T08 must deploy first)
+**Status**: 🔒 Blocked (T08 must merge first)
 **Phase**: 3 — PDF
-**Requires**: T08 deployed
+**Requires**: T08 merged
 **Blocks**: T11
 
 ---

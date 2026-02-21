@@ -1,8 +1,8 @@
 # T07 — Invoice API + Create/Edit UI (Draft)
 
-**Status**: 🔒 Blocked (T06 must deploy first)
+**Status**: 🔒 Blocked (T06 must merge first)
 **Phase**: 2 — Invoices
-**Requires**: T06 deployed
+**Requires**: T06 merged
 **Blocks**: T08
 
 ---
@@ -104,9 +104,17 @@ All routes prefixed with `/businesses/:businessId`, requiring `app.authenticate`
 
 **Line item state**: Managed locally in React state for responsiveness. Synced to server on save (PATCH with full `items[]` array). No per-item API calls.
 
-**VAT preview**: Uses `calculateLine()` and `calculateInvoiceTotals()` from `@bon/types/vat` directly in the browser. Same pure functions the server uses.
+**VAT preview**: Uses `calculateLine()` and `calculateInvoiceTotals()` from `@bon/types/vat` directly in the browser. Same pure functions the server uses. The VAT engine does NOT validate rates — it calculates for any rate. Rate validation (0 or 1700 for non-exempt, 0 only for exempt) happens server-side on finalization.
 
 **Customer search**: Reuses the existing customer list endpoint with `?q=` parameter. Combobox with debounced search (150ms).
+
+**`numeric` column handling**: `quantity` and `discountPercent` come from Drizzle as strings. The repository/response mapper must convert with `Number()` before returning to API consumers. All Zod response schemas expect numbers.
+
+**Sequence numbering**: Handled by `assignInvoiceNumber()` from `api/src/lib/invoice-sequences.ts` (T06). Uses SELECT FOR UPDATE inside the finalization transaction. Sequences are lazily seeded on first finalization — `tax_document` seeds from `business.startingInvoiceNumber`, `credit_note`/`receipt` from 1.
+
+**Credit notes**: Line items store positive amounts. Sign semantics on `documentType`, not amounts. `calculateLine()` works identically for all document types.
+
+**`invoiceListQuerySchema`**: NOT in `types/src/invoices.ts` — define it in this ticket alongside the list route (or defer to T09).
 
 ---
 

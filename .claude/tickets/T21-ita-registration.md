@@ -1,8 +1,8 @@
 # T21 — ITA Software Registration (רישום כבית תוכנה)
 
-**Status**: 🔒 Blocked (T20 must deploy first)
+**Status**: 🔒 Blocked (T20 must merge first)
 **Phase**: 7 — ITA Registration
-**Requires**: T20 deployed
+**Requires**: T20 merged
 **Blocks**: nothing — this is the finish line
 
 ---

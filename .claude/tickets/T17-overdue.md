@@ -1,8 +1,8 @@
 # T17 — Overdue Detection
 
-**Status**: 🔒 Blocked (T16 must deploy first)
+**Status**: 🔒 Blocked (T16 must merge first)
 **Phase**: 5 — Invoice Lifecycle
-**Requires**: T16 deployed
+**Requires**: T16 merged
 **Blocks**: T18
 
 ---
