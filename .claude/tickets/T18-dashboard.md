@@ -17,7 +17,7 @@ Must load in under 1 second — one aggregated query, not five separate calls.
 
 ## Acceptance Criteria
 
-- [ ] Single API endpoint: `GET /businesses/:id/dashboard` — returns all metrics in one response
+- [ ] Single API endpoint: `GET /businesses/:businessId/dashboard` — returns all metrics in one response
 - [ ] Metrics:
   - [ ] הכנסות החודש (total finalized this calendar month, incl. VAT)
   - [ ] ממתין לתשלום (sum of unpaid finalized invoices + count)

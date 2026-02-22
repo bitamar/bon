@@ -17,8 +17,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit push",
-    "db:migrate:force": "drizzle-kit push --force"
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

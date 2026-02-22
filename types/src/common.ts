@@ -38,3 +38,10 @@ export const isoDateTime = z
 export const nullableIsoDateTime = z.union([isoDateTime, z.literal(null)]);
 
 export const optionalNullableIsoDateTime = nullableIsoDateTime.optional();
+
+export const errorResponseSchema = z.object({
+  error: z.string(),
+  message: z.string().optional(),
+  details: z.unknown().optional(),
+  requestId: z.string(),
+});

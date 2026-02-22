@@ -15,7 +15,7 @@ The Uniform File is required for ITA software registration (Phase 7). It exports
 
 ## Acceptance Criteria
 
-- [ ] `GET /businesses/:id/reports/uniform-file?year=2026` — download uniform file
+- [ ] `GET /businesses/:businessId/reports/uniform-file?year=2026` — download uniform file
 - [ ] Format: ITA "קובץ במבנה אחיד" spec (request official spec doc from ITA)
 - [ ] Covers all finalized invoices in the requested year
 - [ ] Includes all required column headers and record types per ITA spec

@@ -15,7 +15,7 @@ The invoice list is an accountant's working environment. They live here. It must
 
 ## Acceptance Criteria
 
-- [ ] `GET /businesses/:id/invoices` with query params: `status`, `customerId`, `dateFrom`, `dateTo`, `q`, `sort`, `page`, `limit`
+- [ ] `GET /businesses/:businessId/invoices` with query params: `status`, `customerId`, `dateFrom`, `dateTo`, `q`, `sort`, `page`, `limit`
 - [ ] Response includes aggregate totals for filtered set (total outstanding, total this period)
 - [ ] Filter chips in UI: כל החשבוניות | טיוטות | ממתינות לתשלום | שולמו | בוטלו
 - [ ] Each row: invoice number, customer name, date, total incl. VAT, status badge
