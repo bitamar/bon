@@ -273,7 +273,7 @@ export async function finalize(
   invoiceId: string,
   body: { invoiceDate?: string | undefined }
 ) {
-  // Load invoice (outside tx for validation)
+  // TODO: TOCTOU — move validation inside tx with SELECT FOR UPDATE before SHAAM integration
   const invoice = await findInvoiceById(invoiceId, businessId);
   if (!invoice) throw notFound();
   if (invoice.status !== 'draft') {

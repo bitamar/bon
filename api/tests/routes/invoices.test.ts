@@ -427,21 +427,22 @@ describe('routes/invoices', () => {
       expect((res.json() as { error: string }).error).toBe('invalid_invoice_date');
     });
 
-    it('assigns sequential numbers across multiple finalizations', async () => {
+    it('assigns sequential numbers at finalization time, not creation time', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
       const customer = await createCustomer(sessionId, business.id);
 
       const draft1 = await createDraftWithItems(sessionId, business.id, customer.id);
       const draft2 = await createDraftWithItems(sessionId, business.id, customer.id);
 
-      const res1 = await finalizeInvoice(sessionId, business.id, draft1.invoice.id);
+      // Finalize in reverse creation order to prove sequencing is at finalization time
       const res2 = await finalizeInvoice(sessionId, business.id, draft2.invoice.id);
+      const res1 = await finalizeInvoice(sessionId, business.id, draft1.invoice.id);
 
-      const body1 = res1.json() as InvoiceResponse;
       const body2 = res2.json() as InvoiceResponse;
+      const body1 = res1.json() as InvoiceResponse;
 
-      expect(body1.invoice.sequenceNumber).toBe(1);
-      expect(body2.invoice.sequenceNumber).toBe(2);
+      expect(body2.invoice.sequenceNumber).toBe(1);
+      expect(body1.invoice.sequenceNumber).toBe(2);
     });
   });
 });

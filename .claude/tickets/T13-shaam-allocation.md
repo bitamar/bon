@@ -15,6 +15,7 @@ The actual call to ITA's API to get an allocation number. This runs in the backg
 
 ## Acceptance Criteria
 
+- [ ] Fix TOCTOU race in `invoice-service.ts finalize()`: move customer/invoice validation inside the transaction with `SELECT ... FOR UPDATE` (see TODO comment in code)
 - [ ] After finalization, `shouldRequestAllocation()` is evaluated
 - [ ] If true: enqueue a background job (pg-boss) to request allocation number
 - [ ] Job calls `ShaamService.requestAllocationNumber()` with full invoice + line items
