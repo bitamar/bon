@@ -30,15 +30,15 @@ const invitationRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         params: businessIdParamSchema,
         body: createInvitationBodySchema,
         response: {
-          200: okResponseSchema,
+          201: okResponseSchema,
         },
       },
     },
-    async (req) => {
+    async (req, reply) => {
       ensureAuthed(req);
       ensureBusinessContext(req);
       await createInvitation(req.businessContext.businessId, req.user.id, req.body);
-      return { ok: true as const };
+      return reply.status(201).send({ ok: true as const });
     }
   );
 

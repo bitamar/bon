@@ -400,7 +400,7 @@ Footer:
 ### 3.2 PDF API Endpoint
 
 ```
-POST /businesses/:businessId/invoices/:invoiceId/pdf
+GET /businesses/:businessId/invoices/:invoiceId/pdf
 Response: Content-Type: application/pdf
           Content-Disposition: attachment; filename="INV-0042.pdf"
 ```

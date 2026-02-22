@@ -27,7 +27,7 @@ describe('routes/invitations', () => {
         payload: { email: 'invite@example.com', role: 'user' },
       });
 
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(201);
       expect(res.json()).toMatchObject({ ok: true });
     });
 
@@ -74,7 +74,7 @@ describe('routes/invitations', () => {
         payload: { email: inviteeEmail, role: 'user' },
       });
 
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(201);
       expect(res.json()).toMatchObject({ ok: true });
     });
   });

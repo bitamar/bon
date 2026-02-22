@@ -219,3 +219,13 @@ export function forbidden(
 ) {
   return new AppError({ statusCode: 403, code: options.code ?? 'forbidden', ...options });
 }
+
+export function unprocessableEntity(
+  options: Omit<AppErrorOptions, 'statusCode' | 'code'> & { code?: string }
+) {
+  return new AppError({
+    statusCode: 422,
+    code: options.code ?? 'unprocessable_entity',
+    ...options,
+  });
+}

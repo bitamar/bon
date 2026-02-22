@@ -70,7 +70,7 @@ All routes prefixed with `/businesses/:businessId`, requiring `app.authenticate`
 | Endpoint | Error | Status | Code |
 |----------|-------|--------|------|
 | PATCH, DELETE | Invoice is not a draft | 422 | `not_draft` |
-| POST, PATCH | `customerId` not found in this business | 404 | `not_found` |
+| POST, PATCH | `customerId` not found in this business | 422 | `customer_not_found` |
 | POST, PATCH | `customerId` references inactive customer | 422 | `customer_inactive` |
 | POST | `documentType` is `receipt` or `credit_note` | 422 | `invalid_document_type` |
 | Finalize | Invoice is not a draft | 422 | `not_draft` |

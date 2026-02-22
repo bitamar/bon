@@ -5,8 +5,29 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1771787442690,
-      "tag": "0000_parallel_golden_guardian",
+      "when": 1771591992163,
+      "tag": "0000_chubby_captain_britain",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771602962218,
+      "tag": "0001_elite_karma",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771619276737,
+      "tag": "0002_loving_sheva_callister",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1771678672230,
+      "tag": "0003_absurd_phantom_reporter",
       "breakpoints": true
     },
     {

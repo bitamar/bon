@@ -15,7 +15,7 @@ Sending the invoice to the customer closes the loop. Without email, the business
 
 ## Acceptance Criteria
 
-- [ ] `POST /businesses/:id/invoices/:id/send` — sends invoice by email
+- [ ] `POST /businesses/:businessId/invoices/:invoiceId/send` — sends invoice by email
   - [ ] Body: `{ recipientEmail?: string }` — defaults to `customer.email` if not provided
   - [ ] Attaches PDF to email
   - [ ] Sets `sentAt` on invoice, status → `sent`

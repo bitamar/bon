@@ -1,6 +1,6 @@
 {
-  "id": "cf162032-b964-49f6-9704-3fc5ae250180",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "ff808647-5d0c-407e-895f-8bbc4c81d21d",
+  "prevId": "3dd1e3a1-96f2-4a67-bc54-9ac25f1e49dc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -195,13 +195,13 @@
           "name": "street_address",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "city": {
           "name": "city",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "postal_code": {
           "name": "postal_code",
@@ -432,6 +432,28 @@
         }
       },
       "indexes": {
+        "customers_business_id_tax_id_unique": {
+          "name": "customers_business_id_tax_id_unique",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tax_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"customers\".\"tax_id\" is not null and \"customers\".\"is_active\" = true",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "customers_business_id_idx": {
           "name": "customers_business_id_idx",
           "columns": [
@@ -460,13 +482,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "customers_business_id_tax_id_unique": {
-          "name": "customers_business_id_tax_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["business_id", "tax_id"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -643,7 +659,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"user_businesses\".\"removed_at\" IS NULL",
+          "where": "\"user_businesses\".\"removed_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}

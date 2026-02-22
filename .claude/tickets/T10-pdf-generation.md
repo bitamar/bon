@@ -17,7 +17,7 @@ RTL Hebrew PDFs are hard. Puppeteer (headless Chrome) is the chosen approach: ge
 
 ## Acceptance Criteria
 
-- [ ] `GET /businesses/:id/invoices/:id/pdf` returns `application/pdf`
+- [ ] `GET /businesses/:businessId/invoices/:invoiceId/pdf` returns `application/pdf`
 - [ ] Draft invoices: watermark "טיוטה - לא בתוקף" across the page, not cached
 - [ ] Finalized invoices: cached after first generation, invalidated on status change
 - [ ] Invoice HTML template includes all ITA-required fields:
