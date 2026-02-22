@@ -13,58 +13,58 @@ import {
 } from '../../src/repositories/invoice-repository.js';
 import { resetDb } from '../utils/db.js';
 
-describe('invoice-repository', () => {
-  let businessId: string;
+// ── helpers ──
 
-  // ── helpers ──
-
-  async function seedBusinessWithOwner() {
-    const [user] = await db
-      .insert(users)
-      .values({ email: `user-${randomUUID()}@test.com`, name: 'Test' })
-      .returning();
-    const now = new Date();
-    const [biz] = await db
-      .insert(businesses)
-      .values({
-        name: 'Test Biz',
-        businessType: 'licensed_dealer',
-        registrationNumber: String(randomInt(100_000_000, 1_000_000_000)),
-        createdByUserId: user!.id,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
-    return biz!;
-  }
-
-  async function createTestInvoice(bizId: string, overrides: Record<string, unknown> = {}) {
-    const now = new Date();
-    return insertInvoice({
-      businessId: bizId,
-      documentType: 'tax_invoice',
-      invoiceDate: '2026-01-15',
-      status: 'draft',
+async function seedBusinessWithOwner() {
+  const [user] = await db
+    .insert(users)
+    .values({ email: `user-${randomUUID()}@test.com`, name: 'Test' })
+    .returning();
+  const now = new Date();
+  const [biz] = await db
+    .insert(businesses)
+    .values({
+      name: 'Test Biz',
+      businessType: 'licensed_dealer',
+      registrationNumber: String(randomInt(100_000_000, 1_000_000_000)),
+      createdByUserId: user!.id,
       createdAt: now,
       updatedAt: now,
-      ...overrides,
-    });
-  }
+    })
+    .returning();
+  return biz!;
+}
 
-  function makeItem(invoiceId: string, position: number) {
-    return {
-      invoiceId,
-      position,
-      description: `Item ${position}`,
-      quantity: '2',
-      unitPriceAgora: 5000,
-      discountPercent: '0',
-      vatRateBasisPoints: 1700,
-      lineTotalAgora: 10000,
-      vatAmountAgora: 1700,
-      lineTotalInclVatAgora: 11700,
-    };
-  }
+async function createTestInvoice(bizId: string, overrides: Record<string, unknown> = {}) {
+  const now = new Date();
+  return insertInvoice({
+    businessId: bizId,
+    documentType: 'tax_invoice',
+    invoiceDate: '2026-01-15',
+    status: 'draft',
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  });
+}
+
+function makeItem(invoiceId: string, position: number) {
+  return {
+    invoiceId,
+    position,
+    description: `Item ${position}`,
+    quantity: '2',
+    unitPriceAgora: 5000,
+    discountPercent: '0',
+    vatRateBasisPoints: 1700,
+    lineTotalAgora: 10000,
+    vatAmountAgora: 1700,
+    lineTotalInclVatAgora: 11700,
+  };
+}
+
+describe('invoice-repository', () => {
+  let businessId: string;
 
   beforeEach(async () => {
     await resetDb();

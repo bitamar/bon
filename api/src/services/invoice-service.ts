@@ -25,7 +25,7 @@ import type {
 
 // ── serializers ──
 
-function coerceToDateString(value: string | unknown): string {
+function coerceToDateString(value: unknown): string {
   if (typeof value === 'string') return value;
   return (value as Date).toISOString().split('T')[0]!;
 }
