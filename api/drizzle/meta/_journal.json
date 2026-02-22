@@ -29,6 +29,13 @@
       "when": 1771678672230,
       "tag": "0003_absurd_phantom_reporter",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1771780341894,
+      "tag": "0004_invoice_schema",
+      "breakpoints": true
     }
   ]
 }
