@@ -40,7 +40,7 @@ You can't create an invoice without a recipient. The customer record stores the 
 
 ## T04 Patch — Required Before T05
 
-Deep review (product + architect) found 10 issues ranging from blocking to medium. All should be fixed in a single patch before deploying and starting T05.
+Deep review (product + architect) found 10 issues ranging from blocking to medium. All fixed in T-API-01 (PR #8).
 
 ### Blocking (T05 cannot work without these)
 

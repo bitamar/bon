@@ -1,6 +1,6 @@
 # T03 — Lightweight Business Onboarding
 
-**Status**: ✅ Merged to `main` (PR #4) — awaiting production deploy
+**Status**: ✅ Merged (PR #4)
 **Phase**: 0 — Foundation
 **Requires**: T01
 **Blocks**: T04, T05

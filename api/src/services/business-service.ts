@@ -101,7 +101,6 @@ export async function createBusiness(userId: string, input: CreateBusinessInput)
       email: input.email ?? null,
       invoiceNumberPrefix: input.invoiceNumberPrefix ?? null,
       startingInvoiceNumber: input.startingInvoiceNumber ?? 1,
-      nextInvoiceNumber: input.startingInvoiceNumber ?? 1,
       defaultVatRate: input.businessType === 'exempt_dealer' ? 0 : (input.defaultVatRate ?? 1700),
       createdByUserId: userId,
       createdAt: now,

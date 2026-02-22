@@ -4,12 +4,18 @@ import {
   businessInvitations,
   businesses,
   customers,
+  invoiceItems,
+  invoiceSequences,
+  invoices,
   sessions,
   userBusinesses,
   users,
 } from '../../src/db/schema.js';
 
 export async function resetDb() {
+  await db.delete(invoiceItems);
+  await db.delete(invoices);
+  await db.delete(invoiceSequences);
   await db.delete(customers);
   await db.delete(businessInvitations);
   await db.delete(userBusinesses);

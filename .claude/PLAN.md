@@ -51,13 +51,24 @@ Allocation numbers can be requested voluntarily for any amount.
 - VAT number moved to settings page
 - Address autocomplete via data.gov.il (city → street, cascading, free-text fallback)
 
-### Customer Backend (API only — T04)
+### Customer Backend (T04)
 - Customer CRUD with soft delete (isActive)
 - Tax ID validation (9-digit, types: company_id/vat_number/personal_id/none)
 - isLicensedDealer flag for future SHAAM trigger logic
 - Searchable list endpoint (name + tax ID, `?q=` parameter)
-- Duplicate taxId detection (409 response — needs patch to include existing customer info)
-- **No frontend yet** — customer pages are T05
+- Duplicate taxId detection (409 response with existing customer info)
+
+### Customer Frontend (T05)
+- Customer list with search, badges, empty states
+- Customer create form with tax ID validation, address autocomplete, licensed dealer toggle
+- Customer detail/edit page with soft delete
+
+### API Hardening (T-API-01)
+- Business creation wrapped in transaction
+- PUT → PATCH on business update, POST → 201
+- LIKE pattern injection fixed (escapeLikePattern utility)
+- Soft-deleted customers don't block new customers with same taxId
+- Query limits capped at 200
 
 ---
 
