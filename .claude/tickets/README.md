@@ -43,6 +43,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T-API-01](./T-API-01-api-hardening.md) | API Hardening (8 fixes from full audit) | ✅ | main (PR #8) |
 | [T-SEC-01](./T-SEC-01-query-limits.md) | Query Limits (subsumed by T-API-01 item 7) | ✅ | main (PR #8) |
 | [T-LEGAL-01](./T-LEGAL-01-accountant-review.md) | Accountant Review (6 items before invoice launch) | ⬜ | — |
+| [T-CRON-01](./T-CRON-01-nightly-jobs.md) | Nightly Jobs & pg-boss (absorbs T17) | 🔒 | — |
 
 ### Phase 1 — Customers
 
@@ -81,7 +82,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 |--------|------|--------|--------|
 | [T15](./T15-payments.md) | Payment Recording | 🔒 | — |
 | [T16](./T16-credit-notes.md) | Credit Notes | 🔒 | — |
-| [T17](./T17-overdue.md) | Overdue Detection (cron) | 🔒 | — |
+| ~~[T17](./T17-overdue.md)~~ | ~~Overdue Detection (cron)~~ — absorbed into T-CRON-01 | — | — |
 
 ### Phase 6 — Reporting
 

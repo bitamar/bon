@@ -8,6 +8,13 @@
       "when": 1771787442690,
       "tag": "0000_parallel_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1771780341894,
+      "tag": "0004_invoice_schema",
+      "breakpoints": true
     }
   ]
 }
