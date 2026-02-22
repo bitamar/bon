@@ -38,9 +38,7 @@ export async function assignInvoiceNumber(
 ): Promise<{ sequenceNumber: number; fullNumber: string }> {
   const group = documentTypeToSequenceGroup(documentType);
 
-  const incrementNext = sql
-    .join([invoiceSequences.nextNumber, sql.raw('+ 1')])
-    .mapWith(Number);
+  const incrementNext = sql.join([invoiceSequences.nextNumber, sql.raw('+ 1')]).mapWith(Number);
 
   const [row] = await tx
     .insert(invoiceSequences)
