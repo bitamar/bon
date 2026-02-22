@@ -1,2 +1,0 @@
-DROP INDEX "customers_business_id_tax_id_unique";--> statement-breakpoint
-CREATE UNIQUE INDEX "customers_business_id_tax_id_unique" ON "customers" USING btree ("business_id","tax_id") WHERE "customers"."tax_id" is not null and "customers"."is_active" = true;
