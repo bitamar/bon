@@ -10,18 +10,20 @@ export function QuickActions() {
       </Text>
       <SimpleGrid cols={1} spacing="xs">
         <Button
+          component={Link}
+          to="/business/invoices/new"
           variant="light"
           leftSection={<IconFileInvoice size={18} />}
-          disabled
           justify="start"
           fullWidth
         >
           חשבונית חדשה
         </Button>
         <Button
+          component={Link}
+          to="/business/customers/new"
           variant="light"
           leftSection={<IconUserPlus size={18} />}
-          disabled
           justify="start"
           fullWidth
         >

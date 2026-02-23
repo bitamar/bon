@@ -12,14 +12,14 @@ describe('QuickActions', () => {
     expect(screen.getByText('הגדרות עסק')).toBeInTheDocument();
   });
 
-  it('has invoice and customer buttons disabled', () => {
+  it('has invoice and customer buttons linked to their pages', () => {
     renderWithProviders(<QuickActions />);
 
-    const invoiceButton = screen.getByText('חשבונית חדשה').closest('button');
-    const customerButton = screen.getByText('הוסף לקוח').closest('button');
+    const invoiceLink = screen.getByText('חשבונית חדשה').closest('a');
+    const customerLink = screen.getByText('הוסף לקוח').closest('a');
 
-    expect(invoiceButton).toBeDisabled();
-    expect(customerButton).toBeDisabled();
+    expect(invoiceLink).toHaveAttribute('href', '/business/invoices/new');
+    expect(customerLink).toHaveAttribute('href', '/business/customers/new');
   });
 
   it('has settings button enabled and linking to business settings', () => {
