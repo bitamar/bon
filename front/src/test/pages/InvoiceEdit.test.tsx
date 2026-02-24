@@ -27,6 +27,7 @@ vi.mock('../../lib/notifications', () => ({
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as invoicesApi from '../../api/invoices';
 import * as businessApi from '../../api/businesses';
+import { showErrorNotification } from '../../lib/notifications';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 
 // ── helpers ──
@@ -197,6 +198,49 @@ describe('InvoiceEdit page', () => {
         })
       );
     });
+  });
+
+  it('saves successfully when line item has description with zero price', async () => {
+    const zeroPrice = makeMockInvoice({});
+    zeroPrice.items = [
+      {
+        ...zeroPrice.items[0]!,
+        unitPriceAgora: 0,
+        lineTotalAgora: 0,
+        vatAmountAgora: 0,
+        lineTotalInclVatAgora: 0,
+      },
+    ];
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(zeroPrice);
+    vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(zeroPrice);
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+    await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
+
+    await waitFor(() => {
+      expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalled();
+    });
+    expect(showErrorNotification).not.toHaveBeenCalled();
+  });
+
+  it('shows error when line item has price but no description', async () => {
+    const noDesc = makeMockInvoice({});
+    noDesc.items = [{ ...noDesc.items[0]!, description: '' }];
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(noDesc);
+    vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+    await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
+
+    await waitFor(() => {
+      expect(showErrorNotification).toHaveBeenCalled();
+    });
+    expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
   });
 
   it('deletes draft and navigates home on confirm', async () => {

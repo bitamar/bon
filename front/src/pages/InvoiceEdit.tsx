@@ -240,9 +240,7 @@ export function InvoiceEdit() {
     );
 
     const hasPartialRows = nonEmptyItems.some(
-      (item) =>
-        (item.description.trim() !== '' && item.unitPriceShekel === 0) ||
-        (item.description.trim() === '' && item.unitPriceShekel !== 0)
+      (item) => item.description.trim() === '' && item.unitPriceShekel !== 0
     );
 
     if (hasPartialRows) {

@@ -57,7 +57,8 @@ describe('InvoiceLineItems', () => {
     const { onChange } = renderLineItems({ items });
 
     const removeButtons = screen.getAllByRole('button', { name: 'הסר שורה' });
-    await user.click(removeButtons[0]!);
+    expect(removeButtons).toHaveLength(2);
+    await user.click(removeButtons[0]);
 
     expect(onChange).toHaveBeenCalledTimes(1);
     const newItems = onChange.mock.calls[0]?.[0] as LineItemFormRow[];
