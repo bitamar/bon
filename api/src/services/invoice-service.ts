@@ -127,6 +127,30 @@ function buildResponse(invoice: InvoiceRecord, itemRecords: InvoiceItemRecord[])
   };
 }
 
+function toLineInput(record: InvoiceItemRecord) {
+  return {
+    quantity: Number(record.quantity),
+    unitPriceMinorUnits: record.unitPriceMinorUnits,
+    discountPercent: Number(record.discountPercent),
+    vatRateBasisPoints: record.vatRateBasisPoints,
+  };
+}
+
+function validateVatRates(items: InvoiceItemRecord[], isExemptDealer: boolean) {
+  for (const item of items) {
+    if (isExemptDealer && item.vatRateBasisPoints !== 0) {
+      throw unprocessableEntity({ code: 'invalid_vat_rate' });
+    }
+    if (
+      !isExemptDealer &&
+      item.vatRateBasisPoints !== 0 &&
+      item.vatRateBasisPoints !== STANDARD_VAT_RATE_BP
+    ) {
+      throw unprocessableEntity({ code: 'invalid_vat_rate' });
+    }
+  }
+}
+
 function todayDateString(): string {
   return new Date().toISOString().split('T')[0]!;
 }
@@ -311,28 +335,11 @@ export async function finalize(
 
   // Validate VAT rates
   const isExemptDealer = business.businessType === 'exempt_dealer';
-  for (const item of items) {
-    if (isExemptDealer && item.vatRateBasisPoints !== 0) {
-      throw unprocessableEntity({ code: 'invalid_vat_rate' });
-    }
-    if (
-      !isExemptDealer &&
-      item.vatRateBasisPoints !== 0 &&
-      item.vatRateBasisPoints !== STANDARD_VAT_RATE_BP
-    ) {
-      throw unprocessableEntity({ code: 'invalid_vat_rate' });
-    }
-  }
+  validateVatRates(items, isExemptDealer);
 
   // Validate vatExemptionReason when all items are 0% VAT on a non-exempt business
-  const preCalcTotals = calculateInvoiceTotals(
-    items.map((i) => ({
-      quantity: Number(i.quantity),
-      unitPriceMinorUnits: i.unitPriceMinorUnits,
-      discountPercent: Number(i.discountPercent),
-      vatRateBasisPoints: i.vatRateBasisPoints,
-    }))
-  );
+  const lineInputs = items.map(toLineInput);
+  const preCalcTotals = calculateInvoiceTotals(lineInputs);
   if (preCalcTotals.vatMinorUnits === 0 && !isExemptDealer && !body.vatExemptionReason) {
     throw unprocessableEntity({ code: 'missing_vat_exemption_reason' });
   }
@@ -348,24 +355,13 @@ export async function finalize(
     );
 
     // Recalculate totals
-    const lineInputs = items.map((i) => ({
-      quantity: Number(i.quantity),
-      unitPriceMinorUnits: i.unitPriceMinorUnits,
-      discountPercent: Number(i.discountPercent),
-      vatRateBasisPoints: i.vatRateBasisPoints,
-    }));
     const totals = calculateInvoiceTotals(lineInputs);
 
     // Recalculate individual line items and update them
     await deleteItemsByInvoiceId(invoiceId, tx);
     const updatedItems = await insertItems(
       items.map((i) => {
-        const line = calculateLine({
-          quantity: Number(i.quantity),
-          unitPriceMinorUnits: i.unitPriceMinorUnits,
-          discountPercent: Number(i.discountPercent),
-          vatRateBasisPoints: i.vatRateBasisPoints,
-        });
+        const line = calculateLine(toLineInput(i));
         return {
           invoiceId,
           position: i.position,

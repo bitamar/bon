@@ -45,6 +45,15 @@ function zeroVatItem() {
   return makeItem({ description: 'Export item', vatRateBasisPoints: 0 });
 }
 
+function expectError(
+  res: { statusCode: number; json: () => unknown },
+  code: number,
+  error: string
+) {
+  expect(res.statusCode).toBe(code);
+  expect((res.json() as { error: string }).error).toBe(error);
+}
+
 describe('routes/invoices', () => {
   const ctx = setupIntegrationTest();
 
@@ -134,15 +143,6 @@ describe('routes/invoices', () => {
     const ctx = await setupOwnerDraft();
     await finalizeInvoice(ctx.sessionId, ctx.business.id, ctx.invoice.id);
     return ctx;
-  }
-
-  function expectError(
-    res: { statusCode: number; json: () => unknown },
-    code: number,
-    error: string
-  ) {
-    expect(res.statusCode).toBe(code);
-    expect((res.json() as { error: string }).error).toBe(error);
   }
 
   // ── POST ──
