@@ -11,7 +11,7 @@
 
 Extract shared invoice status config and document type labels into reusable modules. This unblocks both the finalization flow (T08-C) and detail view (T08-D), and fixes `RecentInvoicesTable` which currently only covers 4 of 7 statuses.
 
-Also consolidate `formatAgora` from `front/src/lib/format.ts` into `types/src/formatting.ts` so it's shared between frontend and API (needed by T10 for PDF generation).
+Also consolidate `formatMinorUnits` from `front/src/lib/format.ts` into `types/src/formatting.ts` so it's shared between frontend and API (needed by T10 for PDF generation).
 
 ---
 
@@ -22,7 +22,7 @@ Also consolidate `formatAgora` from `front/src/lib/format.ts` into `types/src/fo
 | File | Purpose |
 |------|---------|
 | `front/src/lib/invoiceStatus.ts` | `INVOICE_STATUS_CONFIG` — all 7 statuses with Hebrew label + Mantine color |
-| `types/src/formatting.ts` | `formatAgora(agora, currency?)` + `formatDate(isoDate)` shared formatters |
+| `types/src/formatting.ts` | `formatMinorUnits(minorUnits, currency?)` + `formatDate(isoDate)` shared formatters |
 
 ### Modified Files (3)
 
@@ -30,7 +30,7 @@ Also consolidate `formatAgora` from `front/src/lib/format.ts` into `types/src/fo
 |------|--------|
 | `types/src/invoices.ts` | Add `DOCUMENT_TYPE_LABELS` constant |
 | `front/src/components/RecentInvoicesTable.tsx` | Import from shared `invoiceStatus.ts` instead of local config |
-| `front/src/pages/InvoiceEdit.tsx` | Import `formatAgora` from `@bon/types/formatting` instead of `../lib/format` |
+| `front/src/pages/InvoiceEdit.tsx` | Import `formatMinorUnits` from `@bon/types/formatting` instead of `../lib/format` |
 
 ### Deleted Files (1)
 
@@ -53,7 +53,7 @@ Also consolidate `formatAgora` from `front/src/lib/format.ts` into `types/src/fo
     credit_note: 'חשבונית מס זיכוי',
   };
   ```
-- [ ] `formatAgora(agora: number, currency?: string)` in `types/src/formatting.ts` — defaults to `'ILS'`
+- [ ] `formatMinorUnits(minorUnits: number, currency?: string)` in `types/src/formatting.ts` — defaults to `'ILS'`
 - [ ] `formatDate(isoDate: string)` in `types/src/formatting.ts` — returns `DD/MM/YYYY` format
 - [ ] `front/src/lib/format.ts` deleted; all importers updated
 - [ ] `RecentInvoicesTable` uses shared config

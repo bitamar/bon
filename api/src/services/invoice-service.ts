@@ -53,11 +53,11 @@ function serializeInvoice(record: InvoiceRecord): Invoice {
     internalNotes: record.internalNotes ?? null,
     currency: record.currency,
     vatExemptionReason: record.vatExemptionReason ?? null,
-    subtotalAgora: record.subtotalAgora,
-    discountAgora: record.discountAgora,
-    totalExclVatAgora: record.totalExclVatAgora,
-    vatAgora: record.vatAgora,
-    totalInclVatAgora: record.totalInclVatAgora,
+    subtotalMinorUnits: record.subtotalMinorUnits,
+    discountMinorUnits: record.discountMinorUnits,
+    totalExclVatMinorUnits: record.totalExclVatMinorUnits,
+    vatMinorUnits: record.vatMinorUnits,
+    totalInclVatMinorUnits: record.totalInclVatMinorUnits,
     allocationStatus: record.allocationStatus ?? null,
     allocationNumber: record.allocationNumber ?? null,
     allocationError: record.allocationError ?? null,
@@ -76,12 +76,12 @@ function serializeInvoiceItem(record: InvoiceItemRecord): InvoiceItem {
     description: record.description,
     catalogNumber: record.catalogNumber ?? null,
     quantity: Number(record.quantity),
-    unitPriceAgora: record.unitPriceAgora,
+    unitPriceMinorUnits: record.unitPriceMinorUnits,
     discountPercent: Number(record.discountPercent),
     vatRateBasisPoints: record.vatRateBasisPoints,
-    lineTotalAgora: record.lineTotalAgora,
-    vatAmountAgora: record.vatAmountAgora,
-    lineTotalInclVatAgora: record.lineTotalInclVatAgora,
+    lineTotalMinorUnits: record.lineTotalMinorUnits,
+    vatAmountMinorUnits: record.vatAmountMinorUnits,
+    lineTotalInclVatMinorUnits: record.lineTotalInclVatMinorUnits,
   };
 }
 
@@ -90,7 +90,7 @@ function serializeInvoiceItem(record: InvoiceItemRecord): InvoiceItem {
 function buildItemInsert(invoiceId: string, item: InvoiceItemInput) {
   const line = calculateLine({
     quantity: item.quantity,
-    unitPriceAgora: item.unitPriceAgora,
+    unitPriceMinorUnits: item.unitPriceMinorUnits,
     discountPercent: item.discountPercent,
     vatRateBasisPoints: item.vatRateBasisPoints,
   });
@@ -100,12 +100,12 @@ function buildItemInsert(invoiceId: string, item: InvoiceItemInput) {
     description: item.description,
     catalogNumber: item.catalogNumber ?? null,
     quantity: String(item.quantity),
-    unitPriceAgora: item.unitPriceAgora,
+    unitPriceMinorUnits: item.unitPriceMinorUnits,
     discountPercent: String(item.discountPercent),
     vatRateBasisPoints: item.vatRateBasisPoints,
-    lineTotalAgora: line.lineTotalAgora,
-    vatAmountAgora: line.vatAmountAgora,
-    lineTotalInclVatAgora: line.lineTotalInclVatAgora,
+    lineTotalMinorUnits: line.lineTotalMinorUnits,
+    vatAmountMinorUnits: line.vatAmountMinorUnits,
+    lineTotalInclVatMinorUnits: line.lineTotalInclVatMinorUnits,
   };
 }
 
@@ -113,7 +113,7 @@ function computeTotals(items: InvoiceItemInput[]) {
   return calculateInvoiceTotals(
     items.map((i) => ({
       quantity: i.quantity,
-      unitPriceAgora: i.unitPriceAgora,
+      unitPriceMinorUnits: i.unitPriceMinorUnits,
       discountPercent: i.discountPercent,
       vatRateBasisPoints: i.vatRateBasisPoints,
     }))
@@ -227,11 +227,11 @@ export async function updateDraft(businessId: string, invoiceId: string, input: 
         const totals = computeTotals(input.items!);
         Object.assign(updates, totals);
       } else {
-        updates['subtotalAgora'] = 0;
-        updates['discountAgora'] = 0;
-        updates['totalExclVatAgora'] = 0;
-        updates['vatAgora'] = 0;
-        updates['totalInclVatAgora'] = 0;
+        updates['subtotalMinorUnits'] = 0;
+        updates['discountMinorUnits'] = 0;
+        updates['totalExclVatMinorUnits'] = 0;
+        updates['vatMinorUnits'] = 0;
+        updates['totalInclVatMinorUnits'] = 0;
       }
 
       const updated = await updateInvoice(
@@ -333,7 +333,7 @@ export async function finalize(
     // Recalculate totals
     const lineInputs = items.map((i) => ({
       quantity: Number(i.quantity),
-      unitPriceAgora: i.unitPriceAgora,
+      unitPriceMinorUnits: i.unitPriceMinorUnits,
       discountPercent: Number(i.discountPercent),
       vatRateBasisPoints: i.vatRateBasisPoints,
     }));
@@ -345,7 +345,7 @@ export async function finalize(
       items.map((i) => {
         const line = calculateLine({
           quantity: Number(i.quantity),
-          unitPriceAgora: i.unitPriceAgora,
+          unitPriceMinorUnits: i.unitPriceMinorUnits,
           discountPercent: Number(i.discountPercent),
           vatRateBasisPoints: i.vatRateBasisPoints,
         });
@@ -355,12 +355,12 @@ export async function finalize(
           description: i.description,
           catalogNumber: i.catalogNumber,
           quantity: i.quantity,
-          unitPriceAgora: i.unitPriceAgora,
+          unitPriceMinorUnits: i.unitPriceMinorUnits,
           discountPercent: i.discountPercent,
           vatRateBasisPoints: i.vatRateBasisPoints,
-          lineTotalAgora: line.lineTotalAgora,
-          vatAmountAgora: line.vatAmountAgora,
-          lineTotalInclVatAgora: line.lineTotalInclVatAgora,
+          lineTotalMinorUnits: line.lineTotalMinorUnits,
+          vatAmountMinorUnits: line.vatAmountMinorUnits,
+          lineTotalInclVatMinorUnits: line.lineTotalInclVatMinorUnits,
         };
       }),
       tx

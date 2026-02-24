@@ -15,7 +15,7 @@ An invoice isn't done until it's paid. Payment recording closes the loop and let
 
 ## Acceptance Criteria
 
-- [ ] `invoice_payments` table: invoiceId, amountAgora, paidAt, method, reference, notes, recordedByUserId
+- [ ] `invoice_payments` table: invoiceId, amountMinorUnits, paidAt, method, reference, notes, recordedByUserId
 - [ ] `POST /businesses/:businessId/invoices/:invoiceId/payments` — record a payment (returns 201)
 - [ ] Payment methods: מזומן (cash), העברה בנקאית (transfer), אשראי (credit), שיק (check), אחר (other)
 - [ ] Partial payment: status → `partially_paid`, remaining balance shown

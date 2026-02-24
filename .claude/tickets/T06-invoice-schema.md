@@ -10,7 +10,7 @@
 ## What & Why
 
 The schema defines the legal structure of an invoice. Every design decision here has a compliance consequence:
-- All amounts stored as agora (integer) — never floats for money
+- All amounts stored as minor units (integer) — never floats for money
 - VAT calculated per line then summed — matches how accountants verify
 - Sequential numbering via SELECT FOR UPDATE to prevent gaps or duplicates
 - Customer data snapshot on finalization — the invoice must reflect who it was issued to, even if the customer record changes later
@@ -121,12 +121,12 @@ invoiceDate           date NOT NULL (defaults to today at draft creation)
 issuedAt              timestamp with tz (nullable — system-set on finalization)
 dueDate               date (nullable — optional)
 
--- Amounts (all nullable for draft state, in agora = 1/100 shekel)
-subtotalAgora         integer (nullable)
-discountAgora         integer (nullable)
-totalExclVatAgora     integer (nullable)
-vatAgora              integer (nullable)
-totalInclVatAgora     integer (nullable)
+-- Amounts (all nullable for draft state, in minor units = 1/100 of the currency unit)
+subtotalMinorUnits         integer (nullable)
+discountMinorUnits         integer (nullable)
+totalExclVatMinorUnits     integer (nullable)
+vatMinorUnits              integer (nullable)
+totalInclVatMinorUnits     integer (nullable)
 
 -- Status
 status                invoiceStatusEnum NOT NULL DEFAULT 'draft'
@@ -142,7 +142,7 @@ creditedInvoiceId     uuid FK → invoices (nullable — only for credit notes, 
 
 -- Metadata
 currency              text NOT NULL DEFAULT 'ILS' (forward-compat; MVP enforces ILS-only)
-vatExemptionReason    text (nullable — required on finalization when vatAgora=0 and business is not exempt)
+vatExemptionReason    text (nullable — required on finalization when vatMinorUnits=0 and business is not exempt)
 notes                 text (nullable — appears on invoice)
 internalNotes         text (nullable — internal only)
 sentAt                timestamp with tz (nullable — first sent timestamp)
@@ -170,11 +170,11 @@ invoiceId         uuid FK → invoices (cascade delete) NOT NULL
 position          integer NOT NULL (display order, gaps allowed)
 description       text NOT NULL
 quantity          numeric(12,4) NOT NULL (supports fractional units, e.g. 2.5 hours)
-unitPriceAgora    integer NOT NULL (in agora)
+unitPriceMinorUnits integer NOT NULL (in minor units)
 discountPercent   numeric(5,2) NOT NULL DEFAULT 0 (0-100)
-lineTotalAgora    integer NOT NULL (after discount, before VAT)
+lineTotalMinorUnits integer NOT NULL (after discount, before VAT)
 vatRate           integer NOT NULL (basis points, e.g. 1700 = 17%)
-vatAmountAgora    integer NOT NULL (calculated, rounded per line)
+vatAmountMinorUnits integer NOT NULL (calculated, rounded per line)
 catalogNumber     text (nullable — optional, for SHAAM Table 2.2 ItemId, max 50 chars)
 
 -- Constraints
@@ -202,7 +202,7 @@ PRIMARY KEY (businessId, sequenceGroup)
 |-------|--------|
 | `paymentMethod` | Lives exclusively on `invoice_payments` (T15). No good answer for "which method?" when there are 3 partial payments. |
 | `paymentReference` | Same — belongs on `invoice_payments`. |
-| `paidAmount` | Derived from SUM of `invoice_payments.amountAgora`. Denormalized field would go stale. |
+| `paidAmount` | Derived from SUM of `invoice_payments.amountMinorUnits`. Denormalized field would go stale. |
 
 ### Fields Added (vs. PLAN.md §2.1)
 
@@ -345,21 +345,21 @@ All types defined as **Zod schemas** (following existing convention), with infer
 // Zod schemas — export inferred types via z.infer<typeof lineItemInputSchema>
 lineItemInputSchema:
   quantity: z.number().positive()
-  unitPriceAgora: z.number().int().nonnegative()
+  unitPriceMinorUnits: z.number().int().nonnegative()
   discountPercent: z.number().min(0).max(100)
   vatRateBasisPoints: z.number().int().nonnegative()
 
 lineItemResultSchema:
-  lineTotalAgora: z.number().int()        // after discount, before VAT
-  vatAmountAgora: z.number().int()        // rounded per line
-  lineTotalInclVatAgora: z.number().int() // lineTotal + VAT
+  lineTotalMinorUnits: z.number().int()        // after discount, before VAT
+  vatAmountMinorUnits: z.number().int()        // rounded per line
+  lineTotalInclVatMinorUnits: z.number().int() // lineTotal + VAT
 
 invoiceTotalsSchema:
-  subtotalAgora: z.number().int()       // sum of individually-rounded gross amounts (before discount)
-  discountAgora: z.number().int()       // sum of line discounts
-  totalExclVatAgora: z.number().int()   // sum of lineTotals
-  vatAgora: z.number().int()            // sum of vatAmounts
-  totalInclVatAgora: z.number().int()   // totalExclVat + vat
+  subtotalMinorUnits: z.number().int()       // sum of individually-rounded gross amounts (before discount)
+  discountMinorUnits: z.number().int()       // sum of line discounts
+  totalExclVatMinorUnits: z.number().int()   // sum of lineTotals
+  vatMinorUnits: z.number().int()            // sum of vatAmounts
+  totalInclVatMinorUnits: z.number().int()   // totalExclVat + vat
 
 function calculateLine(item: LineItemInput): LineItemResult
 function calculateInvoiceTotals(items: LineItemInput[]): InvoiceTotals
@@ -367,9 +367,9 @@ function calculateInvoiceTotals(items: LineItemInput[]): InvoiceTotals
 
 **Rounding**: `Math.round` (standard rounding). Israel uses standard rounding for tax calculations. Rounding order: round gross first, then compute and round discount, then compute and round VAT. Two rounding operations before `lineTotal` — this is intentional and matches the per-line verification method.
 
-**VAT per line, then sum**: This matches how Israeli accountants verify — they check each line independently. The sum of per-line VAT may differ from "VAT on subtotal" by a few agora due to rounding. Per-line is the legally correct method.
+**VAT per line, then sum**: This matches how Israeli accountants verify — they check each line independently. The sum of per-line VAT may differ from "VAT on subtotal" by a few minor units due to rounding. Per-line is the legally correct method.
 
-**Zero amounts**: `unitPriceAgora = 0` is allowed (complimentary items). `discountPercent = 100` is allowed (produces `lineTotal = 0`). The VAT engine does not reject these — validation is the service layer's job.
+**Zero amounts**: `unitPriceMinorUnits = 0` is allowed (complimentary items). `discountPercent = 100` is allowed (produces `lineTotal = 0`). The VAT engine does not reject these — validation is the service layer's job.
 
 ### Server-Side Validation on Finalization
 
@@ -410,7 +410,7 @@ createInvoiceDraftBodySchema:
   items               optional array of:
     description       required
     quantity          required, positive number
-    unitPriceAgora    required, non-negative integer
+    unitPriceMinorUnits required, non-negative integer
     discountPercent   optional, 0-100
     vatRateBasisPoints required, non-negative integer
     catalogNumber     optional
@@ -431,7 +431,7 @@ finalizeInvoiceBodySchema:
 invoiceItemSchema        — full item with id, all calculated fields (quantity/discountPercent as numbers)
 invoiceSchema            — full invoice with all fields
 invoiceResponseSchema    — { invoice, items[] }
-invoiceListItemSchema    — id, fullNumber, customerName, documentType, invoiceDate, totalInclVatAgora, status, isOverdue
+invoiceListItemSchema    — id, fullNumber, customerName, documentType, invoiceDate, totalInclVatMinorUnits, status, isOverdue
 invoiceListResponseSchema — { invoices[], total }
 ```
 

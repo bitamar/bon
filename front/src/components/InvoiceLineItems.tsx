@@ -10,14 +10,14 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { calculateLine } from '@bon/types/vat';
-import { formatAgora, shekelToAgora } from '../lib/format';
+import { formatMinorUnits, toMinorUnits } from '../lib/format';
 
 export interface LineItemFormRow {
   key: string;
   description: string;
   catalogNumber: string;
   quantity: number;
-  unitPriceShekel: number;
+  unitPrice: number;
   discountPercent: number;
   vatRateBasisPoints: number;
 }
@@ -37,11 +37,11 @@ const VAT_OPTIONS = [
 function computeLineTotal(row: Readonly<LineItemFormRow>): number {
   const result = calculateLine({
     quantity: row.quantity,
-    unitPriceAgora: shekelToAgora(row.unitPriceShekel),
+    unitPriceMinorUnits: toMinorUnits(row.unitPrice),
     discountPercent: row.discountPercent,
     vatRateBasisPoints: row.vatRateBasisPoints,
   });
-  return result.lineTotalInclVatAgora;
+  return result.lineTotalInclVatMinorUnits;
 }
 
 export function InvoiceLineItems({
@@ -67,7 +67,7 @@ export function InvoiceLineItems({
         description: '',
         catalogNumber: '',
         quantity: 1,
-        unitPriceShekel: 0,
+        unitPrice: 0,
         discountPercent: 0,
         vatRateBasisPoints: defaultVatRate,
       },
@@ -97,10 +97,8 @@ export function InvoiceLineItems({
           />
           <NumberInput
             label={index === 0 ? 'מחיר יח׳' : undefined}
-            value={row.unitPriceShekel}
-            onChange={(val) =>
-              updateRow(index, { unitPriceShekel: typeof val === 'number' ? val : 0 })
-            }
+            value={row.unitPrice}
+            onChange={(val) => updateRow(index, { unitPrice: typeof val === 'number' ? val : 0 })}
             prefix="₪"
             decimalScale={2}
             min={0}
@@ -134,7 +132,7 @@ export function InvoiceLineItems({
             style={{ whiteSpace: 'nowrap' }}
             {...(index === 0 ? { pb: 0 } : {})}
           >
-            {formatAgora(computeLineTotal(row))}
+            {formatMinorUnits(computeLineTotal(row))}
           </Text>
           {items.length > 1 ? (
             <ActionIcon

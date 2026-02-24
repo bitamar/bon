@@ -19,14 +19,14 @@ The invoice list's summary row shows aggregate totals: "סה"כ לגבייה" (t
 - [ ] Add `aggregates` field to `invoiceListResponseSchema`:
   ```typescript
   aggregates: z.object({
-    totalOutstandingAgora: z.number().int(),
+    totalOutstandingMinorUnits: z.number().int(),
     countOutstanding: z.number().int(),
-    totalFilteredAgora: z.number().int(),
+    totalFilteredMinorUnits: z.number().int(),
     countFiltered: z.number().int(),
   })
   ```
 - [ ] New repository methods:
-  - `aggregateOutstanding(businessId, filters)` — sum of `totalInclVatAgora` for status IN (`finalized`, `sent`, `partially_paid`) within filtered set (customer + date + q filters apply, status filter chip does NOT override)
+  - `aggregateOutstanding(businessId, filters)` — sum of `totalInclVatMinorUnits` for status IN (`finalized`, `sent`, `partially_paid`) within filtered set (customer + date + q filters apply, status filter chip does NOT override)
   - `aggregateFiltered(filters)` — sum/count for entire filtered set
 - [ ] Update `listInvoices` service method to run aggregate queries (parallel with `Promise.all`)
 - [ ] Tests for aggregate values

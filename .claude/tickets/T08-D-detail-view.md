@@ -47,7 +47,7 @@ This sub-ticket also adds routing guards: non-draft invoices on the edit route r
   - [ ] `dueDate` (if set)
   - [ ] Customer section: `customerName`, `customerTaxId`, `customerAddress`, `customerEmail`
   - [ ] Line items table: description, quantity, unit price, discount %, line total, VAT amount
-  - [ ] Totals: `subtotalAgora`, `discountAgora` (if > 0), `totalExclVatAgora`, `vatAgora` with rate label, `totalInclVatAgora`
+  - [ ] Totals: `subtotalMinorUnits`, `discountMinorUnits` (if > 0), `totalExclVatMinorUnits`, `vatMinorUnits` with rate label, `totalInclVatMinorUnits`
   - [ ] `vatExemptionReason` (if set, displayed prominently near totals)
   - [ ] `notes` (if set)
   - [ ] `allocationNumber` (if set, in a prominent box labeled "מספר הקצאה")

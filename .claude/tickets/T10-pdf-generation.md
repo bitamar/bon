@@ -190,7 +190,7 @@ File: `pdf/src/lib/puppeteer.ts` (in the PDF service workspace, not the API)
 
 File: `api/src/services/pdf-service.ts`
 
-```typescript
+```
 generateInvoicePdf(businessId, invoiceId): Promise<{ data: Buffer; filename: string }>
 invalidatePdfCache(businessId, invoiceId): Promise<void>
 ```
@@ -206,7 +206,7 @@ Logic:
 
 File: `pdf/src/routes/render.ts`
 
-```typescript
+```
 POST /render
 Body: { invoice, items, business, options: { watermark?: boolean } }
 Response: application/pdf buffer
@@ -238,7 +238,7 @@ Invoice snapshot doesn't include `customerTaxIdType`. Use generic "מ.ז./ח.פ.
 
 ### Amount Formatting Helper
 
-Already consolidated in `types/src/formatting.ts` by T08-A. The PDF service imports `formatAgora` and `formatDate` from `@bon/types/formatting`.
+Already consolidated in `types/src/formatting.ts` by T08-A. The PDF service imports `formatMinorUnits` and `formatDate` from `@bon/types/formatting`.
 
 ### File Structure
 

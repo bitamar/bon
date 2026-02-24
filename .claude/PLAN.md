@@ -193,7 +193,7 @@ In Israel it's harder because the law requires more — but we can still hide th
 
 Full schema definition is in the T06 ticket. Key design decisions:
 
-- All amounts in **agora** (integer, 1/100 shekel). Never floats for money.
+- All amounts in **minor units** (integer, 1/100 of the currency unit). Never floats for money.
 - **Customer snapshot** on finalization: `customerName`, `customerTaxId`, `customerAddress`, `customerEmail` — immutable copy.
 - **`customerId` FK**: `ON DELETE SET NULL` — customer data survives in snapshot fields.
 - **Status enum**: `draft, finalized, sent, paid, partially_paid, cancelled, credited` — `credited` included from day one.
@@ -236,7 +236,7 @@ Key decisions:
 - Types defined as **Zod schemas** (not plain interfaces), following `types/` convention.
 - Engine does **not** enforce valid VAT rates — calculates for any rate. Rate validation is the service layer's job (T07).
 - **Credit notes**: positive amounts, same `calculateLine()` — sign applied at document level.
-- **Zero amounts allowed**: `unitPriceAgora = 0` and `discountPercent = 100` are valid. Validation is the service layer's concern.
+- **Zero amounts allowed**: `unitPriceMinorUnits = 0` and `discountPercent = 100` are valid. Validation is the service layer's concern.
 - **Rounding order**: round gross first, then round discount, then round VAT. Two rounding ops before lineTotal — intentional, matches per-line accountant verification.
 - **Mixed VAT rates**: no structured breakdown in totals. Per-line VAT is in `invoice_items` — derivable when needed (T12/T09).
 
@@ -500,16 +500,16 @@ The SHAAM API expects a JSON payload with ~26 fields. Map from invoice:
   "VatNumber": business.vatNumber,
   "DocumentNumber": invoice.fullNumber,
   "DocumentDate": invoice.invoiceDate,       // YYYY-MM-DD
-  "DealAmount": invoice.totalExclVatAgora / 100,  // in shekels (decimal)
-  "VatAmount": invoice.vatAgora / 100,
-  "TotalAmount": invoice.totalInclVatAgora / 100,
+  "DealAmount": invoice.totalExclVatMinorUnits / 100,  // in major currency units (decimal)
+  "VatAmount": invoice.vatMinorUnits / 100,
+  "TotalAmount": invoice.totalInclVatMinorUnits / 100,
   "ClientVatNumber": customer.taxId,        // required if isLicensedDealer
   // ...all other required fields
   "LineItems": lineItems.map(item => ({     // Table 2.2
     "Description": item.description,
     "Quantity": item.quantity,
-    "UnitPrice": item.unitPriceAgora / 100,
-    "LineTotal": item.lineTotalAgora / 100,
+    "UnitPrice": item.unitPriceMinorUnits / 100,
+    "LineTotal": item.lineTotalMinorUnits / 100,
     // ...
   }))
 }
@@ -522,9 +522,9 @@ Store the full request and response JSON in a `shaam_audit_log` table for debugg
 An invoice requires an allocation number when:
 ```typescript
 function requiresAllocationNumber(invoice: Invoice, customer: Customer, business: Business): boolean {
-  if (invoice.vatAgora === 0) return false;          // no VAT = no SHAAM
+  if (invoice.vatMinorUnits === 0) return false;          // no VAT = no SHAAM
   if (!customer.isLicensedDealer) return false;      // B2C = no SHAAM
-  if (invoice.totalExclVatAgora < currentThreshold()) return false;  // below threshold
+  if (invoice.totalExclVatMinorUnits < currentThreshold()) return false;  // below threshold
   return true;
 }
 
@@ -583,7 +583,7 @@ When a payment arrives:
 invoice_payments table:
   id              uuid PK
   invoiceId       uuid FK → invoices
-  amountAgora     integer NOT NULL
+  amountMinorUnits integer NOT NULL
   paidAt          date NOT NULL
   method          enum: cash, transfer, credit, check, other
   reference       text

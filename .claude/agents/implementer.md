@@ -46,7 +46,7 @@ Always read the relevant existing files first:
 **Database:**
 - Schema changes in `api/src/db/schema.ts` using Drizzle table definitions
 - After schema changes, run `npm run db:generate -w api` to create migration
-- Use integer cents (agora) for monetary amounts — never floating point
+- Use integer minor units for monetary amounts — never floating point
 - Always include `created_at` and `updated_at` timestamps on new tables
 - UUID primary keys (`uuid().defaultRandom().primaryKey()`)
 

@@ -1,5 +1,5 @@
 {
-  "id": "f3d0d2ee-bfed-486f-a23d-5ffdda31c3d9",
+  "id": "c1b10e31-95f5-4089-b25b-13371c513a8d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -521,8 +521,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "unit_price_agora": {
-          "name": "unit_price_agora",
+        "unit_price_minor_units": {
+          "name": "unit_price_minor_units",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -540,22 +540,22 @@
           "primaryKey": false,
           "notNull": true
         },
-        "line_total_agora": {
-          "name": "line_total_agora",
+        "line_total_minor_units": {
+          "name": "line_total_minor_units",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "default": 0
         },
-        "vat_amount_agora": {
-          "name": "vat_amount_agora",
+        "vat_amount_minor_units": {
+          "name": "vat_amount_minor_units",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "default": 0
         },
-        "line_total_incl_vat_agora": {
-          "name": "line_total_incl_vat_agora",
+        "line_total_incl_vat_minor_units": {
+          "name": "line_total_incl_vat_minor_units",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -786,36 +786,36 @@
           "primaryKey": false,
           "notNull": false
         },
-        "subtotal_agora": {
-          "name": "subtotal_agora",
+        "subtotal_minor_units": {
+          "name": "subtotal_minor_units",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "default": 0
         },
-        "discount_agora": {
-          "name": "discount_agora",
+        "discount_minor_units": {
+          "name": "discount_minor_units",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "default": 0
         },
-        "total_excl_vat_agora": {
-          "name": "total_excl_vat_agora",
+        "total_excl_vat_minor_units": {
+          "name": "total_excl_vat_minor_units",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "default": 0
         },
-        "vat_agora": {
-          "name": "vat_agora",
+        "vat_minor_units": {
+          "name": "vat_minor_units",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "default": 0
         },
-        "total_incl_vat_agora": {
-          "name": "total_incl_vat_agora",
+        "total_incl_vat_minor_units": {
+          "name": "total_incl_vat_minor_units",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

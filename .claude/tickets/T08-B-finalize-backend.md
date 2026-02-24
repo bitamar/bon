@@ -37,7 +37,7 @@ The finalize endpoint (built in T07) needs a small extension to support `vatExem
     })
     .strict();
   ```
-- [ ] Validation in `finalize()`: when `vatAgora === 0` AND `business.businessType !== 'exempt_dealer'`, require `vatExemptionReason` — throw 422 with code `missing_vat_exemption_reason` if absent
+- [ ] Validation in `finalize()`: when `vatMinorUnits === 0` AND `business.businessType !== 'exempt_dealer'`, require `vatExemptionReason` — throw 422 with code `missing_vat_exemption_reason` if absent
 - [ ] `vatExemptionReason` persisted on the invoice record
 - [ ] Tests:
   - [ ] Finalize with `vatExemptionReason` on 0% VAT invoice → 200

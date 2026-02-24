@@ -205,7 +205,7 @@ InvoiceEdit (page)
   |   |-- LineItemRow (one per item)
   |   |   |-- TextInput (description, maxLength=255)
   |   |   |-- NumberInput (quantity, min=0.0001, decimalScale=4)
-  |   |   |-- NumberInput (unitPriceAgora, formatted as ₪ currency)
+  |   |   |-- NumberInput (unitPrice, formatted as ₪ currency)
   |   |   |-- NumberInput (discountPercent, suffix="%", min=0, max=100)
   |   |   |-- Text (calculated line total, read-only)
   |   |   |-- Text (calculated VAT amount, read-only)
@@ -352,7 +352,7 @@ These need human input before implementation. The implementer should NOT resolve
 |---|----------|---------------------|
 | 1 | Can a user have multiple simultaneous drafts? | Yes — each visit to `/new` creates a new draft. Stale drafts are cleaned up in T09 (list view allows draft deletion). |
 | 2 | Should there be a maximum number of line items per invoice? | 100 (enforced server-side on create/update; SHAAM payload + PDF layout considerations) |
-| 3 | Can the invoice total be zero? (e.g., fully discounted complimentary service) | Yes — `totalInclVatAgora >= 0` is valid. Only reject negative totals (which shouldn't be possible with positive inputs). |
+| 3 | Can the invoice total be zero? (e.g., fully discounted complimentary service) | Yes — `totalInclVatMinorUnits >= 0` is valid. Only reject negative totals (which shouldn't be possible with positive inputs). |
 | 4 | Should `invoiceDate` restrictions apply on draft save or only on finalization? | Only on finalization. Allow any date during drafting. |
 | 5 | What happens to abandoned drafts? (user creates but never finalizes) | No auto-cleanup in T07. T09 will show drafts in the list with delete option. A future ticket can add expiry policy. |
 | 6 | Should the `vatExemptionReason` field appear in the create/edit form? | Defer to T08 — it's required on finalization (when VAT=0 and business is non-exempt) but can be prompted during the finalization preview flow. |

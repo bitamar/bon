@@ -33,7 +33,7 @@ PR 2 cannot start until PR 1 is merged.
   - `dateFrom`: ISO date (YYYY-MM-DD). Returns invoices with `invoiceDate >= dateFrom`
   - `dateTo`: ISO date. If `dateFrom > dateTo` → 422 with message "תאריך סיום חייב להיות אחרי תאריך התחלה"
   - `q`: search string (max 100 chars). Searches `fullNumber` (ILIKE) and `customerName` (ILIKE). Case-insensitive. ANDed with other filters. Uses `escapeLikePattern()`.
-  - `sort`: enum. Valid: `invoiceDate:asc`, `invoiceDate:desc`, `dueDate:asc`, `dueDate:desc`, `totalInclVatAgora:asc`, `totalInclVatAgora:desc`, `createdAt:desc`. Default: `invoiceDate:desc`. Invalid → 422.
+  - `sort`: enum. Valid: `invoiceDate:asc`, `invoiceDate:desc`, `dueDate:asc`, `dueDate:desc`, `totalInclVatMinorUnits:asc`, `totalInclVatMinorUnits:desc`, `createdAt:desc`. Default: `invoiceDate:desc`. Invalid → 422.
   - `page`: positive integer, default 1
   - `limit`: positive integer, max 200, default 20
 - [ ] `invoiceListQuerySchema` defined in `types/src/invoices.ts`
@@ -157,7 +157,7 @@ export const invoiceListItemSchema = z.object({
   fullNumber: nullableString,
   invoiceDate: z.string(),
   dueDate: z.union([z.string(), z.literal(null)]),    // needed for client-side overdue calc
-  totalInclVatAgora: z.number().int(),
+  totalInclVatMinorUnits: z.number().int(),
   currency: z.string(),
   createdAt: isoDateTime,
 });
@@ -176,7 +176,7 @@ export const invoiceListResponseSchema = z.object({
 
 ```typescript
 const ALLOWED_SORTS = ['invoiceDate:asc', 'invoiceDate:desc', 'dueDate:asc', 'dueDate:desc',
-  'totalInclVatAgora:asc', 'totalInclVatAgora:desc', 'createdAt:desc'] as const;
+  'totalInclVatMinorUnits:asc', 'totalInclVatMinorUnits:desc', 'createdAt:desc'] as const;
 ```
 
 Default: `invoiceDate:desc`. For "outstanding" view, frontend passes `sort=dueDate:asc` (oldest due first). Null `dueDate` sorts last.
@@ -185,7 +185,7 @@ Default: `invoiceDate:desc`. For "outstanding" view, frontend passes `sort=dueDa
 
 Add to `invoice-repository.ts`:
 
-```typescript
+```
 findInvoices(filters: InvoiceListFilters, txOrDb?): Promise<InvoiceRecord[]>
 countInvoices(filters, txOrDb?): Promise<number>
 // aggregateOutstanding + aggregateFiltered → deferred to T09-B
@@ -201,7 +201,7 @@ if (filters.q) {
 
 ### Service Layer
 
-```typescript
+```
 listInvoices(businessId: string, query: InvoiceListQuery): Promise<InvoiceListResponse>
 ```
 
@@ -240,7 +240,7 @@ When T16 ships, credit note rows will appear in this list. The table structure a
 
 ### Frontend Query Key
 
-```typescript
+```
 invoiceList: (businessId: string, params: Record<string, string>) =>
   ['businesses', businessId, 'invoices', 'list', params] as const,
 ```

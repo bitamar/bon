@@ -28,7 +28,7 @@ import { deleteInvoiceDraft, fetchInvoice, updateInvoiceDraft } from '../api/inv
 import { fetchBusiness } from '../api/businesses';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
-import { formatAgora, shekelToAgora } from '../lib/format';
+import { formatMinorUnits, toMinorUnits } from '../lib/format';
 import { showErrorNotification } from '../lib/notifications';
 import { calculateInvoiceTotals } from '@bon/types/vat';
 import type { DocumentType, UpdateInvoiceDraftBody } from '@bon/types/invoices';
@@ -78,7 +78,7 @@ function makeEmptyRow(defaultVatRate: number): LineItemFormRow {
     description: '',
     catalogNumber: '',
     quantity: 1,
-    unitPriceShekel: 0,
+    unitPrice: 0,
     discountPercent: 0,
     vatRateBasisPoints: defaultVatRate,
   };
@@ -127,7 +127,7 @@ export function InvoiceEdit() {
                 description: it.description,
                 catalogNumber: it.catalogNumber ?? '',
                 quantity: it.quantity,
-                unitPriceShekel: it.unitPriceAgora / 100,
+                unitPrice: it.unitPriceMinorUnits / 100,
                 discountPercent: it.discountPercent,
                 vatRateBasisPoints: it.vatRateBasisPoints,
               }))
@@ -242,11 +242,11 @@ export function InvoiceEdit() {
     if (!form) return;
 
     const nonEmptyItems = form.items.filter(
-      (item) => item.description.trim() !== '' || item.unitPriceShekel !== 0
+      (item) => item.description.trim() !== '' || item.unitPrice !== 0
     );
 
     const hasPartialRows = nonEmptyItems.some(
-      (item) => item.description.trim() === '' && item.unitPriceShekel !== 0
+      (item) => item.description.trim() === '' && item.unitPrice !== 0
     );
 
     if (hasPartialRows) {
@@ -265,7 +265,7 @@ export function InvoiceEdit() {
         description: item.description,
         catalogNumber: item.catalogNumber || undefined,
         quantity: item.quantity,
-        unitPriceAgora: shekelToAgora(item.unitPriceShekel),
+        unitPriceMinorUnits: toMinorUnits(item.unitPrice),
         discountPercent: item.discountPercent,
         vatRateBasisPoints: item.vatRateBasisPoints,
         position: index,
@@ -280,7 +280,7 @@ export function InvoiceEdit() {
   const headerTotals = calculateInvoiceTotals(
     form.items.map((row) => ({
       quantity: row.quantity,
-      unitPriceAgora: Math.round(row.unitPriceShekel * 100),
+      unitPriceMinorUnits: Math.round(row.unitPrice * 100),
       discountPercent: row.discountPercent,
       vatRateBasisPoints: row.vatRateBasisPoints,
     }))
@@ -299,7 +299,7 @@ export function InvoiceEdit() {
             </Group>
             <Group gap="sm">
               <Text size="lg" fw={600}>
-                {formatAgora(headerTotals.totalInclVatAgora)}
+                {formatMinorUnits(headerTotals.totalInclVatMinorUnits)}
               </Text>
               {invoice.fullNumber === null && (
                 <Text size="sm" c="dimmed">
