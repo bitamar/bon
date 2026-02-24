@@ -68,6 +68,13 @@ function toDateOrNull(val: DateValue): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function makeEmptyRow(defaultVatRate: number): LineItemFormRow {
   return {
     key: crypto.randomUUID(),
@@ -244,15 +251,15 @@ export function InvoiceEdit() {
     );
 
     if (hasPartialRows) {
-      showErrorNotification('יש שורות חלקיות — נא למלא תיאור ומחיר לכל שורה');
+      showErrorNotification('יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר');
       return;
     }
 
     const payload: UpdateInvoiceDraftBody = {
       documentType: form.documentType,
       customerId: form.customerId ?? null,
-      invoiceDate: form.invoiceDate?.toISOString().slice(0, 10) ?? null,
-      dueDate: form.dueDate?.toISOString().slice(0, 10) ?? null,
+      invoiceDate: form.invoiceDate ? toLocalDateString(form.invoiceDate) : null,
+      dueDate: form.dueDate ? toLocalDateString(form.dueDate) : null,
       notes: form.notes || null,
       internalNotes: form.internalNotes || null,
       items: nonEmptyItems.map((item, index) => ({

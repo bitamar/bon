@@ -188,6 +188,7 @@ describe('InvoiceEdit page', () => {
         'inv-1',
         expect.objectContaining({
           documentType: 'tax_invoice',
+          invoiceDate: '2026-02-23',
           items: expect.arrayContaining([
             expect.objectContaining({
               description: 'שירות ייעוץ',
@@ -238,7 +239,9 @@ describe('InvoiceEdit page', () => {
     await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
 
     await waitFor(() => {
-      expect(showErrorNotification).toHaveBeenCalled();
+      expect(showErrorNotification).toHaveBeenCalledWith(
+        'יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר'
+      );
     });
     expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
   });
