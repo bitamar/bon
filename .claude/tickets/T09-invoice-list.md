@@ -247,6 +247,104 @@ invoiceList: (businessId: string, params: Record<string, string>) =>
 
 ---
 
+## Architecture Review Delta (from codebase audit, 2026-02-24)
+
+This section captures findings from a design review against the current codebase state (post T08-A/B merge). The Implementer must follow these notes in addition to the acceptance criteria above.
+
+### Codebase compatibility confirmed
+
+- `escapeLikePattern()` exists in `api/src/lib/query-utils.ts`, already used by `customer-repository.ts`
+- `INVOICE_STATUS_CONFIG` exists in `front/src/lib/invoiceStatus.ts` with all 7 statuses
+- `DOCUMENT_TYPE_LABELS` exists in `types/src/invoices.ts` line 170
+- `CustomerSelect` exists in `front/src/components/CustomerSelect.tsx`
+- `queryKeys.invoices` exists in `front/src/lib/queryKeys.ts`
+- DB indexes exist: `invoices_business_status_idx`, `invoices_business_date_idx`, `invoices_business_customer_idx`
+- `dueDate` column exists on the `invoices` table as `date('due_date', { mode: 'string' })` — nullable
+
+### CRITICAL: Do not drop `sequenceGroup` from `invoiceListItemSchema`
+
+The current `invoiceListItemSchema` (line 144 of `types/src/invoices.ts`) includes `sequenceGroup`. The proposed schema in the Architecture Notes above omits it. The Implementer must **ADD** `dueDate` and `currency` to the existing schema, not replace it.
+
+### Use `nullableDateString` for `dueDate`
+
+The Architecture Notes show `z.union([z.string(), z.literal(null)])` for `dueDate`. Use `nullableDateString` from `@bon/types/common` instead — this matches the full `invoiceSchema` at line 120 which already uses `nullableDateString`.
+
+### `sort` — use `z.enum()` instead of free-text + whitelist
+
+Replace the Architecture Notes' `z.string().trim().optional()` for `sort` with:
+```typescript
+sort: z.enum([
+  'invoiceDate:asc', 'invoiceDate:desc',
+  'dueDate:asc', 'dueDate:desc',
+  'totalInclVatMinorUnits:asc', 'totalInclVatMinorUnits:desc',
+  'createdAt:desc',
+]).optional().default('invoiceDate:desc'),
+```
+This gives free 400 validation on invalid values. No separate whitelist constant needed.
+
+### `status` — parse comma-separated into array in Zod
+
+```typescript
+status: z.string().trim()
+  .transform((s) => s.split(',').map((v) => v.trim()).filter(Boolean))
+  .pipe(z.array(invoiceStatusSchema).min(1))
+  .optional(),
+```
+The service layer receives `string[]`, not a raw comma-delimited string.
+
+### `dateFrom > dateTo` validation produces 400, not 422
+
+Zod refinement on the query schema runs during Fastify's querystring validation, which produces 400. Use `.refine()`:
+```typescript
+.refine(
+  (data) => !data.dateFrom || !data.dateTo || data.dateFrom <= data.dateTo,
+  { message: 'תאריך סיום חייב להיות אחרי תאריך התחלה', path: ['dateTo'] }
+)
+```
+Update test expectations to expect 400 instead of 422.
+
+### Route handler must use `querystring` key
+
+Fastify uses `querystring` (not `query`) in schema definitions. Follow the pattern from `api/src/routes/customers.ts` line 28.
+
+### Repository pattern: standalone functions, not class
+
+`invoice-repository.ts` uses standalone exported functions with `txOrDb: DbOrTx = db` as the last parameter. New `findInvoices` and `countInvoices` must follow this exact pattern. Will need new imports from `drizzle-orm`: `desc`, `asc`, `count`, `gte`, `lte`, `ilike`, `or`.
+
+### Add `serializeInvoiceListItem()` to service layer
+
+The list endpoint needs a separate serializer. `createdAt` is a timestamp needing `.toISOString()`. `invoiceDate`/`dueDate` use `mode: 'string'` so they're already strings. Follow the defensive `coerceToDateString()` pattern.
+
+### Export types
+
+Add to `types/src/invoices.ts`:
+```typescript
+export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
+export type InvoiceListResponse = z.infer<typeof invoiceListResponseSchema>;
+```
+
+### Frontend: `CustomerSelect` needs filter variant props
+
+The existing `CustomerSelect` includes a "+ לקוח חדש" link and fixed label. For the invoice list filter, add optional props: `label?: string`, `showCreateLink?: boolean` (default `true`). This is a minimal extension.
+
+### Frontend: Enable Navbar "חשבוניות" link
+
+T08-D explicitly defers this to T09. The Navbar at `front/src/Navbar.tsx` has the link disabled. T09 PR2 must update it to:
+```tsx
+<NavLink component={Link} to="/business/invoices" label="חשבוניות" ... />
+```
+Add `front/src/Navbar.tsx` to the modified files list.
+
+### Frontend API: follow `customers.ts` pattern
+
+`fetchInvoices` should use `URLSearchParams`, call `fetchJson<unknown>()`, and parse with `invoiceListResponseSchema.parse(json)`. Follow `front/src/api/customers.ts` lines 12-26.
+
+### No merge conflict risk with T08-C/D
+
+T08-C/D are frontend-only (modals, detail page). T09 backend PR touches `api/src/routes/invoices.ts` (new GET handler) and `types/src/invoices.ts` (new schemas at end of file). These are additive changes with no overlap.
+
+---
+
 ## Links
 
 - Branch: —
