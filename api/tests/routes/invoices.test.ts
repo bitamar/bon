@@ -19,6 +19,41 @@ async function setupNonMemberScenario() {
   return { sessionId, business };
 }
 
+interface TestItem {
+  description: string;
+  quantity: number;
+  unitPriceMinorUnits: number;
+  discountPercent: number;
+  vatRateBasisPoints: number;
+  position: number;
+}
+
+const DEFAULT_ITEM: TestItem = {
+  description: 'Item 1',
+  quantity: 1,
+  unitPriceMinorUnits: 10000,
+  discountPercent: 0,
+  vatRateBasisPoints: 1700,
+  position: 0,
+};
+
+function makeItem(overrides: Partial<TestItem> = {}): TestItem {
+  return { ...DEFAULT_ITEM, ...overrides };
+}
+
+function zeroVatItem() {
+  return makeItem({ description: 'Export item', vatRateBasisPoints: 0 });
+}
+
+function expectError(
+  res: { statusCode: number; json: () => unknown },
+  code: number,
+  error: string
+) {
+  expect(res.statusCode).toBe(code);
+  expect((res.json() as { error: string }).error).toBe(error);
+}
+
 describe('routes/invoices', () => {
   const ctx = setupIntegrationTest();
 
@@ -90,18 +125,24 @@ describe('routes/invoices', () => {
     const res = await postInvoice(sessionId, businessId, {
       documentType: 'tax_invoice',
       customerId,
-      items: items ?? [
-        {
-          description: 'Item 1',
-          quantity: 1,
-          unitPriceMinorUnits: 10000,
-          discountPercent: 0,
-          vatRateBasisPoints: 1700,
-          position: 0,
-        },
-      ],
+      items: items ?? [makeItem()],
     });
     return res.json() as InvoiceResponse;
+  }
+
+  /** Owner + business + customer + draft invoice with default items. */
+  async function setupOwnerDraft(items?: object[]) {
+    const { sessionId, business } = await createOwnerWithBusiness();
+    const customer = await createCustomer(sessionId, business.id);
+    const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id, items);
+    return { sessionId, business, customer, invoice };
+  }
+
+  /** Owner + business + customer + draft invoice, then finalized. */
+  async function setupFinalizedInvoice() {
+    const ctx = await setupOwnerDraft();
+    await finalizeInvoice(ctx.sessionId, ctx.business.id, ctx.invoice.id);
+    return ctx;
   }
 
   // ── POST ──
@@ -128,14 +169,12 @@ describe('routes/invoices', () => {
       const res = await postInvoice(sessionId, business.id, {
         documentType: 'tax_invoice',
         items: [
-          {
+          makeItem({
             description: 'Widget',
             quantity: 2,
             unitPriceMinorUnits: 5000,
             discountPercent: 10,
-            vatRateBasisPoints: 1700,
-            position: 0,
-          },
+          }),
         ],
       });
 
@@ -175,15 +214,13 @@ describe('routes/invoices', () => {
 
   describe('GET /businesses/:businessId/invoices/:invoiceId', () => {
     it('fetches an invoice with items', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const created = await createDraftWithItems(sessionId, business.id, customer.id);
+      const { sessionId, business, invoice } = await setupOwnerDraft();
 
-      const res = await getInvoice(sessionId, business.id, created.invoice.id);
+      const res = await getInvoice(sessionId, business.id, invoice.id);
 
       expect(res.statusCode).toBe(200);
       const body = res.json() as InvoiceResponse;
-      expect(body.invoice.id).toBe(created.invoice.id);
+      expect(body.invoice.id).toBe(invoice.id);
       expect(body.items).toHaveLength(1);
     });
 
@@ -204,12 +241,7 @@ describe('routes/invoices', () => {
 
   describe('PATCH /businesses/:businessId/invoices/:invoiceId', () => {
     it('updates draft fields', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const { invoice } = await createDraftWithItems(
-        sessionId,
-        business.id,
-        (await createCustomer(sessionId, business.id)).id
-      );
+      const { sessionId, business, invoice } = await setupOwnerDraft();
 
       const res = await patchInvoice(sessionId, business.id, invoice.id, {
         notes: 'Updated note',
@@ -221,28 +253,12 @@ describe('routes/invoices', () => {
     });
 
     it('replaces items on update', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
+      const { sessionId, business, invoice } = await setupOwnerDraft();
 
       const res = await patchInvoice(sessionId, business.id, invoice.id, {
         items: [
-          {
-            description: 'New Item A',
-            quantity: 3,
-            unitPriceMinorUnits: 2000,
-            discountPercent: 0,
-            vatRateBasisPoints: 1700,
-            position: 0,
-          },
-          {
-            description: 'New Item B',
-            quantity: 1,
-            unitPriceMinorUnits: 1000,
-            discountPercent: 0,
-            vatRateBasisPoints: 1700,
-            position: 1,
-          },
+          makeItem({ description: 'New Item A', quantity: 3, unitPriceMinorUnits: 2000 }),
+          makeItem({ description: 'New Item B', unitPriceMinorUnits: 1000, position: 1 }),
         ],
       });
 
@@ -253,18 +269,13 @@ describe('routes/invoices', () => {
     });
 
     it('rejects update on non-draft invoice (422)', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
-
-      await finalizeInvoice(sessionId, business.id, invoice.id);
+      const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
       const res = await patchInvoice(sessionId, business.id, invoice.id, {
         notes: 'Should fail',
       });
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('not_draft');
+      expectError(res, 422, 'not_draft');
     });
   });
 
@@ -272,12 +283,7 @@ describe('routes/invoices', () => {
 
   describe('DELETE /businesses/:businessId/invoices/:invoiceId', () => {
     it('deletes a draft invoice', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const { invoice } = await createDraftWithItems(
-        sessionId,
-        business.id,
-        (await createCustomer(sessionId, business.id)).id
-      );
+      const { sessionId, business, invoice } = await setupOwnerDraft();
 
       const res = await deleteInvoice(sessionId, business.id, invoice.id);
 
@@ -289,16 +295,11 @@ describe('routes/invoices', () => {
     });
 
     it('rejects deletion of non-draft invoice (422)', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
-
-      await finalizeInvoice(sessionId, business.id, invoice.id);
+      const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
       const res = await deleteInvoice(sessionId, business.id, invoice.id);
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('not_draft');
+      expectError(res, 422, 'not_draft');
     });
   });
 
@@ -334,23 +335,13 @@ describe('routes/invoices', () => {
 
       const createRes = await postInvoice(sessionId, business.id, {
         documentType: 'tax_invoice',
-        items: [
-          {
-            description: 'Item',
-            quantity: 1,
-            unitPriceMinorUnits: 1000,
-            discountPercent: 0,
-            vatRateBasisPoints: 1700,
-            position: 0,
-          },
-        ],
+        items: [makeItem({ description: 'Item', unitPriceMinorUnits: 1000 })],
       });
       const { invoice } = createRes.json() as InvoiceResponse;
 
       const res = await finalizeInvoice(sessionId, business.id, invoice.id);
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('missing_customer');
+      expectError(res, 422, 'missing_customer');
     });
 
     it('rejects finalization without line items (422)', async () => {
@@ -365,8 +356,7 @@ describe('routes/invoices', () => {
 
       const res = await finalizeInvoice(sessionId, business.id, invoice.id);
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('no_line_items');
+      expectError(res, 422, 'no_line_items');
     });
 
     it('rejects finalization with inactive customer (422)', async () => {
@@ -383,8 +373,7 @@ describe('routes/invoices', () => {
 
       const res = await finalizeInvoice(sessionId, business.id, invoice.id);
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('customer_inactive');
+      expectError(res, 422, 'customer_inactive');
     });
 
     it('rejects finalization with invalid VAT rate for exempt dealer (422)', async () => {
@@ -394,26 +383,16 @@ describe('routes/invoices', () => {
 
       const customer = await createCustomer(sessionId, business.id);
       const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id, [
-        {
-          description: 'Item',
-          quantity: 1,
-          unitPriceMinorUnits: 1000,
-          discountPercent: 0,
-          vatRateBasisPoints: 1700, // wrong for exempt dealer
-          position: 0,
-        },
+        makeItem({ unitPriceMinorUnits: 1000 }), // 17% VAT — wrong for exempt dealer
       ]);
 
       const res = await finalizeInvoice(sessionId, business.id, invoice.id);
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('invalid_vat_rate');
+      expectError(res, 422, 'invalid_vat_rate');
     });
 
     it('rejects finalization with future invoice date >7 days (422)', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
+      const { sessionId, business, invoice } = await setupOwnerDraft();
 
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 10);
@@ -423,8 +402,41 @@ describe('routes/invoices', () => {
         invoiceDate: futureDateStr,
       });
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('invalid_invoice_date');
+      expectError(res, 422, 'invalid_invoice_date');
+    });
+
+    it('finalizes 0% VAT invoice with vatExemptionReason on non-exempt business', async () => {
+      const { sessionId, business, invoice } = await setupOwnerDraft([zeroVatItem()]);
+
+      const res = await finalizeInvoice(sessionId, business.id, invoice.id, {
+        vatExemptionReason: 'Export transaction',
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as InvoiceResponse;
+      expect(body.invoice.status).toBe('finalized');
+      expect(body.invoice.vatExemptionReason).toBe('Export transaction');
+    });
+
+    it('rejects 0% VAT finalization without vatExemptionReason on non-exempt business (422)', async () => {
+      const { sessionId, business, invoice } = await setupOwnerDraft([zeroVatItem()]);
+
+      const res = await finalizeInvoice(sessionId, business.id, invoice.id);
+
+      expectError(res, 422, 'missing_vat_exemption_reason');
+    });
+
+    it('stores vatExemptionReason on standard VAT invoice without error', async () => {
+      const { sessionId, business, invoice } = await setupOwnerDraft();
+
+      const res = await finalizeInvoice(sessionId, business.id, invoice.id, {
+        vatExemptionReason: 'Not actually needed',
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as InvoiceResponse;
+      expect(body.invoice.status).toBe('finalized');
+      expect(body.invoice.vatExemptionReason).toBe('Not actually needed');
     });
 
     it('assigns sequential numbers at finalization time, not creation time', async () => {
