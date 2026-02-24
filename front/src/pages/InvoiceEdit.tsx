@@ -302,7 +302,7 @@ export function InvoiceEdit() {
               <Text size="lg" fw={600}>
                 {formatAgora(headerTotals.totalInclVatAgora)}
               </Text>
-              {invoice.fullNumber ? null : (
+              {invoice.fullNumber === null && (
                 <Text size="sm" c="dimmed">
                   מספר יוקצה בהפקה
                 </Text>

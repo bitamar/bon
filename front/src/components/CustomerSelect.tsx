@@ -1,4 +1,4 @@
-import { Anchor, Select, Stack } from '@mantine/core';
+import { Anchor, Loader, Select, Stack } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -22,7 +22,7 @@ export function CustomerSelect({
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebouncedValue(search, 300);
 
-  const { data, error } = useQuery({
+  const { data, error, isLoading } = useQuery({
     queryKey: [...queryKeys.customers(businessId), { q: debouncedSearch || undefined, limit: 50 }],
     queryFn: () => fetchCustomers(businessId, debouncedSearch || undefined, undefined, 50),
     enabled: !!businessId,
@@ -46,6 +46,7 @@ export function CustomerSelect({
         onChange={onChange}
         onSearchChange={setSearch}
         disabled={disabled ?? false}
+        rightSection={isLoading ? <Loader size={16} /> : undefined}
         error={error ? 'שגיאה בטעינת לקוחות' : undefined}
       />
       <Anchor component={Link} to="/business/customers/new" size="sm">

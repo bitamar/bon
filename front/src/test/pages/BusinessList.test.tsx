@@ -126,6 +126,51 @@ describe('BusinessList page', () => {
     expect(editButtons).toHaveLength(2);
   });
 
+  it('clicking "החלף" calls switchBusiness with correct id', async () => {
+    const user = userEvent.setup();
+    const activeBiz = mockBusiness({ id: 'biz-1', name: 'Active Biz', role: 'user' });
+    const otherBiz = mockBusiness({ id: 'biz-2', name: 'Other Biz', role: 'user' });
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Active Biz',
+        businessType: 'licensed_dealer',
+        role: 'user',
+      },
+      businesses: [activeBiz, otherBiz],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(<BusinessList />);
+
+    await user.click(screen.getByRole('button', { name: 'החלף' }));
+
+    expect(switchBusiness).toHaveBeenCalledWith('biz-2');
+  });
+
+  it('"צור עסק חדש" card is accessible and focusable', () => {
+    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer',
+        role: 'owner',
+      },
+      businesses: [business],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(<BusinessList />);
+
+    const addCard = screen.getByRole('button', { name: /צור עסק חדש/ });
+    expect(addCard).toHaveAttribute('tabindex', '0');
+  });
+
   it('clicking "ערוך" calls switchBusiness and navigates to /business/settings', async () => {
     const user = userEvent.setup();
     const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });

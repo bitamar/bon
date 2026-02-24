@@ -175,6 +175,15 @@ describe('TeamManagement page', () => {
     expect(screen.getByText('הזמן משתמשים לצוות כדי לשתף פעולה')).toBeInTheDocument();
   });
 
+  it('shows error state when fetchTeamMembers rejects', async () => {
+    vi.mocked(businessesApi.fetchTeamMembers).mockRejectedValue(new Error('network error'));
+
+    renderWithProviders(<TeamManagement />);
+
+    expect(await screen.findByText('לא הצלחנו לטעון את נתוני הצוות')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'נסה שוב' })).toBeInTheDocument();
+  });
+
   it('confirm remove button calls removeTeamMember and invalidates query', async () => {
     const user = userEvent.setup();
 

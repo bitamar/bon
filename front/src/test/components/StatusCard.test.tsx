@@ -50,6 +50,23 @@ describe('StatusCard', () => {
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
+  it('renders description in loading state', () => {
+    renderWithProviders(
+      <StatusCard status="loading" title="Loading..." description="Please wait" />
+    );
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByText('Please wait')).toBeInTheDocument();
+  });
+
+  it('renders secondaryAction when provided', () => {
+    renderWithProviders(
+      <StatusCard status="empty" title="No items" secondaryAction={<button>Secondary</button>} />
+    );
+
+    expect(screen.getByRole('button', { name: 'Secondary' })).toBeInTheDocument();
+  });
+
   it('renders without crashing when align is start', () => {
     renderWithProviders(<StatusCard status="empty" title="Aligned start" align="start" />);
 

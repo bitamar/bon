@@ -246,6 +246,40 @@ describe('InvoiceEdit page', () => {
     expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
   });
 
+  it('shows error state when invoice fetch fails', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockRejectedValue(new Error('network error'));
+    vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
+    renderEdit();
+
+    expect(await screen.findByText('לא הצלחנו לטעון את החשבונית')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'נסה שוב' })).toBeInTheDocument();
+  });
+
+  it('locks VAT to 0 when document type is receipt', async () => {
+    const receiptInvoice = makeMockInvoice({ documentType: 'receipt' });
+    receiptInvoice.items = [{ ...receiptInvoice.items[0]!, vatRateBasisPoints: 1700 }];
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(receiptInvoice);
+    vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(receiptInvoice);
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    // Save and verify all items have vatRateBasisPoints = 0
+    await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
+
+    await waitFor(() => {
+      expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalledWith(
+        'biz-1',
+        'inv-1',
+        expect.objectContaining({
+          items: expect.arrayContaining([expect.objectContaining({ vatRateBasisPoints: 0 })]),
+        })
+      );
+    });
+  });
+
   it('deletes draft and navigates home on confirm', async () => {
     setupDraftMocks();
     vi.mocked(invoicesApi.deleteInvoiceDraft).mockResolvedValue({ ok: true });
