@@ -1,160 +1,9 @@
 {
-  "id": "5ea4a875-9656-4d22-a73e-8f9f07a0db18",
+  "id": "9ba6b6c1-ddf2-4329-933d-6d915835f096",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.business_invitations": {
-      "name": "business_invitations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "business_id": {
-          "name": "business_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "business_role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "invitation_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "invited_by_user_id": {
-          "name": "invited_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token": {
-          "name": "token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "personal_message": {
-          "name": "personal_message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "accepted_at": {
-          "name": "accepted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "declined_at": {
-          "name": "declined_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "business_invitations_business_id_idx": {
-          "name": "business_invitations_business_id_idx",
-          "columns": [
-            {
-              "expression": "business_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "business_invitations_email_idx": {
-          "name": "business_invitations_email_idx",
-          "columns": [
-            {
-              "expression": "email",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "business_invitations_business_id_businesses_id_fk": {
-          "name": "business_invitations_business_id_businesses_id_fk",
-          "tableFrom": "business_invitations",
-          "tableTo": "businesses",
-          "columnsFrom": ["business_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "business_invitations_invited_by_user_id_users_id_fk": {
-          "name": "business_invitations_invited_by_user_id_users_id_fk",
-          "tableFrom": "business_invitations",
-          "tableTo": "users",
-          "columnsFrom": ["invited_by_user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "business_invitations_token_unique": {
-          "name": "business_invitations_token_unique",
-          "nullsNotDistinct": false,
-          "columns": ["token"]
-        },
-        "business_invitations_business_id_email_unique": {
-          "name": "business_invitations_business_id_email_unique",
-          "nullsNotDistinct": false,
-          "columns": ["business_id", "email"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.businesses": {
       "name": "businesses",
       "schema": "",
@@ -1110,30 +959,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "invited_by_user_id": {
-          "name": "invited_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "invited_at": {
-          "name": "invited_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "accepted_at": {
-          "name": "accepted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "removed_at": {
-          "name": "removed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1150,8 +975,8 @@
         }
       },
       "indexes": {
-        "user_businesses_active_unique": {
-          "name": "user_businesses_active_unique",
+        "user_businesses_user_business_unique": {
+          "name": "user_businesses_user_business_unique",
           "columns": [
             {
               "expression": "user_id",
@@ -1167,7 +992,6 @@
             }
           ],
           "isUnique": true,
-          "where": "\"user_businesses\".\"removed_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1203,15 +1027,6 @@
           "tableFrom": "user_businesses",
           "tableTo": "businesses",
           "columnsFrom": ["business_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "user_businesses_invited_by_user_id_users_id_fk": {
-          "name": "user_businesses_invited_by_user_id_users_id_fk",
-          "tableFrom": "user_businesses",
-          "tableTo": "users",
-          "columnsFrom": ["invited_by_user_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -1325,11 +1140,6 @@
       "name": "document_type",
       "schema": "public",
       "values": ["tax_invoice", "tax_invoice_receipt", "receipt", "credit_note"]
-    },
-    "public.invitation_status": {
-      "name": "invitation_status",
-      "schema": "public",
-      "values": ["pending", "accepted", "declined", "expired"]
     },
     "public.invoice_status": {
       "name": "invoice_status",

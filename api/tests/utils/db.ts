@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { db } from '../../src/db/client.js';
 import {
-  businessInvitations,
   businesses,
   customers,
   invoiceItems,
@@ -17,7 +16,6 @@ export async function resetDb() {
   await db.delete(invoices);
   await db.delete(invoiceSequences);
   await db.delete(customers);
-  await db.delete(businessInvitations);
   await db.delete(userBusinesses);
   await db.delete(businesses);
   await db.delete(sessions);

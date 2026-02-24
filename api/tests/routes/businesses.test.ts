@@ -8,7 +8,6 @@ import {
   createUser,
   createTestBusiness,
   createOwnerWithBusiness,
-  createMemberInBusiness,
   addUserToBusiness,
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
@@ -172,8 +171,10 @@ describe('routes/businesses', () => {
       expect(body.business.name).toBe('Updated Name');
     });
 
-    it('returns 404 for user with role=user', async () => {
-      const { sessionId, business } = await createMemberInBusiness('user');
+    it('returns 404 for non-member', async () => {
+      const { sessionId } = await createAuthedUser();
+      const otherUser = await createUser();
+      const business = await createTestBusiness(otherUser.id);
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'PATCH',
@@ -182,51 +183,6 @@ describe('routes/businesses', () => {
       });
 
       expect(res.statusCode).toBe(404);
-    });
-  });
-
-  describe('GET /businesses/:businessId/team', () => {
-    it('returns team array for member', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-
-      const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'GET',
-        url: `/businesses/${business.id}/team`,
-      });
-
-      expect(res.statusCode).toBe(200);
-      const body = res.json() as { team: { userId: string }[] };
-      expect(Array.isArray(body.team)).toBe(true);
-      expect(body.team.length).toBeGreaterThanOrEqual(1);
-    });
-  });
-
-  describe('DELETE /businesses/:businessId/team/:userId', () => {
-    it('allows owner to remove a user-role member', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const member = await createUser();
-      await addUserToBusiness(member.id, business.id, 'user');
-
-      const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'DELETE',
-        url: `/businesses/${business.id}/team/${member.id}`,
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toMatchObject({ ok: true });
-    });
-
-    it('returns 403 when trying to remove an owner', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const otherOwner = await createUser();
-      await addUserToBusiness(otherOwner.id, business.id, 'owner');
-
-      const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'DELETE',
-        url: `/businesses/${business.id}/team/${otherOwner.id}`,
-      });
-
-      expect(res.statusCode).toBe(403);
     });
   });
 });

@@ -14,7 +14,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { isNull, relations, sql } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import { STANDARD_VAT_RATE_BP, DEFAULT_CURRENCY } from '@bon/types/vat';
 
 export const businessTypeEnum = pgEnum('business_type', [
@@ -23,12 +23,6 @@ export const businessTypeEnum = pgEnum('business_type', [
   'limited_company',
 ]);
 export const businessRoleEnum = pgEnum('business_role', ['owner', 'admin', 'user']);
-export const invitationStatusEnum = pgEnum('invitation_status', [
-  'pending',
-  'accepted',
-  'declined',
-  'expired',
-]);
 export const taxIdTypeEnum = pgEnum('tax_id_type', [
   'company_id',
   'vat_number',
@@ -127,47 +121,12 @@ export const userBusinesses = pgTable(
       .notNull()
       .references(() => businesses.id),
     role: businessRoleEnum('role').notNull(),
-    invitedByUserId: uuid('invited_by_user_id').references(() => users.id),
-    invitedAt: timestamp('invited_at', { withTimezone: true }),
-    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
-    removedAt: timestamp('removed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    // Partial unique: a user can only be an active member once, but removed rows are kept for history
-    uniqueIndex('user_businesses_active_unique')
-      .on(table.userId, table.businessId)
-      .where(isNull(table.removedAt)),
+    uniqueIndex('user_businesses_user_business_unique').on(table.userId, table.businessId),
     index('user_businesses_business_id_idx').on(table.businessId),
-  ]
-);
-
-export const businessInvitations = pgTable(
-  'business_invitations',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    businessId: uuid('business_id')
-      .notNull()
-      .references(() => businesses.id),
-    email: text('email').notNull(),
-    role: businessRoleEnum('role').notNull(),
-    status: invitationStatusEnum('status').notNull().default('pending'),
-    invitedByUserId: uuid('invited_by_user_id')
-      .notNull()
-      .references(() => users.id),
-    token: text('token').notNull(),
-    personalMessage: text('personal_message'),
-    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
-    declinedAt: timestamp('declined_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => [
-    unique('business_invitations_token_unique').on(table.token),
-    unique('business_invitations_business_id_email_unique').on(table.businessId, table.email),
-    index('business_invitations_business_id_idx').on(table.businessId),
-    index('business_invitations_email_idx').on(table.email),
   ]
 );
 
@@ -189,7 +148,6 @@ export const businessesRelations = relations(businesses, ({ one, many }) => ({
     references: [users.id],
   }),
   userBusinesses: many(userBusinesses),
-  invitations: many(businessInvitations),
   customers: many(customers),
   invoices: many(invoices),
   invoiceSequences: many(invoiceSequences),
@@ -203,21 +161,6 @@ export const userBusinessesRelations = relations(userBusinesses, ({ one }) => ({
   business: one(businesses, {
     fields: [userBusinesses.businessId],
     references: [businesses.id],
-  }),
-  invitedByUser: one(users, {
-    fields: [userBusinesses.invitedByUserId],
-    references: [users.id],
-  }),
-}));
-
-export const businessInvitationsRelations = relations(businessInvitations, ({ one }) => ({
-  business: one(businesses, {
-    fields: [businessInvitations.businessId],
-    references: [businesses.id],
-  }),
-  invitedByUser: one(users, {
-    fields: [businessInvitations.invitedByUserId],
-    references: [users.id],
   }),
 }));
 

@@ -7,17 +7,12 @@ import {
   createBusinessBodySchema,
   updateBusinessBodySchema,
   businessIdParamSchema,
-  teamListResponseSchema,
-  teamMemberParamSchema,
 } from '@bon/types/businesses';
-import { okResponseSchema } from '@bon/types/common';
 import {
   createBusiness,
   getBusinessById,
   updateBusinessById,
   listBusinessesForUser,
-  listTeamMembers,
-  removeTeamMember,
 } from '../services/business-service.js';
 
 const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
@@ -95,51 +90,6 @@ const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     async (req) => {
       ensureBusinessContext(req);
       return updateBusinessById(req.businessContext.businessId, req.businessContext.role, req.body);
-    }
-  );
-
-  app.get(
-    '/businesses/:businessId/team',
-    {
-      preHandler: [app.authenticate, app.requireBusinessAccess],
-      schema: {
-        tags: ['Businesses'],
-        params: businessIdParamSchema,
-        response: {
-          200: teamListResponseSchema,
-        },
-      },
-    },
-    async (req) => {
-      ensureBusinessContext(req);
-      return listTeamMembers(req.businessContext.businessId);
-    }
-  );
-
-  app.delete(
-    '/businesses/:businessId/team/:userId',
-    {
-      preHandler: [
-        app.authenticate,
-        app.requireBusinessAccess,
-        app.requireBusinessRole('owner', 'admin'),
-      ],
-      schema: {
-        tags: ['Businesses'],
-        params: teamMemberParamSchema,
-        response: {
-          200: okResponseSchema,
-        },
-      },
-    },
-    async (req) => {
-      ensureBusinessContext(req);
-      await removeTeamMember(
-        req.businessContext.businessId,
-        req.params.userId,
-        req.businessContext.role
-      );
-      return { ok: true as const };
     }
   );
 };

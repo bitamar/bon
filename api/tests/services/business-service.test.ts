@@ -2,14 +2,12 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { resetDb } from '../utils/db.js';
 import { db } from '../../src/db/client.js';
-import { users, userBusinesses } from '../../src/db/schema.js';
+import { users } from '../../src/db/schema.js';
 import {
   createBusiness,
   getBusinessById,
   updateBusinessById,
   listBusinessesForUser,
-  listTeamMembers,
-  removeTeamMember,
 } from '../../src/services/business-service.js';
 import * as businessRepository from '../../src/repositories/business-repository.js';
 
@@ -230,129 +228,6 @@ describe('business-service', () => {
       const result = await listBusinessesForUser(user.id);
 
       expect(result.businesses).toHaveLength(0);
-    });
-  });
-
-  describe('listTeamMembers', () => {
-    it('returns team members with correct fields', async () => {
-      const owner = await createUser({ name: 'Owner User' });
-      const { business } = await createBusiness(owner.id, makeBusinessInput());
-
-      const member = await createUser({ name: 'Member User' });
-      const now = new Date();
-      await db.insert(userBusinesses).values({
-        userId: member.id,
-        businessId: business.id,
-        role: 'admin',
-        createdAt: now,
-      });
-
-      const result = await listTeamMembers(business.id);
-
-      expect(result.team).toHaveLength(2);
-      const ownerEntry = result.team.find((m) => m.userId === owner.id);
-      expect(ownerEntry?.role).toBe('owner');
-      expect(ownerEntry?.name).toBe('Owner User');
-
-      const memberEntry = result.team.find((m) => m.userId === member.id);
-      expect(memberEntry?.role).toBe('admin');
-      expect(memberEntry?.name).toBe('Member User');
-      expect(typeof memberEntry?.joinedAt).toBe('string');
-    });
-
-    it('does not include removed members', async () => {
-      const owner = await createUser();
-      const { business } = await createBusiness(owner.id, makeBusinessInput());
-
-      const member = await createUser();
-      await db.insert(userBusinesses).values({
-        userId: member.id,
-        businessId: business.id,
-        role: 'user',
-        createdAt: new Date(),
-      });
-
-      await removeTeamMember(business.id, member.id, 'owner');
-
-      const result = await listTeamMembers(business.id);
-
-      expect(result.team.some((m) => m.userId === member.id)).toBe(false);
-    });
-  });
-
-  describe('removeTeamMember', () => {
-    it('owner removes admin — soft-deletes (sets removedAt)', async () => {
-      const owner = await createUser();
-      const { business } = await createBusiness(owner.id, makeBusinessInput());
-
-      const admin = await createUser();
-      await db.insert(userBusinesses).values({
-        userId: admin.id,
-        businessId: business.id,
-        role: 'admin',
-        createdAt: new Date(),
-      });
-
-      await removeTeamMember(business.id, admin.id, 'owner');
-
-      const row = await db.query.userBusinesses.findFirst({
-        where: (t, { eq, and }) => and(eq(t.userId, admin.id), eq(t.businessId, business.id)),
-      });
-      expect(row?.removedAt).not.toBeNull();
-    });
-
-    it('throws forbidden with code cannot_remove_owner for owner target', async () => {
-      const owner = await createUser();
-      const { business } = await createBusiness(owner.id, makeBusinessInput());
-
-      await expect(removeTeamMember(business.id, owner.id, 'owner')).rejects.toMatchObject({
-        statusCode: 403,
-        code: 'cannot_remove_owner',
-      });
-    });
-
-    it('admin trying to remove admin throws forbidden with code cannot_remove_admin', async () => {
-      const owner = await createUser();
-      const { business } = await createBusiness(owner.id, makeBusinessInput());
-
-      const admin1 = await createUser();
-      const admin2 = await createUser();
-      const now = new Date();
-      await db.insert(userBusinesses).values([
-        { userId: admin1.id, businessId: business.id, role: 'admin', createdAt: now },
-        { userId: admin2.id, businessId: business.id, role: 'admin', createdAt: now },
-      ]);
-
-      await expect(removeTeamMember(business.id, admin2.id, 'admin')).rejects.toMatchObject({
-        statusCode: 403,
-        code: 'cannot_remove_admin',
-      });
-    });
-
-    it('throws notFound if target not a member', async () => {
-      const owner = await createUser();
-      const { business } = await createBusiness(owner.id, makeBusinessInput());
-      const stranger = await createUser();
-
-      await expect(removeTeamMember(business.id, stranger.id, 'owner')).rejects.toMatchObject({
-        statusCode: 404,
-      });
-    });
-
-    it('role user throws forbidden', async () => {
-      const owner = await createUser();
-      const { business } = await createBusiness(owner.id, makeBusinessInput());
-      const target = await createUser();
-      await db.insert(userBusinesses).values({
-        userId: target.id,
-        businessId: business.id,
-        role: 'user',
-        createdAt: new Date(),
-      });
-
-      await expect(removeTeamMember(business.id, target.id, 'user')).rejects.toMatchObject({
-        statusCode: 403,
-      });
     });
   });
 });

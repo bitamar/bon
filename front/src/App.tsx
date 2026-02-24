@@ -11,8 +11,6 @@ import { Settings } from './pages/Settings';
 import { Onboarding } from './pages/Onboarding';
 import { BusinessList } from './pages/BusinessList';
 import { BusinessSettings } from './pages/BusinessSettings';
-import { TeamManagement } from './pages/TeamManagement';
-import { InvitationAccept } from './pages/InvitationAccept';
 import { CustomerList } from './pages/CustomerList';
 import { CustomerCreate } from './pages/CustomerCreate';
 import { CustomerDetail } from './pages/CustomerDetail';
@@ -136,8 +134,6 @@ export default function AppRoutes() {
             <Route path="/business/customers/:customerId" element={<CustomerDetail />} />
             <Route path="/business/invoices/new" element={<InvoiceNew />} />
             <Route path="/business/invoices/:invoiceId/edit" element={<InvoiceEdit />} />
-            <Route path="/business/team" element={<TeamManagement />} />
-            <Route path="/invitations/accept" element={<InvitationAccept />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

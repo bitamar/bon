@@ -6,7 +6,7 @@ import {
   createUser,
   createTestBusiness,
   createOwnerWithBusiness,
-  createMemberInBusiness,
+  addUserToBusiness,
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 
@@ -56,7 +56,11 @@ describe('plugins/business-context', () => {
     });
 
     it('returns 404 when user role is insufficient (role=user)', async () => {
-      const { sessionId, business } = await createMemberInBusiness('user');
+      const { user, sessionId } = await createAuthedUser();
+      const ownerUser = await createUser();
+      const business = await createTestBusiness(ownerUser.id);
+      await addUserToBusiness(ownerUser.id, business.id, 'owner');
+      await addUserToBusiness(user.id, business.id, 'user');
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'PATCH',

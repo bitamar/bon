@@ -83,26 +83,8 @@ export const businessListResponseSchema = z.object({
   businesses: z.array(businessListItemSchema),
 });
 
-export const teamMemberSchema = z.object({
-  userId: uuidSchema,
-  name: nullableString,
-  email: z.string().trim().email(),
-  avatarUrl: nullableString,
-  role: businessRoleSchema,
-  joinedAt: isoDateTime,
-});
-
-export const teamListResponseSchema = z.object({
-  team: z.array(teamMemberSchema),
-});
-
 export const businessIdParamSchema = z.object({
   businessId: uuidSchema,
-});
-
-export const teamMemberParamSchema = z.object({
-  businessId: uuidSchema,
-  userId: uuidSchema,
 });
 
 export type BusinessType = z.infer<typeof businessTypeSchema>;
@@ -113,7 +95,4 @@ export type UpdateBusinessBody = z.infer<typeof updateBusinessBodySchema>;
 export type BusinessResponse = z.infer<typeof businessResponseSchema>;
 export type BusinessListItem = z.infer<typeof businessListItemSchema>;
 export type BusinessListResponse = z.infer<typeof businessListResponseSchema>;
-export type TeamMember = z.infer<typeof teamMemberSchema>;
-export type TeamListResponse = z.infer<typeof teamListResponseSchema>;
 export type BusinessIdParam = z.infer<typeof businessIdParamSchema>;
-export type TeamMemberParam = z.infer<typeof teamMemberParamSchema>;

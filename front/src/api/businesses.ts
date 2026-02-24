@@ -3,12 +3,10 @@ import {
   businessListResponseSchema,
   businessResponseSchema,
   createBusinessBodySchema,
-  teamListResponseSchema,
   updateBusinessBodySchema,
   type BusinessListResponse,
   type BusinessResponse,
   type CreateBusinessBody,
-  type TeamListResponse,
   type UpdateBusinessBody,
 } from '@bon/types/businesses';
 
@@ -41,15 +39,4 @@ export async function updateBusiness(
     body: JSON.stringify(payload),
   });
   return businessResponseSchema.parse(json);
-}
-
-export async function fetchTeamMembers(businessId: string): Promise<TeamListResponse> {
-  const json = await fetchJson<unknown>(`/businesses/${businessId}/team`);
-  return teamListResponseSchema.parse(json);
-}
-
-export async function removeTeamMember(businessId: string, userId: string): Promise<void> {
-  await fetchJson(`/businesses/${businessId}/team/${userId}`, {
-    method: 'DELETE',
-  });
 }
