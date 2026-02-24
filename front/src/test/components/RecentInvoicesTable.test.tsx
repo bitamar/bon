@@ -18,7 +18,7 @@ const mockInvoices: RecentInvoice[] = [
     number: 'INV-002',
     customer: 'סולאר אנרגיה',
     amount: 8750,
-    status: 'overdue',
+    status: 'sent',
     date: '2026-02-17',
   },
 ];
@@ -41,7 +41,7 @@ describe('RecentInvoicesTable', () => {
     expect(screen.getByText('אלקטרה בע"מ')).toBeInTheDocument();
     expect(screen.getByText('שולמה')).toBeInTheDocument();
     expect(screen.getByText('INV-002')).toBeInTheDocument();
-    expect(screen.getByText('באיחור')).toBeInTheDocument();
+    expect(screen.getByText('נשלחה')).toBeInTheDocument();
   });
 
   it('renders empty state when no invoices', () => {

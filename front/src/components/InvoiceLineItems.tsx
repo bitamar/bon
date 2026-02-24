@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { calculateLine } from '@bon/types/vat';
-import { formatMinorUnits, toMinorUnits } from '../lib/format';
+import { formatMinorUnits, toMinorUnits } from '@bon/types/formatting';
 
 export interface LineItemFormRow {
   key: string;
