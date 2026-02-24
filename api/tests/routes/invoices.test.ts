@@ -104,6 +104,22 @@ describe('routes/invoices', () => {
     return res.json() as InvoiceResponse;
   }
 
+  async function setupOwnerDraft(items?: object[]) {
+    const { sessionId, business } = await createOwnerWithBusiness();
+    const customer = await createCustomer(sessionId, business.id);
+    const created = await createDraftWithItems(sessionId, business.id, customer.id, items);
+    return { sessionId, business, customer, invoice: created.invoice, items: created.items };
+  }
+
+  function expectError(
+    res: { statusCode: number; json: () => unknown },
+    code: number,
+    error: string
+  ) {
+    expect(res.statusCode).toBe(code);
+    expect((res.json() as { error: string }).error).toBe(error);
+  }
+
   // ── POST ──
 
   describe('POST /businesses/:businessId/invoices', () => {
@@ -175,26 +191,21 @@ describe('routes/invoices', () => {
 
   describe('GET /businesses/:businessId/invoices/:invoiceId', () => {
     it('fetches an invoice with items', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const created = await createDraftWithItems(sessionId, business.id, customer.id);
+      const { sessionId, business, invoice } = await setupOwnerDraft();
 
-      const res = await getInvoice(sessionId, business.id, created.invoice.id);
+      const res = await getInvoice(sessionId, business.id, invoice.id);
 
       expect(res.statusCode).toBe(200);
       const body = res.json() as InvoiceResponse;
-      expect(body.invoice.id).toBe(created.invoice.id);
+      expect(body.invoice.id).toBe(invoice.id);
       expect(body.items).toHaveLength(1);
     });
 
     it('returns 404 for non-member business', async () => {
-      const { sessionId: ownerSession, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(ownerSession, business.id);
-      const created = await createDraftWithItems(ownerSession, business.id, customer.id);
-
+      const { business, invoice } = await setupOwnerDraft();
       const { sessionId: otherSession } = await setupNonMemberScenario();
 
-      const res = await getInvoice(otherSession, business.id, created.invoice.id);
+      const res = await getInvoice(otherSession, business.id, invoice.id);
 
       expect(res.statusCode).toBe(404);
     });
@@ -204,12 +215,7 @@ describe('routes/invoices', () => {
 
   describe('PATCH /businesses/:businessId/invoices/:invoiceId', () => {
     it('updates draft fields', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const { invoice } = await createDraftWithItems(
-        sessionId,
-        business.id,
-        (await createCustomer(sessionId, business.id)).id
-      );
+      const { sessionId, business, invoice } = await setupOwnerDraft();
 
       const res = await patchInvoice(sessionId, business.id, invoice.id, {
         notes: 'Updated note',
@@ -221,9 +227,7 @@ describe('routes/invoices', () => {
     });
 
     it('replaces items on update', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
+      const { sessionId, business, invoice } = await setupOwnerDraft();
 
       const res = await patchInvoice(sessionId, business.id, invoice.id, {
         items: [
@@ -253,18 +257,14 @@ describe('routes/invoices', () => {
     });
 
     it('rejects update on non-draft invoice (422)', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
-
+      const { sessionId, business, invoice } = await setupOwnerDraft();
       await finalizeInvoice(sessionId, business.id, invoice.id);
 
       const res = await patchInvoice(sessionId, business.id, invoice.id, {
         notes: 'Should fail',
       });
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('not_draft');
+      expectError(res, 422, 'not_draft');
     });
   });
 
@@ -272,12 +272,7 @@ describe('routes/invoices', () => {
 
   describe('DELETE /businesses/:businessId/invoices/:invoiceId', () => {
     it('deletes a draft invoice', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const { invoice } = await createDraftWithItems(
-        sessionId,
-        business.id,
-        (await createCustomer(sessionId, business.id)).id
-      );
+      const { sessionId, business, invoice } = await setupOwnerDraft();
 
       const res = await deleteInvoice(sessionId, business.id, invoice.id);
 
@@ -289,16 +284,12 @@ describe('routes/invoices', () => {
     });
 
     it('rejects deletion of non-draft invoice (422)', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
-
+      const { sessionId, business, invoice } = await setupOwnerDraft();
       await finalizeInvoice(sessionId, business.id, invoice.id);
 
       const res = await deleteInvoice(sessionId, business.id, invoice.id);
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('not_draft');
+      expectError(res, 422, 'not_draft');
     });
   });
 
@@ -331,7 +322,6 @@ describe('routes/invoices', () => {
 
     it('rejects finalization without customer (422)', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
-
       const createRes = await postInvoice(sessionId, business.id, {
         documentType: 'tax_invoice',
         items: [
@@ -349,14 +339,12 @@ describe('routes/invoices', () => {
 
       const res = await finalizeInvoice(sessionId, business.id, invoice.id);
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('missing_customer');
+      expectError(res, 422, 'missing_customer');
     });
 
     it('rejects finalization without line items (422)', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
       const customer = await createCustomer(sessionId, business.id);
-
       const createRes = await postInvoice(sessionId, business.id, {
         documentType: 'tax_invoice',
         customerId: customer.id,
@@ -365,26 +353,20 @@ describe('routes/invoices', () => {
 
       const res = await finalizeInvoice(sessionId, business.id, invoice.id);
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('no_line_items');
+      expectError(res, 422, 'no_line_items');
     });
 
     it('rejects finalization with inactive customer (422)', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
+      const { sessionId, business, customer, invoice } = await setupOwnerDraft();
 
-      // Deactivate customer
       await injectAuthed(ctx.app, sessionId, {
         method: 'DELETE',
         url: `/businesses/${business.id}/customers/${customer.id}`,
       });
 
-      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
-
       const res = await finalizeInvoice(sessionId, business.id, invoice.id);
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('customer_inactive');
+      expectError(res, 422, 'customer_inactive');
     });
 
     it('rejects finalization with invalid VAT rate for exempt dealer (422)', async () => {
@@ -406,14 +388,11 @@ describe('routes/invoices', () => {
 
       const res = await finalizeInvoice(sessionId, business.id, invoice.id);
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('invalid_vat_rate');
+      expectError(res, 422, 'invalid_vat_rate');
     });
 
     it('rejects finalization with future invoice date >7 days (422)', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
+      const { sessionId, business, invoice } = await setupOwnerDraft();
 
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 10);
@@ -423,8 +402,7 @@ describe('routes/invoices', () => {
         invoiceDate: futureDateStr,
       });
 
-      expect(res.statusCode).toBe(422);
-      expect((res.json() as { error: string }).error).toBe('invalid_invoice_date');
+      expectError(res, 422, 'invalid_invoice_date');
     });
 
     it('assigns sequential numbers at finalization time, not creation time', async () => {
