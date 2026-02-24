@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { calculateLine } from '@bon/types/vat';
-import { formatAgora, shekelToAgora } from '../lib/format';
+import { formatAgora, shekelToAgora } from '@bon/types/formatting';
 
 export interface LineItemFormRow {
   key: string;

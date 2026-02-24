@@ -28,7 +28,7 @@ import { deleteInvoiceDraft, fetchInvoice, updateInvoiceDraft } from '../api/inv
 import { fetchBusiness } from '../api/businesses';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
-import { formatAgora, shekelToAgora } from '../lib/format';
+import { formatAgora, shekelToAgora } from '@bon/types/formatting';
 import { showErrorNotification } from '../lib/notifications';
 import { calculateInvoiceTotals } from '@bon/types/vat';
 import type { DocumentType, UpdateInvoiceDraftBody } from '@bon/types/invoices';

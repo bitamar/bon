@@ -161,6 +161,14 @@ export const invoiceIdParamSchema = z.object({
 // ── Type exports ──
 
 export type DocumentType = z.infer<typeof documentTypeSchema>;
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  tax_invoice: 'חשבונית מס',
+  tax_invoice_receipt: 'חשבונית מס קבלה',
+  receipt: 'קבלה',
+  credit_note: 'חשבונית מס זיכוי',
+};
+
 export type SequenceGroup = z.infer<typeof sequenceGroupSchema>;
 export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>;
 export type AllocationStatus = z.infer<typeof allocationStatusSchema>;

@@ -1,6 +1,6 @@
 import { Group, Stack, Text } from '@mantine/core';
 import { calculateInvoiceTotals } from '@bon/types/vat';
-import { formatAgora, shekelToAgora } from '../lib/format';
+import { formatAgora, shekelToAgora } from '@bon/types/formatting';
 import type { LineItemFormRow } from './InvoiceLineItems';
 
 interface InvoiceTotalsProps {
