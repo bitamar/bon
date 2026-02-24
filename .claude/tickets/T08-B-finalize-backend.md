@@ -1,6 +1,6 @@
 # T08-B — Backend: Finalize Endpoint Extension
 
-**Status**: 🔒 Blocked (T08-A must merge first)
+**Status**: ⬜ Not started (T08-A merged, ready to begin)
 **Phase**: 2 — Invoices
 **Requires**: T08-A merged
 **Blocks**: T08-C

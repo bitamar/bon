@@ -1,6 +1,6 @@
 # T08-A — Shared Invoice Config
 
-**Status**: 🔒 Blocked (T7.5 must merge first)
+**Status**: ✅ Merged to main (PR #18)
 **Phase**: 2 — Invoices
 **Requires**: T7.5 merged
 **Blocks**: T08-B
@@ -63,6 +63,6 @@ Also consolidate `formatMinorUnits` from `front/src/lib/format.ts` into `types/s
 
 ## Links
 
-- Branch: —
-- PR: —
+- Branch: main
+- PR: #18
 - Deployed: ⬜

@@ -94,16 +94,10 @@ The full ticket list with status, acceptance criteria, and architecture notes is
 
 Start with `.claude/tickets/README.md` for the overview and current status.
 
-**Merged, awaiting production deploy**: T03 (Onboarding UX, PR #4) and T04 (Customer Backend, PR #3) — both merged to `main`
+**All merged through T08-A:**
+- Phase 0: T00–T03 (Auth, Business Management, Team Invitations, Onboarding UX)
+- Phase 1: T04 (Customer Backend, PR #5), T05 (Customer Frontend, PR #7)
+- Cross-cutting: T-API-01 (API Hardening, PR #8)
+- Phase 2 (partial): T06 (Invoice Schema), T07 (Invoice API + Create/Edit, PR #12), T7.5 (Invoice Edit Frontend, PR #13), T08-A (Shared Config, PR #18)
 
-**T04 patch required before T05**: Deep review found 12 issues. See `.claude/tickets/T04-customer-backend.md` "T04 Patch" section for full details. Summary of blocking items:
-1. PUT → PATCH + add PATCH to CORS
-2. 409 response must include existing customer ID/name (needs new repo method)
-3. Add missing repository tests (CLAUDE.md compliance)
-4. Add integration test for duplicate taxId detection (currently mocked)
-
-Medium items also in the patch: partial unique index, checksum validation for all ID types, deletedAt clearing, fragile 23505 handling, search/filter tests, name nullability fix.
-
-**Execution order**: T04 patch → deploy T03+T04+patch → verify in production → start T05.
-
-**Next up**: T05 (Customer Frontend) — fully specified in `.claude/tickets/T05-customer-frontend.md` with product requirements, component specs, architecture notes, and test plan.
+**Next up**: T08-B (Backend: Finalize Endpoint Extension) — ready to start, T08-A is merged. See `.claude/tickets/T08-B-finalize-backend.md` for full spec.

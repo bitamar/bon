@@ -70,6 +70,34 @@ Allocation numbers can be requested voluntarily for any amount.
 - Soft-deleted customers don't block new customers with same taxId
 - Query limits capped at 200
 
+### Invoice Data Model & VAT Engine (T06)
+- Invoice, invoice_items, invoice_sequences tables with all enums
+- VAT calculation engine (pure functions in types/src/vat.ts)
+- Sequential numbering with SELECT FOR UPDATE (race-condition safe)
+- Customer data snapshot fields on invoices for finalization
+- Status machine: draft → finalized → sent → paid → credited/cancelled
+
+### Invoice API + Create/Edit (T07)
+- Full invoice CRUD API (create draft, read, update, delete, finalize)
+- Repository layer with transaction support (txOrDb pattern)
+- Service layer with VAT recalculation and serializers
+- Finalize endpoint: sequence numbering, customer snapshot, VAT validation
+
+### Invoice Create/Edit Frontend (T7.5)
+- Draft editor page with customer search, line items, dates, notes
+- Per-line VAT rate select (17%/exempt), live totals via VAT engine
+- DatePickerInput with Hebrew locale (dayjs)
+- CustomerSelect with debounced search
+- Autosave with save state indicator
+
+### Shared Invoice Config (T08-A)
+- Extracted INVOICE_STATUS_CONFIG (all 7 statuses with Hebrew labels + Mantine colors)
+- DOCUMENT_TYPE_LABELS constant in types
+- Shared formatMinorUnits and formatDate in types/src/formatting.ts
+
+### API Documentation
+- OpenAPI/Scalar documentation endpoint (PR #16)
+
 ---
 
 ## Phase 1: Customer Management
@@ -759,14 +787,15 @@ Abstract behind a `StorageService` interface from day one.
   T05: Customer frontend (PR #7)
   T-API-01: API hardening (PR #8)
 
-→ Phase 2: Invoice Creation          (~3 weeks)
-  2.1 DB schema: invoices, invoice_items, sequences
-  2.2 Sequential numbering (race-safe)
-  2.3 VAT calculation engine (tested pure functions)
-  2.4 Draft invoice create/edit UI
-  2.5 Finalization flow with preview
-  2.6 Invoice detail view
-  2.7 Invoice list with filters
+→ Phase 2: Invoice Creation
+  ✓ T06: Invoice schema + VAT engine (PR #10, #11)
+  ✓ T07: Invoice API + create/edit backend (PR #12)
+  ✓ T7.5: Invoice create/edit frontend (PR #13)
+  ✓ T08-A: Shared invoice config (PR #18)
+  → T08-B: Finalize endpoint extension
+  → T08-C: Finalization flow frontend
+  → T08-D: Invoice detail view
+  → T09: Invoice list with filters
 
 → Phase 3: PDF Generation            (~1 week)
   3.1 HTML invoice template

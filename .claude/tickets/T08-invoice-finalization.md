@@ -1,6 +1,6 @@
 # T08 — Invoice Finalization & Detail View
 
-**Status**: 🔒 Blocked (T7.5 must merge first)
+**Status**: 🔄 In progress (T08-A merged, T08-B next)
 **Phase**: 2 — Invoices
 **Requires**: T7.5 merged
 **Blocks**: T09, T10
