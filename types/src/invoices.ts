@@ -73,6 +73,7 @@ export const updateInvoiceDraftBodySchema = z
 export const finalizeInvoiceBodySchema = z
   .object({
     invoiceDate: dateString.optional(),
+    vatExemptionReason: z.string().trim().min(1).max(500).optional(),
   })
   .strict();
 

@@ -271,7 +271,7 @@ export async function deleteDraft(businessId: string, invoiceId: string) {
 export async function finalize(
   businessId: string,
   invoiceId: string,
-  body: { invoiceDate?: string | undefined }
+  body: { invoiceDate?: string | undefined; vatExemptionReason?: string | undefined }
 ) {
   // TODO: TOCTOU — move validation inside tx with SELECT FOR UPDATE before SHAAM integration
   const invoice = await findInvoiceById(invoiceId, businessId);
@@ -322,6 +322,19 @@ export async function finalize(
     ) {
       throw unprocessableEntity({ code: 'invalid_vat_rate' });
     }
+  }
+
+  // Validate vatExemptionReason when all items are 0% VAT on a non-exempt business
+  const preCalcTotals = calculateInvoiceTotals(
+    items.map((i) => ({
+      quantity: Number(i.quantity),
+      unitPriceMinorUnits: i.unitPriceMinorUnits,
+      discountPercent: Number(i.discountPercent),
+      vatRateBasisPoints: i.vatRateBasisPoints,
+    }))
+  );
+  if (preCalcTotals.vatMinorUnits === 0 && !isExemptDealer && !body.vatExemptionReason) {
+    throw unprocessableEntity({ code: 'missing_vat_exemption_reason' });
   }
 
   // Finalize in a transaction
@@ -391,6 +404,7 @@ export async function finalize(
         customerTaxId: customer.taxId ?? null,
         customerAddress,
         customerEmail: customer.email ?? null,
+        vatExemptionReason: body.vatExemptionReason ?? null,
         ...totals,
         updatedAt: now,
       } as Parameters<typeof updateInvoice>[2],

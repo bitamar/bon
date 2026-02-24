@@ -427,6 +427,65 @@ describe('routes/invoices', () => {
       expect((res.json() as { error: string }).error).toBe('invalid_invoice_date');
     });
 
+    it('finalizes 0% VAT invoice with vatExemptionReason on non-exempt business', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const customer = await createCustomer(sessionId, business.id);
+      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id, [
+        {
+          description: 'Export item',
+          quantity: 1,
+          unitPriceMinorUnits: 10000,
+          discountPercent: 0,
+          vatRateBasisPoints: 0,
+          position: 0,
+        },
+      ]);
+
+      const res = await finalizeInvoice(sessionId, business.id, invoice.id, {
+        vatExemptionReason: 'Export transaction',
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as InvoiceResponse;
+      expect(body.invoice.status).toBe('finalized');
+      expect(body.invoice.vatExemptionReason).toBe('Export transaction');
+    });
+
+    it('rejects 0% VAT finalization without vatExemptionReason on non-exempt business (422)', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const customer = await createCustomer(sessionId, business.id);
+      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id, [
+        {
+          description: 'Export item',
+          quantity: 1,
+          unitPriceMinorUnits: 10000,
+          discountPercent: 0,
+          vatRateBasisPoints: 0,
+          position: 0,
+        },
+      ]);
+
+      const res = await finalizeInvoice(sessionId, business.id, invoice.id);
+
+      expect(res.statusCode).toBe(422);
+      expect((res.json() as { error: string }).error).toBe('missing_vat_exemption_reason');
+    });
+
+    it('stores vatExemptionReason on standard VAT invoice without error', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const customer = await createCustomer(sessionId, business.id);
+      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
+
+      const res = await finalizeInvoice(sessionId, business.id, invoice.id, {
+        vatExemptionReason: 'Not actually needed',
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as InvoiceResponse;
+      expect(body.invoice.status).toBe('finalized');
+      expect(body.invoice.vatExemptionReason).toBe('Not actually needed');
+    });
+
     it('assigns sequential numbers at finalization time, not creation time', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
       const customer = await createCustomer(sessionId, business.id);
