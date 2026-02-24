@@ -94,7 +94,7 @@ describe('routes/invoices', () => {
         {
           description: 'Item 1',
           quantity: 1,
-          unitPriceAgora: 10000,
+          unitPriceMinorUnits: 10000,
           discountPercent: 0,
           vatRateBasisPoints: 1700,
           position: 0,
@@ -131,7 +131,7 @@ describe('routes/invoices', () => {
           {
             description: 'Widget',
             quantity: 2,
-            unitPriceAgora: 5000,
+            unitPriceMinorUnits: 5000,
             discountPercent: 10,
             vatRateBasisPoints: 1700,
             position: 0,
@@ -144,7 +144,7 @@ describe('routes/invoices', () => {
       expect(body.items).toHaveLength(1);
       expect(body.items[0]?.description).toBe('Widget');
       expect(body.items[0]?.quantity).toBe(2);
-      expect(body.invoice.totalInclVatAgora).toBeGreaterThan(0);
+      expect(body.invoice.totalInclVatMinorUnits).toBeGreaterThan(0);
     });
 
     it('returns 401 when unauthenticated', async () => {
@@ -230,7 +230,7 @@ describe('routes/invoices', () => {
           {
             description: 'New Item A',
             quantity: 3,
-            unitPriceAgora: 2000,
+            unitPriceMinorUnits: 2000,
             discountPercent: 0,
             vatRateBasisPoints: 1700,
             position: 0,
@@ -238,7 +238,7 @@ describe('routes/invoices', () => {
           {
             description: 'New Item B',
             quantity: 1,
-            unitPriceAgora: 1000,
+            unitPriceMinorUnits: 1000,
             discountPercent: 0,
             vatRateBasisPoints: 1700,
             position: 1,
@@ -321,12 +321,12 @@ describe('routes/invoices', () => {
       const body = res.json() as InvoiceResponse;
       expect(body.invoice.status).toBe('finalized');
       expect(body.invoice.sequenceNumber).toBeGreaterThanOrEqual(1);
-      expect(body.invoice.fullNumber).toBeTruthy();
+      expect(body.invoice.documentNumber).toBeTruthy();
       expect(body.invoice.issuedAt).toBeTruthy();
       expect(body.invoice.customerName).toBe('Acme Corp');
       expect(body.invoice.customerEmail).toBe('acme@example.com');
       expect(body.invoice.customerAddress).toContain('Rothschild 1');
-      expect(body.invoice.totalInclVatAgora).toBeGreaterThan(0);
+      expect(body.invoice.totalInclVatMinorUnits).toBeGreaterThan(0);
     });
 
     it('rejects finalization without customer (422)', async () => {
@@ -338,7 +338,7 @@ describe('routes/invoices', () => {
           {
             description: 'Item',
             quantity: 1,
-            unitPriceAgora: 1000,
+            unitPriceMinorUnits: 1000,
             discountPercent: 0,
             vatRateBasisPoints: 1700,
             position: 0,
@@ -397,7 +397,7 @@ describe('routes/invoices', () => {
         {
           description: 'Item',
           quantity: 1,
-          unitPriceAgora: 1000,
+          unitPriceMinorUnits: 1000,
           discountPercent: 0,
           vatRateBasisPoints: 1700, // wrong for exempt dealer
           position: 0,

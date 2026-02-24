@@ -71,7 +71,7 @@ function makeMockInvoice(overrides: Record<string, unknown> = {}): InvoiceRespon
       isOverdue: false,
       sequenceGroup: null,
       sequenceNumber: null,
-      fullNumber: null,
+      documentNumber: null,
       creditedInvoiceId: null,
       invoiceDate: '2026-02-23',
       issuedAt: null,
@@ -80,11 +80,11 @@ function makeMockInvoice(overrides: Record<string, unknown> = {}): InvoiceRespon
       internalNotes: null,
       currency: 'ILS',
       vatExemptionReason: null,
-      subtotalAgora: 10000,
-      discountAgora: 0,
-      totalExclVatAgora: 10000,
-      vatAgora: 1700,
-      totalInclVatAgora: 11700,
+      subtotalMinorUnits: 10000,
+      discountMinorUnits: 0,
+      totalExclVatMinorUnits: 10000,
+      vatMinorUnits: 1700,
+      totalInclVatMinorUnits: 11700,
       allocationStatus: null,
       allocationNumber: null,
       allocationError: null,
@@ -102,12 +102,12 @@ function makeMockInvoice(overrides: Record<string, unknown> = {}): InvoiceRespon
         description: 'שירות ייעוץ',
         catalogNumber: null,
         quantity: 1,
-        unitPriceAgora: 10000,
+        unitPriceMinorUnits: 10000,
         discountPercent: 0,
         vatRateBasisPoints: 1700,
-        lineTotalAgora: 10000,
-        vatAmountAgora: 1700,
-        lineTotalInclVatAgora: 11700,
+        lineTotalMinorUnits: 10000,
+        vatAmountMinorUnits: 1700,
+        lineTotalInclVatMinorUnits: 11700,
       },
     ],
   };
@@ -172,7 +172,7 @@ describe('InvoiceEdit page', () => {
     expect(await screen.findByText('חשבונית זו כבר הופקה ואינה ניתנת לעריכה')).toBeInTheDocument();
   });
 
-  it('calls updateInvoiceDraft on save with agora amounts', async () => {
+  it('calls updateInvoiceDraft on save with minor unit amounts', async () => {
     setupDraftMocks();
     vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(makeMockInvoice());
     const user = userEvent.setup();
@@ -192,7 +192,7 @@ describe('InvoiceEdit page', () => {
           items: expect.arrayContaining([
             expect.objectContaining({
               description: 'שירות ייעוץ',
-              unitPriceAgora: 10000,
+              unitPriceMinorUnits: 10000,
               position: 0,
             }),
           ]),
@@ -206,10 +206,10 @@ describe('InvoiceEdit page', () => {
     zeroPrice.items = [
       {
         ...zeroPrice.items[0]!,
-        unitPriceAgora: 0,
-        lineTotalAgora: 0,
-        vatAmountAgora: 0,
-        lineTotalInclVatAgora: 0,
+        unitPriceMinorUnits: 0,
+        lineTotalMinorUnits: 0,
+        vatAmountMinorUnits: 0,
+        lineTotalInclVatMinorUnits: 0,
       },
     ];
     setupDraftMocks();

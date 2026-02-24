@@ -13,13 +13,13 @@ import { findCustomerById } from '../repositories/customer-repository.js';
 import { findBusinessById } from '../repositories/business-repository.js';
 import { notFound, unprocessableEntity } from '../lib/app-error.js';
 import { assignInvoiceNumber, documentTypeToSequenceGroup } from '../lib/invoice-sequences.js';
-import { calculateLine, calculateInvoiceTotals } from '@bon/types/vat';
+import { calculateLine, calculateInvoiceTotals, STANDARD_VAT_RATE_BP } from '@bon/types/vat';
 import { db } from '../db/client.js';
 import type {
   Invoice,
-  InvoiceItem,
+  LineItem,
   InvoiceResponse,
-  InvoiceItemInput,
+  LineItemInput,
   DocumentType,
 } from '@bon/types/invoices';
 
@@ -44,7 +44,7 @@ function serializeInvoice(record: InvoiceRecord): Invoice {
     isOverdue: record.isOverdue,
     sequenceGroup: record.sequenceGroup ?? null,
     sequenceNumber: record.sequenceNumber ?? null,
-    fullNumber: record.fullNumber ?? null,
+    documentNumber: record.documentNumber ?? null,
     creditedInvoiceId: record.creditedInvoiceId ?? null,
     invoiceDate: coerceToDateString(record.invoiceDate),
     issuedAt: record.issuedAt ? record.issuedAt.toISOString() : null,
@@ -53,11 +53,11 @@ function serializeInvoice(record: InvoiceRecord): Invoice {
     internalNotes: record.internalNotes ?? null,
     currency: record.currency,
     vatExemptionReason: record.vatExemptionReason ?? null,
-    subtotalAgora: record.subtotalAgora,
-    discountAgora: record.discountAgora,
-    totalExclVatAgora: record.totalExclVatAgora,
-    vatAgora: record.vatAgora,
-    totalInclVatAgora: record.totalInclVatAgora,
+    subtotalMinorUnits: record.subtotalMinorUnits,
+    discountMinorUnits: record.discountMinorUnits,
+    totalExclVatMinorUnits: record.totalExclVatMinorUnits,
+    vatMinorUnits: record.vatMinorUnits,
+    totalInclVatMinorUnits: record.totalInclVatMinorUnits,
     allocationStatus: record.allocationStatus ?? null,
     allocationNumber: record.allocationNumber ?? null,
     allocationError: record.allocationError ?? null,
@@ -68,7 +68,7 @@ function serializeInvoice(record: InvoiceRecord): Invoice {
   };
 }
 
-function serializeInvoiceItem(record: InvoiceItemRecord): InvoiceItem {
+function serializeInvoiceItem(record: InvoiceItemRecord): LineItem {
   return {
     id: record.id,
     invoiceId: record.invoiceId,
@@ -76,21 +76,21 @@ function serializeInvoiceItem(record: InvoiceItemRecord): InvoiceItem {
     description: record.description,
     catalogNumber: record.catalogNumber ?? null,
     quantity: Number(record.quantity),
-    unitPriceAgora: record.unitPriceAgora,
+    unitPriceMinorUnits: record.unitPriceMinorUnits,
     discountPercent: Number(record.discountPercent),
     vatRateBasisPoints: record.vatRateBasisPoints,
-    lineTotalAgora: record.lineTotalAgora,
-    vatAmountAgora: record.vatAmountAgora,
-    lineTotalInclVatAgora: record.lineTotalInclVatAgora,
+    lineTotalMinorUnits: record.lineTotalMinorUnits,
+    vatAmountMinorUnits: record.vatAmountMinorUnits,
+    lineTotalInclVatMinorUnits: record.lineTotalInclVatMinorUnits,
   };
 }
 
 // ── helpers ──
 
-function buildItemInsert(invoiceId: string, item: InvoiceItemInput) {
+function buildItemInsert(invoiceId: string, item: LineItemInput) {
   const line = calculateLine({
     quantity: item.quantity,
-    unitPriceAgora: item.unitPriceAgora,
+    unitPriceMinorUnits: item.unitPriceMinorUnits,
     discountPercent: item.discountPercent,
     vatRateBasisPoints: item.vatRateBasisPoints,
   });
@@ -100,20 +100,20 @@ function buildItemInsert(invoiceId: string, item: InvoiceItemInput) {
     description: item.description,
     catalogNumber: item.catalogNumber ?? null,
     quantity: String(item.quantity),
-    unitPriceAgora: item.unitPriceAgora,
+    unitPriceMinorUnits: item.unitPriceMinorUnits,
     discountPercent: String(item.discountPercent),
     vatRateBasisPoints: item.vatRateBasisPoints,
-    lineTotalAgora: line.lineTotalAgora,
-    vatAmountAgora: line.vatAmountAgora,
-    lineTotalInclVatAgora: line.lineTotalInclVatAgora,
+    lineTotalMinorUnits: line.lineTotalMinorUnits,
+    vatAmountMinorUnits: line.vatAmountMinorUnits,
+    lineTotalInclVatMinorUnits: line.lineTotalInclVatMinorUnits,
   };
 }
 
-function computeTotals(items: InvoiceItemInput[]) {
+function computeTotals(items: LineItemInput[]) {
   return calculateInvoiceTotals(
     items.map((i) => ({
       quantity: i.quantity,
-      unitPriceAgora: i.unitPriceAgora,
+      unitPriceMinorUnits: i.unitPriceMinorUnits,
       discountPercent: i.discountPercent,
       vatRateBasisPoints: i.vatRateBasisPoints,
     }))
@@ -146,7 +146,7 @@ export type CreateDraftInput = {
   dueDate?: string | undefined;
   notes?: string | undefined;
   internalNotes?: string | undefined;
-  items?: InvoiceItemInput[] | undefined;
+  items?: LineItemInput[] | undefined;
 };
 
 export async function createDraft(businessId: string, input: CreateDraftInput) {
@@ -196,7 +196,7 @@ export type UpdateDraftInput = {
   dueDate?: string | null | undefined;
   notes?: string | null | undefined;
   internalNotes?: string | null | undefined;
-  items?: InvoiceItemInput[] | undefined;
+  items?: LineItemInput[] | undefined;
 };
 
 export async function updateDraft(businessId: string, invoiceId: string, input: UpdateDraftInput) {
@@ -227,11 +227,11 @@ export async function updateDraft(businessId: string, invoiceId: string, input: 
         const totals = computeTotals(input.items!);
         Object.assign(updates, totals);
       } else {
-        updates['subtotalAgora'] = 0;
-        updates['discountAgora'] = 0;
-        updates['totalExclVatAgora'] = 0;
-        updates['vatAgora'] = 0;
-        updates['totalInclVatAgora'] = 0;
+        updates['subtotalMinorUnits'] = 0;
+        updates['discountMinorUnits'] = 0;
+        updates['totalExclVatMinorUnits'] = 0;
+        updates['vatMinorUnits'] = 0;
+        updates['totalInclVatMinorUnits'] = 0;
       }
 
       const updated = await updateInvoice(
@@ -315,14 +315,18 @@ export async function finalize(
     if (isExemptDealer && item.vatRateBasisPoints !== 0) {
       throw unprocessableEntity({ code: 'invalid_vat_rate' });
     }
-    if (!isExemptDealer && item.vatRateBasisPoints !== 0 && item.vatRateBasisPoints !== 1700) {
+    if (
+      !isExemptDealer &&
+      item.vatRateBasisPoints !== 0 &&
+      item.vatRateBasisPoints !== STANDARD_VAT_RATE_BP
+    ) {
       throw unprocessableEntity({ code: 'invalid_vat_rate' });
     }
   }
 
   // Finalize in a transaction
   return db.transaction(async (tx) => {
-    const { sequenceNumber, fullNumber } = await assignInvoiceNumber(
+    const { sequenceNumber, documentNumber } = await assignInvoiceNumber(
       tx,
       businessId,
       invoice.documentType,
@@ -333,7 +337,7 @@ export async function finalize(
     // Recalculate totals
     const lineInputs = items.map((i) => ({
       quantity: Number(i.quantity),
-      unitPriceAgora: i.unitPriceAgora,
+      unitPriceMinorUnits: i.unitPriceMinorUnits,
       discountPercent: Number(i.discountPercent),
       vatRateBasisPoints: i.vatRateBasisPoints,
     }));
@@ -345,7 +349,7 @@ export async function finalize(
       items.map((i) => {
         const line = calculateLine({
           quantity: Number(i.quantity),
-          unitPriceAgora: i.unitPriceAgora,
+          unitPriceMinorUnits: i.unitPriceMinorUnits,
           discountPercent: Number(i.discountPercent),
           vatRateBasisPoints: i.vatRateBasisPoints,
         });
@@ -355,12 +359,12 @@ export async function finalize(
           description: i.description,
           catalogNumber: i.catalogNumber,
           quantity: i.quantity,
-          unitPriceAgora: i.unitPriceAgora,
+          unitPriceMinorUnits: i.unitPriceMinorUnits,
           discountPercent: i.discountPercent,
           vatRateBasisPoints: i.vatRateBasisPoints,
-          lineTotalAgora: line.lineTotalAgora,
-          vatAmountAgora: line.vatAmountAgora,
-          lineTotalInclVatAgora: line.lineTotalInclVatAgora,
+          lineTotalMinorUnits: line.lineTotalMinorUnits,
+          vatAmountMinorUnits: line.vatAmountMinorUnits,
+          lineTotalInclVatMinorUnits: line.lineTotalInclVatMinorUnits,
         };
       }),
       tx
@@ -379,7 +383,7 @@ export async function finalize(
       {
         status: 'finalized',
         sequenceNumber,
-        fullNumber,
+        documentNumber,
         sequenceGroup: documentTypeToSequenceGroup(invoice.documentType),
         invoiceDate,
         issuedAt: now,

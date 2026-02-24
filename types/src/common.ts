@@ -14,6 +14,12 @@ export const optionalNullableEmail = nullableEmail.optional();
 
 export const optionalNullableBoolean = z.union([z.boolean(), z.literal(null)]).optional();
 
+export const dateString = z.string().trim().date();
+export const nullableDateString = z.union([dateString, z.literal(null)]);
+
+export const nullableUuid = z.union([uuidSchema, z.literal(null)]);
+export const nullableInt = z.union([z.number().int(), z.literal(null)]);
+
 export const optionalNullableDateInput = z
   .union([
     z
@@ -38,10 +44,3 @@ export const isoDateTime = z
 export const nullableIsoDateTime = z.union([isoDateTime, z.literal(null)]);
 
 export const optionalNullableIsoDateTime = nullableIsoDateTime.optional();
-
-export const errorResponseSchema = z.object({
-  error: z.string(),
-  message: z.string().optional(),
-  details: z.unknown().optional(),
-  requestId: z.string(),
-});

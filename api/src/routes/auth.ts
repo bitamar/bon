@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { env } from '../env.js';
 import { DrizzleUserRepository } from '../auth/repo.drizzle.js';
 import { startGoogleAuth, finishGoogleAuth } from '../auth/service.js';
@@ -11,8 +11,9 @@ import {
 import { createSession, deleteSession, getSession } from '../auth/session.js';
 import { AppError, badRequest, unauthorized } from '../lib/app-error.js';
 import { isHostAllowed, parseOriginHeader } from '../lib/origin.js';
+import { settingsResponseSchema } from '@bon/types/users';
 
-export async function authRoutes(app: FastifyInstance) {
+const authRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   const config = await getGoogleOidcConfig(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET);
 
   app.get('/auth/google', async (req, reply) => {
@@ -85,7 +86,7 @@ export async function authRoutes(app: FastifyInstance) {
   );
 
   // Return current user from session
-  app.get('/me', async (req, reply) => {
+  app.get('/me', { schema: { response: { 200: settingsResponseSchema } } }, async (req, reply) => {
     const sessionId = req.cookies[SESSION_COOKIE_NAME];
     const session = await getSession(sessionId);
     if (!session) throw unauthorized();
@@ -99,4 +100,6 @@ export async function authRoutes(app: FastifyInstance) {
     reply.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
     return reply.send({ ok: true });
   });
-}
+};
+
+export const authRoutes = authRoutesPlugin;

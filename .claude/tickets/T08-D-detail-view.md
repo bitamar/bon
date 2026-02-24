@@ -40,14 +40,14 @@ This sub-ticket also adds routing guards: non-draft invoices on the edit route r
 - [ ] Loading state: skeleton layout matching the final layout
 - [ ] Error state: error card with retry button
 - [ ] **All of these fields displayed**:
-  - [ ] `fullNumber` — prominent, primary identifier
+  - [ ] `documentNumber` — prominent, primary identifier
   - [ ] Document type label (Hebrew) using `DOCUMENT_TYPE_LABELS` from T08-A
   - [ ] `invoiceDate` (formatted as DD/MM/YYYY)
   - [ ] `issuedAt` (formatted with time: DD/MM/YYYY HH:mm)
   - [ ] `dueDate` (if set)
   - [ ] Customer section: `customerName`, `customerTaxId`, `customerAddress`, `customerEmail`
   - [ ] Line items table: description, quantity, unit price, discount %, line total, VAT amount
-  - [ ] Totals: `subtotalAgora`, `discountAgora` (if > 0), `totalExclVatAgora`, `vatAgora` with rate label, `totalInclVatAgora`
+  - [ ] Totals: `subtotalMinorUnits`, `discountMinorUnits` (if > 0), `totalExclVatMinorUnits`, `vatMinorUnits` with rate label, `totalInclVatMinorUnits`
   - [ ] `vatExemptionReason` (if set, displayed prominently near totals)
   - [ ] `notes` (if set)
   - [ ] `allocationNumber` (if set, in a prominent box labeled "מספר הקצאה")
@@ -82,7 +82,7 @@ InvoiceDetail (page)
 │   ├── [error] Error card with retry
 │   └── [data] Stack
 │       ├── Group (justify="space-between")
-│       │   ├── Stack: fullNumber + document type + date
+│       │   ├── Stack: documentNumber + document type + date
 │       │   └── InvoiceStatusBadge (size="lg")
 │       ├── InvoiceActionBar
 │       │   └── Paper: Group of action buttons

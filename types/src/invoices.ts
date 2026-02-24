@@ -1,9 +1,13 @@
 import { z } from 'zod';
 import {
+  dateString,
   isoDateTime,
   nonEmptyString,
+  nullableDateString,
+  nullableInt,
   nullableIsoDateTime,
   nullableString,
+  nullableUuid,
   uuidSchema,
 } from './common.js';
 
@@ -32,11 +36,11 @@ export const allocationStatusSchema = z.enum(['pending', 'approved', 'rejected',
 
 // ── Request schemas ──
 
-export const invoiceItemInputSchema = z.object({
+export const lineItemInputSchema = z.object({
   description: nonEmptyString,
   catalogNumber: z.string().trim().optional(),
   quantity: z.number().positive(),
-  unitPriceAgora: z.number().int().nonnegative(),
+  unitPriceMinorUnits: z.number().int().nonnegative(),
   discountPercent: z.number().min(0).max(100).default(0),
   vatRateBasisPoints: z.number().int().nonnegative(),
   position: z.number().int().nonnegative(),
@@ -46,29 +50,29 @@ export const createInvoiceDraftBodySchema = z
   .object({
     documentType: documentTypeSchema,
     customerId: uuidSchema.optional(),
-    invoiceDate: z.string().trim().date().optional(),
-    dueDate: z.string().trim().date().optional(),
+    invoiceDate: dateString.optional(),
+    dueDate: dateString.optional(),
     notes: z.string().trim().optional(),
     internalNotes: z.string().trim().optional(),
-    items: z.array(invoiceItemInputSchema).optional(),
+    items: z.array(lineItemInputSchema).optional(),
   })
   .strict();
 
 export const updateInvoiceDraftBodySchema = z
   .object({
-    customerId: z.union([uuidSchema, z.literal(null)]).optional(),
+    customerId: nullableUuid.optional(),
     documentType: documentTypeSchema.optional(),
-    invoiceDate: z.union([z.string().trim().date(), z.literal(null)]).optional(),
-    dueDate: z.union([z.string().trim().date(), z.literal(null)]).optional(),
+    invoiceDate: nullableDateString.optional(),
+    dueDate: nullableDateString.optional(),
     notes: z.union([z.string().trim(), z.literal(null)]).optional(),
     internalNotes: z.union([z.string().trim(), z.literal(null)]).optional(),
-    items: z.array(invoiceItemInputSchema).optional(),
+    items: z.array(lineItemInputSchema).optional(),
   })
   .strict();
 
 export const finalizeInvoiceBodySchema = z
   .object({
-    invoiceDate: z.string().trim().date().optional(),
+    invoiceDate: dateString.optional(),
   })
   .strict();
 
@@ -77,25 +81,25 @@ export const finalizeInvoiceBodySchema = z
 // Note: quantity and discountPercent are numeric DB columns returned as strings
 // by the driver. The service layer converts them to numbers with Number() before
 // building the API response.
-export const invoiceItemSchema = z.object({
+export const lineItemSchema = z.object({
   id: uuidSchema,
   invoiceId: uuidSchema,
   position: z.number().int().nonnegative(),
   description: nonEmptyString,
   catalogNumber: nullableString,
   quantity: z.number(),
-  unitPriceAgora: z.number().int(),
+  unitPriceMinorUnits: z.number().int(),
   discountPercent: z.number(),
   vatRateBasisPoints: z.number().int(),
-  lineTotalAgora: z.number().int(),
-  vatAmountAgora: z.number().int(),
-  lineTotalInclVatAgora: z.number().int(),
+  lineTotalMinorUnits: z.number().int(),
+  vatAmountMinorUnits: z.number().int(),
+  lineTotalInclVatMinorUnits: z.number().int(),
 });
 
 export const invoiceSchema = z.object({
   id: uuidSchema,
   businessId: uuidSchema,
-  customerId: z.union([uuidSchema, z.literal(null)]),
+  customerId: nullableUuid,
 
   // Customer snapshot at finalization
   customerName: nullableString,
@@ -107,21 +111,21 @@ export const invoiceSchema = z.object({
   status: invoiceStatusSchema,
   isOverdue: z.boolean(),
   sequenceGroup: z.union([sequenceGroupSchema, z.literal(null)]),
-  sequenceNumber: z.union([z.number().int(), z.literal(null)]),
-  fullNumber: nullableString,
-  creditedInvoiceId: z.union([uuidSchema, z.literal(null)]),
-  invoiceDate: z.string(),
+  sequenceNumber: nullableInt,
+  documentNumber: nullableString,
+  creditedInvoiceId: nullableUuid,
+  invoiceDate: dateString,
   issuedAt: nullableIsoDateTime,
-  dueDate: nullableString,
+  dueDate: nullableDateString,
   notes: nullableString,
   internalNotes: nullableString,
   currency: z.string(),
   vatExemptionReason: nullableString,
-  subtotalAgora: z.number().int(),
-  discountAgora: z.number().int(),
-  totalExclVatAgora: z.number().int(),
-  vatAgora: z.number().int(),
-  totalInclVatAgora: z.number().int(),
+  subtotalMinorUnits: z.number().int(),
+  discountMinorUnits: z.number().int(),
+  totalExclVatMinorUnits: z.number().int(),
+  vatMinorUnits: z.number().int(),
+  totalInclVatMinorUnits: z.number().int(),
   allocationStatus: z.union([allocationStatusSchema, z.literal(null)]),
   allocationNumber: nullableString,
   allocationError: nullableString,
@@ -133,21 +137,21 @@ export const invoiceSchema = z.object({
 
 export const invoiceResponseSchema = z.object({
   invoice: invoiceSchema,
-  items: z.array(invoiceItemSchema),
+  items: z.array(lineItemSchema),
 });
 
 export const invoiceListItemSchema = z.object({
   id: uuidSchema,
   businessId: uuidSchema,
-  customerId: z.union([uuidSchema, z.literal(null)]),
+  customerId: nullableUuid,
   customerName: nullableString,
   documentType: documentTypeSchema,
   status: invoiceStatusSchema,
   isOverdue: z.boolean(),
   sequenceGroup: z.union([sequenceGroupSchema, z.literal(null)]),
-  fullNumber: nullableString,
-  invoiceDate: z.string(),
-  totalInclVatAgora: z.number().int(),
+  documentNumber: nullableString,
+  invoiceDate: dateString,
+  totalInclVatMinorUnits: z.number().int(),
   createdAt: isoDateTime,
 });
 
@@ -164,11 +168,11 @@ export type DocumentType = z.infer<typeof documentTypeSchema>;
 export type SequenceGroup = z.infer<typeof sequenceGroupSchema>;
 export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>;
 export type AllocationStatus = z.infer<typeof allocationStatusSchema>;
-export type InvoiceItemInput = z.infer<typeof invoiceItemInputSchema>;
+export type LineItemInput = z.infer<typeof lineItemInputSchema>;
 export type CreateInvoiceDraftBody = z.infer<typeof createInvoiceDraftBodySchema>;
 export type UpdateInvoiceDraftBody = z.infer<typeof updateInvoiceDraftBodySchema>;
 export type FinalizeInvoiceBody = z.infer<typeof finalizeInvoiceBodySchema>;
-export type InvoiceItem = z.infer<typeof invoiceItemSchema>;
+export type LineItem = z.infer<typeof lineItemSchema>;
 export type Invoice = z.infer<typeof invoiceSchema>;
 export type InvoiceResponse = z.infer<typeof invoiceResponseSchema>;
 export type InvoiceListItem = z.infer<typeof invoiceListItemSchema>;

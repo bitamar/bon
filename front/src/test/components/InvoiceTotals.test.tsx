@@ -10,7 +10,7 @@ function makeRow(overrides: Partial<LineItemFormRow> = {}): LineItemFormRow {
     description: 'Item',
     catalogNumber: '',
     quantity: 1,
-    unitPriceShekel: 100,
+    unitPrice: 100,
     discountPercent: 0,
     vatRateBasisPoints: 1700,
     ...overrides,

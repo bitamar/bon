@@ -61,7 +61,7 @@ Report issues back to the Implementer. Approve when `npm run check` passes and a
 ### Israeli Tax Compliance
 - Invoice numbers: Sequential, gap-free per business?
 - Required fields: All legally required fields present?
-- VAT calculation: Correct rates? Rounding rules? (round to agora, nearest whole)
+- VAT calculation: Correct rates? Rounding rules? (round to minor units, nearest whole)
 - SHAAM: Will this data be reportable to SHAAM in the required format?
 - Immutability: Issued invoices cannot be modified (only credited/cancelled)
 
@@ -81,7 +81,7 @@ Report issues back to the Implementer. Approve when `npm run check` passes and a
 - No over-engineering or premature abstractions
 
 ### Financial Data
-- Monetary amounts stored as integer cents (agora), not floats
+- Monetary amounts stored as integer minor units, not floats
 - Currency always explicitly specified
 - Calculations avoid floating point (multiply before divide)
 - Rounding is explicit and correct

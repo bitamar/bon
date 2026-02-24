@@ -93,6 +93,6 @@ Structure your output as:
 - Zod schemas shared between API and frontend go in `types/src/`
 - API-only schemas stay in `api/src/routes/` or `api/src/auth/`
 - Sequential invoice numbers must be gap-free per business — design for concurrent access
-- Financial amounts: use integer cents (agora) to avoid floating point issues
+- Financial amounts: use integer minor units to avoid floating point issues
 - Timestamps: always `timestamp with time zone`
 - UUIDs for primary keys (matching existing pattern)

@@ -35,7 +35,7 @@ export async function assignInvoiceNumber(
   documentType: DocumentType,
   prefix: string,
   seedNumber: number
-): Promise<{ sequenceNumber: number; fullNumber: string }> {
+): Promise<{ sequenceNumber: number; documentNumber: string }> {
   const group = documentTypeToSequenceGroup(documentType);
 
   const incrementNext = sql.join([invoiceSequences.nextNumber, sql.raw('+ 1')]).mapWith(Number);
@@ -59,7 +59,7 @@ export async function assignInvoiceNumber(
   const sequenceNumber = row!.nextNumber - 1;
 
   const padded = String(sequenceNumber).padStart(4, '0');
-  const fullNumber = prefix ? `${prefix}-${padded}` : padded;
+  const documentNumber = prefix ? `${prefix}-${padded}` : padded;
 
-  return { sequenceNumber, fullNumber };
+  return { sequenceNumber, documentNumber };
 }

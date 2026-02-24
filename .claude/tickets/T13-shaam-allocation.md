@@ -39,7 +39,7 @@ The actual call to ITA's API to get an allocation number. This runs in the backg
 ## ITA API Notes
 
 - Document type code: 305 = חשבונית מס, 320 = חשבונית מס קבלה, 400 = קבלה, 330 = חשבונית זיכוי
-- Amounts sent in shekels (decimal), not agora
+- Amounts sent in the major currency unit (decimal), not minor units
 - `ClientVatNumber` required only if `isLicensedDealer`
 
 ---

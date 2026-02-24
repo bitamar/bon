@@ -48,7 +48,7 @@ export const createCustomerBodySchema = z
   })
   .strict()
   .refine((data) => !data.isLicensedDealer || !!data.taxId, {
-    message: 'עוסק מורשה חייב מספר מזהה (ח.פ./ע.מ.)',
+    message: 'licensed_dealer_requires_tax_id',
     path: ['taxId'],
   })
   .superRefine((data, ctx) => {
@@ -59,7 +59,7 @@ export const createCustomerBodySchema = z
       !validateIsraeliId(data.taxId)
     ) {
       const msg =
-        data.taxIdType === 'personal_id' ? 'מספר ת.ז. לא תקין' : 'מספר מזהה לא תקין (ספרת ביקורת)';
+        data.taxIdType === 'personal_id' ? 'invalid_personal_id' : 'invalid_tax_id_checksum';
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: msg, path: ['taxId'] });
     }
   });
@@ -81,7 +81,7 @@ export const updateCustomerBodySchema = z
   })
   .strict()
   .refine((data) => !data.isLicensedDealer || data.taxId !== null, {
-    message: 'עוסק מורשה חייב מספר מזהה (ח.פ./ע.מ.)',
+    message: 'licensed_dealer_requires_tax_id',
     path: ['taxId'],
   })
   .superRefine((data, ctx) => {
@@ -92,7 +92,7 @@ export const updateCustomerBodySchema = z
       !validateIsraeliId(data.taxId)
     ) {
       const msg =
-        data.taxIdType === 'personal_id' ? 'מספר ת.ז. לא תקין' : 'מספר מזהה לא תקין (ספרת ביקורת)';
+        data.taxIdType === 'personal_id' ? 'invalid_personal_id' : 'invalid_tax_id_checksum';
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: msg, path: ['taxId'] });
     }
   });

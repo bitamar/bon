@@ -55,7 +55,7 @@ This is the most complex part of T08. It replaces the basic finalize behavior wi
   - [ ] If PATCH fails: inline error in modal, do not proceed
   - [ ] On save success: modal closes, preview modal opens immediately (no second click)
   - [ ] Drafts are never gated — only finalization
-- [ ] **Step 2: VatExemptionReasonModal** (if `totalVatAgora === 0` AND `businessType !== 'exempt_dealer'`):
+- [ ] **Step 2: VatExemptionReasonModal** (if `totalVatMinorUnits === 0` AND `businessType !== 'exempt_dealer'`):
   - [ ] Select with 5 options:
     - "ייצוא שירותים §30(א)(5)"
     - "ייצוא טובין §30(א)(1)"
@@ -102,7 +102,7 @@ InvoiceEdit (existing page)
         │   ├── Body: Alert (color="yellow") + Stack of only missing fields
         │   └── Footer: "ביטול" (subtle) + "שמור והמשך" (loading on save)
         │
-        ├── STEP 2: VatExemptionReasonModal (if vatAgora===0 AND non-exempt)
+        ├── STEP 2: VatExemptionReasonModal (if vatMinorUnits===0 AND non-exempt)
         │   Modal (size="sm")
         │   ├── Header: "סיבת פטור ממע"מ"
         │   ├── Body: Select (required, 5 options)

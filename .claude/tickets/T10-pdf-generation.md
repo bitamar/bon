@@ -36,7 +36,7 @@ PR 2 cannot start until PR 1 is merged.
 - [ ] `GET /businesses/:businessId/invoices/:invoiceId/pdf` returns `application/pdf`
   - [ ] Requires authentication (`app.authenticate` + `app.requireBusinessAccess`)
   - [ ] Wrong invoice ID or wrong business → 404
-- [ ] Response headers: `Content-Type: application/pdf`, `Content-Disposition: inline; filename="{fullNumber}.pdf"` for finalized, `filename="draft-{invoiceId}.pdf"` for drafts
+- [ ] Response headers: `Content-Type: application/pdf`, `Content-Disposition: inline; filename="{documentNumber}.pdf"` for finalized, `filename="draft-{invoiceId}.pdf"` for drafts
 - [ ] Draft invoices: watermark "טיוטה - לא בתוקף" diagonally (45°, red, ~20% opacity) across the full page; NOT cached
 - [ ] Finalized invoices: cached after first generation, served from cache on subsequent requests
 
@@ -82,7 +82,7 @@ PR 2 cannot start until PR 1 is merged.
 
 - [ ] **Document identity section**:
   - Document type title: "חשבונית מס" / "חשבונית מס קבלה" / "קבלה" / "חשבונית מס זיכוי"
-  - Invoice number: "מספר: {fullNumber}"
+  - Invoice number: "מספר: {documentNumber}"
   - Invoice date: "תאריך: DD/MM/YYYY"
   - Issued-at: "תאריך הפקה: DD/MM/YYYY HH:mm"
   - Due date (if set): "תאריך פירעון: DD/MM/YYYY"
@@ -134,7 +134,7 @@ PR 2 cannot start until PR 1 is merged.
   - On error: button shows error state (red, 3 seconds), toast notification
   - Loading > 2 seconds: tooltip "זה עשוי לקחת מספר שניות"
   - Enabled for drafts (watermarked PDF) and finalized invoices
-  - Filename: `fullNumber.pdf` or "חשבונית.pdf" for drafts
+  - Filename: `documentNumber.pdf` or "חשבונית.pdf" for drafts
 - [ ] Test: successful download state sequence, error state on fetch failure
 
 ### General
@@ -190,7 +190,7 @@ File: `pdf/src/lib/puppeteer.ts` (in the PDF service workspace, not the API)
 
 File: `api/src/services/pdf-service.ts`
 
-```typescript
+```
 generateInvoicePdf(businessId, invoiceId): Promise<{ data: Buffer; filename: string }>
 invalidatePdfCache(businessId, invoiceId): Promise<void>
 ```
@@ -206,7 +206,7 @@ Logic:
 
 File: `pdf/src/routes/render.ts`
 
-```typescript
+```
 POST /render
 Body: { invoice, items, business, options: { watermark?: boolean } }
 Response: application/pdf buffer
@@ -238,7 +238,7 @@ Invoice snapshot doesn't include `customerTaxIdType`. Use generic "מ.ז./ח.פ.
 
 ### Amount Formatting Helper
 
-Already consolidated in `types/src/formatting.ts` by T08-A. The PDF service imports `formatAgora` and `formatDate` from `@bon/types/formatting`.
+Already consolidated in `types/src/formatting.ts` by T08-A. The PDF service imports `formatMinorUnits` and `formatDate` from `@bon/types/formatting`.
 
 ### File Structure
 

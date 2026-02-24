@@ -54,12 +54,12 @@ function makeItem(invoiceId: string, position: number) {
     position,
     description: `Item ${position}`,
     quantity: '2',
-    unitPriceAgora: 5000,
+    unitPriceMinorUnits: 5000,
     discountPercent: '0',
     vatRateBasisPoints: 1700,
-    lineTotalAgora: 10000,
-    vatAmountAgora: 1700,
-    lineTotalInclVatAgora: 11700,
+    lineTotalMinorUnits: 10000,
+    vatAmountMinorUnits: 1700,
+    lineTotalInclVatMinorUnits: 11700,
   };
 }
 

@@ -32,8 +32,8 @@ PR 2 cannot start until PR 1 is merged.
   - `documentType`: enum from `documentTypeSchema`, optional
   - `dateFrom`: ISO date (YYYY-MM-DD). Returns invoices with `invoiceDate >= dateFrom`
   - `dateTo`: ISO date. If `dateFrom > dateTo` → 422 with message "תאריך סיום חייב להיות אחרי תאריך התחלה"
-  - `q`: search string (max 100 chars). Searches `fullNumber` (ILIKE) and `customerName` (ILIKE). Case-insensitive. ANDed with other filters. Uses `escapeLikePattern()`.
-  - `sort`: enum. Valid: `invoiceDate:asc`, `invoiceDate:desc`, `dueDate:asc`, `dueDate:desc`, `totalInclVatAgora:asc`, `totalInclVatAgora:desc`, `createdAt:desc`. Default: `invoiceDate:desc`. Invalid → 422.
+  - `q`: search string (max 100 chars). Searches `documentNumber` (ILIKE) and `customerName` (ILIKE). Case-insensitive. ANDed with other filters. Uses `escapeLikePattern()`.
+  - `sort`: enum. Valid: `invoiceDate:asc`, `invoiceDate:desc`, `dueDate:asc`, `dueDate:desc`, `totalInclVatMinorUnits:asc`, `totalInclVatMinorUnits:desc`, `createdAt:desc`. Default: `invoiceDate:desc`. Invalid → 422.
   - `page`: positive integer, default 1
   - `limit`: positive integer, max 200, default 20
 - [ ] `invoiceListQuerySchema` defined in `types/src/invoices.ts`
@@ -60,7 +60,7 @@ PR 2 cannot start until PR 1 is merged.
   - "בוטלו" → `status=cancelled`
 - [ ] Default view: "ממתינות לתשלום" chip active, sorted by `dueDate:asc` (oldest due first — collections workflow)
 - [ ] **Each table row shows**:
-  - Invoice number (`fullNumber`, or "טיוטה" in gray for drafts with null `fullNumber`)
+  - Invoice number (`documentNumber`, or "טיוטה" in gray for drafts with null `documentNumber`)
   - Document type badge: "חשבונית מס" / "חשבונית מס קבלה" / "קבלה" / "חשבונית זיכוי"
   - Customer name (`customerName` for finalized; "לא נבחר לקוח" if null on draft)
   - Invoice date
@@ -116,7 +116,7 @@ InvoiceList (page)
 │   ├── [data] Table (highlightOnHover, withRowBorders)
 │   │   ├── Thead: מספר | סוג | לקוח | תאריך | סכום | סטטוס
 │   │   └── Tbody: rows with onClick navigation to detail page
-│   │       each row: fullNumber, docType badge, customerName, date+overdue, amount, statusBadge
+│   │       each row: documentNumber, docType badge, customerName, date+overdue, amount, statusBadge
 │   │
 │   └── [data, total > limit] Pagination (centered, withEdges)
 ```
@@ -154,10 +154,10 @@ export const invoiceListItemSchema = z.object({
   documentType: documentTypeSchema,
   status: invoiceStatusSchema,
   isOverdue: z.boolean(),
-  fullNumber: nullableString,
+  documentNumber: nullableString,
   invoiceDate: z.string(),
   dueDate: z.union([z.string(), z.literal(null)]),    // needed for client-side overdue calc
-  totalInclVatAgora: z.number().int(),
+  totalInclVatMinorUnits: z.number().int(),
   currency: z.string(),
   createdAt: isoDateTime,
 });
@@ -176,7 +176,7 @@ export const invoiceListResponseSchema = z.object({
 
 ```typescript
 const ALLOWED_SORTS = ['invoiceDate:asc', 'invoiceDate:desc', 'dueDate:asc', 'dueDate:desc',
-  'totalInclVatAgora:asc', 'totalInclVatAgora:desc', 'createdAt:desc'] as const;
+  'totalInclVatMinorUnits:asc', 'totalInclVatMinorUnits:desc', 'createdAt:desc'] as const;
 ```
 
 Default: `invoiceDate:desc`. For "outstanding" view, frontend passes `sort=dueDate:asc` (oldest due first). Null `dueDate` sorts last.
@@ -185,7 +185,7 @@ Default: `invoiceDate:desc`. For "outstanding" view, frontend passes `sort=dueDa
 
 Add to `invoice-repository.ts`:
 
-```typescript
+```
 findInvoices(filters: InvoiceListFilters, txOrDb?): Promise<InvoiceRecord[]>
 countInvoices(filters, txOrDb?): Promise<number>
 // aggregateOutstanding + aggregateFiltered → deferred to T09-B
@@ -195,13 +195,13 @@ Text search uses `escapeLikePattern()` from `query-utils.ts`:
 ```typescript
 if (filters.q) {
   const pattern = `%${escapeLikePattern(filters.q)}%`;
-  conditions.push(or(ilike(invoices.customerName, pattern), ilike(invoices.fullNumber, pattern)));
+  conditions.push(or(ilike(invoices.customerName, pattern), ilike(invoices.documentNumber, pattern)));
 }
 ```
 
 ### Service Layer
 
-```typescript
+```
 listInvoices(businessId: string, query: InvoiceListQuery): Promise<InvoiceListResponse>
 ```
 
@@ -230,9 +230,9 @@ Defer additional indexes until query performance monitoring shows need.
 "בוטלו"             → status=cancelled
 ```
 
-### Null `fullNumber` Display
+### Null `documentNumber` Display
 
-Draft invoices have `fullNumber = null`. Display "טיוטה" styled in gray.
+Draft invoices have `documentNumber = null`. Display "טיוטה" styled in gray.
 
 ### Credit Notes (T16)
 
@@ -240,7 +240,7 @@ When T16 ships, credit note rows will appear in this list. The table structure a
 
 ### Frontend Query Key
 
-```typescript
+```
 invoiceList: (businessId: string, params: Record<string, string>) =>
   ['businesses', businessId, 'invoices', 'list', params] as const,
 ```

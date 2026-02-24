@@ -1,6 +1,6 @@
 import { Group, Stack, Text } from '@mantine/core';
 import { calculateInvoiceTotals } from '@bon/types/vat';
-import { formatAgora, shekelToAgora } from '../lib/format';
+import { formatMinorUnits, toMinorUnits } from '../lib/format';
 import type { LineItemFormRow } from './InvoiceLineItems';
 
 interface InvoiceTotalsProps {
@@ -19,7 +19,7 @@ function getVatLabel(items: ReadonlyArray<Readonly<LineItemFormRow>>): string {
 export function InvoiceTotals({ items }: Readonly<InvoiceTotalsProps>) {
   const lineInputs = items.map((row) => ({
     quantity: row.quantity,
-    unitPriceAgora: shekelToAgora(row.unitPriceShekel),
+    unitPriceMinorUnits: toMinorUnits(row.unitPrice),
     discountPercent: row.discountPercent,
     vatRateBasisPoints: row.vatRateBasisPoints,
   }));
@@ -29,15 +29,15 @@ export function InvoiceTotals({ items }: Readonly<InvoiceTotalsProps>) {
 
   return (
     <Stack gap={4} maw={300} ms="auto">
-      <TotalRow label="סה״כ לפני הנחה" value={formatAgora(totals.subtotalAgora)} />
-      {totals.discountAgora > 0 && (
-        <TotalRow label="הנחה" value={formatAgora(totals.discountAgora)} />
+      <TotalRow label="סה״כ לפני הנחה" value={formatMinorUnits(totals.subtotalMinorUnits)} />
+      {totals.discountMinorUnits > 0 && (
+        <TotalRow label="הנחה" value={formatMinorUnits(totals.discountMinorUnits)} />
       )}
-      <TotalRow label="סה״כ לפני מע״מ" value={formatAgora(totals.totalExclVatAgora)} />
-      <TotalRow label={vatLabel} value={formatAgora(totals.vatAgora)} />
+      <TotalRow label="סה״כ לפני מע״מ" value={formatMinorUnits(totals.totalExclVatMinorUnits)} />
+      <TotalRow label={vatLabel} value={formatMinorUnits(totals.vatMinorUnits)} />
       <Group justify="space-between" mt="xs">
         <Text fw={700}>סה״כ</Text>
-        <Text fw={700}>{formatAgora(totals.totalInclVatAgora)}</Text>
+        <Text fw={700}>{formatMinorUnits(totals.totalInclVatMinorUnits)}</Text>
       </Group>
     </Stack>
   );

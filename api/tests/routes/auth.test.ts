@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { authRoutes } from '../../src/routes/auth.js';
 import { errorPlugin } from '../../src/plugins/errors.js';
 
@@ -38,6 +39,8 @@ vi.mock('../../src/auth/session.js', () => ({
 
 async function buildApp() {
   const app = Fastify();
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
   await app.register(cookie, { secret: 's' });
   await app.register(errorPlugin);
   await app.register(authRoutes);
@@ -46,10 +49,7 @@ async function buildApp() {
 
 describe('routes/auth', () => {
   it('GET /auth/google redirects and sets cookie', async () => {
-    const app = Fastify();
-    await app.register(cookie, { secret: 's' });
-    await app.register(errorPlugin);
-    await app.register(authRoutes);
+    const app = await buildApp();
     const res = await app.inject({
       method: 'GET',
       url: '/auth/google',
@@ -203,8 +203,9 @@ describe('routes/auth', () => {
     it('returns user when valid session cookie exists', async () => {
       const { getSession } = await import('../../src/auth/session.js');
 
+      const userId = '00000000-0000-4000-8000-000000000002';
       const fakeUser = {
-        id: 'user-2',
+        id: userId,
         email: 'hello@example.com',
         name: 'Hello User',
         avatarUrl: null,
@@ -230,7 +231,7 @@ describe('routes/auth', () => {
 
       expect(res.statusCode).toBe(200);
       const body = res.json();
-      expect(body.user).toMatchObject({ id: 'user-2', email: 'hello@example.com' });
+      expect(body.user).toMatchObject({ id: userId, email: 'hello@example.com' });
       await app.close();
     });
   });
