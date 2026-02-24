@@ -98,10 +98,10 @@ describe.skipIf(!isAvailable)('assignInvoiceNumber — concurrency (real PG)', (
     expect(sorted[0]).toBe(1);
     expect(sorted[sorted.length - 1]).toBe(CONCURRENCY);
 
-    // Verify fullNumber format
+    // Verify documentNumber format
     for (const result of results) {
       const padded = String(result.sequenceNumber).padStart(4, '0');
-      expect(result.fullNumber).toBe(`INV-${padded}`);
+      expect(result.documentNumber).toBe(`INV-${padded}`);
     }
   });
 });

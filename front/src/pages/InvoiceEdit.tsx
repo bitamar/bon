@@ -301,7 +301,7 @@ export function InvoiceEdit() {
               <Text size="lg" fw={600}>
                 {formatMinorUnits(headerTotals.totalInclVatMinorUnits)}
               </Text>
-              {invoice.fullNumber === null && (
+              {invoice.documentNumber === null && (
                 <Text size="sm" c="dimmed">
                   מספר יוקצה בהפקה
                 </Text>

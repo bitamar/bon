@@ -15,11 +15,12 @@ import { notFound, unprocessableEntity } from '../lib/app-error.js';
 import { assignInvoiceNumber, documentTypeToSequenceGroup } from '../lib/invoice-sequences.js';
 import { calculateLine, calculateInvoiceTotals } from '@bon/types/vat';
 import { db } from '../db/client.js';
+import { STANDARD_VAT_RATE_BP } from '@bon/types/vat';
 import type {
   Invoice,
-  InvoiceItem,
+  LineItem,
   InvoiceResponse,
-  InvoiceItemInput,
+  LineItemInput,
   DocumentType,
 } from '@bon/types/invoices';
 
@@ -44,7 +45,7 @@ function serializeInvoice(record: InvoiceRecord): Invoice {
     isOverdue: record.isOverdue,
     sequenceGroup: record.sequenceGroup ?? null,
     sequenceNumber: record.sequenceNumber ?? null,
-    fullNumber: record.fullNumber ?? null,
+    documentNumber: record.documentNumber ?? null,
     creditedInvoiceId: record.creditedInvoiceId ?? null,
     invoiceDate: coerceToDateString(record.invoiceDate),
     issuedAt: record.issuedAt ? record.issuedAt.toISOString() : null,
@@ -68,7 +69,7 @@ function serializeInvoice(record: InvoiceRecord): Invoice {
   };
 }
 
-function serializeInvoiceItem(record: InvoiceItemRecord): InvoiceItem {
+function serializeInvoiceItem(record: InvoiceItemRecord): LineItem {
   return {
     id: record.id,
     invoiceId: record.invoiceId,
@@ -87,7 +88,7 @@ function serializeInvoiceItem(record: InvoiceItemRecord): InvoiceItem {
 
 // ── helpers ──
 
-function buildItemInsert(invoiceId: string, item: InvoiceItemInput) {
+function buildItemInsert(invoiceId: string, item: LineItemInput) {
   const line = calculateLine({
     quantity: item.quantity,
     unitPriceMinorUnits: item.unitPriceMinorUnits,
@@ -109,7 +110,7 @@ function buildItemInsert(invoiceId: string, item: InvoiceItemInput) {
   };
 }
 
-function computeTotals(items: InvoiceItemInput[]) {
+function computeTotals(items: LineItemInput[]) {
   return calculateInvoiceTotals(
     items.map((i) => ({
       quantity: i.quantity,
@@ -146,7 +147,7 @@ export type CreateDraftInput = {
   dueDate?: string | undefined;
   notes?: string | undefined;
   internalNotes?: string | undefined;
-  items?: InvoiceItemInput[] | undefined;
+  items?: LineItemInput[] | undefined;
 };
 
 export async function createDraft(businessId: string, input: CreateDraftInput) {
@@ -196,7 +197,7 @@ export type UpdateDraftInput = {
   dueDate?: string | null | undefined;
   notes?: string | null | undefined;
   internalNotes?: string | null | undefined;
-  items?: InvoiceItemInput[] | undefined;
+  items?: LineItemInput[] | undefined;
 };
 
 export async function updateDraft(businessId: string, invoiceId: string, input: UpdateDraftInput) {
@@ -315,14 +316,18 @@ export async function finalize(
     if (isExemptDealer && item.vatRateBasisPoints !== 0) {
       throw unprocessableEntity({ code: 'invalid_vat_rate' });
     }
-    if (!isExemptDealer && item.vatRateBasisPoints !== 0 && item.vatRateBasisPoints !== 1700) {
+    if (
+      !isExemptDealer &&
+      item.vatRateBasisPoints !== 0 &&
+      item.vatRateBasisPoints !== STANDARD_VAT_RATE_BP
+    ) {
       throw unprocessableEntity({ code: 'invalid_vat_rate' });
     }
   }
 
   // Finalize in a transaction
   return db.transaction(async (tx) => {
-    const { sequenceNumber, fullNumber } = await assignInvoiceNumber(
+    const { sequenceNumber, documentNumber } = await assignInvoiceNumber(
       tx,
       businessId,
       invoice.documentType,
@@ -379,7 +384,7 @@ export async function finalize(
       {
         status: 'finalized',
         sequenceNumber,
-        fullNumber,
+        documentNumber,
         sequenceGroup: documentTypeToSequenceGroup(invoice.documentType),
         invoiceDate,
         issuedAt: now,

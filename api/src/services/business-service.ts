@@ -27,6 +27,7 @@ import {
   teamListResponseSchema,
   type BusinessRole,
 } from '@bon/types/businesses';
+import { STANDARD_VAT_RATE_BP } from '@bon/types/vat';
 
 export type BusinessDto = z.infer<typeof businessSchema>;
 export type BusinessResponse = z.infer<typeof businessResponseSchema>;
@@ -101,7 +102,8 @@ export async function createBusiness(userId: string, input: CreateBusinessInput)
       email: input.email ?? null,
       invoiceNumberPrefix: input.invoiceNumberPrefix ?? null,
       startingInvoiceNumber: input.startingInvoiceNumber ?? 1,
-      defaultVatRate: input.businessType === 'exempt_dealer' ? 0 : (input.defaultVatRate ?? 1700),
+      defaultVatRate:
+        input.businessType === 'exempt_dealer' ? 0 : (input.defaultVatRate ?? STANDARD_VAT_RATE_BP),
       createdByUserId: userId,
       createdAt: now,
       updatedAt: now,

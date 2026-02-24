@@ -104,7 +104,7 @@ CREATE TABLE "invoices" (
 	"status" "invoice_status" DEFAULT 'draft' NOT NULL,
 	"is_overdue" boolean DEFAULT false NOT NULL,
 	"sequence_number" integer,
-	"full_number" text,
+	"document_number" text,
 	"credited_invoice_id" uuid,
 	"sequence_group" "sequence_group",
 	"invoice_date" date DEFAULT CURRENT_DATE NOT NULL,

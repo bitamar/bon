@@ -71,7 +71,7 @@ function makeMockInvoice(overrides: Record<string, unknown> = {}): InvoiceRespon
       isOverdue: false,
       sequenceGroup: null,
       sequenceNumber: null,
-      fullNumber: null,
+      documentNumber: null,
       creditedInvoiceId: null,
       invoiceDate: '2026-02-23',
       issuedAt: null,

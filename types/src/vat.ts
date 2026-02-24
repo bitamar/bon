@@ -1,13 +1,16 @@
 import { z } from 'zod';
 
-export const lineItemInputSchema = z.object({
+export const STANDARD_VAT_RATE_BP = 1700;
+export const DEFAULT_CURRENCY = 'ILS';
+
+export const lineCalcInputSchema = z.object({
   quantity: z.number().positive(),
   unitPriceMinorUnits: z.number().int().nonnegative(),
   discountPercent: z.number().min(0).max(100),
   vatRateBasisPoints: z.number().int().nonnegative(),
 });
 
-export const lineItemResultSchema = z.object({
+export const lineCalcResultSchema = z.object({
   grossMinorUnits: z.number().int(),
   discountMinorUnits: z.number().int(),
   lineTotalMinorUnits: z.number().int(),
@@ -23,11 +26,11 @@ export const invoiceTotalsSchema = z.object({
   totalInclVatMinorUnits: z.number().int(),
 });
 
-export type LineItemInput = z.infer<typeof lineItemInputSchema>;
-export type LineItemResult = z.infer<typeof lineItemResultSchema>;
+export type LineCalcInput = z.infer<typeof lineCalcInputSchema>;
+export type LineCalcResult = z.infer<typeof lineCalcResultSchema>;
 export type InvoiceTotals = z.infer<typeof invoiceTotalsSchema>;
 
-export function calculateLine(item: Readonly<LineItemInput>): LineItemResult {
+export function calculateLine(item: Readonly<LineCalcInput>): LineCalcResult {
   const gross = Math.round(item.quantity * item.unitPriceMinorUnits);
   const discount = Math.round((gross * item.discountPercent) / 100);
   const lineTotal = gross - discount;
@@ -42,7 +45,7 @@ export function calculateLine(item: Readonly<LineItemInput>): LineItemResult {
 }
 
 export function calculateInvoiceTotals(
-  items: ReadonlyArray<Readonly<LineItemInput>>
+  items: ReadonlyArray<Readonly<LineCalcInput>>
 ): InvoiceTotals {
   let subtotalMinorUnits = 0;
   let discountMinorUnits = 0;

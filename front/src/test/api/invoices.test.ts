@@ -26,7 +26,7 @@ const minimalInvoice = {
   isOverdue: false,
   sequenceGroup: null,
   sequenceNumber: null,
-  fullNumber: null,
+  documentNumber: null,
   creditedInvoiceId: null,
   invoiceDate: '2024-01-01',
   issuedAt: null,

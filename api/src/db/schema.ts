@@ -15,6 +15,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { isNull, relations, sql } from 'drizzle-orm';
+import { STANDARD_VAT_RATE_BP, DEFAULT_CURRENCY } from '@bon/types/vat';
 
 export const businessTypeEnum = pgEnum('business_type', [
   'licensed_dealer',
@@ -104,7 +105,7 @@ export const businesses = pgTable('businesses', {
   invoiceNumberPrefix: text('invoice_number_prefix'),
   startingInvoiceNumber: integer('starting_invoice_number').notNull().default(1),
   // stored as basis points: 1700 = 17.00%
-  defaultVatRate: integer('default_vat_rate').notNull().default(1700),
+  defaultVatRate: integer('default_vat_rate').notNull().default(STANDARD_VAT_RATE_BP),
   logoUrl: text('logo_url'),
   isActive: boolean('is_active').notNull().default(true),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -280,7 +281,7 @@ export const invoices = pgTable(
     status: invoiceStatusEnum('status').notNull().default('draft'),
     isOverdue: boolean('is_overdue').notNull().default(false),
     sequenceNumber: integer('sequence_number'),
-    fullNumber: text('full_number'),
+    documentNumber: text('document_number'),
     creditedInvoiceId: uuid('credited_invoice_id'),
     sequenceGroup: sequenceGroupEnum('sequence_group'),
     invoiceDate: date('invoice_date', { mode: 'string' })
@@ -290,7 +291,7 @@ export const invoices = pgTable(
     dueDate: date('due_date', { mode: 'string' }),
     notes: text('notes'),
     internalNotes: text('internal_notes'),
-    currency: text('currency').notNull().default('ILS'),
+    currency: text('currency').notNull().default(DEFAULT_CURRENCY),
     vatExemptionReason: text('vat_exemption_reason'),
     subtotalMinorUnits: integer('subtotal_minor_units').notNull().default(0),
     discountMinorUnits: integer('discount_minor_units').notNull().default(0),

@@ -76,7 +76,7 @@ describe('assignInvoiceNumber', () => {
 
     const result = await assignNumber(business.id, 'tax_invoice', 'INV', 1);
 
-    expect(result).toEqual({ sequenceNumber: 1, fullNumber: 'INV-0001' });
+    expect(result).toEqual({ sequenceNumber: 1, documentNumber: 'INV-0001' });
   });
 
   it('increments on second assignment', async () => {
@@ -86,7 +86,7 @@ describe('assignInvoiceNumber', () => {
     await assignNumber(business.id, 'tax_invoice', 'INV', 1);
     const result = await assignNumber(business.id, 'tax_invoice', 'INV', 1);
 
-    expect(result).toEqual({ sequenceNumber: 2, fullNumber: 'INV-0002' });
+    expect(result).toEqual({ sequenceNumber: 2, documentNumber: 'INV-0002' });
   });
 
   it('keeps different sequence groups independent', async () => {
@@ -98,8 +98,8 @@ describe('assignInvoiceNumber', () => {
 
     expect(invoice.sequenceNumber).toBe(1);
     expect(credit.sequenceNumber).toBe(1);
-    expect(invoice.fullNumber).toBe('INV-0001');
-    expect(credit.fullNumber).toBe('CR-0001');
+    expect(invoice.documentNumber).toBe('INV-0001');
+    expect(credit.documentNumber).toBe('CR-0001');
   });
 
   it('shares sequence between tax_invoice and tax_invoice_receipt', async () => {
@@ -115,13 +115,13 @@ describe('assignInvoiceNumber', () => {
     expect(third.sequenceNumber).toBe(3);
   });
 
-  it('formats fullNumber correctly with prefix and padding', async () => {
+  it('formats documentNumber correctly with prefix and padding', async () => {
     const user = await createUser();
     const business = await createBusiness(user.id);
 
     const result = await assignNumber(business.id, 'receipt', 'RCT', 42);
 
-    expect(result).toEqual({ sequenceNumber: 42, fullNumber: 'RCT-0042' });
+    expect(result).toEqual({ sequenceNumber: 42, documentNumber: 'RCT-0042' });
   });
 
   it('formats correctly without prefix', async () => {
@@ -130,7 +130,7 @@ describe('assignInvoiceNumber', () => {
 
     const result = await assignNumber(business.id, 'tax_invoice', '', 1);
 
-    expect(result).toEqual({ sequenceNumber: 1, fullNumber: '0001' });
+    expect(result).toEqual({ sequenceNumber: 1, documentNumber: '0001' });
   });
 
   it('handles numbers larger than 9999 without truncation', async () => {
@@ -139,6 +139,6 @@ describe('assignInvoiceNumber', () => {
 
     const result = await assignNumber(business.id, 'tax_invoice', 'INV', 12345);
 
-    expect(result).toEqual({ sequenceNumber: 12345, fullNumber: 'INV-12345' });
+    expect(result).toEqual({ sequenceNumber: 12345, documentNumber: 'INV-12345' });
   });
 });

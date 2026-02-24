@@ -321,7 +321,7 @@ describe('routes/invoices', () => {
       const body = res.json() as InvoiceResponse;
       expect(body.invoice.status).toBe('finalized');
       expect(body.invoice.sequenceNumber).toBeGreaterThanOrEqual(1);
-      expect(body.invoice.fullNumber).toBeTruthy();
+      expect(body.invoice.documentNumber).toBeTruthy();
       expect(body.invoice.issuedAt).toBeTruthy();
       expect(body.invoice.customerName).toBe('Acme Corp');
       expect(body.invoice.customerEmail).toBe('acme@example.com');
