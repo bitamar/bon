@@ -2,6 +2,7 @@ import { fetchJson } from '../lib/http';
 import {
   invoiceResponseSchema,
   type CreateInvoiceDraftBody,
+  type FinalizeInvoiceBody,
   type InvoiceResponse,
   type UpdateInvoiceDraftBody,
 } from '@bon/types/invoices';
@@ -46,4 +47,19 @@ export async function deleteInvoiceDraft(
     method: 'DELETE',
   });
   return okResponseSchema.parse(json);
+}
+
+export async function finalizeInvoice(
+  businessId: string,
+  invoiceId: string,
+  data: FinalizeInvoiceBody
+): Promise<InvoiceResponse> {
+  const json = await fetchJson<unknown>(
+    `/businesses/${businessId}/invoices/${invoiceId}/finalize`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  );
+  return invoiceResponseSchema.parse(json);
 }

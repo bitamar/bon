@@ -17,6 +17,7 @@ vi.mock('../../api/businesses', () => ({
 }));
 vi.mock('../../api/customers', () => ({
   fetchCustomers: vi.fn().mockResolvedValue({ customers: [] }),
+  fetchCustomer: vi.fn(),
 }));
 vi.mock('../../lib/notifications', () => ({
   showErrorNotification: vi.fn(),
@@ -122,6 +123,7 @@ function renderEdit() {
   return renderWithProviders(
     <Routes>
       <Route path="/business/invoices/:invoiceId/edit" element={<InvoiceEdit />} />
+      <Route path="/business/invoices/:invoiceId" element={<div>detail-page</div>} />
       <Route path="/" element={<div>home</div>} />
     </Routes>,
     { router: { initialEntries: ['/business/invoices/inv-1/edit'] } }
@@ -165,11 +167,11 @@ describe('InvoiceEdit page', () => {
     expect(screen.getByDisplayValue('שירות ייעוץ')).toBeInTheDocument();
   });
 
-  it('shows alert for non-draft invoices', async () => {
+  it('redirects non-draft invoices to detail page', async () => {
     setupDraftMocks({ status: 'finalized' });
     renderEdit();
 
-    expect(await screen.findByText('חשבונית זו כבר הופקה ואינה ניתנת לעריכה')).toBeInTheDocument();
+    expect(await screen.findByText('detail-page')).toBeInTheDocument();
   });
 
   it('calls updateInvoiceDraft on save with minor unit amounts', async () => {
