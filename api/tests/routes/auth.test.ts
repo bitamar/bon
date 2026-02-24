@@ -203,8 +203,9 @@ describe('routes/auth', () => {
     it('returns user when valid session cookie exists', async () => {
       const { getSession } = await import('../../src/auth/session.js');
 
+      const userId = '00000000-0000-4000-8000-000000000002';
       const fakeUser = {
-        id: 'user-2',
+        id: userId,
         email: 'hello@example.com',
         name: 'Hello User',
         avatarUrl: null,
@@ -228,12 +229,9 @@ describe('routes/auth', () => {
         cookies: { session: 'session-xyz' },
       });
 
-      if (res.statusCode !== 200) {
-        console.error('DEBUG /me response:', res.statusCode, res.body);
-      }
       expect(res.statusCode).toBe(200);
       const body = res.json();
-      expect(body.user).toMatchObject({ id: 'user-2', email: 'hello@example.com' });
+      expect(body.user).toMatchObject({ id: userId, email: 'hello@example.com' });
       await app.close();
     });
   });

@@ -13,9 +13,8 @@ import { findCustomerById } from '../repositories/customer-repository.js';
 import { findBusinessById } from '../repositories/business-repository.js';
 import { notFound, unprocessableEntity } from '../lib/app-error.js';
 import { assignInvoiceNumber, documentTypeToSequenceGroup } from '../lib/invoice-sequences.js';
-import { calculateLine, calculateInvoiceTotals } from '@bon/types/vat';
+import { calculateLine, calculateInvoiceTotals, STANDARD_VAT_RATE_BP } from '@bon/types/vat';
 import { db } from '../db/client.js';
-import { STANDARD_VAT_RATE_BP } from '@bon/types/vat';
 import type {
   Invoice,
   LineItem,
