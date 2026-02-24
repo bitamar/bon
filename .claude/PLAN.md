@@ -498,7 +498,7 @@ The SHAAM API expects a JSON payload with ~26 fields. Map from invoice:
   "AccountingDocType": documentTypeCode,     // 305 = חשבונית מס
   "AccountingSoftwareNumber": REGISTRATION_NUMBER,  // BON's ITA certificate
   "VatNumber": business.vatNumber,
-  "DocumentNumber": invoice.fullNumber,
+  "DocumentNumber": invoice.documentNumber,
   "DocumentDate": invoice.invoiceDate,       // YYYY-MM-DD
   "DealAmount": invoice.totalExclVatMinorUnits / 100,  // in major currency units (decimal)
   "VatAmount": invoice.vatMinorUnits / 100,

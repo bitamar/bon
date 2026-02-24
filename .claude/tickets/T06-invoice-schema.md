@@ -65,7 +65,7 @@ These questions were raised during product/architect review and resolved before 
 | 5 | `numeric` column wire format | **Convert to `number` in service layer.** Entire codebase uses numbers in Zod schemas. Parse with `Number()` in repository/response mapper. Add comment explaining why. |
 | 6 | `customerId` ON DELETE behavior | **SET NULL.** Customer data is snapshotted on finalization. FK only useful for drafts and "find invoices by customer" queries. RESTRICT would block customer deletion. |
 | 7 | Concurrency test | **Real Postgres on port 5433.** Separate integration test file (`invoice-sequences.integration.test.ts`). pg-mem can't test row-level locking. Skip flag for CI if needed. |
-| 8 | `fullNumber` padding width | **Floor of 4 digits, grows naturally.** `padStart(4, '0')` — `INV-0042`, `INV-10000`. No truncation. ITA cares about uniqueness, not padding. |
+| 8 | `documentNumber` padding width | **Floor of 4 digits, grows naturally.** `padStart(4, '0')` — `INV-0042`, `INV-10000`. No truncation. ITA cares about uniqueness, not padding. |
 | 9 | Can paid invoices be credited? | **Yes.** This is how refunds work in Israeli invoicing. Added `paid → credited` to status machine. |
 | 10 | `isOverdue` stored vs computed | **Keep in schema.** Trivial column, one line in migration. T07 response types are correct from day one. T17 cron will maintain it. |
 | 11 | Customer email snapshot | **Added `customerEmail` text nullable.** T11 needs it for delivery records. Must reflect email at time of finalization. |
@@ -114,7 +114,7 @@ customerEmail         text (nullable — for T11 email delivery records)
 -- Document identity (nullable for draft state)
 documentType          documentTypeEnum NOT NULL (set at draft creation)
 sequenceNumber        integer (nullable — assigned on finalization)
-fullNumber            text (nullable — assigned on finalization)
+documentNumber        text (nullable — assigned on finalization)
 
 -- Dates
 invoiceDate           date NOT NULL (defaults to today at draft creation)
@@ -256,7 +256,7 @@ async function assignInvoiceNumber(
   documentType: DocumentType,
   prefix: string,
   seedNumber: number      // startingInvoiceNumber for tax_document, 1 for others
-): Promise<{ sequenceNumber: number; fullNumber: string }> {
+): Promise<{ sequenceNumber: number; documentNumber: string }> {
   const group = documentTypeToSequenceGroup(documentType);
 
   // Try to lock the existing row
@@ -292,11 +292,11 @@ async function assignInvoiceNumber(
     assignedNumber = seedNumber;
   }
 
-  const fullNumber = prefix
+  const documentNumber = prefix
     ? `${prefix}-${String(assignedNumber).padStart(4, '0')}`
     : String(assignedNumber).padStart(4, '0');
 
-  return { sequenceNumber: assignedNumber, fullNumber };
+  return { sequenceNumber: assignedNumber, documentNumber };
 }
 ```
 
@@ -431,7 +431,7 @@ finalizeInvoiceBodySchema:
 invoiceItemSchema        — full item with id, all calculated fields (quantity/discountPercent as numbers)
 invoiceSchema            — full invoice with all fields
 invoiceResponseSchema    — { invoice, items[] }
-invoiceListItemSchema    — id, fullNumber, customerName, documentType, invoiceDate, totalInclVatMinorUnits, status, isOverdue
+invoiceListItemSchema    — id, documentNumber, customerName, documentType, invoiceDate, totalInclVatMinorUnits, status, isOverdue
 invoiceListResponseSchema — { invoices[], total }
 ```
 
