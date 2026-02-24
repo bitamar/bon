@@ -107,6 +107,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(customerRoutes);
   await app.register(invoiceRoutes);
   app.get('/health', async () => ({ ok: true }));
+  app.get('/', async (_request, reply) => reply.redirect('/docs'));
 
   return app;
 }
