@@ -9,6 +9,7 @@ const userRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: app.authenticate,
       schema: {
+        tags: ['Users'],
         response: {
           200: settingsResponseSchema,
         },
@@ -31,6 +32,7 @@ const userRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: app.authenticate,
       schema: {
+        tags: ['Users'],
         body: updateSettingsBodySchema,
         response: {
           200: settingsResponseSchema,

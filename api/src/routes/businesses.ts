@@ -26,6 +26,7 @@ const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: app.authenticate,
       schema: {
+        tags: ['Businesses'],
         body: createBusinessBodySchema,
         response: {
           201: businessResponseSchema,
@@ -44,6 +45,7 @@ const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: app.authenticate,
       schema: {
+        tags: ['Businesses'],
         response: {
           200: businessListResponseSchema,
         },
@@ -60,6 +62,7 @@ const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Businesses'],
         params: businessIdParamSchema,
         response: {
           200: businessResponseSchema,
@@ -81,6 +84,7 @@ const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         app.requireBusinessRole('owner', 'admin'),
       ],
       schema: {
+        tags: ['Businesses'],
         params: businessIdParamSchema,
         body: updateBusinessBodySchema,
         response: {
@@ -99,6 +103,7 @@ const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Businesses'],
         params: businessIdParamSchema,
         response: {
           200: teamListResponseSchema,
@@ -120,6 +125,7 @@ const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         app.requireBusinessRole('owner', 'admin'),
       ],
       schema: {
+        tags: ['Businesses'],
         params: teamMemberParamSchema,
         response: {
           200: okResponseSchema,

@@ -20,11 +20,13 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@bon/types": "file:../types",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.1.0",
     "@fastify/formbody": "^8.0.2",
     "@fastify/rate-limit": "^10.3.0",
-    "@bon/types": "file:../types",
+    "@fastify/swagger": "^9.7.0",
+    "@scalar/fastify-api-reference": "^1.44.25",
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.5",
     "drizzle-orm": "^0.44.6",

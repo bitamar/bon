@@ -27,6 +27,7 @@ const invitationRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         app.requireBusinessRole('owner', 'admin'),
       ],
       schema: {
+        tags: ['Invitations'],
         params: businessIdParamSchema,
         body: createInvitationBodySchema,
         response: {
@@ -51,6 +52,7 @@ const invitationRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         app.requireBusinessRole('owner', 'admin'),
       ],
       schema: {
+        tags: ['Invitations'],
         params: businessIdParamSchema,
         response: {
           200: invitationListResponseSchema,
@@ -68,6 +70,7 @@ const invitationRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: app.authenticate,
       schema: {
+        tags: ['Invitations'],
         response: {
           200: myInvitationsResponseSchema,
         },
@@ -84,6 +87,7 @@ const invitationRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: app.authenticate,
       schema: {
+        tags: ['Invitations'],
         params: invitationTokenParamSchema,
         response: {
           200: okResponseSchema,
@@ -102,6 +106,7 @@ const invitationRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: app.authenticate,
       schema: {
+        tags: ['Invitations'],
         params: invitationTokenParamSchema,
         response: {
           200: okResponseSchema,
