@@ -1,9 +1,11 @@
 # T-CRON-01 — Nightly Jobs Infrastructure & Scheduled Tasks
 
-**Status**: 🔒 Blocked (T15 should merge first — most jobs operate on finalized invoices)
+**Status**: 🔒 Blocked (T08-D must merge first)
 **Phase**: Cross-cutting
-**Requires**: T15 (payments) merged for meaningful overdue detection; pg-boss setup can start earlier
-**Blocks**: nothing strictly, but T17 should be absorbed into this ticket
+**Requires**: T08-D merged (infrastructure + draft/session cleanup need only finalized invoices; overdue detection benefits from T15 but can use stub handler initially)
+**Blocks**: nothing strictly, but T17 is absorbed into this ticket
+
+**Dependency correction**: Was listed as requiring T15 (payments). Only Part 2 (overdue detection) benefits from T15. Parts 1, 3, 4 (infrastructure, draft cleanup, session cleanup) can ship immediately after T08-D. Split into two PRs accordingly.
 
 ---
 
@@ -193,10 +195,19 @@ This job depends on SHAAM integration (T12). The handler skeleton can be created
 
 ---
 
+## Recommended PR Split
+
+- **PR 1 — Infrastructure + draft/session cleanup** (can ship after T08-D): pg-boss setup, Fastify plugin, draft cleanup handler, session cleanup handler, cron schedule registration (overdue + SHAAM as empty stubs with `// TODO: implement in T15/T12`), tests
+- **PR 2 — Overdue detection** (after T15 merges): overdue handler, digest email (or log if T11 not ready), overdue reset for paid invoices, tests
+
+This split allows the infrastructure to ship early (Stream E) while the overdue handler waits for payments (T15).
+
+---
+
 ## Test Strategy
 
-- **pg-boss setup**: Integration test that starts boss, enqueues a test job, verifies it runs
-- **Overdue detection**: Unit test with pg-mem — insert invoices with various statuses and due dates, run handler, verify `isOverdue` flags
+- **pg-boss setup**: Note that pg-mem likely cannot support pg-boss (it uses advanced PG features like LISTEN/NOTIFY). For integration tests, either use a real Postgres instance or test the handlers directly without pg-boss (call the handler function, verify DB state). Prefer the latter for CI.
+- **Overdue detection**: Unit test with pg-mem — insert invoices with various statuses and due dates, run handler function directly, verify `isOverdue` flags
 - **Draft cleanup**: Unit test — insert old and recent drafts, run handler, verify only old ones deleted
 - **Session cleanup**: Unit test — insert expired and valid sessions, run handler, verify only expired ones deleted
 - **SHAAM token refresh**: Deferred to T12

@@ -15,7 +15,7 @@ This is the most complex part of T08. It replaces the basic finalize behavior wi
 
 ## Deliverables
 
-### New Files (4 source + 3 test)
+### New Files (4 source + 4 test)
 
 | File | Purpose |
 |------|---------|
@@ -25,6 +25,7 @@ This is the most complex part of T08. It replaces the basic finalize behavior wi
 | `front/src/components/InvoicePreviewModal.tsx` | Read-only structured preview before confirm |
 | `front/src/test/components/BusinessProfileGateModal.test.tsx` | Tests |
 | `front/src/test/components/VatExemptionReasonModal.test.tsx` | Tests |
+| `front/src/test/components/InvoicePreviewModal.test.tsx` | Tests |
 | `front/src/test/hooks/useFinalizationFlow.test.tsx` | Tests |
 
 ### Modified Files (2)
@@ -119,11 +120,21 @@ InvoiceEdit (existing page)
 
 ---
 
+## Modal Close & Cancel Behavior
+
+- **All modals**: pressing Escape or clicking the "ביטול" button returns to the form in idle state. The finalization flow resets — user must click "הפק חשבונית" again to restart.
+- **Browser tab close during flow**: no special handling needed — the draft is already saved. The flow state is ephemeral (React state only).
+- **"חזרה לעריכה" in preview modal**: closes all modals, returns to the form. The flow resets to idle. On next "הפק חשבונית" click, the entire flow re-runs from Step 0 (re-validates, re-checks profile, etc.).
+- **`closeOnClickOutside`**: `false` on all three modals during finalization flow — prevents accidental dismissal.
+
+---
+
 ## Tests
 
 - [ ] `BusinessProfileGateModal`: submit success (modal closes), PATCH failure (inline error shown)
 - [ ] `VatExemptionReasonModal`: selection works, "אחר" with empty notes shows error
-- [ ] `useFinalizationFlow`: flow skips steps when not needed (e.g., profile complete → skip step 1)
+- [ ] `InvoicePreviewModal`: renders all invoice fields read-only, confirm button disables after first click, "חזרה לעריכה" closes modal and resets flow
+- [ ] `useFinalizationFlow`: flow skips steps when not needed (e.g., profile complete → skip step 1), flow resets to idle on cancel/escape
 - [ ] `npm run check` passes
 
 ---

@@ -22,6 +22,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | 🔄 | In progress (branch open, not merged) |
 | ⬜ | Not started |
 | 🔒 | Blocked (waiting on a previous ticket) |
+| 📝 | Needs spec work (Product/Architect/UI Designer pass required before implementation) |
 
 ---
 
@@ -42,7 +43,8 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 |--------|------|--------|--------|
 | [T-API-01](./T-API-01-api-hardening.md) | API Hardening (8 fixes from full audit) | ✅ | main (PR #8) |
 | [T-SEC-01](./T-SEC-01-query-limits.md) | Query Limits (subsumed by T-API-01 item 7) | ✅ | main (PR #8) |
-| [T-LEGAL-01](./T-LEGAL-01-accountant-review.md) | Accountant Review (6 items before invoice launch) | ⬜ | — |
+| [T-LEGAL-01](./T-LEGAL-01-accountant-review.md) | Accountant Review (6 items before invoice launch) | ⬜ **START NOW** | — |
+| [T-BUG-01](./T-BUG-01-finalize-toctou.md) | Fix TOCTOU race in invoice finalization | 🔒 | — |
 | [T-CRON-01](./T-CRON-01-nightly-jobs.md) | Nightly Jobs & pg-boss (absorbs T17) | 🔒 | — |
 
 ### Phase 1 — Customers
@@ -72,31 +74,31 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
 | [T10](./T10-pdf-generation.md) | Invoice PDF Generation | 🔒 | — |
-| [T11](./T11-email-delivery.md) | Email Delivery | 🔒 | — |
+| [T11](./T11-email-delivery.md) | Email Delivery | 📝 | — |
 
 ### Phase 4 — SHAAM Integration
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T12](./T12-shaam-abstraction.md) | SHAAM Abstraction & Token Management | 🔒 | — |
-| [T13](./T13-shaam-allocation.md) | SHAAM Allocation Requests | 🔒 | — |
-| [T14](./T14-shaam-emergency.md) | SHAAM Emergency Numbers & Error Handling | 🔒 | — |
+| [T12](./T12-shaam-abstraction.md) | SHAAM Abstraction & Token Management | 📝 | — |
+| [T13](./T13-shaam-allocation.md) | SHAAM Allocation Requests | 📝 | — |
+| [T14](./T14-shaam-emergency.md) | SHAAM Emergency Numbers & Error Handling | 📝 | — |
 
 ### Phase 5 — Invoice Lifecycle
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T15](./T15-payments.md) | Payment Recording | 🔒 | — |
-| [T16](./T16-credit-notes.md) | Credit Notes | 🔒 | — |
+| [T15](./T15-payments.md) | Payment Recording | 📝 | — |
+| [T16](./T16-credit-notes.md) | Credit Notes | 📝 | — |
 | ~~[T17](./T17-overdue.md)~~ | ~~Overdue Detection (cron)~~ — absorbed into T-CRON-01 | — | — |
 
 ### Phase 6 — Reporting
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T18](./T18-dashboard.md) | Business Dashboard | 🔒 | — |
-| [T19](./T19-pcn874.md) | PCN874 VAT Report | 🔒 | — |
-| [T20](./T20-uniform-file.md) | Uniform File Export (קובץ במבנה אחיד) | 🔒 | — |
+| [T18](./T18-dashboard.md) | Business Dashboard | 📝 | — |
+| [T19](./T19-pcn874.md) | PCN874 VAT Report | 📝 | — |
+| [T20](./T20-uniform-file.md) | Uniform File Export (קובץ במבנה אחיד) | 📝 | — |
 
 ### Phase 7 — ITA Registration
 
@@ -106,8 +108,39 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 
 ---
 
+## Parallel Workstreams After T08-D Merges
+
+After T08-D merges, the following **five independent streams** can run in parallel. They share no code dependencies. This collapses the critical path from ~14 sequential tickets to ~4 per stream.
+
+```
+Stream A: T09 → T09-B                    (Invoice List)
+Stream B: T10 → T11                       (PDF + Email)
+Stream C: T12 → T13 → T14                (SHAAM Integration)
+Stream D: T15 → T16                       (Payments + Credit Notes)
+Stream E: T-CRON-01 (infra + cleanup)     (Background Jobs — can start even earlier)
+```
+
+After all five streams merge:
+```
+T18 (Dashboard) → T19 (PCN874) → T20 (Uniform File) → T21 (ITA Registration)
+```
+
+**T-LEGAL-01 is independent of everything and should start immediately.**
+
+### Corrected Dependencies (vs. original)
+
+| Ticket | Old dependency | Corrected dependency | Reason |
+|---|---|---|---|
+| T12 | T11 (email) | T08-D (detail view) | SHAAM has nothing to do with email; needs finalized invoices |
+| T15 | T14 (SHAAM emergency) | T08-D (detail view) | Payments have nothing to do with SHAAM; needs detail page for payment button |
+| T-CRON-01 | T15 (payments) | T08-D (detail view) | Only overdue detection benefits from T15; infra + draft/session cleanup don't need it |
+
+---
+
 ## The Gate Rule
 
-**Never start ticket N+1 until ticket N is merged to main.**
+**Within a stream, never start ticket N+1 until ticket N is merged to main.**
 
 "Tests pass" is not done. **Merged to main** is done.
+
+**Across streams**: independent streams can run in parallel — there is no gate between them.

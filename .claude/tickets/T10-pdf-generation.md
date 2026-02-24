@@ -21,11 +21,14 @@ RTL Hebrew PDFs are hard. Puppeteer (headless Chrome) is the chosen approach: ge
 
 ## Recommended PR Split
 
-This ticket must be split into two PRs:
-- **PR 1 — Infrastructure**: `StorageService` interface + local filesystem implementation, Puppeteer manager, basic `GET /businesses/:businessId/invoices/:invoiceId/pdf` endpoint (synchronous Puppeteer, no caching), authentication, and tests
-- **PR 2 — Template + Caching**: Full HTML invoice template with all ITA-required fields, draft watermark, caching logic, `PdfDownloadButton` frontend component, and tests
+This ticket must be split into **four PRs** (the original 2-PR split put too much scope into PR 1 — a new workspace + Puppeteer + StorageService + API route is 15+ files):
 
-PR 2 cannot start until PR 1 is merged.
+- **PR 1 — `pdf/` workspace skeleton**: `pdf/package.json`, `pdf/tsconfig.json`, `pdf/Dockerfile`, `pdf/src/app.ts`, `pdf/src/env.ts`, health check endpoint (`GET /health`), root `package.json` workspace update, `.data/` in `.gitignore`. No Puppeteer, no template. Just the skeleton that boots.
+- **PR 2 — Template + Puppeteer**: React template (`InvoiceTemplate.tsx`), font loader, Puppeteer manager, `POST /render` endpoint, draft watermark, template unit tests (HTML assertions, no Puppeteer needed).
+- **PR 3 — API proxy + caching**: `StorageService` interface + `LocalFileStorage`, `pdf-service.ts` (calls PDF service, manages cache), `GET .../pdf` route on API, `formatDateTime` in `types/src/formatting.ts`, `REGISTRATION_NUMBER_LABELS` in `types/src/businesses.ts`, `PDF_SERVICE_URL` + `PDF_STORAGE_DIR` in `api/src/env.ts`, route tests (mock the PDF service HTTP call).
+- **PR 4 — Frontend component**: `PdfDownloadButton`, `fetchBlob` utility or inline `fetch` for blob download, integration into `InvoiceDetail` page (replaces disabled placeholder), component tests.
+
+Each PR must be merged in order. PRs 1-2 are `pdf/` workspace only. PRs 3-4 are `api/`+`front/` only.
 
 ---
 
@@ -394,6 +397,25 @@ Ensure template tests (`renderInvoiceHtml()` → assert HTML contains required f
 ### Content-Disposition: `inline` is correct
 
 PLAN.md says `attachment`, ticket says `inline`. Use `inline` — it opens in the browser's PDF viewer for direct URL access, which is better UX. The `PdfDownloadButton` fetches as a blob and triggers a programmatic download regardless.
+
+### Authentication between API and PDF service
+
+No authentication is required between the API and PDF service. The PDF service is deployed on Railway's internal network and is not publicly accessible. The `PDF_SERVICE_URL` uses Railway's internal DNS (e.g. `http://pdf.railway.internal:3001`). Document this explicitly in the PDF service's README or env.ts.
+
+### Health check endpoint
+
+The PDF service must expose `GET /health` returning `{ status: 'ok' }`. Railway uses this for deployment health checks. Include a Puppeteer readiness check: return `{ status: 'ok', browser: 'ready' }` if the browser instance is active, `{ status: 'ok', browser: 'not_started' }` if lazy-init hasn't triggered yet.
+
+### Local development without Docker
+
+For local development without Docker:
+- macOS: `brew install chromium`, set `CHROMIUM_PATH=/opt/homebrew/bin/chromium`
+- Linux: `apt install chromium-browser`, set `CHROMIUM_PATH=/usr/bin/chromium-browser`
+- Document this in the PDF service README
+
+The API's `PDF_SERVICE_URL` should point to `http://localhost:3001` when running the PDF service locally.
+
+For developers who don't need PDF generation: `PDF_SERVICE_URL` is optional. The API route returns 503 with a clear message if the PDF service is not configured.
 
 ---
 

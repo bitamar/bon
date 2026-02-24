@@ -67,7 +67,7 @@ PR 2 cannot start until PR 1 is merged.
   - Total incl. VAT (formatted as ₪)
   - Status badge (all 7 statuses, shared config from T08's `invoiceStatus.ts`)
   - Overdue indicator: when `dueDate` < today AND status in [`finalized`, `sent`, `partially_paid`] → show "באיחור X ימים" in red. Compute client-side from `dueDate`.
-- [ ] Clicking a row navigates to `/business/invoices/:id`
+- [ ] Clicking a row navigates to: `/business/invoices/:id/edit` for drafts, `/business/invoices/:id` for non-drafts (avoids unnecessary redirect through T08-D's routing guard)
 - [ ] **Secondary filters**:
   - Customer typeahead: uses `GET /businesses/:businessId/customers?q=` endpoint, debounced 150ms. Reuse `CustomerSelect` component from T7.5.
   - Date range: two `DatePickerInput` components (from/to), clearable

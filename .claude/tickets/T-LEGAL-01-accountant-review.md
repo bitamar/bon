@@ -1,9 +1,17 @@
 # T-LEGAL-01 — Accountant/Legal Review Before Invoice Launch
 
-**Status**: ⬜ Not started
+**Status**: ⬜ **NOT STARTED — START IMMEDIATELY**
 **Phase**: 2 — Invoices (cross-cutting)
-**Requires**: Nothing (can start now)
+**Requires**: Nothing (can start now — fully independent of all engineering work)
 **Blocks**: T06 deployment (soft block — schema can be built, but don't ship to production until these are confirmed)
+
+---
+
+> **URGENCY NOTE**: This ticket has zero engineering dependencies and can be executed in parallel with all other work. Every week it remains unstarted adds risk that schema/logic changes will be needed after implementation is complete. The longer Phases 2-4 proceed without accountant confirmation, the more rework is needed if any of the 6 assumptions below are wrong.
+>
+> **Action**: Schedule the consultation call this week. The ticket can be resolved in a single 30-minute session. Cost: ₪500-1,500. Cost of NOT doing it: potentially rewriting finalization logic, sequence numbering, or credit note flow after implementation.
+>
+> This ticket also gates the **ITA spec acquisition** needed for T19 (PCN874) and T20 (Uniform File). The accountant/tax advisor can help obtain these specs or direct you to the right ITA contact.
 
 ---
 

@@ -17,10 +17,11 @@ This sub-ticket also adds routing guards: non-draft invoices on the edit route r
 
 ## Deliverables
 
-### New Files (1 source + 1 test)
+### New Files (2 source + 1 test)
 
 | File | Purpose |
 |------|---------|
+| `front/src/components/InvoicePreviewDocument.tsx` | Shared read-only invoice layout (customer, line items, totals) — used by both T08-C's preview modal and this detail page |
 | `front/src/pages/InvoiceDetail.tsx` | Read-only invoice detail page |
 | `front/src/test/pages/InvoiceDetail.test.tsx` | Tests |
 
@@ -30,6 +31,7 @@ This sub-ticket also adds routing guards: non-draft invoices on the edit route r
 |------|--------|
 | `front/src/App.tsx` | Register `/business/invoices/:invoiceId` route |
 | `front/src/pages/InvoiceEdit.tsx` | Add redirect: non-draft on edit route → detail page |
+| `front/src/components/InvoicePreviewModal.tsx` | Refactor to use shared `InvoicePreviewDocument` instead of duplicating the layout |
 
 ---
 
@@ -102,11 +104,42 @@ InvoiceDetail (page)
 
 ---
 
+## Shared Component: `InvoicePreviewDocument`
+
+The read-only invoice data layout (customer section, line items table, totals) is used in two places:
+1. **T08-C**: `InvoicePreviewModal` — shows the same layout inside a modal before finalization
+2. **T08-D**: `InvoiceDetail` page — shows the full read-only invoice
+
+Extract the shared layout into `front/src/components/InvoicePreviewDocument.tsx`. Both T08-C's preview modal and T08-D's detail page import and render this component. This avoids duplicating the line items table, totals section, and customer section.
+
+**Props**: `Readonly<{ invoice: InvoiceResponse; formatCurrency: (n: number) => string }>` — the component is purely presentational, no data fetching.
+
+If T08-C ships before T08-D: T08-C can inline the layout. T08-D then extracts it into the shared component and refactors T08-C's modal to use it. The refactor is captured in the modified files list above.
+
+---
+
+## Audit Timeline Data Source
+
+The `InvoiceAuditTimeline` component derives all events from **existing invoice fields** — there is no separate events/audit table:
+
+| Event | Source field | Condition |
+|---|---|---|
+| נוצרה (created) | `createdAt` | Always present |
+| הופקה (finalized) | `issuedAt` | Non-null (finalized invoices) |
+| נשלחה (sent) | `sentAt` | Non-null (after T11 send action) |
+| שולמה (paid) | `paidAt` | Non-null (after T15 payment recording) |
+
+Display as a vertical Timeline (Mantine `Timeline` component) with timestamps formatted via `formatDateTime()` from `@bon/types/formatting`. Only show events with non-null timestamps. Always show at least the "נוצרה" event.
+
+---
+
 ## Tests
 
 - [ ] Detail page renders all required fields for a finalized invoice
 - [ ] Correct status banner color/label for each status
 - [ ] Draft on detail route redirects to edit page
+- [ ] Audit timeline shows correct events based on non-null timestamps
+- [ ] `InvoicePreviewDocument` renders customer, line items, totals correctly
 - [ ] `npm run check` passes
 
 ---
