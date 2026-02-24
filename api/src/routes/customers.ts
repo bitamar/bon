@@ -23,6 +23,7 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Customers'],
         params: customerParamSchema,
         querystring: customerQuerySchema,
         response: {
@@ -43,6 +44,7 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Customers'],
         params: customerParamSchema,
         body: createCustomerBodySchema,
         response: {
@@ -62,6 +64,7 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Customers'],
         params: customerIdParamSchema,
         response: {
           200: customerResponseSchema,
@@ -79,6 +82,7 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Customers'],
         params: customerIdParamSchema,
         body: updateCustomerBodySchema,
         response: {
@@ -97,6 +101,7 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Customers'],
         params: customerIdParamSchema,
         response: {
           200: okResponseSchema,

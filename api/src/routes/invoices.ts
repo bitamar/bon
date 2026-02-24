@@ -23,6 +23,7 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Invoices'],
         params: businessIdParamSchema,
         body: createInvoiceDraftBodySchema,
         response: {
@@ -42,6 +43,7 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Invoices'],
         params: invoiceIdParamSchema,
         response: {
           200: invoiceResponseSchema,
@@ -59,6 +61,7 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Invoices'],
         params: invoiceIdParamSchema,
         body: updateInvoiceDraftBodySchema,
         response: {
@@ -77,6 +80,7 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Invoices'],
         params: invoiceIdParamSchema,
         response: {
           200: okResponseSchema,
@@ -95,6 +99,7 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     {
       preHandler: [app.authenticate, app.requireBusinessAccess],
       schema: {
+        tags: ['Invoices'],
         params: invoiceIdParamSchema,
         body: finalizeInvoiceBodySchema,
         response: {

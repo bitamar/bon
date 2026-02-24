@@ -3,8 +3,11 @@ import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import formbody from '@fastify/formbody';
+import fastifySwagger from '@fastify/swagger';
+import scalarApiReference from '@scalar/fastify-api-reference';
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import {
+  jsonSchemaTransform,
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
@@ -59,6 +62,27 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   });
   await app.register(cookie, { secret: env.JWT_SECRET });
   await app.register(formbody);
+  await app.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: 'BON API',
+        description: 'Israeli invoicing platform API',
+        version: '1.0.0',
+      },
+      tags: [
+        { name: 'Auth', description: 'Authentication and sessions' },
+        { name: 'Users', description: 'User settings' },
+        { name: 'Businesses', description: 'Business management' },
+        { name: 'Invitations', description: 'Team invitations' },
+        { name: 'Customers', description: 'Customer management' },
+        { name: 'Invoices', description: 'Invoice lifecycle' },
+      ],
+    },
+    transform: jsonSchemaTransform,
+  });
+  await app.register(scalarApiReference, {
+    routePrefix: '/docs',
+  });
   await app.register(rateLimit, {
     max: env.RATE_LIMIT_MAX,
     timeWindow: env.RATE_LIMIT_TIME_WINDOW,
