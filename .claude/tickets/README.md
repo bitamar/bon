@@ -56,10 +56,16 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T06](./T06-invoice-schema.md) | Invoice Data Model & VAT Engine | ⬜ | — (next up) |
-| [T07](./T07-invoice-create-ui.md) | Invoice Create/Edit UI (draft) | 🔒 | — |
-| [T08](./T08-invoice-finalization.md) | Invoice Finalization & Detail View | 🔒 | — |
+| [T06](./T06-invoice-schema.md) | Invoice Data Model & VAT Engine | ✅ | main |
+| [T07](./T07-invoice-create-ui.md) | Invoice API + Create/Edit (backend) | ✅ | main (PR #12) |
+| [T7.5](./T7.5-invoice-edit-frontend.md) | Invoice Create/Edit Frontend (draft editor) | 🔄 | T7.5-invoice-edit-frontend |
+| [T08](./T08-invoice-finalization.md) | Invoice Finalization & Detail View (split into 4 sub-tickets) | 🔒 | — |
+| — [T08-A](./T08-A-shared-config.md) | Shared Invoice Config | 🔒 | — |
+| — [T08-B](./T08-B-finalize-backend.md) | Backend: Finalize Endpoint Extension | 🔒 | — |
+| — [T08-C](./T08-C-finalization-flow.md) | Frontend: Finalization Flow | 🔒 | — |
+| — [T08-D](./T08-D-detail-view.md) | Frontend: Detail View + Routing | 🔒 | — |
 | [T09](./T09-invoice-list.md) | Invoice List & Search | 🔒 | — |
+| — [T09-B](./T09-B-invoice-aggregates.md) | Invoice List Aggregates & Summary Row | 🔒 | — |
 
 ### Phase 3 — PDF
 

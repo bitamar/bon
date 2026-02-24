@@ -1,8 +1,8 @@
-# T08 — Invoice Finalization UX & Detail View
+# T08 — Invoice Finalization & Detail View
 
-**Status**: 🔒 Blocked (T07 must merge first)
+**Status**: 🔒 Blocked (T7.5 must merge first)
 **Phase**: 2 — Invoices
-**Requires**: T07 merged
+**Requires**: T7.5 merged
 **Blocks**: T09, T10
 
 ---
@@ -13,49 +13,37 @@ Finalization is the legal act. The invoice becomes immutable, gets its sequentia
 
 The detail view is what the business owner sees after finalizing. It should feel like a "done" state — clean, read-only, with clear next steps (download, send, mark paid).
 
-**Scope boundary with T07**: T07 builds the finalize **API endpoint** (`POST /invoices/:id/finalize` — route, service logic, repository, tests). T08 builds the **frontend finalization flow** (business profile completeness gate, preview modal, confirmation UX, `vatExemptionReason` prompt) and the **invoice detail view page**. T08 does NOT re-implement the backend — it builds the frontend on top of T07's API.
+**This ticket is split into 4 sub-tickets (T08-A through T08-D).** Each is a single PR. They must be merged in order.
 
 ---
 
-## Acceptance Criteria
+## Sub-Tickets
 
-### Finalization Flow (frontend)
-- [ ] "הפק חשבונית" button replaces T07's basic finalize button with the full flow
-- [ ] **Business profile completeness gate** (before any other validation):
-  - [ ] Required fields: name, registrationNumber, streetAddress, city, and vatNumber (non-exempt only)
-  - [ ] If any are missing, show a modal with only the missing fields (not full settings page)
-  - [ ] User fills inline → saves to business → finalization continues
-  - [ ] Drafts are never gated — only finalization
-- [ ] **`vatExemptionReason` prompt**: when invoice VAT calculates to 0 and business is non-exempt, show a Select field before finalizing with exemption reason options (e.g., "ייצוא שירותים §30(א)(5)", "עסקה עם גוף מדינה", "אחר — פרט בהערות")
-- [ ] Client-side validation before API call: customer required, ≥1 line item
-- [ ] Preview modal: invoice as it will appear (read-only) before confirming
-- [ ] Confirm → `POST /businesses/:id/invoices/:id/finalize`
-  - [ ] Server recalculates all amounts (ignores client values)
-  - [ ] Sequential number assigned in same transaction (race-safe)
-  - [ ] Customer data snapshot stored
-  - [ ] `issuedAt` set server-side
-- [ ] Redirect to invoice detail page after finalization
-- [ ] Error: sequence number conflict → show retry option
-
-### Detail View
-- [ ] Invoice detail page (`/business/invoices/:id`):
-  - [ ] All fields displayed as they'll appear on the PDF
-  - [ ] Status banner: draft / finalized / sent / paid
-  - [ ] Action buttons: "הורד PDF" (placeholder), "שלח במייל" (placeholder), "סמן כשולם" (placeholder)
-  - [ ] Finalized invoices are read-only — no edit affordances
-  - [ ] Drafts redirect to edit page
-
-### General
-- [ ] `npm run check` passes
+| Sub-ticket | Name | Scope | Depends on |
+|---|---|---|---|
+| [T08-A](./T08-A-shared-config.md) | Shared Invoice Config | Extract status/doc-type labels to shared modules | T7.5 merged |
+| [T08-B](./T08-B-finalize-backend.md) | Backend: Finalize Endpoint Extension | `vatExemptionReason` schema + validation | T08-A merged |
+| [T08-C](./T08-C-finalization-flow.md) | Frontend: Finalization Flow | Business profile gate, VAT exemption prompt, preview modal, confirm | T08-B merged |
+| [T08-D](./T08-D-detail-view.md) | Frontend: Invoice Detail View + Routing | Read-only detail page, routing guards, action button placeholders | T08-C merged |
 
 ---
 
-## Architecture Notes
+## Scope Boundaries
 
-**Finalization transaction** (already built in T07 backend — this section documents the server behavior for frontend reference):
+**Scope boundary with T07/T7.5**: T07 builds the finalize **API endpoint** (`POST /invoices/:id/finalize`). T7.5 builds the **frontend draft editor**. T08 builds the **frontend finalization flow** and the **invoice detail view page**.
+
+**Scope boundary with T09**: Navbar "חשבוניות" link is **deferred to T09** (the link's destination page doesn't exist until T09 ships).
+
+**Scope boundary with T10**: The preview modal in T08 is a **structured data preview** rendered with Mantine components — not the PDF template.
+
+---
+
+## Architecture Notes (shared across sub-tickets)
+
+**Finalization transaction** (T07 backend — documented for frontend reference):
 1. Validate: must be draft, has customer (active), has ≥1 line item
 2. Lock + assign sequence number via `assignInvoiceNumber()` (SELECT FOR UPDATE)
-3. Snapshot customer: `customerName`, `customerTaxId`, `customerAddress`, `customerEmail` from current customer record
+3. Snapshot customer: `customerName`, `customerTaxId`, `customerAddress`, `customerEmail`
 4. Recalculate all amounts server-side (discard client values)
 5. Set `issuedAt = now()`, `status = 'finalized'`
 
@@ -64,11 +52,18 @@ The detail view is what the business owner sees after finalizing. It should feel
 **Status machine** (defined in T06, enforced in T07 backend):
 - `paid → credited` is allowed (refunds via credit note — legally required)
 - `paid → cancelled` is forbidden (must issue credit note instead)
-- Status transition validation should be a utility function reusable by T15/T16
-
-**Customer snapshot includes `customerEmail`** — needed for T11 email delivery records.
 
 **VAT rate validation on finalize**: exempt_dealer → all rates must be 0. Non-exempt → rates must be 0 or 1700.
+
+**No preview API endpoint needed**: The preview modal renders from client-side data using `calculateInvoiceTotals()` from `@bon/types/vat`. Same pure functions the server uses.
+
+**`isOverdue` flag**: Always `false` until T-CRON-01. Do not compute overdue client-side on the detail page.
+
+---
+
+## Open Questions
+
+1. **T-LEGAL-01 dependency**: The `vatExemptionReason` options listed in T08-C are placeholders pending accountant confirmation. Use a `Select` (not free text) so options can be updated without UI changes.
 
 ---
 
