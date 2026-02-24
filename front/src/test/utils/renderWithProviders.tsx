@@ -1,4 +1,5 @@
 import { MantineProvider, DirectionProvider } from '@mantine/core';
+import { DatesProvider } from '@mantine/dates';
 import { MemoryRouter, type MemoryRouterProps } from 'react-router-dom';
 import { render, type RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -30,9 +31,11 @@ export function renderWithProviders(
   const Wrapper = ({ children }: Readonly<{ children: React.ReactNode }>) => (
     <DirectionProvider>
       <MantineProvider>
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter {...router}>{children}</MemoryRouter>
-        </QueryClientProvider>
+        <DatesProvider settings={{ locale: 'he' }}>
+          <QueryClientProvider client={queryClient}>
+            <MemoryRouter {...router}>{children}</MemoryRouter>
+          </QueryClientProvider>
+        </DatesProvider>
       </MantineProvider>
     </DirectionProvider>
   );

@@ -1,6 +1,6 @@
 # T07 — Invoice API + Create/Edit UI (Draft)
 
-**Status**: 🔒 Blocked (T06 must merge first)
+**Status**: ✅ Merged to main (PR #12)
 **Phase**: 2 — Invoices
 **Requires**: T06 merged
 **Blocks**: T08

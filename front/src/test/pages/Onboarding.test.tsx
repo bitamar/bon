@@ -134,6 +134,52 @@ describe('Onboarding page', () => {
     expect(screen.getByRole('textbox', { name: /מספר עוסק מורשה/ })).toBeInTheDocument();
   });
 
+  it('shows correct labels for חברה בע״מ', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Onboarding />);
+
+    await selectBusinessType(user, 'חברה בע״מ');
+
+    expect(screen.getByRole('textbox', { name: /שם החברה/ })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /מספר חברה/ })).toBeInTheDocument();
+  });
+
+  it('shows cancel link when businesses exist', async () => {
+    const { useBusiness } = await import('../../contexts/BusinessContext');
+    vi.mocked(useBusiness).mockReturnValue({
+      businesses: [
+        {
+          id: 'biz-1',
+          name: 'X',
+          businessType: 'licensed_dealer',
+          registrationNumber: '123456789',
+          isActive: true,
+          role: 'owner',
+        },
+      ],
+      activeBusiness: null,
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<Onboarding />);
+
+    await selectBusinessType(user, 'עוסק מורשה');
+
+    expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
+  });
+
+  it('opens info modal when clicking "לא בטוחים? מידע נוסף"', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Onboarding />);
+
+    await user.click(screen.getByRole('button', { name: /לא בטוחים/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
+    });
+  });
+
   it('changing type clears registration number but preserves name', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);

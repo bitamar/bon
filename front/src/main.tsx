@@ -1,8 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { DirectionProvider, MantineProvider } from '@mantine/core';
+import { DatesProvider } from '@mantine/dates';
 import '@mantine/core/styles.css';
+import '@mantine/dates/styles.css';
 import '@mantine/notifications/styles.css';
+import 'dayjs/locale/he';
 import './theme/global.css';
 import { Notifications } from '@mantine/notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -25,12 +28,14 @@ if (container) {
             theme={bonTheme}
             cssVariablesResolver={cssVariablesResolver}
           >
-            <Notifications position="top-right" />
-            <BrowserRouter>
-              <AppErrorBoundary>
-                <App />
-              </AppErrorBoundary>
-            </BrowserRouter>
+            <DatesProvider settings={{ locale: 'he' }}>
+              <Notifications position="top-right" />
+              <BrowserRouter>
+                <AppErrorBoundary>
+                  <App />
+                </AppErrorBoundary>
+              </BrowserRouter>
+            </DatesProvider>
           </MantineProvider>
         </DirectionProvider>
         {import.meta.env.DEV ? <ReactQueryDevtools /> : null}

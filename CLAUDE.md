@@ -114,6 +114,8 @@ npm run build -w front # Build for production
 
 **There is no backward compatibility requirement.** This is a greenfield product with no external consumers. Rename, restructure, move, or delete anything freely if it makes the code clearer. Prefer the boldest simplification over the most cautious addition.
 
+**Never avoid a refactor because it's large.** The only thing that matters is ending up with the best design. "Deeply embedded," "too many files," or "major change" is never a valid reason to keep a suboptimal pattern. Always propose and execute the best design, regardless of scope.
+
 **When an approach changes, remove the old approach completely — in the same change.** Never leave supporting code from a superseded approach behind. Before writing new code, explicitly ask: *what did the old approach require that the new one does not?* Then remove it:
 - Helper functions and utilities added for the old behaviour
 - Tests that exercise behaviour that no longer exists in the UI

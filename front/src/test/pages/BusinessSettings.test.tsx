@@ -232,6 +232,25 @@ describe('BusinessSettings page', () => {
     expect(screen.queryByRole('textbox', { name: /מספר מע"מ/ })).not.toBeInTheDocument();
   });
 
+  it('shows "מספר מע"מ" label for limited_company', async () => {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: { ...activeBusinessStub, businessType: 'limited_company' },
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: { ...mockBusiness, businessType: 'limited_company' as const },
+      role: 'owner' as const,
+    });
+
+    renderWithProviders(<BusinessSettings />);
+
+    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+
+    expect(await screen.findByText('חברה בע״מ')).toBeInTheDocument();
+  });
+
   it('shows vatNumber validation error when value is not 9 digits', async () => {
     vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
       business: mockBusiness,
