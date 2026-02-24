@@ -15,7 +15,6 @@ import {
   IconHome2,
   IconLogout,
   IconSettings,
-  IconUsers,
 } from '@tabler/icons-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
@@ -74,14 +73,6 @@ export default function Navbar() {
           leftSection={<IconFileInvoice size={18} />}
           disabled
           className={disabledClass}
-        />
-        <NavLink
-          component={Link}
-          to="/business/team"
-          label="צוות"
-          leftSection={<IconUsers size={18} />}
-          active={pathname.startsWith('/business/team')}
-          className={navLinkClass}
         />
         <NavLink
           component={Link}

@@ -3,10 +3,6 @@ export const queryKeys = {
   settings: () => ['settings'] as const,
   userBusinesses: () => ['businesses'] as const,
   business: (id: string) => ['businesses', id] as const,
-  teamMembers: (businessId: string) => ['businesses', businessId, 'team'] as const,
-  invitations: (businessId: string) => ['businesses', businessId, 'invitations'] as const,
-  myInvitations: () => ['invitations', 'mine'] as const,
-  invitation: (token: string) => ['invitations', token] as const,
   customers: (businessId: string) => ['businesses', businessId, 'customers'] as const,
   customerSearch: (businessId: string, q: string | undefined, limit: number) =>
     ['businesses', businessId, 'customers', { q, limit }] as const,

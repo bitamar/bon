@@ -3,8 +3,6 @@ import {
   createBusiness,
   fetchBusiness,
   fetchBusinesses,
-  fetchTeamMembers,
-  removeTeamMember,
   updateBusiness,
 } from '../../api/businesses';
 import { HttpError } from '../../lib/http';
@@ -13,7 +11,6 @@ const fetchMock = vi.fn();
 const originalFetch = globalThis.fetch;
 
 const BIZ_ID = 'biz-0000-0000-0000-000000000001';
-const USER_ID = 'usr-0000-0000-0000-000000000001';
 
 const minimalBusiness = {
   id: '00000000-0000-4000-8000-000000000001',
@@ -50,19 +47,6 @@ const minimalBusinessListResponse = {
       registrationNumber: '123456789',
       isActive: true,
       role: 'owner',
-    },
-  ],
-};
-
-const minimalTeamListResponse = {
-  team: [
-    {
-      userId: '00000000-0000-4000-8000-000000000003',
-      name: 'Alice',
-      email: 'alice@example.com',
-      avatarUrl: null,
-      role: 'owner',
-      joinedAt: '2024-01-01T00:00:00.000Z',
     },
   ],
 };
@@ -180,42 +164,6 @@ describe('businesses api', () => {
       const [, init] = call as [string, RequestInit];
       expect(JSON.parse((init.body as string) ?? '')).toMatchObject(updatePayload);
       expect(result).toMatchObject(minimalBusinessResponse);
-    });
-  });
-
-  describe('fetchTeamMembers', () => {
-    it('calls GET /businesses/:businessId/team and returns TeamListResponse', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValueOnce(minimalTeamListResponse),
-      });
-
-      const result = await fetchTeamMembers(BIZ_ID);
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${import.meta.env.VITE_API_BASE_URL}/businesses/${BIZ_ID}/team`,
-        expect.objectContaining({ credentials: 'include' })
-      );
-      expect(result).toMatchObject(minimalTeamListResponse);
-    });
-  });
-
-  describe('removeTeamMember', () => {
-    it('calls DELETE /businesses/:businessId/team/:userId and returns void', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        status: 204,
-        json: vi.fn().mockResolvedValueOnce(undefined),
-      });
-
-      const result = await removeTeamMember(BIZ_ID, USER_ID);
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${import.meta.env.VITE_API_BASE_URL}/businesses/${BIZ_ID}/team/${USER_ID}`,
-        expect.objectContaining({ method: 'DELETE', credentials: 'include' })
-      );
-      expect(result).toBeUndefined();
     });
   });
 });

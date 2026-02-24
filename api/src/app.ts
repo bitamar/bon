@@ -16,7 +16,6 @@ import { env } from './env.js';
 import { authRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/users.js';
 import { businessRoutes } from './routes/businesses.js';
-import { invitationRoutes } from './routes/invitations.js';
 import { customerRoutes } from './routes/customers.js';
 import { invoiceRoutes } from './routes/invoices.js';
 import { authPlugin } from './plugins/auth.js';
@@ -73,7 +72,6 @@ export async function buildServer(options: FastifyServerOptions = {}) {
         { name: 'Auth', description: 'Authentication and sessions' },
         { name: 'Users', description: 'User settings' },
         { name: 'Businesses', description: 'Business management' },
-        { name: 'Invitations', description: 'Team invitations' },
         { name: 'Customers', description: 'Customer management' },
         { name: 'Invoices', description: 'Invoice lifecycle' },
       ],
@@ -103,7 +101,6 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(authRoutes);
   await app.register(userRoutes);
   await app.register(businessRoutes);
-  await app.register(invitationRoutes);
   await app.register(customerRoutes);
   await app.register(invoiceRoutes);
   app.get('/health', async () => ({ ok: true }));

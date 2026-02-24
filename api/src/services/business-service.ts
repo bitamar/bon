@@ -9,9 +9,6 @@ import {
 import {
   insertUserBusiness,
   findBusinessesForUser,
-  findTeamMembers,
-  deleteUserBusiness,
-  findUserBusiness,
 } from '../repositories/user-business-repository.js';
 import {
   conflict,
@@ -24,7 +21,6 @@ import {
   businessSchema,
   businessResponseSchema,
   businessListResponseSchema,
-  teamListResponseSchema,
   type BusinessRole,
 } from '@bon/types/businesses';
 import { STANDARD_VAT_RATE_BP } from '@bon/types/vat';
@@ -32,7 +28,6 @@ import { STANDARD_VAT_RATE_BP } from '@bon/types/vat';
 export type BusinessDto = z.infer<typeof businessSchema>;
 export type BusinessResponse = z.infer<typeof businessResponseSchema>;
 export type BusinessListResponse = z.infer<typeof businessListResponseSchema>;
-export type TeamListResponse = z.infer<typeof teamListResponseSchema>;
 
 export type CreateBusinessInput = {
   name: string;
@@ -194,44 +189,4 @@ export async function listBusinessesForUser(userId: string) {
       role: b.role,
     })),
   } satisfies BusinessListResponse;
-}
-
-export async function listTeamMembers(businessId: string) {
-  const members = await findTeamMembers(businessId);
-
-  return {
-    team: members.map((m) => ({
-      userId: m.userId,
-      name: m.name ?? null,
-      email: m.email,
-      avatarUrl: m.avatarUrl ?? null,
-      role: m.role,
-      joinedAt: m.joinedAt.toISOString(),
-    })),
-  } satisfies TeamListResponse;
-}
-
-export async function removeTeamMember(
-  businessId: string,
-  targetUserId: string,
-  actorRole: BusinessRole
-) {
-  if (actorRole !== 'owner' && actorRole !== 'admin') {
-    throw forbidden();
-  }
-
-  const targetMember = await findUserBusiness(targetUserId, businessId);
-  if (!targetMember) {
-    throw notFound();
-  }
-
-  if (targetMember.role === 'owner') {
-    throw forbidden({ code: 'cannot_remove_owner' });
-  }
-
-  if (actorRole === 'admin' && targetMember.role === 'admin') {
-    throw forbidden({ code: 'cannot_remove_admin' });
-  }
-
-  await deleteUserBusiness(targetUserId, businessId);
 }
