@@ -51,6 +51,24 @@ const minimalInvoice = {
 
 const minimalInvoiceResponse = { invoice: minimalInvoice, items: [] };
 
+// ── helpers ──
+
+function mockOk(body: unknown, status = 200) {
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    status,
+    json: vi.fn().mockResolvedValueOnce(body),
+  });
+}
+
+function mockFail(status: number) {
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status,
+    json: vi.fn().mockResolvedValueOnce({ message: 'error' }),
+  });
+}
+
 describe('invoices api', () => {
   beforeEach(() => {
     fetchMock.mockReset();
@@ -64,24 +82,6 @@ describe('invoices api', () => {
   afterAll(() => {
     fetchMock.mockReset();
   });
-
-  // ── helpers ──
-
-  function mockOk(body: unknown, status = 200) {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status,
-      json: vi.fn().mockResolvedValueOnce(body),
-    });
-  }
-
-  function mockFail(status: number) {
-    fetchMock.mockResolvedValueOnce({
-      ok: false,
-      status,
-      json: vi.fn().mockResolvedValueOnce({ message: 'error' }),
-    });
-  }
 
   describe('createInvoiceDraft', () => {
     it('calls POST with correct body and returns InvoiceResponse', async () => {
