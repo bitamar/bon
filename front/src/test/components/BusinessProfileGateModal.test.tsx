@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BusinessProfileGateModal } from '../../components/BusinessProfileGateModal';
 import { renderWithProviders } from '../utils/renderWithProviders';
+import { makeTestBusiness } from '../utils/businessStubs';
 import type { Business } from '@bon/types/businesses';
 
 vi.mock('../../api/businesses', () => ({
@@ -11,34 +12,16 @@ vi.mock('../../api/businesses', () => ({
 vi.mock('../../lib/notifications', () => ({
   extractErrorMessage: vi.fn((_error: unknown, fallback: string) => fallback),
 }));
+vi.mock('../../api/address', () => ({
+  fetchAllCities: vi.fn().mockResolvedValue([]),
+  fetchAllStreetsForCity: vi.fn().mockResolvedValue([]),
+  filterOptions: vi.fn().mockReturnValue([]),
+}));
 
 import * as businessApi from '../../api/businesses';
+import * as addressApi from '../../api/address';
 
 // ── helpers ──
-
-function makeTestBusiness(overrides: Partial<Business> = {}): Business {
-  return {
-    id: 'biz-1',
-    name: 'Test Co',
-    businessType: 'licensed_dealer',
-    registrationNumber: '123456782',
-    vatNumber: '123456782',
-    streetAddress: '123 Main St',
-    city: 'Tel Aviv',
-    postalCode: '1234567',
-    phone: null,
-    email: null,
-    invoiceNumberPrefix: null,
-    startingInvoiceNumber: 1,
-    defaultVatRate: 1700,
-    logoUrl: null,
-    isActive: true,
-    createdByUserId: 'u1',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-    ...overrides,
-  };
-}
 
 const defaultProps = {
   opened: true,
@@ -60,13 +43,17 @@ function renderModal(businessOverrides: Partial<Business> = {}) {
 describe('BusinessProfileGateModal', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    // Restore address mocks cleared by resetAllMocks
+    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([]);
+    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
+    vi.mocked(addressApi.filterOptions).mockReturnValue([]);
   });
 
-  it('shows only missing fields', () => {
+  it('shows address fields when address is missing', () => {
     renderModal({ streetAddress: null, city: null });
 
-    expect(screen.getByLabelText(/כתובת/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/עיר/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/עיר \/ ישוב/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/רחוב/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/שם העסק/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/מע"מ/)).not.toBeInTheDocument();
   });
@@ -85,7 +72,7 @@ describe('BusinessProfileGateModal', () => {
     });
 
     expect(screen.queryByLabelText(/מע"מ/)).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/כתובת/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/עיר \/ ישוב/)).toBeInTheDocument();
   });
 
   it('calls updateBusiness and onSaved on successful submit', async () => {
@@ -94,13 +81,13 @@ describe('BusinessProfileGateModal', () => {
       role: 'owner',
     });
     const user = userEvent.setup();
-    renderModal({ city: null });
+    renderModal({ name: '' });
 
-    await user.type(screen.getByLabelText(/עיר/), 'ירושלים');
+    await user.type(screen.getByLabelText(/שם העסק/), 'עסק חדש');
     await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
 
     await waitFor(() => {
-      expect(businessApi.updateBusiness).toHaveBeenCalledWith('biz-1', { city: 'ירושלים' });
+      expect(businessApi.updateBusiness).toHaveBeenCalledWith('biz-1', { name: 'עסק חדש' });
     });
     expect(defaultProps.onSaved).toHaveBeenCalled();
   });
@@ -108,9 +95,9 @@ describe('BusinessProfileGateModal', () => {
   it('shows inline error when PATCH fails', async () => {
     vi.mocked(businessApi.updateBusiness).mockRejectedValue(new Error('network'));
     const user = userEvent.setup();
-    renderModal({ city: null });
+    renderModal({ name: '' });
 
-    await user.type(screen.getByLabelText(/עיר/), 'ירושלים');
+    await user.type(screen.getByLabelText(/שם העסק/), 'עסק חדש');
     await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
 
     expect(await screen.findByText('לא הצלחנו לשמור את פרטי העסק')).toBeInTheDocument();

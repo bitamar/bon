@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFinalizationFlow } from '../../hooks/useFinalizationFlow';
-import type { Business } from '@bon/types/businesses';
+import { makeTestBusiness } from '../utils/businessStubs';
 import type { ReactNode } from 'react';
 
 vi.mock('../../api/invoices', () => ({
@@ -20,29 +20,6 @@ import * as notifications from '../../lib/notifications';
 
 // ── helpers ──
 
-function makeCompleteBusiness(): Business {
-  return {
-    id: 'biz-1',
-    name: 'Test Co',
-    businessType: 'licensed_dealer',
-    registrationNumber: '123456782',
-    vatNumber: '123456782',
-    streetAddress: '123 Main St',
-    city: 'Tel Aviv',
-    postalCode: '1234567',
-    phone: null,
-    email: null,
-    invoiceNumberPrefix: null,
-    startingInvoiceNumber: 1,
-    defaultVatRate: 1700,
-    logoUrl: null,
-    isActive: true,
-    createdByUserId: 'u1',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-  };
-}
-
 const defaultItems = [
   {
     key: 'item-1',
@@ -58,7 +35,7 @@ const defaultItems = [
 const defaultParams = {
   businessId: 'biz-1',
   invoiceId: 'inv-1',
-  business: makeCompleteBusiness(),
+  business: makeTestBusiness(),
   businessType: 'licensed_dealer' as const,
   customerId: 'cust-1',
   items: defaultItems,
@@ -133,7 +110,7 @@ describe('useFinalizationFlow', () => {
   });
 
   it('goes to profile_gate when business profile is incomplete', () => {
-    const incompleteBusiness = { ...makeCompleteBusiness(), city: null };
+    const incompleteBusiness = { ...makeTestBusiness(), city: null };
     const { result } = renderHook(
       () => useFinalizationFlow({ ...defaultParams, business: incompleteBusiness }),
       { wrapper: makeWrapper() }
@@ -156,7 +133,7 @@ describe('useFinalizationFlow', () => {
   });
 
   it('skips vat_exemption for exempt_dealer', () => {
-    const exemptBusiness = { ...makeCompleteBusiness(), businessType: 'exempt_dealer' as const };
+    const exemptBusiness = { ...makeTestBusiness(), businessType: 'exempt_dealer' as const };
     const { result } = renderHook(
       () =>
         useFinalizationFlow({
@@ -184,7 +161,7 @@ describe('useFinalizationFlow', () => {
   });
 
   it('transitions from profile_gate to preview via onProfileSaved', () => {
-    const incompleteBusiness = { ...makeCompleteBusiness(), city: null };
+    const incompleteBusiness = { ...makeTestBusiness(), city: null };
     const { result } = renderHook(
       () => useFinalizationFlow({ ...defaultParams, business: incompleteBusiness }),
       { wrapper: makeWrapper() }

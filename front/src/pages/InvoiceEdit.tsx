@@ -36,7 +36,6 @@ import { useBusiness } from '../contexts/BusinessContext';
 import { formatMinorUnits, toMinorUnits } from '@bon/types/formatting';
 import { showErrorNotification } from '../lib/notifications';
 import { calculateInvoiceTotals } from '@bon/types/vat';
-import type { BusinessType } from '@bon/types/businesses';
 import type { DocumentType, UpdateInvoiceDraftBody } from '@bon/types/invoices';
 
 const DOC_TYPE_OPTIONS = [
@@ -194,7 +193,7 @@ export function InvoiceEdit() {
     businessId,
     invoiceId,
     business: businessQuery.data?.business ?? null,
-    businessType: businessType as BusinessType | undefined,
+    businessType,
     customerId: form?.customerId ?? null,
     items: form?.items ?? [],
     invoiceDate: form?.invoiceDate ?? null,

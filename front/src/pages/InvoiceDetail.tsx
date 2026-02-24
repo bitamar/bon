@@ -15,12 +15,14 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
+import { TotalRow } from '../components/TotalRow';
 import { fetchInvoice } from '../api/invoices';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
-import { formatMinorUnits } from '@bon/types/formatting';
+import { formatDate, formatMinorUnits } from '@bon/types/formatting';
 import { DOCUMENT_TYPE_LABELS, type InvoiceStatus } from '@bon/types/invoices';
 import { INVOICE_STATUS_CONFIG } from '../lib/invoiceStatus';
+import { computeVatLabel } from '../lib/vatLabel';
 
 function formatDateTime(isoString: string): string {
   const d = new Date(isoString);
@@ -32,12 +34,12 @@ function formatDateTime(isoString: string): string {
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
-function formatDateOnly(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}/${year}`;
-}
-
-const CREDIT_NOTE_ELIGIBLE: InvoiceStatus[] = ['finalized', 'sent', 'paid', 'partially_paid'];
+const CREDIT_NOTE_ELIGIBLE: readonly InvoiceStatus[] = [
+  'finalized',
+  'sent',
+  'paid',
+  'partially_paid',
+] as const;
 
 function DetailSkeleton() {
   return (
@@ -119,20 +121,10 @@ export function InvoiceDetail() {
     return <Navigate to={`/business/invoices/${invoiceId}/edit`} replace />;
   }
 
-  const statusConfig = INVOICE_STATUS_CONFIG[invoice.status as InvoiceStatus];
-  const documentTypeLabel =
-    DOCUMENT_TYPE_LABELS[invoice.documentType as keyof typeof DOCUMENT_TYPE_LABELS] ??
-    invoice.documentType;
-  const showCreditNote = CREDIT_NOTE_ELIGIBLE.includes(invoice.status as InvoiceStatus);
-
-  // VAT label
-  const vatRates = new Set(items.map((i) => i.vatRateBasisPoints));
-  const vatLabel =
-    vatRates.size === 1
-      ? ([...vatRates][0] ?? 0) === 0
-        ? 'פטור ממע״מ'
-        : `מע״מ ${([...vatRates][0] ?? 0) / 100}%`
-      : 'מע״מ';
+  const statusConfig = INVOICE_STATUS_CONFIG[invoice.status];
+  const documentTypeLabel = DOCUMENT_TYPE_LABELS[invoice.documentType] ?? invoice.documentType;
+  const showCreditNote = CREDIT_NOTE_ELIGIBLE.includes(invoice.status);
+  const vatLabel = computeVatLabel(items.map((i) => i.vatRateBasisPoints));
 
   return (
     <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
@@ -150,7 +142,7 @@ export function InvoiceDetail() {
               {documentTypeLabel}
             </Text>
             <Group gap="lg">
-              <Text size="sm">תאריך: {formatDateOnly(invoice.invoiceDate)}</Text>
+              <Text size="sm">תאריך: {formatDate(invoice.invoiceDate)}</Text>
               {invoice.issuedAt && (
                 <Text size="sm" c="dimmed">
                   הופקה: {formatDateTime(invoice.issuedAt)}
@@ -158,7 +150,7 @@ export function InvoiceDetail() {
               )}
               {invoice.dueDate && (
                 <Text size="sm" c="dimmed">
-                  תאריך תשלום: {formatDateOnly(invoice.dueDate)}
+                  תאריך תשלום: {formatDate(invoice.dueDate)}
                 </Text>
               )}
             </Group>
@@ -263,7 +255,7 @@ export function InvoiceDetail() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {items
+                {[...items]
                   .sort((a, b) => a.position - b.position)
                   .map((item, index) => (
                     <Table.Tr key={item.id}>
@@ -359,16 +351,5 @@ export function InvoiceDetail() {
         </Paper>
       </Stack>
     </Container>
-  );
-}
-
-function TotalRow({ label, value }: Readonly<{ label: string; value: string }>) {
-  return (
-    <Group justify="space-between">
-      <Text size="sm" c="dimmed">
-        {label}
-      </Text>
-      <Text size="sm">{value}</Text>
-    </Group>
   );
 }

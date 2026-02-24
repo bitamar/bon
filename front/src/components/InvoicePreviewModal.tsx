@@ -3,6 +3,8 @@ import { IconInfoCircle } from '@tabler/icons-react';
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@bon/types/invoices';
 import { calculateInvoiceTotals, calculateLine } from '@bon/types/vat';
 import { formatMinorUnits, toMinorUnits } from '@bon/types/formatting';
+import { TotalRow } from './TotalRow';
+import { computeVatLabel } from '../lib/vatLabel';
 import type { LineItemFormRow } from './InvoiceLineItems';
 
 interface CustomerInfo {
@@ -44,14 +46,7 @@ export function InvoicePreviewModal({
   }));
 
   const totals = calculateInvoiceTotals(lineInputs);
-
-  const vatRates = new Set(items.map((i) => i.vatRateBasisPoints));
-  const vatLabel =
-    vatRates.size === 1
-      ? ([...vatRates][0] ?? 0) === 0
-        ? 'פטור ממע״מ'
-        : `מע״מ ${([...vatRates][0] ?? 0) / 100}%`
-      : 'מע״מ';
+  const vatLabel = computeVatLabel(items.map((i) => i.vatRateBasisPoints));
 
   return (
     <Modal opened={opened} onClose={onClose} title="תצוגה מקדימה — לפני הפקה" centered size="xl">
@@ -189,16 +184,5 @@ export function InvoicePreviewModal({
         </Group>
       </Stack>
     </Modal>
-  );
-}
-
-function TotalRow({ label, value }: Readonly<{ label: string; value: string }>) {
-  return (
-    <Group justify="space-between">
-      <Text size="sm" c="dimmed">
-        {label}
-      </Text>
-      <Text size="sm">{value}</Text>
-    </Group>
   );
 }

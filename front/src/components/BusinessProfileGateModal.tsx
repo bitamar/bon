@@ -4,12 +4,12 @@ import { IconAlertTriangle } from '@tabler/icons-react';
 import { useState } from 'react';
 import { updateBusiness } from '../api/businesses';
 import { extractErrorMessage } from '../lib/notifications';
+import { AddressAutocomplete, type AddressFormAdapter } from './AddressAutocomplete';
 import type { Business, BusinessType, UpdateBusinessBody } from '@bon/types/businesses';
 
 interface MissingFields {
   name: boolean;
-  streetAddress: boolean;
-  city: boolean;
+  address: boolean;
   vatNumber: boolean;
 }
 
@@ -19,8 +19,7 @@ export function getMissingBusinessFields(
 ): MissingFields {
   return {
     name: !business.name?.trim(),
-    streetAddress: !business.streetAddress?.trim(),
-    city: !business.city?.trim(),
+    address: !business.streetAddress?.trim() || !business.city?.trim(),
     vatNumber: businessType !== 'exempt_dealer' && !business.vatNumber?.trim(),
   };
 }
@@ -57,12 +56,13 @@ export function BusinessProfileGateModal({
       name: business.name ?? '',
       streetAddress: business.streetAddress ?? '',
       city: business.city ?? '',
+      postalCode: business.postalCode ?? '',
       vatNumber: business.vatNumber ?? '',
     },
     validate: {
       name: (value) => (missing.name && !value.trim() ? 'שם העסק נדרש' : null),
-      streetAddress: (value) => (missing.streetAddress && !value.trim() ? 'כתובת נדרשת' : null),
-      city: (value) => (missing.city && !value.trim() ? 'עיר נדרשת' : null),
+      city: (value) => (missing.address && !value.trim() ? 'עיר נדרשת' : null),
+      streetAddress: (value) => (missing.address && !value.trim() ? 'כתובת נדרשת' : null),
       vatNumber: (value) =>
         missing.vatNumber && !value.trim()
           ? 'מספר מע"מ נדרש'
@@ -72,14 +72,22 @@ export function BusinessProfileGateModal({
     },
   });
 
+  const addressAdapter: AddressFormAdapter = {
+    getInputProps: (field) => form.getInputProps(field),
+    setFieldValue: (field, value) => form.setFieldValue(field, value),
+  };
+
   const handleSubmit = form.onSubmit(async (values) => {
     setSaving(true);
     setError(null);
     try {
       const payload: UpdateBusinessBody = {};
       if (missing.name) payload.name = values.name;
-      if (missing.streetAddress) payload.streetAddress = values.streetAddress;
-      if (missing.city) payload.city = values.city;
+      if (missing.address) {
+        payload.streetAddress = values.streetAddress;
+        payload.city = values.city;
+        if (values.postalCode.trim()) payload.postalCode = values.postalCode;
+      }
       if (missing.vatNumber) payload.vatNumber = values.vatNumber;
 
       await updateBusiness(business.id, payload);
@@ -114,11 +122,13 @@ export function BusinessProfileGateModal({
 
           {missing.name && <TextInput label="שם העסק" required {...form.getInputProps('name')} />}
 
-          {missing.streetAddress && (
-            <TextInput label="כתובת" required {...form.getInputProps('streetAddress')} />
+          {missing.address && (
+            <AddressAutocomplete
+              form={addressAdapter}
+              initialCity={business.city ?? ''}
+              initialStreetAddress={business.streetAddress ?? ''}
+            />
           )}
-
-          {missing.city && <TextInput label="עיר" required {...form.getInputProps('city')} />}
 
           {missing.vatNumber && (
             <TextInput
