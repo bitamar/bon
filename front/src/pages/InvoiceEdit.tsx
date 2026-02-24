@@ -28,7 +28,7 @@ import { deleteInvoiceDraft, fetchInvoice, updateInvoiceDraft } from '../api/inv
 import { fetchBusiness } from '../api/businesses';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
-import { formatAgora } from '../lib/format';
+import { formatAgora, shekelToAgora } from '../lib/format';
 import { showErrorNotification } from '../lib/notifications';
 import { calculateInvoiceTotals } from '@bon/types/vat';
 import type { DocumentType, UpdateInvoiceDraftBody } from '@bon/types/invoices';
@@ -62,10 +62,7 @@ function parseDate(dateStr: string | null): Date | null {
 }
 
 function toDateOrNull(val: DateValue): Date | null {
-  if (val === null) return null;
-  if (val instanceof Date) return val;
-  const d = new Date(val);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return val instanceof Date ? val : null;
 }
 
 function toLocalDateString(d: Date): string {
@@ -140,6 +137,8 @@ export function InvoiceEdit() {
 
   const [form, setForm] = useState<InvoiceFormValues | null>(null);
 
+  // Only initialize once — subsequent refetches are intentionally ignored to
+  // avoid overwriting the user's unsaved edits.
   useEffect(() => {
     if (initialValues && !form) {
       setForm(initialValues);
@@ -266,7 +265,7 @@ export function InvoiceEdit() {
         description: item.description,
         catalogNumber: item.catalogNumber || undefined,
         quantity: item.quantity,
-        unitPriceAgora: Math.round(item.unitPriceShekel * 100),
+        unitPriceAgora: shekelToAgora(item.unitPriceShekel),
         discountPercent: item.discountPercent,
         vatRateBasisPoints: item.vatRateBasisPoints,
         position: index,

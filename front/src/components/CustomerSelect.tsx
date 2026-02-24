@@ -23,7 +23,7 @@ export function CustomerSelect({
   const [debouncedSearch] = useDebouncedValue(search, 300);
 
   const { data, error, isLoading } = useQuery({
-    queryKey: [...queryKeys.customers(businessId), { q: debouncedSearch || undefined, limit: 50 }],
+    queryKey: queryKeys.customerSearch(businessId, debouncedSearch || undefined, 50),
     queryFn: () => fetchCustomers(businessId, debouncedSearch || undefined, undefined, 50),
     enabled: !!businessId,
   });

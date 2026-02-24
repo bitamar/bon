@@ -1,6 +1,6 @@
 import { Group, Stack, Text } from '@mantine/core';
 import { calculateInvoiceTotals } from '@bon/types/vat';
-import { formatAgora } from '../lib/format';
+import { formatAgora, shekelToAgora } from '../lib/format';
 import type { LineItemFormRow } from './InvoiceLineItems';
 
 interface InvoiceTotalsProps {
@@ -19,7 +19,7 @@ function getVatLabel(items: ReadonlyArray<Readonly<LineItemFormRow>>): string {
 export function InvoiceTotals({ items }: Readonly<InvoiceTotalsProps>) {
   const lineInputs = items.map((row) => ({
     quantity: row.quantity,
-    unitPriceAgora: Math.round(row.unitPriceShekel * 100),
+    unitPriceAgora: shekelToAgora(row.unitPriceShekel),
     discountPercent: row.discountPercent,
     vatRateBasisPoints: row.vatRateBasisPoints,
   }));

@@ -8,6 +8,8 @@ export const queryKeys = {
   myInvitations: () => ['invitations', 'mine'] as const,
   invitation: (token: string) => ['invitations', token] as const,
   customers: (businessId: string) => ['businesses', businessId, 'customers'] as const,
+  customerSearch: (businessId: string, q: string | undefined, limit: number) =>
+    ['businesses', businessId, 'customers', { q, limit }] as const,
   customer: (businessId: string, customerId: string) =>
     ['businesses', businessId, 'customers', customerId] as const,
   invoices: (businessId: string) => ['businesses', businessId, 'invoices'] as const,

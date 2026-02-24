@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { calculateLine } from '@bon/types/vat';
-import { formatAgora } from '../lib/format';
+import { formatAgora, shekelToAgora } from '../lib/format';
 
 export interface LineItemFormRow {
   key: string;
@@ -37,7 +37,7 @@ const VAT_OPTIONS = [
 function computeLineTotal(row: Readonly<LineItemFormRow>): number {
   const result = calculateLine({
     quantity: row.quantity,
-    unitPriceAgora: Math.round(row.unitPriceShekel * 100),
+    unitPriceAgora: shekelToAgora(row.unitPriceShekel),
     discountPercent: row.discountPercent,
     vatRateBasisPoints: row.vatRateBasisPoints,
   });

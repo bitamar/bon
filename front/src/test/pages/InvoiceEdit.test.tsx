@@ -212,8 +212,8 @@ describe('InvoiceEdit page', () => {
         lineTotalInclVatAgora: 0,
       },
     ];
+    setupDraftMocks();
     vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(zeroPrice);
-    vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
     vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(zeroPrice);
     const user = userEvent.setup();
     renderEdit();
@@ -230,8 +230,8 @@ describe('InvoiceEdit page', () => {
   it('shows error when line item has price but no description', async () => {
     const noDesc = makeMockInvoice({});
     noDesc.items = [{ ...noDesc.items[0]!, description: '' }];
+    setupDraftMocks();
     vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(noDesc);
-    vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
     const user = userEvent.setup();
     renderEdit();
 
