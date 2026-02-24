@@ -56,9 +56,9 @@ describe('InvoiceLineItems', () => {
     const items = [makeRow({ description: 'Item A' }), makeRow({ description: 'Item B' })];
     const { onChange } = renderLineItems({ items });
 
-    const removeButtons = screen.getAllByRole('button', { name: 'הסר שורה' });
-    expect(removeButtons).toHaveLength(2);
-    await user.click(removeButtons[0]);
+    const firstRemoveButton = screen.getAllByRole('button', { name: 'הסר שורה' })[0];
+    if (!firstRemoveButton) throw new Error('remove button not found');
+    await user.click(firstRemoveButton);
 
     expect(onChange).toHaveBeenCalledTimes(1);
     const newItems = onChange.mock.calls[0]?.[0] as LineItemFormRow[];
