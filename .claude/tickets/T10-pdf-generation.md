@@ -289,6 +289,114 @@ Add `.data/` to `.gitignore`.
 
 ---
 
+## Architecture Review Delta (from codebase audit, 2026-02-24)
+
+This section captures findings from a design review against the current codebase state (post T08-A/B merge). The Implementer must follow these notes in addition to the acceptance criteria above.
+
+### Codebase compatibility confirmed
+
+- `formatMinorUnits(number, string?)` exists in `types/src/formatting.ts` line 5, uses `Intl.NumberFormat('he-IL', ...)`
+- `formatDate(isoDate)` exists in `types/src/formatting.ts` line 9, returns `DD/MM/YYYY`
+- `DOCUMENT_TYPE_LABELS` exists in `types/src/invoices.ts` line 170
+- `@bon/types` uses wildcard exports (`"./*"`) — `@bon/types/formatting`, `@bon/types/invoices` etc. resolve correctly
+- Auth pattern (`app.authenticate` + `app.requireBusinessAccess` + `ensureBusinessContext(req)`) is established
+- `getInvoice(businessId, invoiceId)` returns `InvoiceResponse` (invoice + items), enforces tenant isolation
+- `findBusinessById(businessId)` returns full `BusinessRecord`
+- All invoice snapshot fields present: `customerName`, `customerTaxId`, `customerAddress`, `customerEmail`
+- All line item fields present: `description`, `catalogNumber`, `quantity`, `unitPriceMinorUnits`, `discountPercent`, `vatRateBasisPoints`, `lineTotalMinorUnits`, `vatAmountMinorUnits`, `lineTotalInclVatMinorUnits`
+- Business fields present: `name`, `businessType`, `registrationNumber`, `vatNumber`, `streetAddress`, `city`, `postalCode`, `phone`, `email`, `logoUrl`
+
+### REQUIRED: Add `formatDateTime` to `types/src/formatting.ts`
+
+The template needs `DD/MM/YYYY HH:mm` for the `issuedAt` field. The existing `formatDate` only handles `YYYY-MM-DD` date strings and would break on ISO datetime strings. Add to PR 1:
+
+```typescript
+export function formatDateTime(isoDateTime: string): string {
+  const date = new Date(isoDateTime);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+```
+
+### REQUIRED: Make `PDF_SERVICE_URL` optional in `env.ts`
+
+The current `api/src/env.ts` is strict (`z.object` with no passthrough). Making `PDF_SERVICE_URL` required would break all existing test suites and local dev setups that don't run the PDF service.
+
+Use `z.string().url().optional()`. The `PdfService.generateInvoicePdf()` should throw a clear error at runtime if called without it configured.
+
+### REQUIRED: Update root `package.json` workspaces
+
+Root `package.json` has explicit workspace list: `["api", "front", "types"]`. Must become `["api", "front", "types", "pdf"]`.
+
+Also update the `format`, `format:check`, and `check` scripts to include `pdf/` workspace TypeScript files and workspace commands.
+
+### REQUIRED: Add `.data/` to `.gitignore`
+
+Currently absent. Add it in PR 1 since `LocalFileStorage` creates `.data/pdfs/`.
+
+### No `InvoiceActionBar` exists yet — PdfDownloadButton is standalone
+
+The ticket says `PdfDownloadButton` "replaces the disabled PDF placeholder in T08's InvoiceActionBar." No `InvoiceActionBar` or invoice detail page currently exists in the frontend. Design `PdfDownloadButton` as a standalone component that can be integrated into the detail page when it ships (T08-D). Create the component, export it, add `fetchInvoicePdf` API function, and write tests. Integration into a page layout is a separate concern.
+
+### Frontend needs `fetchBlob` — `fetchJson` won't work for PDF
+
+`front/src/lib/http.ts` only has `fetchJson` which calls `response.json()`. The PDF endpoint returns a binary blob. Either add a `fetchBlob` utility or have `fetchInvoicePdf` use `fetch` directly with `response.blob()`.
+
+### Font file location: `pdf/src/pdf/fonts/`, not `api/src/pdf/fonts/`
+
+The "Font Embedding" narrative section incorrectly references `api/src/pdf/fonts/`. The file structure section correctly places fonts in `pdf/src/pdf/fonts/`. Fonts live in the `pdf/` workspace.
+
+### Mixed VAT rate display in totals
+
+The ticket says "מע"מ {rate}%: ₪X (derive rate from line items)." Specify behavior for mixed rates:
+- All non-zero-rate items share the same rate → show "מע"מ {rate}%"
+- Mixed rates → show "מע"מ" without a rate percentage
+- All items 0% → show "מע"מ 0%"
+
+### Add `REGISTRATION_NUMBER_LABELS` mapping
+
+The template shows "ח.פ." for `limited_company` and "ע.מ." for licensed/exempt dealers. Add to `types/src/businesses.ts` or inline in the template:
+
+```typescript
+export const REGISTRATION_NUMBER_LABELS: Record<BusinessType, string> = {
+  limited_company: 'ח.פ.',
+  licensed_dealer: 'ע.מ.',
+  exempt_dealer: 'ע.מ.',
+};
+```
+
+### Define shared `pdfRenderRequestSchema`
+
+Formalize the API contract between API and PDF service. Add to `types/src/pdf.ts`:
+
+```typescript
+export const pdfRenderRequestSchema = z.object({
+  invoice: invoiceSchema,
+  items: z.array(lineItemSchema),
+  business: businessSchema,
+  options: z.object({
+    watermark: z.boolean().default(false),
+    itaSoftwareRegistrationNumber: z.string().optional(),
+  }),
+});
+```
+
+This makes the PDF service stateless — `ITA_SOFTWARE_REGISTRATION_NUMBER` is passed per-request from the API instead of being a PDF service env var.
+
+### CI: Template tests must not require Chromium
+
+Ensure template tests (`renderInvoiceHtml()` → assert HTML contains required fields) run without Puppeteer. PDF route tests must mock Puppeteer entirely. CI environments may not have Chromium installed.
+
+### Content-Disposition: `inline` is correct
+
+PLAN.md says `attachment`, ticket says `inline`. Use `inline` — it opens in the browser's PDF viewer for direct URL access, which is better UX. The `PdfDownloadButton` fetches as a blob and triggers a programmatic download regardless.
+
+---
+
 ## Links
 
 - Branch: —
