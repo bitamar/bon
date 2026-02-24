@@ -1,13 +1,7 @@
 import { Badge, Card, Group, Skeleton, Stack, Table, Text } from '@mantine/core';
 import type { RecentInvoice } from '../hooks/useDashboardData';
 import { formatCurrency } from '../hooks/useDashboardData';
-
-const STATUS_CONFIG: Record<RecentInvoice['status'], { label: string; color: string }> = {
-  draft: { label: 'טיוטה', color: 'gray' },
-  sent: { label: 'נשלחה', color: 'blue' },
-  paid: { label: 'שולמה', color: 'brand' },
-  overdue: { label: 'באיחור', color: 'red' },
-};
+import { INVOICE_STATUS_CONFIG } from '../lib/invoiceStatus';
 
 export function RecentInvoicesTable({
   invoices,
@@ -56,7 +50,12 @@ export function RecentInvoicesTable({
         </Table.Thead>
         <Table.Tbody>
           {invoices.map((invoice) => {
-            const status = STATUS_CONFIG[invoice.status];
+            const status = INVOICE_STATUS_CONFIG[
+              invoice.status as keyof typeof INVOICE_STATUS_CONFIG
+            ] ?? {
+              label: invoice.status,
+              color: 'gray',
+            };
             return (
               <Table.Tr key={invoice.id}>
                 <Table.Td>
