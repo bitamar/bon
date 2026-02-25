@@ -44,7 +44,7 @@ const CREDIT_NOTE_ELIGIBLE: readonly InvoiceStatus[] = [
 
 function DetailSkeleton() {
   return (
-    <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
+    <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl" data-testid="invoice-loading">
       <Stack gap="md">
         <Group justify="space-between">
           <Stack gap={4}>

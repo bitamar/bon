@@ -44,9 +44,8 @@ describe('InvoiceDetail page', () => {
 
   it('shows loading skeleton', () => {
     vi.mocked(invoicesApi.fetchInvoice).mockReturnValue(new Promise(() => {}));
-    const { container } = renderDetail();
-    // Mantine Skeleton renders with the mantine-Skeleton-root class
-    expect(container.querySelector('.mantine-Skeleton-root')).toBeInTheDocument();
+    renderDetail();
+    expect(screen.getByTestId('invoice-loading')).toBeInTheDocument();
   });
 
   it('shows error state with retry button', async () => {

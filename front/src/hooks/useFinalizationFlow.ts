@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { finalizeInvoice } from '../api/invoices';
@@ -61,6 +61,7 @@ export function useFinalizationFlow({
   const [vatExemptionReason, setVatExemptionReason] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const isConfirmingRef = useRef(false);
 
   const validateClient = useCallback((): ClientValidationResult => {
     const errors: string[] = [];
@@ -69,11 +70,13 @@ export function useFinalizationFlow({
       errors.push('יש לבחור לקוח לפני הפקת חשבונית');
     }
 
-    const nonEmptyItems = items.filter(
-      (item) => item.description.trim() !== '' || item.unitPrice !== 0
-    );
-    if (nonEmptyItems.length === 0) {
+    const hasDescribedItem = items.some((item) => item.description.trim() !== '');
+    if (!hasDescribedItem) {
       errors.push('יש להוסיף לפחות שורה אחת עם תיאור');
+    }
+
+    if (items.some((item) => item.unitPrice !== 0 && item.description.trim() === '')) {
+      errors.push('יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר');
     }
 
     if (invoiceDate) {
@@ -130,6 +133,8 @@ export function useFinalizationFlow({
   }, []);
 
   const confirmFinalize = useCallback(async () => {
+    if (isConfirmingRef.current) return;
+    isConfirmingRef.current = true;
     setConfirming(true);
     setStep('finalizing');
 
@@ -146,7 +151,6 @@ export function useFinalizationFlow({
       navigate(`/business/invoices/${invoiceId}`);
     } catch (err) {
       setStep('preview');
-      setConfirming(false);
 
       if (err instanceof HttpError) {
         const body = err.body as { code?: string } | undefined;
@@ -170,6 +174,9 @@ export function useFinalizationFlow({
       }
 
       showErrorNotification(err instanceof Error ? err.message : 'שגיאה בהפקת החשבונית — נסו שוב');
+    } finally {
+      isConfirmingRef.current = false;
+      setConfirming(false);
     }
   }, [businessId, invoiceId, invoiceDate, vatExemptionReason, navigate, queryClient]);
 

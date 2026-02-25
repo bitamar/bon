@@ -17,6 +17,7 @@ vi.mock('../../lib/notifications', () => ({
 
 import * as invoicesApi from '../../api/invoices';
 import * as notifications from '../../lib/notifications';
+import { makeFinalizedInvoice } from '../utils/invoiceStubs';
 
 // ── helpers ──
 
@@ -190,44 +191,7 @@ describe('useFinalizationFlow', () => {
   });
 
   it('calls finalizeInvoice on confirmFinalize', async () => {
-    vi.mocked(invoicesApi.finalizeInvoice).mockResolvedValue({
-      invoice: {
-        id: 'inv-1',
-        businessId: 'biz-1',
-        customerId: 'cust-1',
-        customerName: 'Test',
-        customerTaxId: null,
-        customerAddress: null,
-        customerEmail: null,
-        documentType: 'tax_invoice',
-        status: 'finalized',
-        isOverdue: false,
-        sequenceGroup: 'tax_document',
-        sequenceNumber: 1,
-        documentNumber: 'INV-0001',
-        creditedInvoiceId: null,
-        invoiceDate: '2026-02-20',
-        issuedAt: '2026-02-20T10:00:00.000Z',
-        dueDate: null,
-        notes: null,
-        internalNotes: null,
-        currency: 'ILS',
-        vatExemptionReason: null,
-        subtotalMinorUnits: 10000,
-        discountMinorUnits: 0,
-        totalExclVatMinorUnits: 10000,
-        vatMinorUnits: 1700,
-        totalInclVatMinorUnits: 11700,
-        allocationStatus: null,
-        allocationNumber: null,
-        allocationError: null,
-        sentAt: null,
-        paidAt: null,
-        createdAt: '2026-02-20T00:00:00.000Z',
-        updatedAt: '2026-02-20T10:00:00.000Z',
-      },
-      items: [],
-    });
+    vi.mocked(invoicesApi.finalizeInvoice).mockResolvedValue(makeFinalizedInvoice());
 
     const { result } = renderHook(() => useFinalizationFlow(defaultParams), {
       wrapper: makeWrapper(),

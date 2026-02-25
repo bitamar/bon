@@ -51,13 +51,6 @@ export function BusinessProfileGateModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function handleClose() {
-    setError(null);
-    form.resetDirty();
-    form.resetTouched();
-    onClose();
-  }
-
   const form = useForm({
     initialValues: {
       name: business.name ?? '',
@@ -78,6 +71,13 @@ export function BusinessProfileGateModal({
       },
     },
   });
+
+  function handleClose() {
+    setError(null);
+    form.resetDirty();
+    form.resetTouched();
+    onClose();
+  }
 
   const addressAdapter: AddressFormAdapter = {
     getInputProps: (field) => form.getInputProps(field),

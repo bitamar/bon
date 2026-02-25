@@ -63,7 +63,10 @@ export function VatExemptionReasonModal({
           placeholder="בחר סיבה..."
           data={VAT_EXEMPTION_REASONS.map((r) => ({ value: r, label: r }))}
           value={reason}
-          onChange={setReason}
+          onChange={(value) => {
+            setReason(value);
+            setError(null);
+          }}
           required
           allowDeselect={false}
         />

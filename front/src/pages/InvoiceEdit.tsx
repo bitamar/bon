@@ -38,7 +38,7 @@ import { showErrorNotification } from '../lib/notifications';
 import { calculateInvoiceTotals } from '@bon/types/vat';
 import type { DocumentType, UpdateInvoiceDraftBody } from '@bon/types/invoices';
 
-const DOC_TYPE_OPTIONS = [
+const DOC_TYPE_OPTIONS: { value: DocumentType; label: string }[] = [
   { value: 'tax_invoice', label: 'חשבונית מס' },
   { value: 'tax_invoice_receipt', label: 'חשבונית מס קבלה' },
   { value: 'receipt', label: 'קבלה' },
@@ -358,7 +358,10 @@ export function InvoiceEdit() {
                 <SegmentedControl
                   data={DOC_TYPE_OPTIONS}
                   value={form.documentType}
-                  onChange={(val) => setForm({ ...form, documentType: val as DocumentType })}
+                  onChange={(val) => {
+                    const match = DOC_TYPE_OPTIONS.find((o) => o.value === val);
+                    if (match) setForm({ ...form, documentType: match.value });
+                  }}
                   fullWidth
                 />
                 <Text size="xs" c="dimmed">
