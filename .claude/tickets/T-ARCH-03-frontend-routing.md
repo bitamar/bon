@@ -43,10 +43,10 @@ All old paths must redirect to their canonical equivalents so existing bookmarks
 |-------------|----------------|
 | `/business/customers` | `/businesses/:activeBusinessId/customers` |
 | `/business/customers/new` | `/businesses/:activeBusinessId/customers/new` |
-| `/business/customers/:id` | `/businesses/:activeBusinessId/customers/:id` |
+| `/business/customers/:id` | `/businesses/:activeBusinessId/customers/:customerId` |
 | `/business/settings` | `/businesses/:activeBusinessId/settings` |
 | `/business/invoices/new` | `/businesses/:activeBusinessId/invoices/new` |
-| `/business/invoices/:id/edit` | `/businesses/:activeBusinessId/invoices/:id/edit` |
+| `/business/invoices/:id/edit` | `/businesses/:activeBusinessId/invoices/:invoiceId/edit` |
 
 Where `:activeBusinessId` is resolved from localStorage (last active business). If no active business exists, redirect to `/businesses` (the switcher).
 

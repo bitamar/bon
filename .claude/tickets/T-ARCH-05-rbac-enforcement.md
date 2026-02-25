@@ -25,6 +25,7 @@ This is acceptable for single-user businesses but becomes a problem as soon as t
 | Create / edit draft invoices | yes | yes | yes |
 | Create / edit customers | yes | yes | yes |
 | **Finalize invoices** | yes | yes | no |
+| **Delete invoice** | yes | yes | no |
 | **Delete customers** | yes | yes | no |
 | **Modify business settings** | yes | no | no |
 | **Manage team members** | yes | no | no |

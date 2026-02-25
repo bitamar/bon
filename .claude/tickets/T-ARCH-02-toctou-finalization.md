@@ -11,7 +11,7 @@
 
 The invoice finalization function (`api/src/services/invoice-service.ts`) has a documented TOCTOU (Time-of-Check-Time-of-Use) race condition:
 
-```
+```typescript
 // TODO: TOCTOU — move validation inside tx with SELECT FOR UPDATE before SHAAM integration
 ```
 
