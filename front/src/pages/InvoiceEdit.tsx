@@ -183,7 +183,7 @@ export function InvoiceEdit() {
 
   const customerQuery = useQuery({
     queryKey: queryKeys.customer(businessId, form?.customerId ?? ''),
-    queryFn: () => fetchCustomer(businessId, form!.customerId!),
+    queryFn: () => fetchCustomer(businessId, form?.customerId ?? ''),
     enabled: !!activeBusiness && !!form?.customerId,
   });
 
