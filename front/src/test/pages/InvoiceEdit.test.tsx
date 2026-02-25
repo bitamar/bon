@@ -148,7 +148,7 @@ describe('InvoiceEdit page', () => {
   });
 
   it('saves successfully when line item has description with zero price', async () => {
-    const zeroPrice = makeDraftInvoice({});
+    const zeroPrice = makeDraftInvoice();
     zeroPrice.items = [
       {
         ...zeroPrice.items[0]!,
@@ -174,7 +174,7 @@ describe('InvoiceEdit page', () => {
   });
 
   it('shows error when line item has price but no description', async () => {
-    const noDesc = makeDraftInvoice({});
+    const noDesc = makeDraftInvoice();
     noDesc.items = [{ ...noDesc.items[0]!, description: '' }];
     setupDraftMocks();
     vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(noDesc);

@@ -23,7 +23,7 @@ export function InvoiceTotalsSummary({
     <Stack gap={4} maw={300} ms="auto">
       <TotalRow label="סה״כ לפני הנחה" value={formatMinorUnits(subtotalMinorUnits)} />
       {discountMinorUnits > 0 && (
-        <TotalRow label="הנחה" value={formatMinorUnits(discountMinorUnits)} />
+        <TotalRow label="הנחה" value={`-${formatMinorUnits(discountMinorUnits)}`} />
       )}
       <TotalRow label="סה״כ לפני מע״מ" value={formatMinorUnits(totalExclVatMinorUnits)} />
       <TotalRow label={vatLabel} value={formatMinorUnits(vatMinorUnits)} />

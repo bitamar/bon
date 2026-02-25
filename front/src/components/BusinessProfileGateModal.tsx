@@ -51,6 +51,13 @@ export function BusinessProfileGateModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function handleClose() {
+    setError(null);
+    form.resetDirty();
+    form.resetTouched();
+    onClose();
+  }
+
   const form = useForm({
     initialValues: {
       name: business.name ?? '',
@@ -102,7 +109,7 @@ export function BusinessProfileGateModal({
   return (
     <Modal
       opened={opened}
-      onClose={onClose}
+      onClose={handleClose}
       title="נדרש להשלים פרטי עסק"
       centered
       closeOnClickOutside={false}
@@ -141,7 +148,7 @@ export function BusinessProfileGateModal({
           )}
 
           <Group justify="flex-end">
-            <Button variant="subtle" onClick={onClose} disabled={saving}>
+            <Button variant="subtle" onClick={handleClose} disabled={saving}>
               ביטול
             </Button>
             <Button type="submit" loading={saving}>

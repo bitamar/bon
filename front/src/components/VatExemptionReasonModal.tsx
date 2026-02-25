@@ -2,12 +2,14 @@ import { Alert, Button, Group, Modal, Select, Stack } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useState } from 'react';
 
+export const OTHER_REASON = 'אחר — פרט בהערות';
+
 export const VAT_EXEMPTION_REASONS = [
   'ייצוא שירותים §30(א)(5)',
   'ייצוא טובין §30(א)(1)',
   'עסקה עם גוף מדינה',
   'מוסד ללא כוונת רווח — §30(א)(2)',
-  'אחר — פרט בהערות',
+  OTHER_REASON,
 ] as const;
 
 interface VatExemptionReasonModalProps {
@@ -38,7 +40,7 @@ export function VatExemptionReasonModal({
       return;
     }
 
-    if (reason === 'אחר — פרט בהערות' && !invoiceNotes.trim()) {
+    if (reason === OTHER_REASON && !invoiceNotes.trim()) {
       setError('בחרת "אחר" — יש להוסיף הסבר בשדה ההערות של החשבונית');
       return;
     }

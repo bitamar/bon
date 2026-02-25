@@ -91,6 +91,9 @@ export function useFinalizationFlow({
     totalVatMinorUnits === 0 && businessType != null && businessType !== 'exempt_dealer';
 
   const startFinalization = useCallback(() => {
+    setVatExemptionReason(null);
+    setConfirming(false);
+
     const result = validateClient();
     if (!result.valid) {
       setValidationErrors(result.errors);
@@ -172,6 +175,8 @@ export function useFinalizationFlow({
 
   const closeModal = useCallback(() => {
     setStep('idle');
+    setVatExemptionReason(null);
+    setConfirming(false);
   }, []);
 
   return {

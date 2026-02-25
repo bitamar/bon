@@ -53,7 +53,17 @@ export function InvoicePreviewModal({
   const vatLabel = computeVatLabel(items.map((i) => i.vatRateBasisPoints));
 
   return (
-    <Modal opened={opened} onClose={onClose} title="תצוגה מקדימה — לפני הפקה" centered size="xl">
+    <Modal
+      opened={opened}
+      onClose={() => {
+        if (!confirming) onClose();
+      }}
+      title="תצוגה מקדימה — לפני הפקה"
+      centered
+      size="xl"
+      closeOnClickOutside={!confirming}
+      closeOnEscape={!confirming}
+    >
       <Stack gap="md">
         <Paper withBorder p="md" radius="md">
           <Stack gap="sm">

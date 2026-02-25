@@ -257,15 +257,21 @@ describe('useFinalizationFlow', () => {
     expect(result.current.step).toBe('preview');
   });
 
-  it('resets to idle on closeModal', () => {
-    const { result } = renderHook(() => useFinalizationFlow(defaultParams), {
-      wrapper: makeWrapper(),
-    });
+  it('resets to idle and clears transient state on closeModal', () => {
+    const { result } = renderHook(
+      () => useFinalizationFlow({ ...defaultParams, totalVatMinorUnits: 0 }),
+      { wrapper: makeWrapper() }
+    );
 
     act(() => result.current.startFinalization());
-    expect(result.current.step).toBe('preview');
+    expect(result.current.step).toBe('vat_exemption');
+
+    act(() => result.current.onVatExemptionConfirmed('ייצוא שירותים §30(א)(5)'));
+    expect(result.current.vatExemptionReason).toBe('ייצוא שירותים §30(א)(5)');
 
     act(() => result.current.closeModal());
     expect(result.current.step).toBe('idle');
+    expect(result.current.vatExemptionReason).toBeNull();
+    expect(result.current.confirming).toBe(false);
   });
 });

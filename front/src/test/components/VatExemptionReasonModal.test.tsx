@@ -79,4 +79,25 @@ describe('VatExemptionReasonModal', () => {
 
     expect(defaultProps.onConfirm).toHaveBeenCalledWith('אחר — פרט בהערות');
   });
+
+  it('resets internal state when closed via cancel button', async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderModal();
+
+    // Select a reason and trigger validation error
+    await user.click(screen.getByPlaceholderText('בחר סיבה...'));
+    await user.click(screen.getByText('אחר — פרט בהערות'));
+    await user.click(screen.getByRole('button', { name: 'המשך' }));
+    expect(screen.getByText(/בחרת "אחר"/)).toBeInTheDocument();
+
+    // Close the modal
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+    expect(defaultProps.onClose).toHaveBeenCalled();
+
+    // Re-render and verify clean state
+    unmount();
+    renderModal();
+    expect(screen.queryByText(/בחרת "אחר"/)).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('בחר סיבה...')).toBeInTheDocument();
+  });
 });

@@ -88,8 +88,8 @@ describe('BusinessProfileGateModal', () => {
 
     await waitFor(() => {
       expect(businessApi.updateBusiness).toHaveBeenCalledWith('biz-1', { name: 'עסק חדש' });
+      expect(defaultProps.onSaved).toHaveBeenCalled();
     });
-    expect(defaultProps.onSaved).toHaveBeenCalled();
   });
 
   it('shows inline error when PATCH fails', async () => {

@@ -7,9 +7,12 @@ import type { LineItemFormRow } from '../../components/InvoiceLineItems';
 
 // ── helpers ──
 
+let _itemKeyCounter = 0;
+
 function makeItem(overrides: Partial<LineItemFormRow> = {}): LineItemFormRow {
+  _itemKeyCounter += 1;
   return {
-    key: 'item-1',
+    key: `item-${_itemKeyCounter}`,
     description: 'שירות ייעוץ',
     catalogNumber: '',
     quantity: 1,
@@ -51,6 +54,7 @@ function renderPreview(overrides: Partial<typeof defaultProps> = {}) {
 describe('InvoicePreviewModal', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    _itemKeyCounter = 0;
   });
 
   it('renders document type, customer info, and line items', () => {
@@ -117,6 +121,8 @@ describe('InvoicePreviewModal', () => {
     renderPreview({ confirming: true });
 
     expect(screen.getByRole('button', { name: 'חזרה לעריכה' })).toBeDisabled();
+    const confirmBtn = screen.getByRole('button', { name: 'אשר והפק' });
+    expect(confirmBtn).toHaveAttribute('data-loading', 'true');
   });
 
   it('shows discount row in totals when items have discounts', () => {

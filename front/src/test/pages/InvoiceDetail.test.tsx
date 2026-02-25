@@ -129,5 +129,6 @@ describe('InvoiceDetail page', () => {
     renderWithInvoice({ vatExemptionReason: 'ייצוא שירותים §30(א)(5)' });
 
     expect(await screen.findByText('ייצוא שירותים §30(א)(5)')).toBeInTheDocument();
+    expect(screen.getByText(/סיבת פטור ממע"מ/)).toBeInTheDocument();
   });
 });
