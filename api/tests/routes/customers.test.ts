@@ -179,16 +179,16 @@ describe('routes/customers', () => {
       expect(res.statusCode).toBe(400);
     });
 
-    it('returns 400 for invalid checksum on company_id', async () => {
+    it('accepts company_id without checksum validation', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 
       const res = await postCustomer(sessionId, business.id, {
-        name: 'Bad ID',
+        name: 'Company',
         taxId: INVALID_CHECKSUM_TAX_ID,
         taxIdType: 'company_id',
       });
 
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(201);
     });
 
     it('returns 400 for invalid checksum on personal_id', async () => {

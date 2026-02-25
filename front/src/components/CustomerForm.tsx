@@ -53,8 +53,17 @@ function getNameLabel(taxIdType: TaxIdType): string {
   }
 }
 
-function getTaxIdError(taxIdType: TaxIdType): string {
-  return taxIdType === 'personal_id' ? 'מספר ת.ז. לא תקין' : 'מספר מזהה לא תקין (ספרת ביקורת)';
+function getTaxIdLabel(taxIdType: TaxIdType): string {
+  switch (taxIdType) {
+    case 'company_id':
+      return 'מספר חברה (ח.פ.)';
+    case 'vat_number':
+      return 'מספר עוסק מורשה (ע.מ.)';
+    case 'personal_id':
+      return 'מספר תעודת זהות (ת.ז.)';
+    default:
+      return 'מספר מזהה';
+  }
 }
 
 const DEFAULT_VALUES: CustomerFormValues = {
@@ -93,7 +102,8 @@ export const CustomerForm = forwardRef<CustomerFormHandle, Readonly<CustomerForm
           if (values.taxIdType === 'none') return null;
           if (!value) return null;
           if (!/^\d{9}$/.test(value)) return 'מספר מזהה חייב להיות 9 ספרות';
-          if (!validateIsraeliId(value)) return getTaxIdError(values.taxIdType);
+          if (values.taxIdType === 'personal_id' && !validateIsraeliId(value))
+            return 'מספר ת.ז. לא תקין';
           return null;
         },
       },
@@ -142,7 +152,7 @@ export const CustomerForm = forwardRef<CustomerFormHandle, Readonly<CustomerForm
 
           {showTaxIdField && (
             <TextInput
-              label="מספר מזהה"
+              label={getTaxIdLabel(form.values.taxIdType)}
               maxLength={9}
               inputMode="numeric"
               {...form.getInputProps('taxId')}

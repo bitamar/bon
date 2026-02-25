@@ -95,9 +95,13 @@ function renderFormWithInitialValues(initialValues: Partial<CustomerFormValues>)
   };
 }
 
-function getTaxIdInput() {
-  // Use exact label match to avoid matching "סוג מספר מזהה" Select
-  return screen.getByLabelText('מספר מזהה');
+function getTaxIdInput(taxIdType: 'company_id' | 'personal_id' | 'vat_number') {
+  const labels: Record<string, string> = {
+    company_id: 'מספר חברה (ח.פ.)',
+    vat_number: 'מספר עוסק מורשה (ע.מ.)',
+    personal_id: 'מספר תעודת זהות (ת.ז.)',
+  };
+  return screen.getByLabelText(labels[taxIdType]!);
 }
 
 describe('CustomerCreate page', () => {
@@ -168,7 +172,7 @@ describe('CustomerForm tax ID validation', () => {
     const user = userEvent.setup();
     const { onSubmit } = renderFormWithTaxIdType('company_id');
 
-    const taxIdInput = getTaxIdInput();
+    const taxIdInput = getTaxIdInput('company_id');
     await user.type(taxIdInput, '12345');
 
     const nameInput = screen.getByRole('textbox', { name: /שם העסק/ });
@@ -185,7 +189,7 @@ describe('CustomerForm tax ID validation', () => {
     const user = userEvent.setup();
     renderFormWithTaxIdType('personal_id');
 
-    const taxIdInput = getTaxIdInput();
+    const taxIdInput = getTaxIdInput('personal_id');
     await user.type(taxIdInput, '123456789');
 
     const nameInput = screen.getByRole('textbox', { name: /שם מלא/ });
@@ -197,11 +201,11 @@ describe('CustomerForm tax ID validation', () => {
     expect(await screen.findByText('מספר ת.ז. לא תקין')).toBeInTheDocument();
   });
 
-  it('shows checksum error for invalid ח.פ.', async () => {
+  it('accepts ח.פ. without checksum validation', async () => {
     const user = userEvent.setup();
-    renderFormWithTaxIdType('company_id');
+    const { onSubmit } = renderFormWithTaxIdType('company_id');
 
-    const taxIdInput = getTaxIdInput();
+    const taxIdInput = getTaxIdInput('company_id');
     await user.type(taxIdInput, '123456789');
 
     const nameInput = screen.getByRole('textbox', { name: /שם העסק/ });
@@ -210,12 +214,30 @@ describe('CustomerForm tax ID validation', () => {
     const submitButton = screen.getByRole('button', { name: 'שמור' });
     await user.click(submitButton);
 
-    expect(await screen.findByText('מספר מזהה לא תקין (ספרת ביקורת)')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ taxId: '123456789', taxIdType: 'company_id' }),
+        expect.anything()
+      );
+    });
   });
 
   it('shows dynamic name label based on taxIdType', () => {
     renderFormWithTaxIdType('personal_id');
     expect(screen.getByRole('textbox', { name: /שם מלא/ })).toBeInTheDocument();
+  });
+
+  it('shows dynamic tax ID label per type', () => {
+    const { unmount } = renderFormWithTaxIdType('company_id');
+    expect(screen.getByLabelText('מספר חברה (ח.פ.)')).toBeInTheDocument();
+    unmount();
+
+    const { unmount: unmount2 } = renderFormWithTaxIdType('vat_number');
+    expect(screen.getByLabelText('מספר עוסק מורשה (ע.מ.)')).toBeInTheDocument();
+    unmount2();
+
+    renderFormWithTaxIdType('personal_id');
+    expect(screen.getByLabelText('מספר תעודת זהות (ת.ז.)')).toBeInTheDocument();
   });
 
   it('resets isLicensedDealer to false when taxId is cleared', async () => {
@@ -226,7 +248,7 @@ describe('CustomerForm tax ID validation', () => {
       isLicensedDealer: true,
     });
 
-    const taxIdInput = getTaxIdInput();
+    const taxIdInput = getTaxIdInput('company_id');
     await user.tripleClick(taxIdInput);
     await user.keyboard('{Backspace}');
 

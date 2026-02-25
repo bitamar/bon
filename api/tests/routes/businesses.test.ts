@@ -68,6 +68,38 @@ describe('routes/businesses', () => {
       expect(res.statusCode).toBe(401);
     });
 
+    it('returns 400 for exempt_dealer with invalid ת.ז. checksum', async () => {
+      const { sessionId } = await createAuthedUser();
+
+      const res = await injectAuthed(ctx.app, sessionId, {
+        method: 'POST',
+        url: '/businesses',
+        payload: {
+          name: 'Freelancer',
+          businessType: 'exempt_dealer',
+          registrationNumber: '123456789',
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('creates exempt_dealer with valid ת.ז.', async () => {
+      const { sessionId } = await createAuthedUser();
+
+      const res = await injectAuthed(ctx.app, sessionId, {
+        method: 'POST',
+        url: '/businesses',
+        payload: {
+          name: 'Freelancer',
+          businessType: 'exempt_dealer',
+          registrationNumber: '515303055',
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+    });
+
     it('returns 409 for duplicate registrationNumber', async () => {
       const { sessionId } = await createAuthedUser();
 

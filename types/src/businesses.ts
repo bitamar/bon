@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isoDateTime, nonEmptyString, nullableString, optionalNullableString, uuidSchema } from './common.js';
+import { validateIsraeliId } from './validation.js';
 
 export const businessTypeSchema = z.enum(['licensed_dealer', 'exempt_dealer', 'limited_company']);
 
@@ -47,7 +48,16 @@ export const createBusinessBodySchema = z
     startingInvoiceNumber: z.number().int().positive().optional(),
     defaultVatRate: z.number().int().min(0).max(10000).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.businessType === 'exempt_dealer' && !validateIsraeliId(data.registrationNumber)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'invalid_personal_id',
+        path: ['registrationNumber'],
+      });
+    }
+  });
 
 export const updateBusinessBodySchema = z
   .object({
