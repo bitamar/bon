@@ -117,7 +117,7 @@ export function InvoiceEdit() {
     if (!invoiceQuery.data) return null;
     const { invoice, items } = invoiceQuery.data;
     return {
-      documentType: invoice.documentType as DocumentType,
+      documentType: invoice.documentType,
       customerId: invoice.customerId,
       invoiceDate: parseDate(invoice.invoiceDate),
       dueDate: parseDate(invoice.dueDate),

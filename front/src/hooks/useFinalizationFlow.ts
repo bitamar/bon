@@ -12,6 +12,23 @@ import type { LineItemFormRow } from '../components/InvoiceLineItems';
 
 export type FinalizationStep = 'idle' | 'profile_gate' | 'vat_exemption' | 'preview' | 'finalizing';
 
+function buildFinalizeBody(
+  invoiceDate: Date | null,
+  vatExemptionReason: string | null
+): FinalizeInvoiceBody {
+  const body: FinalizeInvoiceBody = {};
+  if (invoiceDate) {
+    const y = invoiceDate.getFullYear();
+    const m = String(invoiceDate.getMonth() + 1).padStart(2, '0');
+    const d = String(invoiceDate.getDate()).padStart(2, '0');
+    body.invoiceDate = `${y}-${m}-${d}`;
+  }
+  if (vatExemptionReason) {
+    body.vatExemptionReason = vatExemptionReason;
+  }
+  return body;
+}
+
 interface ClientValidationResult {
   valid: boolean;
   errors: string[];
@@ -114,18 +131,11 @@ export function useFinalizationFlow({
     setStep('finalizing');
 
     try {
-      const body: FinalizeInvoiceBody = {};
-      if (invoiceDate) {
-        const y = invoiceDate.getFullYear();
-        const m = String(invoiceDate.getMonth() + 1).padStart(2, '0');
-        const d = String(invoiceDate.getDate()).padStart(2, '0');
-        body.invoiceDate = `${y}-${m}-${d}`;
-      }
-      if (vatExemptionReason) {
-        body.vatExemptionReason = vatExemptionReason;
-      }
-
-      await finalizeInvoice(businessId, invoiceId, body);
+      await finalizeInvoice(
+        businessId,
+        invoiceId,
+        buildFinalizeBody(invoiceDate, vatExemptionReason)
+      );
 
       queryClient.invalidateQueries({ queryKey: queryKeys.invoice(businessId, invoiceId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices(businessId) });
