@@ -270,8 +270,8 @@ export function InvoiceEdit() {
 
   // ── Save logic ──
 
-  function handleSave() {
-    if (!form) return;
+  function buildSavePayload(): UpdateInvoiceDraftBody | null {
+    if (!form) return null;
 
     const nonEmptyItems = form.items.filter(
       (item) => item.description.trim() !== '' || item.unitPrice !== 0
@@ -283,10 +283,10 @@ export function InvoiceEdit() {
 
     if (hasPartialRows) {
       showErrorNotification('יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר');
-      return;
+      return null;
     }
 
-    const payload: UpdateInvoiceDraftBody = {
+    return {
       documentType: form.documentType,
       customerId: form.customerId ?? null,
       invoiceDate: form.invoiceDate ? toLocalDateString(form.invoiceDate) : null,
@@ -303,8 +303,22 @@ export function InvoiceEdit() {
         position: index,
       })),
     };
+  }
 
-    saveMutation.mutate(payload);
+  function handleSave() {
+    const payload = buildSavePayload();
+    if (payload) saveMutation.mutate(payload);
+  }
+
+  async function handleFinalize() {
+    const payload = buildSavePayload();
+    if (!payload) return;
+    try {
+      await saveMutation.mutateAsync(payload);
+      finalization.startFinalization();
+    } catch {
+      // Error toast already shown by useApiMutation
+    }
   }
 
   // ── Customer info for preview ──
@@ -430,7 +444,9 @@ export function InvoiceEdit() {
               <Button variant="default" onClick={handleSave} loading={saveMutation.isPending}>
                 שמור טיוטה
               </Button>
-              <Button onClick={finalization.startFinalization}>הפק חשבונית</Button>
+              <Button onClick={handleFinalize} disabled={saveMutation.isPending}>
+                הפק חשבונית
+              </Button>
             </Group>
           </Group>
         </Stack>

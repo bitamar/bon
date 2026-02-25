@@ -192,6 +192,43 @@ describe('InvoiceEdit page', () => {
     expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
   });
 
+  it('saves draft before starting finalization flow', async () => {
+    const withCustomer = { customerId: 'cust-1' };
+    setupDraftMocks(withCustomer);
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(makeDraftInvoice(withCustomer));
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    await user.click(screen.getByRole('button', { name: 'הפק חשבונית' }));
+
+    await waitFor(() => {
+      expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalled();
+    });
+
+    // After save succeeds, finalization flow starts (profile gate opens because mock business is incomplete)
+    expect(await screen.findByText('נדרש להשלים פרטי עסק')).toBeInTheDocument();
+  });
+
+  it('does not start finalization when save fails', async () => {
+    setupDraftMocks({ customerId: 'cust-1' });
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockRejectedValue(new Error('save failed'));
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    await user.click(screen.getByRole('button', { name: 'הפק חשבונית' }));
+
+    await waitFor(() => {
+      expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalled();
+    });
+
+    // Finalization flow should NOT start
+    expect(screen.queryByText('נדרש להשלים פרטי עסק')).not.toBeInTheDocument();
+  });
+
   it('shows error state when invoice fetch fails', async () => {
     vi.mocked(invoicesApi.fetchInvoice).mockRejectedValue(new Error('network error'));
     vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
