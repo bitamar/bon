@@ -16,7 +16,7 @@ The address API module (`front/src/api/address.ts`) silently returns `[]` on fet
 
 ## Fix
 
-1. Return an `{ data, error }` tuple instead of just data
+1. Return an `{ data, error }` object instead of just data
 2. Show a subtle warning under the address fields when the API is unreachable
 3. Allow manual text input as fallback when the API is down (address autocomplete degrades to free text)
 

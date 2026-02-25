@@ -9,7 +9,7 @@
 
 ## What & Why
 
-The role infrastructure exists — `businessRoleEnum` (owner/admin/user), `requireBusinessRole()` decorator in `business-context.ts` — but it's never called. Every authenticated business member has identical permissions. A `user` role can finalize invoices, delete customers, and modify business settings.
+The role infrastructure exists — `businessRoleEnum` (owner/admin/user), `requireBusinessRole()` decorator in `business-context.ts`. It is already used on the business PATCH route (`businesses.ts:79`, restricted to owner+admin), but is NOT used on invoice or customer routes. A `user` role can finalize invoices, delete customers, and perform other destructive actions.
 
 This is acceptable for single-user businesses but becomes a problem as soon as team features are used (T02 team invitations already exists).
 
@@ -32,7 +32,7 @@ This is acceptable for single-user businesses but becomes a problem as soon as t
 
 ### Implementation
 
-Add `preHandler: [app.requireBusinessRole('owner', 'admin')]` to destructive endpoints:
+Add `preHandler: [app.requireBusinessRole(...)]` to destructive endpoints. All RBAC enforcement must be in the route's `preHandler` array — never as an in-handler conditional — for consistency and auditability.
 
 ```typescript
 // api/src/routes/invoices.ts — finalize
@@ -41,19 +41,32 @@ app.post('/businesses/:businessId/invoices/:invoiceId/finalize', {
   // ...
 });
 
-// api/src/routes/customers.ts — delete (soft)
-app.patch('/businesses/:businessId/customers/:customerId', {
-  preHandler: [app.authenticate, app.requireBusinessAccess],
-  // Check role in handler only for deactivation:
-  // if (body.isActive === false) ensureRole(req, 'owner', 'admin');
+// api/src/routes/customers.ts — deactivate (separate route from general PATCH)
+// Split deactivation into its own endpoint so the preHandler can enforce role
+// without blocking normal field edits for 'user' role.
+app.post('/businesses/:businessId/customers/:customerId/deactivate', {
+  preHandler: [app.authenticate, app.requireBusinessAccess, app.requireBusinessRole('owner', 'admin')],
+  handler: async (req, reply) => {
+    // Calls service to set isActive=false
+  },
 });
 
-// api/src/routes/businesses.ts — update settings
+// api/src/routes/customers.ts — general PATCH remains open to all roles
+app.patch('/businesses/:businessId/customers/:customerId', {
+  preHandler: [app.authenticate, app.requireBusinessAccess],
+  // All roles can edit customer fields. Deactivation is handled by the dedicated route above.
+  // The PATCH handler should reject `isActive: false` in the body (return 400 directing caller to use POST /deactivate).
+});
+
+// api/src/routes/businesses.ts — already has requireBusinessRole('owner', 'admin') at line 79
+// Tighten to owner-only for settings that affect invoicing (VAT rate, prefix, etc.)
 app.patch('/businesses/:businessId', {
   preHandler: [app.authenticate, app.requireBusinessAccess, app.requireBusinessRole('owner')],
   // ...
 });
 ```
+
+**Why a separate route for deactivation:** The customer PATCH endpoint handles general field updates (name, email, address) which all roles should be able to do per the permission matrix. Putting `requireBusinessRole('owner', 'admin')` on the PATCH would block `user` role from editing any customer field. A dedicated `POST .../deactivate` endpoint lets the preHandler enforce the role cleanly without an in-handler conditional.
 
 ### Frontend
 
@@ -65,15 +78,16 @@ app.patch('/businesses/:businessId', {
 
 ## Deliverables
 
-### Modified Files (~6-8)
+### Modified Files (~7-9)
 
 | File | Change |
 |------|--------|
-| `api/src/routes/invoices.ts` | Add `requireBusinessRole` to finalize + delete |
-| `api/src/routes/customers.ts` | Add role check for deactivation |
-| `api/src/routes/businesses.ts` | Add `requireBusinessRole('owner')` to update |
+| `api/src/routes/invoices.ts` | Add `requireBusinessRole('owner', 'admin')` to finalize + delete |
+| `api/src/routes/customers.ts` | Add `POST .../deactivate` route with role preHandler; reject `isActive: false` in PATCH body |
+| `api/src/routes/businesses.ts` | Tighten to `requireBusinessRole('owner')` (currently owner+admin) |
+| `api/src/services/customer-service.ts` | Add `deactivateCustomer()` method (extracted from update) |
 | `api/tests/routes/invoices.test.ts` | Test: user role → 403 on finalize |
-| `api/tests/routes/customers.test.ts` | Test: user role → 403 on deactivate |
+| `api/tests/routes/customers.test.ts` | Test: user role → 403 on deactivate; user can still PATCH fields |
 | `api/tests/routes/businesses.test.ts` | Test: admin → 403 on settings update |
 | `front/src/pages/InvoiceEdit.tsx` | Conditionally show finalize button |
 | `front/src/pages/BusinessSettings.tsx` | Conditionally disable editing for non-owners |
@@ -83,7 +97,9 @@ app.patch('/businesses/:businessId', {
 ## Acceptance Criteria
 
 - [ ] `user` role cannot finalize invoices (API returns 403)
-- [ ] `user` role cannot deactivate customers (API returns 403)
+- [ ] `user` role cannot deactivate customers via `POST .../deactivate` (API returns 403)
+- [ ] `user` role CAN edit customer fields via PATCH (name, email, etc.)
+- [ ] PATCH with `isActive: false` in body returns 400 (directs to deactivate endpoint)
 - [ ] Only `owner` can modify business settings (API returns 403 for admin/user)
 - [ ] Frontend hides/disables actions the current role cannot perform
 - [ ] Error response includes a clear message (e.g., "Requires owner or admin role")

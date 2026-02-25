@@ -35,6 +35,23 @@ Frontend routes are `/business/customers` instead of `/businesses/:businessId/cu
 | `/business/invoices/:id/edit` | `/businesses/:businessId/invoices/:invoiceId/edit` |
 | `/businesses` | `/businesses` (no change — this is the switcher) |
 
+### Legacy Route Redirects
+
+All old paths must redirect to their canonical equivalents so existing bookmarks and any hardcoded links (in tests, docs, or browser history) continue to work. Redirects are **client-side only** (React Router `<Navigate>` with `replace`), since the frontend is a SPA with no server-side routing.
+
+| Legacy Path | Redirect Target |
+|-------------|----------------|
+| `/business/customers` | `/businesses/:activeBusinessId/customers` |
+| `/business/customers/new` | `/businesses/:activeBusinessId/customers/new` |
+| `/business/customers/:id` | `/businesses/:activeBusinessId/customers/:id` |
+| `/business/settings` | `/businesses/:activeBusinessId/settings` |
+| `/business/invoices/new` | `/businesses/:activeBusinessId/invoices/new` |
+| `/business/invoices/:id/edit` | `/businesses/:activeBusinessId/invoices/:id/edit` |
+
+Where `:activeBusinessId` is resolved from localStorage (last active business). If no active business exists, redirect to `/businesses` (the switcher).
+
+Implementation: A single `<LegacyRedirect>` component registered on `/business/*` that reads the active business ID from localStorage and navigates to the equivalent canonical URL with `replace: true`.
+
 ### BusinessContext Changes
 
 1. `activeBusiness` derived from URL param `:businessId` instead of localStorage
@@ -86,6 +103,9 @@ A new `<BusinessRoute>` layout component that:
 - [ ] `switchBusiness` only invalidates business-scoped queries, not user profile or businesses list
 - [ ] Invalid businessId in URL shows appropriate error (not blank page)
 - [ ] Default route (`/`) redirects to `/businesses/:lastUsed/` using localStorage fallback
+- [ ] Legacy routes (`/business/*`) redirect to canonical routes (`/businesses/:businessId/*`) using `<Navigate replace>`
+- [ ] Each legacy URL in the table above resolves to the correct canonical URL (test per route)
+- [ ] If no active business in localStorage, legacy routes redirect to `/businesses`
 - [ ] All existing tests updated and passing
 - [ ] `npm run check` passes
 

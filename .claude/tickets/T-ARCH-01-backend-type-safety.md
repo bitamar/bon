@@ -40,11 +40,11 @@ const updates: Partial<CustomerInsert> = {
 
 ### 2. Make txOrDb consistent across all repositories
 
-**Files**: `api/src/repositories/invoice-repository.ts` (has txOrDb), `api/src/repositories/customer-repository.ts` (does NOT)
+**Files**: `api/src/repositories/invoice-repository.ts` (has txOrDb on all 7 functions), `api/src/repositories/customer-repository.ts` (does NOT have txOrDb on any function), `api/src/repositories/business-repository.ts` (does NOT have txOrDb on any function)
 
-Invoice repository accepts optional `txOrDb` parameter. Customer repository doesn't. This means `findCustomerById` called during finalization runs outside the transaction — a correctness gap.
+Invoice repository accepts optional `txOrDb` parameter on all functions (verified). Customer repository and business repository do not accept `txOrDb` on any function (verified). This means `findCustomerById` and `findBusinessById` called during finalization run outside the transaction — a correctness gap that T-ARCH-02 depends on fixing.
 
-**Fix**: Add optional `txOrDb: DbOrTx = db` parameter to all customer-repository functions. Extract the `DbOrTx` type to a shared location.
+**Fix**: Add optional `txOrDb: DbOrTx = db` parameter to all customer-repository and business-repository functions. Extract the `DbOrTx` type to a shared location (e.g., `api/src/db/types.ts`).
 
 ### 3. Numeric column type safety
 
@@ -87,7 +87,7 @@ Both `isActive: boolean` and `deletedAt: timestamp` exist for soft delete. The d
 ## Acceptance Criteria
 
 - [ ] No `Record<string, unknown>` in service update builders — all typed as `Partial<*Insert>`
-- [ ] All repository functions accept optional `txOrDb` parameter
+- [ ] All repository functions in customer-repository and business-repository accept optional `txOrDb` parameter (matching invoice-repository pattern)
 - [ ] Numeric column conversions use a shared helper
 - [ ] At least one enum (documentType or invoiceStatus) uses shared const array between Drizzle and Zod
 - [ ] Soft delete pattern is consistent (either single-flag or constrained dual-flag)
