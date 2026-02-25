@@ -83,6 +83,11 @@ function renderDetail() {
   );
 }
 
+function renderWithInvoice(overrides: Record<string, unknown> = {}) {
+  vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice(overrides));
+  return renderDetail();
+}
+
 describe('InvoiceDetail page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -111,8 +116,7 @@ describe('InvoiceDetail page', () => {
   });
 
   it('renders all required fields for a finalized invoice', async () => {
-    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
-    renderDetail();
+    renderWithInvoice();
 
     // Document number
     expect(await screen.findByText('INV-0001')).toBeInTheDocument();
@@ -152,27 +156,20 @@ describe('InvoiceDetail page', () => {
   ] as const)(
     'shows correct status banner for %s',
     async (status: InvoiceStatus, label: string) => {
-      vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice({ status }));
-      renderDetail();
+      renderWithInvoice({ status });
 
       expect(await screen.findByText(label)).toBeInTheDocument();
     }
   );
 
   it('redirects draft to edit page', async () => {
-    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
-      makeFinalizedInvoice({ status: 'draft' })
-    );
-    renderDetail();
+    renderWithInvoice({ status: 'draft' });
 
     expect(await screen.findByText('edit-page')).toBeInTheDocument();
   });
 
   it('shows credit note button only for eligible statuses', async () => {
-    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
-      makeFinalizedInvoice({ status: 'cancelled' })
-    );
-    renderDetail();
+    renderWithInvoice({ status: 'cancelled' });
 
     await screen.findByText('בוטלה');
 
@@ -180,20 +177,14 @@ describe('InvoiceDetail page', () => {
   });
 
   it('shows allocation number when present', async () => {
-    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
-      makeFinalizedInvoice({ allocationNumber: 'ALLOC-12345' })
-    );
-    renderDetail();
+    renderWithInvoice({ allocationNumber: 'ALLOC-12345' });
 
     expect(await screen.findByText('ALLOC-12345')).toBeInTheDocument();
     expect(screen.getByText('מספר הקצאה:')).toBeInTheDocument();
   });
 
   it('shows vat exemption reason when present', async () => {
-    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
-      makeFinalizedInvoice({ vatExemptionReason: 'ייצוא שירותים §30(א)(5)' })
-    );
-    renderDetail();
+    renderWithInvoice({ vatExemptionReason: 'ייצוא שירותים §30(א)(5)' });
 
     expect(await screen.findByText('ייצוא שירותים §30(א)(5)')).toBeInTheDocument();
   });

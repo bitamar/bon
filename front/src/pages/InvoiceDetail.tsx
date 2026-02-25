@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
 import { TotalRow } from '../components/TotalRow';
+import { InvoiceAnnotation } from '../components/InvoiceAnnotation';
 import { fetchInvoice } from '../api/invoices';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
@@ -295,29 +296,11 @@ export function InvoiceDetail() {
 
             {/* VAT exemption reason */}
             {invoice.vatExemptionReason && (
-              <>
-                <Divider />
-                <Text size="sm">
-                  <Text span fw={500}>
-                    סיבת פטור ממע"מ:{' '}
-                  </Text>
-                  {invoice.vatExemptionReason}
-                </Text>
-              </>
+              <InvoiceAnnotation label='סיבת פטור ממע"מ' value={invoice.vatExemptionReason} />
             )}
 
             {/* Notes */}
-            {invoice.notes && (
-              <>
-                <Divider />
-                <Text size="sm">
-                  <Text span fw={500}>
-                    הערות:{' '}
-                  </Text>
-                  {invoice.notes}
-                </Text>
-              </>
-            )}
+            {invoice.notes && <InvoiceAnnotation label="הערות" value={invoice.notes} />}
           </Stack>
         </Paper>
 

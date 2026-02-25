@@ -4,6 +4,7 @@ import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@bon/types/invoices';
 import { calculateInvoiceTotals, calculateLine } from '@bon/types/vat';
 import { formatMinorUnits, toMinorUnits } from '@bon/types/formatting';
 import { TotalRow } from './TotalRow';
+import { InvoiceAnnotation } from './InvoiceAnnotation';
 import { computeVatLabel } from '../lib/vatLabel';
 import type { LineItemFormRow } from './InvoiceLineItems';
 
@@ -38,14 +39,17 @@ export function InvoicePreviewModal({
   notes,
   vatExemptionReason,
 }: Readonly<InvoicePreviewModalProps>) {
-  const lineInputs = items.map((row) => ({
-    quantity: row.quantity,
-    unitPriceMinorUnits: toMinorUnits(row.unitPrice),
-    discountPercent: row.discountPercent,
-    vatRateBasisPoints: row.vatRateBasisPoints,
-  }));
+  const computedItems = items.map((row) => {
+    const input = {
+      quantity: row.quantity,
+      unitPriceMinorUnits: toMinorUnits(row.unitPrice),
+      discountPercent: row.discountPercent,
+      vatRateBasisPoints: row.vatRateBasisPoints,
+    };
+    return { row, input, result: calculateLine(input) };
+  });
 
-  const totals = calculateInvoiceTotals(lineInputs);
+  const totals = calculateInvoiceTotals(computedItems.map((c) => c.input));
   const vatLabel = computeVatLabel(items.map((i) => i.vatRateBasisPoints));
 
   return (
@@ -105,38 +109,32 @@ export function InvoicePreviewModal({
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {items.map((item, index) => {
-                  const line = calculateLine({
-                    quantity: item.quantity,
-                    unitPriceMinorUnits: toMinorUnits(item.unitPrice),
-                    discountPercent: item.discountPercent,
-                    vatRateBasisPoints: item.vatRateBasisPoints,
-                  });
-                  return (
-                    <Table.Tr key={item.key}>
-                      <Table.Td>{index + 1}</Table.Td>
-                      <Table.Td>{item.description}</Table.Td>
-                      <Table.Td>{item.quantity}</Table.Td>
-                      <Table.Td>{formatMinorUnits(toMinorUnits(item.unitPrice))}</Table.Td>
-                      <Table.Td>
-                        {item.discountPercent > 0 ? `${item.discountPercent}%` : '—'}
-                      </Table.Td>
-                      <Table.Td>{formatMinorUnits(line.lineTotalMinorUnits)}</Table.Td>
-                      <Table.Td>{formatMinorUnits(line.vatAmountMinorUnits)}</Table.Td>
-                    </Table.Tr>
-                  );
-                })}
+                {computedItems.map(({ row, input, result }, index) => (
+                  <Table.Tr key={row.key}>
+                    <Table.Td>{index + 1}</Table.Td>
+                    <Table.Td>{row.description}</Table.Td>
+                    <Table.Td>{row.quantity}</Table.Td>
+                    <Table.Td>{formatMinorUnits(input.unitPriceMinorUnits)}</Table.Td>
+                    <Table.Td>{row.discountPercent > 0 ? `${row.discountPercent}%` : '—'}</Table.Td>
+                    <Table.Td>{formatMinorUnits(result.lineTotalMinorUnits)}</Table.Td>
+                    <Table.Td>{formatMinorUnits(result.vatAmountMinorUnits)}</Table.Td>
+                  </Table.Tr>
+                ))}
               </Table.Tbody>
             </Table>
 
             <Stack gap={4} maw={300} ms="auto">
               <TotalRow
-                label="סה״כ לפני מע״מ"
-                value={formatMinorUnits(totals.totalExclVatMinorUnits)}
+                label="סה״כ לפני הנחה"
+                value={formatMinorUnits(totals.subtotalMinorUnits)}
               />
               {totals.discountMinorUnits > 0 && (
                 <TotalRow label="הנחה" value={formatMinorUnits(totals.discountMinorUnits)} />
               )}
+              <TotalRow
+                label="סה״כ לפני מע״מ"
+                value={formatMinorUnits(totals.totalExclVatMinorUnits)}
+              />
               <TotalRow label={vatLabel} value={formatMinorUnits(totals.vatMinorUnits)} />
               <Group justify="space-between" mt="xs">
                 <Text fw={700}>סה״כ לתשלום</Text>
@@ -145,33 +143,15 @@ export function InvoicePreviewModal({
             </Stack>
 
             {vatExemptionReason && (
-              <>
-                <Divider />
-                <Text size="sm">
-                  <Text span fw={500}>
-                    סיבת פטור ממע"מ:{' '}
-                  </Text>
-                  {vatExemptionReason}
-                </Text>
-              </>
+              <InvoiceAnnotation label='סיבת פטור ממע"מ' value={vatExemptionReason} />
             )}
 
-            {notes && (
-              <>
-                <Divider />
-                <Text size="sm">
-                  <Text span fw={500}>
-                    הערות:{' '}
-                  </Text>
-                  {notes}
-                </Text>
-              </>
-            )}
+            {notes && <InvoiceAnnotation label="הערות" value={notes} />}
           </Stack>
         </Paper>
 
         <Alert color="blue" icon={<IconInfoCircle size={18} />}>
-          הסכומות יחושבו מחדש בשרת בעת ההפקה
+          הסכומים יחושבו מחדש בשרת בעת ההפקה
         </Alert>
 
         <Group justify="flex-end">

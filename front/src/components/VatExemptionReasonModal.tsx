@@ -26,6 +26,12 @@ export function VatExemptionReasonModal({
   const [reason, setReason] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  function handleClose() {
+    setReason(null);
+    setError(null);
+    onClose();
+  }
+
   function handleConfirm() {
     if (!reason) {
       setError('יש לבחור סיבת פטור');
@@ -42,7 +48,7 @@ export function VatExemptionReasonModal({
   }
 
   return (
-    <Modal opened={opened} onClose={onClose} title='סיבת פטור ממע"מ' centered size="sm">
+    <Modal opened={opened} onClose={handleClose} title='סיבת פטור ממע"מ' centered size="sm">
       <Stack gap="md">
         {error && (
           <Alert color="red" icon={<IconAlertTriangle size={18} />}>
@@ -61,7 +67,7 @@ export function VatExemptionReasonModal({
         />
 
         <Group justify="flex-end">
-          <Button variant="subtle" onClick={onClose}>
+          <Button variant="subtle" onClick={handleClose}>
             ביטול
           </Button>
           <Button onClick={handleConfirm}>המשך</Button>

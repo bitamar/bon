@@ -60,15 +60,17 @@ export function BusinessProfileGateModal({
       vatNumber: business.vatNumber ?? '',
     },
     validate: {
-      name: (value) => (missing.name && !value.trim() ? 'שם העסק נדרש' : null),
-      city: (value) => (missing.address && !value.trim() ? 'עיר נדרשת' : null),
-      streetAddress: (value) => (missing.address && !value.trim() ? 'כתובת נדרשת' : null),
+      name: (value) => (!value.trim() ? 'שם העסק נדרש' : null),
+      city: (value) => (!value.trim() ? 'עיר נדרשת' : null),
+      streetAddress: (value) => (!value.trim() ? 'כתובת נדרשת' : null),
       vatNumber: (value) =>
-        missing.vatNumber && !value.trim()
-          ? 'מספר מע"מ נדרש'
-          : missing.vatNumber && value.trim() && !/^\d{9}$/.test(value)
-            ? 'מספר מע"מ חייב להיות 9 ספרות'
-            : null,
+        businessType !== 'exempt_dealer'
+          ? !value.trim()
+            ? 'מספר מע"מ נדרש'
+            : !/^\d{9}$/.test(value)
+              ? 'מספר מע"מ חייב להיות 9 ספרות'
+              : null
+          : null,
     },
   });
 

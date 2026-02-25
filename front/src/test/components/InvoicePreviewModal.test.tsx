@@ -119,9 +119,9 @@ describe('InvoicePreviewModal', () => {
     expect(screen.getByRole('button', { name: 'חזרה לעריכה' })).toBeDisabled();
   });
 
-  it('shows discount row when items have discounts', () => {
+  it('shows discount row in totals when items have discounts', () => {
     renderPreview({ items: [makeItem({ discountPercent: 10 })] });
 
-    expect(screen.getByText('10%')).toBeInTheDocument();
+    expect(screen.getByText('הנחה')).toBeInTheDocument();
   });
 });

@@ -70,7 +70,8 @@ export function useFinalizationFlow({
     return { valid: errors.length === 0, errors };
   }, [customerId, items, invoiceDate]);
 
-  const needsVatExemption = totalVatMinorUnits === 0 && businessType !== 'exempt_dealer';
+  const needsVatExemption =
+    totalVatMinorUnits === 0 && businessType != null && businessType !== 'exempt_dealer';
 
   const startFinalization = useCallback(() => {
     const result = validateClient();
