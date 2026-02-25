@@ -3,7 +3,7 @@ import { IconInfoCircle } from '@tabler/icons-react';
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@bon/types/invoices';
 import { calculateInvoiceTotals, calculateLine } from '@bon/types/vat';
 import { formatMinorUnits, toMinorUnits } from '@bon/types/formatting';
-import { TotalRow } from './TotalRow';
+import { InvoiceTotalsSummary } from './InvoiceTotalsSummary';
 import { InvoiceAnnotation } from './InvoiceAnnotation';
 import { computeVatLabel } from '../lib/vatLabel';
 import type { LineItemFormRow } from './InvoiceLineItems';
@@ -123,24 +123,7 @@ export function InvoicePreviewModal({
               </Table.Tbody>
             </Table>
 
-            <Stack gap={4} maw={300} ms="auto">
-              <TotalRow
-                label="סה״כ לפני הנחה"
-                value={formatMinorUnits(totals.subtotalMinorUnits)}
-              />
-              {totals.discountMinorUnits > 0 && (
-                <TotalRow label="הנחה" value={formatMinorUnits(totals.discountMinorUnits)} />
-              )}
-              <TotalRow
-                label="סה״כ לפני מע״מ"
-                value={formatMinorUnits(totals.totalExclVatMinorUnits)}
-              />
-              <TotalRow label={vatLabel} value={formatMinorUnits(totals.vatMinorUnits)} />
-              <Group justify="space-between" mt="xs">
-                <Text fw={700}>סה״כ לתשלום</Text>
-                <Text fw={700}>{formatMinorUnits(totals.totalInclVatMinorUnits)}</Text>
-              </Group>
-            </Stack>
+            <InvoiceTotalsSummary {...totals} vatLabel={vatLabel} />
 
             {vatExemptionReason && (
               <InvoiceAnnotation label='סיבת פטור ממע"מ' value={vatExemptionReason} />

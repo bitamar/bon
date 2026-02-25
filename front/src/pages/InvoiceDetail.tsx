@@ -15,7 +15,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
-import { TotalRow } from '../components/TotalRow';
+import { InvoiceTotalsSummary } from '../components/InvoiceTotalsSummary';
 import { InvoiceAnnotation } from '../components/InvoiceAnnotation';
 import { fetchInvoice } from '../api/invoices';
 import { queryKeys } from '../lib/queryKeys';
@@ -275,24 +275,14 @@ export function InvoiceDetail() {
             </Table>
 
             {/* Totals */}
-            <Stack gap={4} maw={300} ms="auto">
-              <TotalRow
-                label="סה״כ לפני הנחה"
-                value={formatMinorUnits(invoice.subtotalMinorUnits)}
-              />
-              {invoice.discountMinorUnits > 0 && (
-                <TotalRow label="הנחה" value={formatMinorUnits(invoice.discountMinorUnits)} />
-              )}
-              <TotalRow
-                label="סה״כ לפני מע״מ"
-                value={formatMinorUnits(invoice.totalExclVatMinorUnits)}
-              />
-              <TotalRow label={vatLabel} value={formatMinorUnits(invoice.vatMinorUnits)} />
-              <Group justify="space-between" mt="xs">
-                <Text fw={700}>סה״כ לתשלום</Text>
-                <Text fw={700}>{formatMinorUnits(invoice.totalInclVatMinorUnits)}</Text>
-              </Group>
-            </Stack>
+            <InvoiceTotalsSummary
+              subtotalMinorUnits={invoice.subtotalMinorUnits}
+              discountMinorUnits={invoice.discountMinorUnits}
+              totalExclVatMinorUnits={invoice.totalExclVatMinorUnits}
+              vatMinorUnits={invoice.vatMinorUnits}
+              totalInclVatMinorUnits={invoice.totalInclVatMinorUnits}
+              vatLabel={vatLabel}
+            />
 
             {/* VAT exemption reason */}
             {invoice.vatExemptionReason && (

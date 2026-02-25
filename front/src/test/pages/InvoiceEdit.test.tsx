@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { InvoiceEdit } from '../../pages/InvoiceEdit';
 import { renderWithProviders } from '../utils/renderWithProviders';
-import type { InvoiceResponse } from '@bon/types/invoices';
+import type { Invoice } from '@bon/types/invoices';
 
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/invoices', () => ({
@@ -30,6 +30,7 @@ import * as invoicesApi from '../../api/invoices';
 import * as businessApi from '../../api/businesses';
 import { showErrorNotification } from '../../lib/notifications';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
+import { makeDraftInvoice } from '../utils/invoiceStubs';
 
 // ── helpers ──
 
@@ -57,65 +58,8 @@ const mockBusinessResponse = {
   role: 'owner' as const,
 };
 
-function makeMockInvoice(overrides: Record<string, unknown> = {}): InvoiceResponse {
-  return {
-    invoice: {
-      id: 'inv-1',
-      businessId: 'biz-1',
-      customerId: null,
-      customerName: null,
-      customerTaxId: null,
-      customerAddress: null,
-      customerEmail: null,
-      documentType: 'tax_invoice' as const,
-      status: 'draft' as const,
-      isOverdue: false,
-      sequenceGroup: null,
-      sequenceNumber: null,
-      documentNumber: null,
-      creditedInvoiceId: null,
-      invoiceDate: '2026-02-23',
-      issuedAt: null,
-      dueDate: null,
-      notes: 'הערה לדוגמה',
-      internalNotes: null,
-      currency: 'ILS',
-      vatExemptionReason: null,
-      subtotalMinorUnits: 10000,
-      discountMinorUnits: 0,
-      totalExclVatMinorUnits: 10000,
-      vatMinorUnits: 1700,
-      totalInclVatMinorUnits: 11700,
-      allocationStatus: null,
-      allocationNumber: null,
-      allocationError: null,
-      sentAt: null,
-      paidAt: null,
-      createdAt: '2026-02-23T00:00:00.000Z',
-      updatedAt: '2026-02-23T00:00:00.000Z',
-      ...overrides,
-    },
-    items: [
-      {
-        id: 'item-1',
-        invoiceId: 'inv-1',
-        position: 0,
-        description: 'שירות ייעוץ',
-        catalogNumber: null,
-        quantity: 1,
-        unitPriceMinorUnits: 10000,
-        discountPercent: 0,
-        vatRateBasisPoints: 1700,
-        lineTotalMinorUnits: 10000,
-        vatAmountMinorUnits: 1700,
-        lineTotalInclVatMinorUnits: 11700,
-      },
-    ],
-  };
-}
-
-function setupDraftMocks(invoiceOverrides: Record<string, unknown> = {}) {
-  vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeMockInvoice(invoiceOverrides));
+function setupDraftMocks(invoiceOverrides: Partial<Invoice> = {}) {
+  vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeDraftInvoice(invoiceOverrides));
   vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
 }
 
@@ -176,7 +120,7 @@ describe('InvoiceEdit page', () => {
 
   it('calls updateInvoiceDraft on save with minor unit amounts', async () => {
     setupDraftMocks();
-    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(makeMockInvoice());
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(makeDraftInvoice());
     const user = userEvent.setup();
     renderEdit();
 
@@ -204,7 +148,7 @@ describe('InvoiceEdit page', () => {
   });
 
   it('saves successfully when line item has description with zero price', async () => {
-    const zeroPrice = makeMockInvoice({});
+    const zeroPrice = makeDraftInvoice({});
     zeroPrice.items = [
       {
         ...zeroPrice.items[0]!,
@@ -230,7 +174,7 @@ describe('InvoiceEdit page', () => {
   });
 
   it('shows error when line item has price but no description', async () => {
-    const noDesc = makeMockInvoice({});
+    const noDesc = makeDraftInvoice({});
     noDesc.items = [{ ...noDesc.items[0]!, description: '' }];
     setupDraftMocks();
     vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(noDesc);
@@ -258,7 +202,7 @@ describe('InvoiceEdit page', () => {
   });
 
   it('locks VAT to 0 when document type is receipt', async () => {
-    const receiptInvoice = makeMockInvoice({ documentType: 'receipt' });
+    const receiptInvoice = makeDraftInvoice({ documentType: 'receipt' });
     receiptInvoice.items = [{ ...receiptInvoice.items[0]!, vatRateBasisPoints: 1700 }];
     vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(receiptInvoice);
     vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);

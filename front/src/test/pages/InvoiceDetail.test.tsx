@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { InvoiceDetail } from '../../pages/InvoiceDetail';
 import { renderWithProviders } from '../utils/renderWithProviders';
-import type { InvoiceResponse, InvoiceStatus } from '@bon/types/invoices';
+import type { Invoice, InvoiceStatus } from '@bon/types/invoices';
 
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/invoices', () => ({
@@ -13,65 +13,7 @@ vi.mock('../../api/invoices', () => ({
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as invoicesApi from '../../api/invoices';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
-
-// ── helpers ──
-
-function makeFinalizedInvoice(overrides: Record<string, unknown> = {}): InvoiceResponse {
-  return {
-    invoice: {
-      id: 'inv-1',
-      businessId: 'biz-1',
-      customerId: 'cust-1',
-      customerName: 'לקוח לדוגמה',
-      customerTaxId: '123456782',
-      customerAddress: 'רחוב הרצל 1, תל אביב',
-      customerEmail: 'test@example.com',
-      documentType: 'tax_invoice' as const,
-      status: 'finalized' as const,
-      isOverdue: false,
-      sequenceGroup: 'tax_document',
-      sequenceNumber: 1,
-      documentNumber: 'INV-0001',
-      creditedInvoiceId: null,
-      invoiceDate: '2026-02-20',
-      issuedAt: '2026-02-20T10:30:00.000Z',
-      dueDate: '2026-03-20',
-      notes: 'הערה לדוגמה',
-      internalNotes: null,
-      currency: 'ILS',
-      vatExemptionReason: null,
-      subtotalMinorUnits: 10000,
-      discountMinorUnits: 0,
-      totalExclVatMinorUnits: 10000,
-      vatMinorUnits: 1700,
-      totalInclVatMinorUnits: 11700,
-      allocationStatus: null,
-      allocationNumber: null,
-      allocationError: null,
-      sentAt: null,
-      paidAt: null,
-      createdAt: '2026-02-20T00:00:00.000Z',
-      updatedAt: '2026-02-20T10:30:00.000Z',
-      ...overrides,
-    },
-    items: [
-      {
-        id: 'item-1',
-        invoiceId: 'inv-1',
-        position: 0,
-        description: 'שירות ייעוץ',
-        catalogNumber: null,
-        quantity: 1,
-        unitPriceMinorUnits: 10000,
-        discountPercent: 0,
-        vatRateBasisPoints: 1700,
-        lineTotalMinorUnits: 10000,
-        vatAmountMinorUnits: 1700,
-        lineTotalInclVatMinorUnits: 11700,
-      },
-    ],
-  };
-}
+import { makeFinalizedInvoice } from '../utils/invoiceStubs';
 
 function renderDetail() {
   return renderWithProviders(
@@ -83,7 +25,7 @@ function renderDetail() {
   );
 }
 
-function renderWithInvoice(overrides: Record<string, unknown> = {}) {
+function renderWithInvoice(overrides: Partial<Invoice> = {}) {
   vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice(overrides));
   return renderDetail();
 }
