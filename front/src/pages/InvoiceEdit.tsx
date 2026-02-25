@@ -174,7 +174,7 @@ export function InvoiceEdit() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices(businessId) });
       closeDelete();
-      navigate('/');
+      navigate('/dashboard');
     },
   });
 

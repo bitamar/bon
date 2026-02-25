@@ -4,6 +4,7 @@ import Header from './Header';
 import Navbar from './Navbar';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { Login } from './pages/Login';
+import { LandingPage } from './pages/LandingPage';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { BusinessProvider, useBusiness } from './contexts/BusinessContext';
 import { Dashboard } from './pages/Dashboard';
@@ -38,6 +39,12 @@ function PlainLayout() {
       <Outlet />
     </RouteErrorBoundary>
   );
+}
+
+function HomePage() {
+  const { user } = useAuth();
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <LandingPage />;
 }
 
 function OnboardingGuard({ children }: Readonly<{ children: ReactNode }>) {
@@ -103,6 +110,7 @@ export default function AppRoutes() {
       <GlobalLoadingIndicator>
         <Routes>
           <Route element={<PlainLayout />}>
+            <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<Login />} />
             <Route
               path="/onboarding"
@@ -125,7 +133,7 @@ export default function AppRoutes() {
               </ProtectedRoute>
             }
           >
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/businesses" element={<BusinessList />} />
             <Route path="/business/settings" element={<BusinessSettings />} />

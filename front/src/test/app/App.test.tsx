@@ -33,24 +33,39 @@ describe('App routing', () => {
     });
   }
 
-  it('renders protected dashboard when authenticated', async () => {
-    renderApp();
+  it('renders protected dashboard when authenticated at /dashboard', async () => {
+    renderApp('/dashboard');
 
     await waitFor(() => expect(screen.getAllByText('ראשי')[0]).toBeInTheDocument());
     expect(screen.getAllByText('bon')[0]).toBeInTheDocument();
   });
 
-  it('redirects to login when unauthenticated', async () => {
+  it('redirects authenticated user from / to /dashboard', async () => {
+    renderApp('/');
+
+    await waitFor(() => expect(screen.getAllByText('ראשי')[0]).toBeInTheDocument());
+  });
+
+  it('shows landing page when unauthenticated at /', async () => {
     getMeMock.mockResolvedValueOnce(null);
 
-    renderApp();
+    renderApp('/');
+
+    await waitFor(() => expect(screen.getByText('חשבונית מס')).toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: /מחירים/ })).toBeInTheDocument();
+  });
+
+  it('shows login page when unauthenticated at /login', async () => {
+    getMeMock.mockResolvedValueOnce(null);
+
+    renderApp('/login');
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /כניסה עם Google/i })).toBeInTheDocument()
     );
   });
 
-  it('shows loader before hydration completes', async () => {
+  it('shows loader before hydration completes on protected routes', async () => {
     let resolveGetMe: ((value: { user: typeof mockUser } | null) => void) | undefined;
     getMeMock.mockImplementationOnce(
       () =>
@@ -59,7 +74,7 @@ describe('App routing', () => {
         })
     );
 
-    renderApp();
+    renderApp('/dashboard');
 
     expect(screen.getByLabelText('Loading user')).toBeInTheDocument();
 
