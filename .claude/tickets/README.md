@@ -45,6 +45,18 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T-LEGAL-01](./T-LEGAL-01-accountant-review.md) | Accountant Review (6 items before invoice launch) | ⬜ | — |
 | [T-CRON-01](./T-CRON-01-nightly-jobs.md) | Nightly Jobs & pg-boss (absorbs T17) | 🔒 | — |
 
+### Architecture Fixes (from deep review — execute before T08)
+
+| Ticket | Name | Status | Branch |
+|--------|------|--------|--------|
+| [T-ARCH-01](./T-ARCH-01-backend-type-safety.md) | Backend Type Safety & Data Layer Cleanup | 🔒 | — |
+| [T-ARCH-02](./T-ARCH-02-toctou-finalization.md) | Fix TOCTOU Race in Invoice Finalization | 🔒 | — |
+| [T-ARCH-03](./T-ARCH-03-frontend-routing.md) | Add businessId to Frontend Routes | 🔒 | — |
+| [T-ARCH-04](./T-ARCH-04-invoice-form-state.md) | Invoice Form: useForm + Autosave | 🔒 | — |
+| [T-ARCH-05](./T-ARCH-05-rbac-enforcement.md) | Enforce Role-Based Access Control | 🔒 | — |
+| [T-ARCH-06](./T-ARCH-06-test-infra.md) | Replace pg-mem with testcontainers (post-MVP) | 🔒 | — |
+| [T-ARCH-07](./T-ARCH-07-address-error-handling.md) | Address API Error Handling (post-MVP) | 🔒 | — |
+
 ### Phase 1 — Customers
 
 | Ticket | Name | Status | Branch |
@@ -59,6 +71,11 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T06](./T06-invoice-schema.md) | Invoice Data Model & VAT Engine | ✅ | main |
 | [T07](./T07-invoice-create-ui.md) | Invoice API + Create/Edit (backend) | ✅ | main (PR #12) |
 | [T7.5](./T7.5-invoice-edit-frontend.md) | Invoice Create/Edit Frontend (draft editor) | 🔄 | T7.5-invoice-edit-frontend |
+| **T-ARCH-01** | **Backend Type Safety & Data Layer Cleanup** | 🔒 | — |
+| **T-ARCH-02** | **Fix TOCTOU Race in Invoice Finalization** | 🔒 | — |
+| **T-ARCH-03** | **Add businessId to Frontend Routes** | 🔒 | — |
+| **T-ARCH-04** | **Invoice Form: useForm + Autosave** | 🔒 | — |
+| **T-ARCH-05** | **Enforce Role-Based Access Control** | 🔒 | — |
 | [T08](./T08-invoice-finalization.md) | Invoice Finalization & Detail View (split into 4 sub-tickets) | 🔒 | — |
 | — [T08-A](./T08-A-shared-config.md) | Shared Invoice Config | 🔒 | — |
 | — [T08-B](./T08-B-finalize-backend.md) | Backend: Finalize Endpoint Extension | 🔒 | — |
