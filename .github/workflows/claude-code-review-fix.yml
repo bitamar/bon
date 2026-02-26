@@ -1,0 +1,67 @@
+name: Claude Code - Fix Reviews
+
+on:
+  # Trigger when CodeRabbit (or any reviewer) submits a review
+  pull_request_review:
+    types: [submitted]
+
+  # Also trigger on individual review comments mentioning @claude
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  fix-review:
+    # Run when CodeRabbit requests changes — no manual @claude needed
+    if: >
+      github.event_name == 'pull_request_review' &&
+      github.event.review.user.login == 'coderabbitai[bot]' &&
+      github.event.review.state == 'changes_requested'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code - Fix Review Feedback
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            CodeRabbit has submitted a review requesting changes on this PR.
+
+            Read every review comment carefully. For each actionable comment:
+            1. Fix the issue in the code
+            2. If the comment is about style/formatting, fix it
+            3. If the comment is about a bug or logic error, fix it
+            4. If the comment is about missing tests, add the tests
+            5. If the comment is a suggestion you disagree with, leave a reply explaining why
+
+            After fixing, run `npm run check` to make sure everything passes.
+
+            Do NOT change anything that wasn't flagged in the review.
+
+  # Interactive mode: respond to @claude mentions in any comment
+  interactive:
+    if: >
+      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code - Interactive
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
