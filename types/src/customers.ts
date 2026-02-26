@@ -82,7 +82,11 @@ export const updateCustomerBodySchema = z
     path: ['taxId'],
   })
   .superRefine((data, ctx) => {
-    if (data.taxId && data.taxIdType === 'personal_id' && !validateIsraeliId(data.taxId)) {
+    if (
+      data.taxId &&
+      (data.taxIdType === 'personal_id' || data.taxIdType === undefined) &&
+      !validateIsraeliId(data.taxId)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'invalid_personal_id',

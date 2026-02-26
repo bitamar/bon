@@ -34,11 +34,17 @@ interface CustomerFormProps {
   initialStreetAddress?: string;
 }
 
+const TAX_ID_LABELS: Record<string, string> = {
+  company_id: 'מספר חברה (ח.פ.)',
+  vat_number: 'מספר עוסק מורשה (ע.מ.)',
+  personal_id: 'מספר תעודת זהות (ת.ז.)',
+};
+
 const TAX_ID_TYPE_OPTIONS = [
   { value: 'none', label: 'ללא מספר מזהה' },
-  { value: 'company_id', label: 'מספר חברה (ח.פ.)' },
-  { value: 'vat_number', label: 'מספר עוסק מורשה (ע.מ.)' },
-  { value: 'personal_id', label: 'תעודת זהות (ת.ז.)' },
+  { value: 'company_id', label: TAX_ID_LABELS['company_id']! },
+  { value: 'vat_number', label: TAX_ID_LABELS['vat_number']! },
+  { value: 'personal_id', label: TAX_ID_LABELS['personal_id']! },
 ];
 
 function getNameLabel(taxIdType: TaxIdType): string {
@@ -54,16 +60,7 @@ function getNameLabel(taxIdType: TaxIdType): string {
 }
 
 function getTaxIdLabel(taxIdType: TaxIdType): string {
-  switch (taxIdType) {
-    case 'company_id':
-      return 'מספר חברה (ח.פ.)';
-    case 'vat_number':
-      return 'מספר עוסק מורשה (ע.מ.)';
-    case 'personal_id':
-      return 'מספר תעודת זהות (ת.ז.)';
-    default:
-      return 'מספר מזהה';
-  }
+  return TAX_ID_LABELS[taxIdType] ?? 'מספר מזהה';
 }
 
 const DEFAULT_VALUES: CustomerFormValues = {
