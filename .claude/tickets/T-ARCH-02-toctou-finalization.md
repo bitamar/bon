@@ -77,8 +77,11 @@ export async function finalize(businessId: string, invoiceId: string, body: Fina
     const snapshot = buildFinalizationSnapshot(customer, business, body);
 
     // 6. Assign sequence number (already inside tx)
-    // assignInvoiceNumber(businessId, invoiceType) — invoiceType determines the
-    // prefix/counter used for sequential numbering (e.g., 'tax_invoice', 'receipt').
+    // assignInvoiceNumber(businessId, invoiceType, tx):
+    //   - businessId: which business's counter to increment
+    //   - invoiceType: determines the prefix/counter (e.g., 'tax_invoice', 'receipt')
+    //   - tx: the enclosing transaction (DbOrTx) — sequence lookup and increment
+    //     run inside this transaction for atomicity; must not be null/undefined
     const { sequenceNumber, documentNumber } = await assignInvoiceNumber(businessId, invoice.type, tx);
 
     // 7. Update invoice

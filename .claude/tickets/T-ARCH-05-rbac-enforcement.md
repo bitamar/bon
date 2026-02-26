@@ -26,10 +26,14 @@ This is acceptable for single-user businesses but becomes a problem as soon as t
 | Create / edit customers | yes | yes | yes |
 | **Finalize invoices** | yes | yes | no |
 | **Delete invoice** | yes | yes | no |
-| **Delete customers** | yes | yes | no |
+| **Deactivate / reactivate customers**¹ | yes | yes | no |
 | **Modify business settings** | yes | no | no |
-| **Manage team members** | yes | no | no |
-| **Delete business** | yes | no | no |
+| **Manage team members**² | yes | no | no |
+| **Delete business**² | yes | no | no |
+
+¹ Customer "deletion" is a soft-delete controlled by the `isActive` flag. The dedicated `POST .../deactivate` and `POST .../reactivate` endpoints toggle this flag; there is no hard-delete endpoint.
+
+² **Out of scope for this ticket.** "Manage team members" and "Delete business" are listed for completeness of the role model but are not implemented here — they will be enforced in their respective tickets (T02 team invitations, future business deletion work). This ticket enforces RBAC on: finalize invoices, delete invoices, deactivate/reactivate customers, and modify business settings.
 
 ### Implementation
 
