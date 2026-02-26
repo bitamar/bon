@@ -5,15 +5,15 @@ on:
   pull_request_review:
     types: [submitted]
 
-  # Also trigger on individual review comments mentioning @claude
+  # Also trigger on @claude mentions in PR/issue comments
   issue_comment:
     types: [created]
   pull_request_review_comment:
     types: [created]
 
 jobs:
+  # Auto-fix: runs when CodeRabbit requests changes — no @claude needed
   fix-review:
-    # Run when CodeRabbit requests changes — no manual @claude needed
     if: >
       github.event_name == 'pull_request_review' &&
       github.event.review.user.login == 'coderabbitai[bot]' &&
@@ -23,10 +23,12 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      id-token: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Claude Code - Fix Review Feedback
         uses: anthropics/claude-code-action@v1
@@ -40,26 +42,29 @@ jobs:
             2. If the comment is about style/formatting, fix it
             3. If the comment is about a bug or logic error, fix it
             4. If the comment is about missing tests, add the tests
-            5. If the comment is a suggestion you disagree with, leave a reply explaining why
+            5. If the comment is a nitpick or suggestion you disagree with, leave a reply explaining why
 
             After fixing, run `npm run check` to make sure everything passes.
 
             Do NOT change anything that wasn't flagged in the review.
 
-  # Interactive mode: respond to @claude mentions in any comment
+  # Interactive: respond to @claude mentions in any PR/issue comment or review
   interactive:
     if: >
-      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
-      contains(github.event.comment.body, '@claude')
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
       issues: write
+      id-token: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Claude Code - Interactive
         uses: anthropics/claude-code-action@v1
