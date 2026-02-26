@@ -50,13 +50,20 @@ All old paths must redirect to their canonical equivalents so existing bookmarks
 
 Where `:activeBusinessId` is resolved from localStorage (last active business). If no active business exists, redirect to `/businesses` (the switcher).
 
-Implementation: A single `<LegacyRedirect>` component registered on `/business/*` that reads the active business ID from localStorage and navigates to the equivalent canonical URL with `replace: true`.
+Implementation: A single `<LegacyRedirect>` component registered on `/business/*` that:
+1. Reads the active business ID from localStorage
+2. Parses the legacy URL to extract dynamic params (e.g., `:id` from `/business/customers/:id`)
+3. Remaps generic `:id` params to canonical names — `:id` → `:customerId` for customer routes, `:id` → `:invoiceId` for invoice routes
+4. Constructs the canonical URL with the resolved businessId and remapped params
+5. Navigates with `replace: true`
+
+If no active business exists in localStorage, redirects to `/businesses` (the switcher).
 
 ### BusinessContext Changes
 
 1. `activeBusiness` derived from URL param `:businessId` instead of localStorage
-2. `switchBusiness(id)` navigates to `/businesses/${id}/...` (current route with new businessId)
-3. localStorage remains as a **fallback only** — for the initial redirect from `/` to `/businesses/:lastUsed/...`
+2. `switchBusiness(id)` preserves the current path suffix — it parses the current URL, replaces only the `:businessId` segment with the new id, and keeps the rest of the path and query params intact (e.g., `/businesses/old-id/customers/new` → `/businesses/new-id/customers/new`). Falls back to `/businesses/${id}/dashboard` if the current path does not contain a business id segment.
+3. localStorage remains as a **fallback only** — for the initial redirect from `/` to `/businesses/:lastUsed/dashboard`
 4. **Scoped query invalidation**: `switchBusiness` invalidates only queries with `['business', oldId]` prefix, not all queries
 
 ### Route Guard
@@ -102,9 +109,13 @@ A new `<BusinessRoute>` layout component that:
 - [ ] Deep links work — pasting a URL loads the correct business and page
 - [ ] `switchBusiness` only invalidates business-scoped queries, not user profile or businesses list
 - [ ] Invalid businessId in URL shows appropriate error (not blank page)
-- [ ] Default route (`/`) redirects to `/businesses/:lastUsed/` using localStorage fallback
+- [ ] Accessing `/businesses/:id/...` where user is not a member shows 404 (not blank page or error)
+- [ ] Browser back/forward after switching businesses displays correct business data (not stale context)
+- [ ] Opening two tabs with different businessIds in the URL works independently without interference
+- [ ] Default route (`/`) redirects to `/businesses/:lastUsed/dashboard` using localStorage fallback
 - [ ] Legacy routes (`/business/*`) redirect to canonical routes (`/businesses/:businessId/*`) using `<Navigate replace>`
 - [ ] Each legacy URL in the table above resolves to the correct canonical URL (test per route)
+- [ ] After redirecting from a legacy route, browser back button does not return to the legacy URL (verifies `replace: true`)
 - [ ] If no active business in localStorage, legacy routes redirect to `/businesses`
 - [ ] All existing tests updated and passing
 - [ ] `npm run check` passes

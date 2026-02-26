@@ -59,8 +59,9 @@ app.patch('/businesses/:businessId/customers/:customerId', {
   // The PATCH handler should reject `isActive: false` in the body (return 400 directing caller to use POST /deactivate).
 });
 
-// api/src/routes/businesses.ts — already has requireBusinessRole('owner', 'admin') at line 79
-// Tighten to owner-only for settings that affect invoicing (VAT rate, prefix, etc.)
+// api/src/routes/businesses.ts — CURRENT: requireBusinessRole('owner', 'admin') at line 79
+// CHANGE TO: requireBusinessRole('owner') — only owners should modify invoicing settings
+// (VAT rate, invoice prefix, business details). Admins retain other privileges per the matrix.
 app.patch('/businesses/:businessId', {
   preHandler: [app.authenticate, app.requireBusinessAccess, app.requireBusinessRole('owner')],
   // ...
@@ -68,6 +69,8 @@ app.patch('/businesses/:businessId', {
 ```
 
 **Why a separate route for deactivation:** The customer PATCH endpoint handles general field updates (name, email, address) which all roles should be able to do per the permission matrix. Putting `requireBusinessRole('owner', 'admin')` on the PATCH would block `user` role from editing any customer field. A dedicated `POST .../deactivate` endpoint lets the preHandler enforce the role cleanly without an in-handler conditional.
+
+**Design note — PATCH body rejection of `isActive: false`:** The PATCH handler explicitly rejects `isActive: false` in the request body (returning 400 with a message directing the caller to `POST .../deactivate`). This keeps role enforcement in the preHandler and avoids in-handler conditionals. The tradeoff is a potential surprise for API consumers who expect PATCH to handle all fields. If future sensitive fields emerge (e.g., credit limits, billing flags), evaluate whether the dedicated-endpoint pattern still scales or whether a field-level permissions mechanism is more appropriate post-MVP.
 
 ### Frontend
 

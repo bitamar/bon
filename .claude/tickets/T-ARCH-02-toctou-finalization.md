@@ -39,7 +39,7 @@ The sequence number assignment is correct (inside tx), but validation runs on st
 **Chosen strategy: Lock the invoice row with `SELECT ... FOR UPDATE`, then read related data inside the same transaction under READ COMMITTED.**
 
 Rationale for choosing row-locking over REPEATABLE READ or SERIALIZABLE:
-- The invoice lock prevents the primary race (double-finalization, concurrent draft edits)
+- The invoice lock prevents the primary race (double-finalization, concurrent edits racing with finalization)
 - Customer and business data are read-only during finalization — concurrent changes to customer/business settings are unlikely during the sub-second window of the transaction
 - REPEATABLE READ would add serialization failures requiring retry logic, which is disproportionate complexity for the actual risk
 - If stronger guarantees are needed later (SHAAM integration), the transaction can be upgraded to REPEATABLE READ at that point
@@ -78,10 +78,15 @@ export async function finalize(businessId: string, invoiceId: string, body: Fina
 }
 ```
 
-**Documented trade-off:** Customer and business rows are NOT locked with `FOR UPDATE`. Under READ COMMITTED, a concurrent change to customer name or business VAT rate could be picked up mid-transaction. This is acceptable because:
+**Documented trade-off #1 — Related rows not locked:** Customer and business rows are NOT locked with `FOR UPDATE`. Under READ COMMITTED, a concurrent change to customer name or business VAT rate could be picked up mid-transaction. This is acceptable because:
 - Customer/business changes during the sub-second finalization window are extremely rare
 - The snapshot captures whatever committed state exists at read time — still consistent
 - If SHAAM integration requires stricter guarantees, upgrade to `REPEATABLE READ` at that point
+
+**Documented trade-off #2 — Only finalization acquires the invoice lock:** Draft mutation paths (`updateDraft`, `deleteDraft`, item add/update/remove handlers) do NOT acquire `SELECT ... FOR UPDATE` on the invoice row. This means two concurrent draft edits can race with each other (last-write-wins). The lock only protects finalization — preventing double-finalization and ensuring finalization reads a consistent draft state. This is acceptable because:
+- Draft edits are user-initiated and single-user in practice (the same person editing their own draft)
+- The cost of locking every draft edit is disproportionate to the risk
+- If collaborative draft editing is added later, optimistic concurrency (e.g., `updatedAt` version check) is the better pattern — not row-level locking
 
 ---
 
@@ -153,7 +158,7 @@ This provides coverage during development but **does not verify actual row-lock 
 A test using a real PostgreSQL instance (testcontainers or dev DB on port 5433) that:
 1. Creates a draft invoice
 2. Opens two concurrent `finalize()` calls
-3. Verifies exactly one succeeds and the other gets `not_draft` or a lock-wait timeout
+3. Verifies exactly one succeeds and the other fails with `not_draft` (lock-wait timeouts are test failures — the loser must always see the finalized status after the lock is released)
 4. Verifies only one sequence number was consumed
 
 **This ticket is only closable after the Postgres integration test passes.** The pg-mem unit tests are allowed as interim coverage.
