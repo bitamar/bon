@@ -42,6 +42,12 @@ app.post('/businesses/:businessId/invoices/:invoiceId/finalize', {
   // ...
 });
 
+// api/src/routes/invoices.ts — delete (same RBAC as finalize)
+app.delete('/businesses/:businessId/invoices/:invoiceId', {
+  preHandler: [app.authenticate, app.requireBusinessAccess, app.requireBusinessRole('owner', 'admin')],
+  // ...
+});
+
 // api/src/routes/customers.ts — deactivate (separate route from general PATCH)
 // Split deactivation into its own endpoint so the preHandler can enforce role
 // without blocking normal field edits for 'user' role.
@@ -74,9 +80,15 @@ app.patch('/businesses/:businessId', {
 
 ### Frontend
 
-- Hide finalize button for `user` role (show "Requires admin or owner permissions")
-- Hide business settings link for non-owners
-- No new pages needed — just conditional rendering based on `activeBusiness.role`
+Behavior per action when the current role lacks permission:
+
+| Action | Component | Behavior | Rationale |
+|--------|-----------|----------|-----------|
+| Finalize invoice | Finalize button in `InvoiceEdit.tsx` | **Disable** — render a disabled button with tooltip "Requires admin or owner permissions" | Users see the invoice and should understand that finalization exists but is restricted, not wonder where the button went |
+| Business settings | Settings link in `Navbar.tsx` | **Hide** — do not render the nav link at all | Non-owners have no reason to see the settings entry; hiding avoids clutter |
+| Delete invoice | Delete button in `InvoiceEdit.tsx` | **Disable** — render a disabled button with tooltip "Requires admin or owner permissions" | Same rationale as finalize |
+
+All conditional rendering is based on `activeBusiness.role` from context. No new pages needed.
 
 ---
 
@@ -93,8 +105,8 @@ app.patch('/businesses/:businessId', {
 | `api/tests/routes/invoices.test.ts` | Test: user role → 403 on finalize |
 | `api/tests/routes/customers.test.ts` | Test: user role → 403 on deactivate; user can still PATCH fields |
 | `api/tests/routes/businesses.test.ts` | Test: admin → 403 on settings update |
-| `front/src/pages/InvoiceEdit.tsx` | Conditionally show finalize button |
-| `front/src/pages/BusinessSettings.tsx` | Conditionally disable editing for non-owners |
+| `front/src/pages/InvoiceEdit.tsx` | Disable finalize + delete buttons for `user` role (tooltip: "Requires admin or owner permissions") |
+| `front/src/Navbar.tsx` | Hide business settings link for non-owners |
 
 ---
 
@@ -105,7 +117,8 @@ app.patch('/businesses/:businessId', {
 - [ ] `user` role CAN edit customer fields via PATCH (name, email, etc.)
 - [ ] PATCH with `isActive: false` in body returns 400 (directs to deactivate endpoint)
 - [ ] Only `owner` can modify business settings (API returns 403 for admin/user)
-- [ ] Frontend hides/disables actions the current role cannot perform
+- [ ] Frontend: finalize and delete buttons are disabled (not hidden) for `user` role with tooltip "Requires admin or owner permissions"
+- [ ] Frontend: business settings link is hidden (not rendered) for non-owners
 - [ ] Error response includes a clear message (e.g., "Requires owner or admin role")
 - [ ] `npm run check` passes
 - [ ] Tests cover each role/endpoint combination listed in the matrix

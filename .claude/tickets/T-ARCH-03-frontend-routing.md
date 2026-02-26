@@ -37,7 +37,9 @@ Frontend routes are `/business/customers` instead of `/businesses/:businessId/cu
 
 ### Legacy Route Redirects
 
-All old paths must redirect to their canonical equivalents so existing bookmarks and any hardcoded links (in tests, docs, or browser history) continue to work. Redirects are **client-side only** (React Router `<Navigate>` with `replace`), since the frontend is a SPA with no server-side routing.
+All old paths must redirect to their canonical equivalents so existing bookmarks and any hardcoded links (in tests, docs, or browser history) continue to work. Redirects are **client-side** (React Router `<Navigate>` with `replace`), since the frontend is a SPA with no server-side routing.
+
+**Prerequisite — SPA fallback rewrite:** These client-side redirects only work after the SPA JavaScript bundle has loaded. A direct browser navigation to a legacy URL (or any deep link) will hit the server/CDN first. The hosting environment must be configured with a catch-all rewrite rule that serves `index.html` for all unknown paths (e.g., Nginx `try_files $uri /index.html`, Vite preview `--single`, or CDN SPA rewrite rules). Without this, direct navigation to legacy or canonical deep links will return 404 from the server before React Router can handle them.
 
 | Legacy Path | Redirect Target |
 |-------------|----------------|
@@ -55,7 +57,8 @@ Implementation: A single `<LegacyRedirect>` component registered on `/business/*
 2. Parses the legacy URL to extract dynamic params (e.g., `:id` from `/business/customers/:id`)
 3. Remaps generic `:id` params to canonical names — `:id` → `:customerId` for customer routes, `:id` → `:invoiceId` for invoice routes
 4. Constructs the canonical URL with the resolved businessId and remapped params
-5. Navigates with `replace: true`
+5. Preserves the original query string and hash — reads `location.search` and `location.hash`, appends them to the canonical path (e.g., `/businesses/abc/customers?status=active#notes` stays intact)
+6. Navigates with `replace: true` via `navigate(canonicalPath + location.search + location.hash, { replace: true })`
 
 If no active business exists in localStorage, redirects to `/businesses` (the switcher).
 
@@ -104,12 +107,12 @@ A new `<BusinessRoute>` layout component that:
 ## Acceptance Criteria
 
 - [ ] All business-scoped routes include `:businessId` in the URL
-- [ ] Navigating to `/businesses/:id/customers` works and loads that business's customers
+- [ ] Navigating to `/businesses/:businessId/customers` works and loads that business's customers
 - [ ] Switching businesses in the TenantSwitcher navigates to the new business's equivalent page
 - [ ] Deep links work — pasting a URL loads the correct business and page
 - [ ] `switchBusiness` only invalidates business-scoped queries, not user profile or businesses list
 - [ ] Invalid businessId in URL shows appropriate error (not blank page)
-- [ ] Accessing `/businesses/:id/...` where user is not a member shows 404 (not blank page or error)
+- [ ] Accessing `/businesses/:businessId/...` where user is not a member shows 404 (not blank page or error)
 - [ ] Browser back/forward after switching businesses displays correct business data (not stale context)
 - [ ] Opening two tabs with different businessIds in the URL works independently without interference
 - [ ] Default route (`/`) redirects to `/businesses/:lastUsed/dashboard` using localStorage fallback

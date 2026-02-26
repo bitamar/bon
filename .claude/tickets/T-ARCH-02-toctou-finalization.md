@@ -50,6 +50,8 @@ Move ALL reads and validation inside a single transaction with `SELECT ... FOR U
 export async function finalize(businessId: string, invoiceId: string, body: FinalizeBody) {
   return db.transaction(async (tx) => {
     // 1. Lock the invoice row — prevents double-finalization and concurrent edits
+    //    racing with finalization. Note: draft mutation paths (updateDraft, deleteDraft,
+    //    item handlers) do NOT acquire this lock — see documented trade-off #2.
     const invoice = await findInvoiceByIdForUpdate(invoiceId, businessId, tx);
     if (!invoice) throw notFound();
     if (invoice.status !== 'draft') throw unprocessableEntity({ code: 'not_draft' });
@@ -70,7 +72,9 @@ export async function finalize(businessId: string, invoiceId: string, body: Fina
     const totals = recalculateTotals(items, business);
 
     // 5. Assign sequence number (already inside tx)
-    const { sequenceNumber, documentNumber } = await assignInvoiceNumber(businessId, ...);
+    // assignInvoiceNumber(businessId, invoiceType) — invoiceType determines the
+    // prefix/counter used for sequential numbering (e.g., 'tax_invoice', 'receipt').
+    const { sequenceNumber, documentNumber } = await assignInvoiceNumber(businessId, invoice.type, tx);
 
     // 6. Update invoice
     return updateInvoice(invoiceId, businessId, { ...totals, ...snapshot, status: 'finalized' }, tx);
