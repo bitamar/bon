@@ -16,16 +16,21 @@ import {
 import { DatePickerInput, type DateValue } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import { IconAlertTriangle } from '@tabler/icons-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
 import { CustomerSelect } from '../components/CustomerSelect';
 import { InvoiceLineItems, type LineItemFormRow } from '../components/InvoiceLineItems';
 import { InvoiceTotals } from '../components/InvoiceTotals';
+import { BusinessProfileGateModal } from '../components/BusinessProfileGateModal';
+import { VatExemptionReasonModal } from '../components/VatExemptionReasonModal';
+import { InvoicePreviewModal } from '../components/InvoicePreviewModal';
+import { useFinalizationFlow } from '../hooks/useFinalizationFlow';
 import { useApiMutation } from '../lib/useApiMutation';
 import { deleteInvoiceDraft, fetchInvoice, updateInvoiceDraft } from '../api/invoices';
 import { fetchBusiness } from '../api/businesses';
+import { fetchCustomer } from '../api/customers';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
 import { formatMinorUnits, toMinorUnits } from '@bon/types/formatting';
@@ -33,7 +38,7 @@ import { showErrorNotification } from '../lib/notifications';
 import { calculateInvoiceTotals } from '@bon/types/vat';
 import type { DocumentType, UpdateInvoiceDraftBody } from '@bon/types/invoices';
 
-const DOC_TYPE_OPTIONS = [
+const DOC_TYPE_OPTIONS: { value: DocumentType; label: string }[] = [
   { value: 'tax_invoice', label: 'חשבונית מס' },
   { value: 'tax_invoice_receipt', label: 'חשבונית מס קבלה' },
   { value: 'receipt', label: 'קבלה' },
@@ -112,7 +117,7 @@ export function InvoiceEdit() {
     if (!invoiceQuery.data) return null;
     const { invoice, items } = invoiceQuery.data;
     return {
-      documentType: invoice.documentType as DocumentType,
+      documentType: invoice.documentType,
       customerId: invoice.customerId,
       invoiceDate: parseDate(invoice.invoiceDate),
       dueDate: parseDate(invoice.dueDate),
@@ -159,6 +164,41 @@ export function InvoiceEdit() {
       }
     }
   }, [vatLocked, form]);
+
+  // ── Totals ──
+
+  const headerTotals = useMemo(() => {
+    if (!form) return null;
+    return calculateInvoiceTotals(
+      form.items.map((row) => ({
+        quantity: row.quantity,
+        unitPriceMinorUnits: toMinorUnits(row.unitPrice),
+        discountPercent: row.discountPercent,
+        vatRateBasisPoints: row.vatRateBasisPoints,
+      }))
+    );
+  }, [form]);
+
+  // ── Fetch selected customer info for preview ──
+
+  const customerQuery = useQuery({
+    queryKey: queryKeys.customer(businessId, form?.customerId ?? ''),
+    queryFn: () => fetchCustomer(businessId, form?.customerId ?? ''),
+    enabled: !!activeBusiness && !!form?.customerId,
+  });
+
+  // ── Finalization flow ──
+
+  const finalization = useFinalizationFlow({
+    businessId,
+    invoiceId,
+    business: businessQuery.data?.business ?? null,
+    businessType,
+    customerId: form?.customerId ?? null,
+    items: form?.items ?? [],
+    invoiceDate: form?.invoiceDate ?? null,
+    totalVatMinorUnits: headerTotals?.vatMinorUnits ?? 0,
+  });
 
   const saveMutation = useApiMutation({
     mutationFn: (data: UpdateInvoiceDraftBody) => updateInvoiceDraft(businessId, invoiceId, data),
@@ -217,18 +257,10 @@ export function InvoiceEdit() {
   const invoice = invoiceQuery.data.invoice;
 
   if (invoice.status !== 'draft') {
-    return (
-      <Container size="md" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-        <Alert
-          color="yellow"
-          icon={<IconAlertTriangle size={18} />}
-          title="חשבונית זו כבר הופקה ואינה ניתנת לעריכה"
-        />
-      </Container>
-    );
+    return <Navigate to={`/business/invoices/${invoiceId}`} replace />;
   }
 
-  if (!form) {
+  if (!form || !headerTotals) {
     return (
       <Container size="md" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
         <StatusCard status="loading" title="טוען חשבונית..." />
@@ -238,8 +270,8 @@ export function InvoiceEdit() {
 
   // ── Save logic ──
 
-  function handleSave() {
-    if (!form) return;
+  function buildSavePayload(): UpdateInvoiceDraftBody | null {
+    if (!form) return null;
 
     const nonEmptyItems = form.items.filter(
       (item) => item.description.trim() !== '' || item.unitPrice !== 0
@@ -251,10 +283,10 @@ export function InvoiceEdit() {
 
     if (hasPartialRows) {
       showErrorNotification('יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר');
-      return;
+      return null;
     }
 
-    const payload: UpdateInvoiceDraftBody = {
+    return {
       documentType: form.documentType,
       customerId: form.customerId ?? null,
       invoiceDate: form.invoiceDate ? toLocalDateString(form.invoiceDate) : null,
@@ -271,20 +303,33 @@ export function InvoiceEdit() {
         position: index,
       })),
     };
-
-    saveMutation.mutate(payload);
   }
 
-  // ── Totals for header ──
+  function handleSave() {
+    const payload = buildSavePayload();
+    if (payload) saveMutation.mutate(payload);
+  }
 
-  const headerTotals = calculateInvoiceTotals(
-    form.items.map((row) => ({
-      quantity: row.quantity,
-      unitPriceMinorUnits: Math.round(row.unitPrice * 100),
-      discountPercent: row.discountPercent,
-      vatRateBasisPoints: row.vatRateBasisPoints,
-    }))
-  );
+  async function handleFinalize() {
+    const payload = buildSavePayload();
+    if (!payload) return;
+    try {
+      await saveMutation.mutateAsync(payload);
+      finalization.startFinalization();
+    } catch {
+      // Error toast already shown by useApiMutation
+    }
+  }
+
+  // ── Customer info for preview ──
+
+  const customerInfo = customerQuery.data
+    ? {
+        name: customerQuery.data.customer.name,
+        taxId: customerQuery.data.customer.taxId,
+        city: customerQuery.data.customer.city,
+      }
+    : null;
 
   return (
     <>
@@ -309,13 +354,28 @@ export function InvoiceEdit() {
             </Group>
           </Group>
 
+          {finalization.validationErrors.length > 0 && (
+            <Alert color="red" icon={<IconAlertTriangle size={18} />} title="לא ניתן להפיק חשבונית">
+              <Stack gap={4}>
+                {finalization.validationErrors.map((err) => (
+                  <Text key={err} size="sm">
+                    {err}
+                  </Text>
+                ))}
+              </Stack>
+            </Alert>
+          )}
+
           <Paper withBorder radius="lg" p="lg">
             <Stack gap="md">
               <Stack gap={4}>
                 <SegmentedControl
                   data={DOC_TYPE_OPTIONS}
                   value={form.documentType}
-                  onChange={(val) => setForm({ ...form, documentType: val as DocumentType })}
+                  onChange={(val) => {
+                    const match = DOC_TYPE_OPTIONS.find((o) => o.value === val);
+                    if (match) setForm({ ...form, documentType: match.value });
+                  }}
                   fullWidth
                 />
                 <Text size="xs" c="dimmed">
@@ -380,13 +440,19 @@ export function InvoiceEdit() {
             <Button variant="subtle" color="red" onClick={openDelete}>
               מחק טיוטה
             </Button>
-            <Button onClick={handleSave} loading={saveMutation.isPending}>
-              שמור טיוטה
-            </Button>
+            <Group gap="sm">
+              <Button variant="default" onClick={handleSave} loading={saveMutation.isPending}>
+                שמור טיוטה
+              </Button>
+              <Button onClick={handleFinalize} loading={saveMutation.isPending}>
+                הפק חשבונית
+              </Button>
+            </Group>
           </Group>
         </Stack>
       </Container>
 
+      {/* Delete confirmation modal */}
       <Modal
         opened={deleteOpened}
         onClose={closeDelete}
@@ -410,6 +476,37 @@ export function InvoiceEdit() {
           </Group>
         </Stack>
       </Modal>
+
+      {/* Finalization flow modals */}
+      {businessQuery.data && (
+        <BusinessProfileGateModal
+          opened={finalization.step === 'profile_gate'}
+          onClose={finalization.closeModal}
+          onSaved={finalization.onProfileSaved}
+          business={businessQuery.data.business}
+          businessType={businessQuery.data.business.businessType}
+        />
+      )}
+
+      <VatExemptionReasonModal
+        opened={finalization.step === 'vat_exemption'}
+        onClose={finalization.closeModal}
+        onConfirm={finalization.onVatExemptionConfirmed}
+        invoiceNotes={form.notes}
+      />
+
+      <InvoicePreviewModal
+        opened={finalization.step === 'preview' || finalization.step === 'finalizing'}
+        onClose={finalization.closeModal}
+        onConfirm={finalization.confirmFinalize}
+        confirming={finalization.confirming}
+        documentType={form.documentType}
+        invoiceDate={form.invoiceDate ? toLocalDateString(form.invoiceDate) : null}
+        customer={customerInfo}
+        items={form.items}
+        notes={form.notes}
+        vatExemptionReason={finalization.vatExemptionReason}
+      />
     </>
   );
 }

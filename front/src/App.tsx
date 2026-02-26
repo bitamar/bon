@@ -17,6 +17,7 @@ import { CustomerCreate } from './pages/CustomerCreate';
 import { CustomerDetail } from './pages/CustomerDetail';
 import { InvoiceNew } from './pages/InvoiceNew';
 import { InvoiceEdit } from './pages/InvoiceEdit';
+import { InvoiceDetail } from './pages/InvoiceDetail';
 import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 
@@ -135,6 +136,7 @@ export default function AppRoutes() {
             <Route path="/business/customers/new" element={<CustomerCreate />} />
             <Route path="/business/customers/:customerId" element={<CustomerDetail />} />
             <Route path="/business/invoices/new" element={<InvoiceNew />} />
+            <Route path="/business/invoices/:invoiceId" element={<InvoiceDetail />} />
             <Route path="/business/invoices/:invoiceId/edit" element={<InvoiceEdit />} />
           </Route>
 
