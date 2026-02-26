@@ -33,7 +33,7 @@ jobs:
       - name: Claude Code - Fix Review Feedback
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             CodeRabbit has submitted a review requesting changes on this PR.
 
@@ -69,4 +69,4 @@ jobs:
       - name: Claude Code - Interactive
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
