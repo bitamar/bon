@@ -46,10 +46,10 @@ export default function Navbar() {
       <ScrollArea type="auto" style={{ flex: 1 }} px="xs">
         <NavLink
           component={Link}
-          to="/dashboard"
+          to="/"
           label="ראשי"
           leftSection={<IconHome2 size={18} />}
-          active={pathname === '/dashboard'}
+          active={pathname === '/'}
           className={navLinkClass}
         />
         <NavLink

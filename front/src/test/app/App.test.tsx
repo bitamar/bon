@@ -33,39 +33,31 @@ describe('App routing', () => {
     });
   }
 
-  it('renders protected dashboard when authenticated at /dashboard', async () => {
-    renderApp('/dashboard');
+  it('renders protected dashboard when authenticated', async () => {
+    renderApp();
 
     await waitFor(() => expect(screen.getAllByText('ראשי')[0]).toBeInTheDocument());
     expect(screen.getAllByText('bon')[0]).toBeInTheDocument();
   });
 
-  it('redirects authenticated user from / to /dashboard', async () => {
-    renderApp('/');
-
-    await waitFor(() => expect(screen.getAllByText('ראשי')[0]).toBeInTheDocument());
-  });
-
-  it('shows landing page when unauthenticated at /', async () => {
+  it('redirects to landing page when unauthenticated', async () => {
     getMeMock.mockResolvedValueOnce(null);
 
-    renderApp('/');
+    renderApp();
 
     await waitFor(() => expect(screen.getByText('חשבונית מס')).toBeInTheDocument());
     expect(screen.getByRole('heading', { name: /מחירים/ })).toBeInTheDocument();
   });
 
-  it('shows login page when unauthenticated at /login', async () => {
+  it('shows landing page at /welcome', async () => {
     getMeMock.mockResolvedValueOnce(null);
 
-    renderApp('/login');
+    renderApp('/welcome');
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /כניסה עם Google/i })).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('חשבונית מס')).toBeInTheDocument());
   });
 
-  it('shows loader before hydration completes on protected routes', async () => {
+  it('shows loader before hydration completes', async () => {
     let resolveGetMe: ((value: { user: typeof mockUser } | null) => void) | undefined;
     getMeMock.mockImplementationOnce(
       () =>
@@ -74,13 +66,11 @@ describe('App routing', () => {
         })
     );
 
-    renderApp('/dashboard');
+    renderApp();
 
     expect(screen.getByLabelText('Loading user')).toBeInTheDocument();
 
     resolveGetMe?.(null);
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /כניסה עם Google/i })).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('חשבונית מס')).toBeInTheDocument());
   });
 });

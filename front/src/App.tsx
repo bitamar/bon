@@ -29,7 +29,7 @@ function ProtectedRoute({ children }: Readonly<{ children: ReactNode }>) {
       </Center>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/welcome" replace />;
   return children;
 }
 
@@ -39,12 +39,6 @@ function PlainLayout() {
       <Outlet />
     </RouteErrorBoundary>
   );
-}
-
-function HomePage() {
-  const { user } = useAuth();
-  if (user) return <Navigate to="/dashboard" replace />;
-  return <LandingPage />;
 }
 
 function OnboardingGuard({ children }: Readonly<{ children: ReactNode }>) {
@@ -110,7 +104,7 @@ export default function AppRoutes() {
       <GlobalLoadingIndicator>
         <Routes>
           <Route element={<PlainLayout />}>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/welcome" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route
               path="/onboarding"
@@ -133,7 +127,7 @@ export default function AppRoutes() {
               </ProtectedRoute>
             }
           >
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/" element={<Dashboard />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/businesses" element={<BusinessList />} />
             <Route path="/business/settings" element={<BusinessSettings />} />

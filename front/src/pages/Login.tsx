@@ -7,7 +7,7 @@ import { AnimatedBackground } from '../components/AnimatedBackground';
 export function Login() {
   const { loginWithGoogle, user } = useAuth();
 
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to="/" replace />;
 
   return (
     <AnimatedBackground>
