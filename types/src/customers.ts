@@ -52,15 +52,12 @@ export const createCustomerBodySchema = z
     path: ['taxId'],
   })
   .superRefine((data, ctx) => {
-    if (
-      data.taxId &&
-      data.taxIdType &&
-      data.taxIdType !== 'none' &&
-      !validateIsraeliId(data.taxId)
-    ) {
-      const msg =
-        data.taxIdType === 'personal_id' ? 'invalid_personal_id' : 'invalid_tax_id_checksum';
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: msg, path: ['taxId'] });
+    if (data.taxId && data.taxIdType === 'personal_id' && !validateIsraeliId(data.taxId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'invalid_personal_id',
+        path: ['taxId'],
+      });
     }
   });
 
@@ -87,13 +84,14 @@ export const updateCustomerBodySchema = z
   .superRefine((data, ctx) => {
     if (
       data.taxId &&
-      data.taxIdType &&
-      data.taxIdType !== 'none' &&
+      (data.taxIdType === 'personal_id' || data.taxIdType === undefined) &&
       !validateIsraeliId(data.taxId)
     ) {
-      const msg =
-        data.taxIdType === 'personal_id' ? 'invalid_personal_id' : 'invalid_tax_id_checksum';
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: msg, path: ['taxId'] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'invalid_personal_id',
+        path: ['taxId'],
+      });
     }
   });
 

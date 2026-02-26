@@ -34,11 +34,19 @@ interface CustomerFormProps {
   initialStreetAddress?: string;
 }
 
-const TAX_ID_TYPE_OPTIONS = [
+const TAX_ID_LABELS = {
+  company_id: 'מספר חברה (ח.פ.)',
+  vat_number: 'מספר עוסק מורשה (ע.מ.)',
+  personal_id: 'מספר תעודת זהות (ת.ז.)',
+} as const;
+
+type TaxIdKey = keyof typeof TAX_ID_LABELS;
+
+const TAX_ID_TYPE_OPTIONS: { value: TaxIdKey | 'none'; label: string }[] = [
   { value: 'none', label: 'ללא מספר מזהה' },
-  { value: 'company_id', label: 'מספר חברה (ח.פ.)' },
-  { value: 'vat_number', label: 'מספר עוסק מורשה (ע.מ.)' },
-  { value: 'personal_id', label: 'תעודת זהות (ת.ז.)' },
+  { value: 'company_id', label: TAX_ID_LABELS.company_id },
+  { value: 'vat_number', label: TAX_ID_LABELS.vat_number },
+  { value: 'personal_id', label: TAX_ID_LABELS.personal_id },
 ];
 
 function getNameLabel(taxIdType: TaxIdType): string {
@@ -53,8 +61,9 @@ function getNameLabel(taxIdType: TaxIdType): string {
   }
 }
 
-function getTaxIdError(taxIdType: TaxIdType): string {
-  return taxIdType === 'personal_id' ? 'מספר ת.ז. לא תקין' : 'מספר מזהה לא תקין (ספרת ביקורת)';
+function getTaxIdLabel(taxIdType: TaxIdType): string {
+  if (taxIdType in TAX_ID_LABELS) return TAX_ID_LABELS[taxIdType as TaxIdKey];
+  return 'מספר מזהה';
 }
 
 const DEFAULT_VALUES: CustomerFormValues = {
@@ -93,7 +102,8 @@ export const CustomerForm = forwardRef<CustomerFormHandle, Readonly<CustomerForm
           if (values.taxIdType === 'none') return null;
           if (!value) return null;
           if (!/^\d{9}$/.test(value)) return 'מספר מזהה חייב להיות 9 ספרות';
-          if (!validateIsraeliId(value)) return getTaxIdError(values.taxIdType);
+          if (values.taxIdType === 'personal_id' && !validateIsraeliId(value))
+            return 'מספר ת.ז. לא תקין';
           return null;
         },
       },
@@ -142,7 +152,7 @@ export const CustomerForm = forwardRef<CustomerFormHandle, Readonly<CustomerForm
 
           {showTaxIdField && (
             <TextInput
-              label="מספר מזהה"
+              label={getTaxIdLabel(form.values.taxIdType)}
               maxLength={9}
               inputMode="numeric"
               {...form.getInputProps('taxId')}

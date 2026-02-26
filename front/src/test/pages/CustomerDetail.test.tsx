@@ -82,7 +82,7 @@ describe('CustomerDetail page', () => {
 
     expect(await screen.findByRole('heading', { name: 'חברת אלפא' })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /שם העסק/ })).toHaveValue('חברת אלפא');
-    expect(screen.getByLabelText('מספר מזהה')).toHaveValue('123456782');
+    expect(screen.getByLabelText('מספר חברה (ח.פ.)')).toHaveValue('123456782');
     expect(screen.getByRole('textbox', { name: /אימייל/ })).toHaveValue('alpha@test.com');
   });
 
