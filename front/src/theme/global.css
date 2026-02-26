@@ -2,6 +2,12 @@ html {
   scroll-behavior: smooth;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 :root {
   --bon-transition-colors:
     background-color 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease;

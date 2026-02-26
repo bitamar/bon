@@ -474,17 +474,15 @@ export function LandingPage() {
           >
             מחירים
           </a>
-          <a
-            href="#"
+          <span
             style={{
               fontSize: 14,
               color: COLORS.textMuted,
-              textDecoration: 'none',
               fontWeight: 500,
             }}
           >
             API
-          </a>
+          </span>
           <Link
             to="/login"
             style={{
@@ -591,18 +589,16 @@ export function LandingPage() {
             >
               צור חשבון בחינם →
             </Link>
-            <a
-              href="#"
+            <span
               style={{
                 fontSize: 14,
                 color: COLORS.textMuted,
-                textDecoration: 'none',
                 fontWeight: 500,
                 padding: '14px 8px',
               }}
             >
               תיעוד API
-            </a>
+            </span>
           </div>
 
           <div
@@ -667,6 +663,7 @@ export function LandingPage() {
           padding: '80px 40px',
           maxWidth: 960,
           margin: '0 auto',
+          scrollMarginTop: 80,
         }}
       >
         <h2
@@ -793,6 +790,7 @@ export function LandingPage() {
           padding: '0 40px 80px',
           maxWidth: 1060,
           margin: '0 auto',
+          scrollMarginTop: 80,
         }}
       >
         <h2
@@ -916,18 +914,10 @@ export function LandingPage() {
             color: COLORS.textLight,
           }}
         >
-          <a href="#" style={{ color: COLORS.textLight, textDecoration: 'none' }}>
-            API Docs
-          </a>
-          <a href="#" style={{ color: COLORS.textLight, textDecoration: 'none' }}>
-            תנאי שימוש
-          </a>
-          <a href="#" style={{ color: COLORS.textLight, textDecoration: 'none' }}>
-            פרטיות
-          </a>
-          <a href="#" style={{ color: COLORS.textLight, textDecoration: 'none' }}>
-            צור קשר
-          </a>
+          <span style={{ color: COLORS.textLight }}>API Docs</span>
+          <span style={{ color: COLORS.textLight }}>תנאי שימוש</span>
+          <span style={{ color: COLORS.textLight }}>פרטיות</span>
+          <span style={{ color: COLORS.textLight }}>צור קשר</span>
         </div>
       </footer>
     </div>
