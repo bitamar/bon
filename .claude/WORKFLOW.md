@@ -106,4 +106,8 @@ Medium items also in the patch: partial unique index, checksum validation for al
 
 **Execution order**: T04 patch → deploy T03+T04+patch → verify in production → start T05.
 
-**Next up**: T05 (Customer Frontend) — fully specified in `.claude/tickets/T05-customer-frontend.md` with product requirements, component specs, architecture notes, and test plan.
+**Current focus**: T7.5 (Invoice Create/Edit Frontend) is in progress.
+
+**After T7.5 — Architecture Fixes**: Deep architecture review identified 16 issues across the codebase. 5 critical fix tickets (T-ARCH-01 through T-ARCH-05) are inserted before T08 to prevent correctness and type safety bugs from compounding into finalization and SHAAM integration. 2 low-priority tickets (T-ARCH-06, T-ARCH-07) are post-MVP.
+
+**Execution order after T7.5**: T-ARCH-01 → T-ARCH-02 → T-ARCH-03 → T-ARCH-04 → T-ARCH-05 → T08-A → T08-B → T08-C → T08-D → T09.
