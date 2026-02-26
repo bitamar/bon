@@ -28,6 +28,7 @@ vi.mock('../../lib/notifications', () => ({
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as invoicesApi from '../../api/invoices';
 import * as businessApi from '../../api/businesses';
+import * as customersApi from '../../api/customers';
 import { showErrorNotification } from '../../lib/notifications';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 import { makeDraftInvoice } from '../utils/invoiceStubs';
@@ -58,6 +59,28 @@ const mockBusinessResponse = {
   role: 'owner' as const,
 };
 
+const mockCustomerResponse = {
+  customer: {
+    id: 'cust-1',
+    businessId: 'biz-1',
+    name: 'לקוח לדוגמה',
+    taxId: '123456789',
+    taxIdType: 'company_id' as const,
+    isLicensedDealer: true,
+    email: null,
+    phone: null,
+    streetAddress: null,
+    city: null,
+    postalCode: null,
+    contactName: null,
+    notes: null,
+    isActive: true,
+    deletedAt: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+};
+
 function setupDraftMocks(invoiceOverrides: Partial<Invoice> = {}) {
   vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeDraftInvoice(invoiceOverrides));
   vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
@@ -78,6 +101,8 @@ describe('InvoiceEdit page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockActiveBusiness(useBusiness);
+    vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
+    vi.mocked(customersApi.fetchCustomer).mockResolvedValue(mockCustomerResponse);
   });
 
   it('shows error when no active business', () => {

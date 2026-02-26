@@ -172,7 +172,7 @@ export function InvoiceEdit() {
     return calculateInvoiceTotals(
       form.items.map((row) => ({
         quantity: row.quantity,
-        unitPriceMinorUnits: Math.round(row.unitPrice * 100),
+        unitPriceMinorUnits: toMinorUnits(row.unitPrice),
         discountPercent: row.discountPercent,
         vatRateBasisPoints: row.vatRateBasisPoints,
       }))
@@ -444,7 +444,7 @@ export function InvoiceEdit() {
               <Button variant="default" onClick={handleSave} loading={saveMutation.isPending}>
                 שמור טיוטה
               </Button>
-              <Button onClick={handleFinalize} disabled={saveMutation.isPending}>
+              <Button onClick={handleFinalize} loading={saveMutation.isPending}>
                 הפק חשבונית
               </Button>
             </Group>
