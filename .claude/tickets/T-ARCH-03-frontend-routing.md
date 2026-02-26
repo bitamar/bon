@@ -43,14 +43,14 @@ All old paths must redirect to their canonical equivalents so existing bookmarks
 
 | Legacy Path | Redirect Target |
 |-------------|----------------|
-| `/business/customers` | `/businesses/:activeBusinessId/customers` |
-| `/business/customers/new` | `/businesses/:activeBusinessId/customers/new` |
-| `/business/customers/:id` | `/businesses/:activeBusinessId/customers/:customerId` |
-| `/business/settings` | `/businesses/:activeBusinessId/settings` |
-| `/business/invoices/new` | `/businesses/:activeBusinessId/invoices/new` |
-| `/business/invoices/:id/edit` | `/businesses/:activeBusinessId/invoices/:invoiceId/edit` |
+| `/business/customers` | `/businesses/:businessId/customers` |
+| `/business/customers/new` | `/businesses/:businessId/customers/new` |
+| `/business/customers/:id` | `/businesses/:businessId/customers/:customerId` |
+| `/business/settings` | `/businesses/:businessId/settings` |
+| `/business/invoices/new` | `/businesses/:businessId/invoices/new` |
+| `/business/invoices/:id/edit` | `/businesses/:businessId/invoices/:invoiceId/edit` |
 
-Where `:activeBusinessId` is resolved from localStorage (last active business). If no active business exists, redirect to `/businesses` (the switcher).
+The `:businessId` value is resolved from localStorage (last active business). If no active business exists, redirect to `/businesses` (the switcher).
 
 Implementation: A single `<LegacyRedirect>` component registered on `/business/*` that:
 1. Reads the active business ID from localStorage
@@ -120,6 +120,7 @@ A new `<BusinessRoute>` layout component that:
 - [ ] Each legacy URL in the table above resolves to the correct canonical URL (test per route)
 - [ ] After redirecting from a legacy route, browser back button does not return to the legacy URL (verifies `replace: true`)
 - [ ] If no active business in localStorage, legacy routes redirect to `/businesses`
+- [ ] Legacy redirects preserve query string and hash (e.g., `/business/customers?status=active#notes` → `/businesses/123/customers?status=active#notes`); test exercises both with and without query/hash
 - [ ] All existing tests updated and passing
 - [ ] `npm run check` passes
 

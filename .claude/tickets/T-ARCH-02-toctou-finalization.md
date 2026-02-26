@@ -71,13 +71,20 @@ export async function finalize(businessId: string, invoiceId: string, body: Fina
     // 4. Recalculate totals
     const totals = recalculateTotals(items, business);
 
-    // 5. Assign sequence number (already inside tx)
+    // 5. Build snapshot — captures customer name, address, tax ID, and business
+    //    details at finalization time so the invoice is self-contained even if
+    //    the customer or business is later edited.
+    const snapshot = buildFinalizationSnapshot(customer, business, body);
+
+    // 6. Assign sequence number (already inside tx)
     // assignInvoiceNumber(businessId, invoiceType) — invoiceType determines the
     // prefix/counter used for sequential numbering (e.g., 'tax_invoice', 'receipt').
     const { sequenceNumber, documentNumber } = await assignInvoiceNumber(businessId, invoice.type, tx);
 
-    // 6. Update invoice
-    return updateInvoice(invoiceId, businessId, { ...totals, ...snapshot, status: 'finalized' }, tx);
+    // 7. Update invoice
+    return updateInvoice(invoiceId, businessId, {
+      ...totals, ...snapshot, sequenceNumber, documentNumber, status: 'finalized',
+    }, tx);
   });
 }
 ```

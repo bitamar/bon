@@ -2,8 +2,8 @@
 
 **Status**: ⬜ Not started
 **Phase**: Cross-cutting (security)
-**Requires**: T-ARCH-01 merged (clean data layer first)
-**Blocks**: Nothing strictly, but should land before T08 (finalization is a destructive action)
+**Requires**: None (RBAC enforcement is route-level preHandlers + frontend conditionals — no data-layer changes needed)
+**Blocks**: Nothing strictly, but should ideally land before T08 so RBAC protects destructive actions (finalize, delete) from the start
 
 ---
 
@@ -102,7 +102,7 @@ All conditional rendering is based on `activeBusiness.role` from context. No new
 | `api/src/routes/customers.ts` | Add `POST .../deactivate` route with role preHandler; reject `isActive: false` in PATCH body |
 | `api/src/routes/businesses.ts` | Tighten to `requireBusinessRole('owner')` (currently owner+admin) |
 | `api/src/services/customer-service.ts` | Add `deactivateCustomer()` method (extracted from update) |
-| `api/tests/routes/invoices.test.ts` | Test: user role → 403 on finalize |
+| `api/tests/routes/invoices.test.ts` | Test: user role → 403 on finalize; user role → 403 on DELETE (invoice still exists after rejection) |
 | `api/tests/routes/customers.test.ts` | Test: user role → 403 on deactivate; user can still PATCH fields |
 | `api/tests/routes/businesses.test.ts` | Test: admin → 403 on settings update |
 | `front/src/pages/InvoiceEdit.tsx` | Disable finalize + delete buttons for `user` role (tooltip: "Requires admin or owner permissions") |
@@ -113,6 +113,7 @@ All conditional rendering is based on `activeBusiness.role` from context. No new
 ## Acceptance Criteria
 
 - [ ] `user` role cannot finalize invoices (API returns 403)
+- [ ] `user` role cannot delete invoices via DELETE (API returns 403; invoice still exists after rejection)
 - [ ] `user` role cannot deactivate customers via `POST .../deactivate` (API returns 403)
 - [ ] `user` role CAN edit customer fields via PATCH (name, email, etc.)
 - [ ] PATCH with `isActive: false` in body returns 400 (directs to deactivate endpoint)
