@@ -34,17 +34,19 @@ interface CustomerFormProps {
   initialStreetAddress?: string;
 }
 
-const TAX_ID_LABELS: Record<string, string> = {
+const TAX_ID_LABELS = {
   company_id: 'מספר חברה (ח.פ.)',
   vat_number: 'מספר עוסק מורשה (ע.מ.)',
   personal_id: 'מספר תעודת זהות (ת.ז.)',
-};
+} as const;
 
-const TAX_ID_TYPE_OPTIONS = [
+type TaxIdKey = keyof typeof TAX_ID_LABELS;
+
+const TAX_ID_TYPE_OPTIONS: { value: TaxIdKey | 'none'; label: string }[] = [
   { value: 'none', label: 'ללא מספר מזהה' },
-  { value: 'company_id', label: TAX_ID_LABELS['company_id']! },
-  { value: 'vat_number', label: TAX_ID_LABELS['vat_number']! },
-  { value: 'personal_id', label: TAX_ID_LABELS['personal_id']! },
+  { value: 'company_id', label: TAX_ID_LABELS.company_id },
+  { value: 'vat_number', label: TAX_ID_LABELS.vat_number },
+  { value: 'personal_id', label: TAX_ID_LABELS.personal_id },
 ];
 
 function getNameLabel(taxIdType: TaxIdType): string {
@@ -60,7 +62,8 @@ function getNameLabel(taxIdType: TaxIdType): string {
 }
 
 function getTaxIdLabel(taxIdType: TaxIdType): string {
-  return TAX_ID_LABELS[taxIdType] ?? 'מספר מזהה';
+  if (taxIdType in TAX_ID_LABELS) return TAX_ID_LABELS[taxIdType as TaxIdKey];
+  return 'מספר מזהה';
 }
 
 const DEFAULT_VALUES: CustomerFormValues = {
