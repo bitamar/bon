@@ -123,20 +123,21 @@ const PRICING: PricingPlan[] = [
 const WA_PATTERN_BG =
   "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9c2b6' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
 
+function scheduleMessages(
+  onAdd: (msg: (typeof CHAT_MESSAGES)[number]) => void
+): ReturnType<typeof setTimeout>[] {
+  return CHAT_MESSAGES.map((msg, i) => setTimeout(() => onAdd(msg), 800 + i * 900));
+}
+
 function WhatsAppMockup() {
   const [visibleMessages, setVisibleMessages] = useState<typeof CHAT_MESSAGES>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setVisibleMessages([]);
-    const timeouts = CHAT_MESSAGES.map((msg, i) =>
-      setTimeout(
-        () => {
-          setVisibleMessages((prev) => [...prev, msg]);
-        },
-        800 + i * 900
-      )
-    );
+    const timeouts = scheduleMessages((msg) => {
+      setVisibleMessages((prev) => [...prev, msg]);
+    });
     return () => timeouts.forEach(clearTimeout);
   }, []);
 
@@ -204,9 +205,9 @@ function WhatsAppMockup() {
           backgroundImage: WA_PATTERN_BG,
         }}
       >
-        {visibleMessages.map((msg, i) => (
+        {visibleMessages.map((msg) => (
           <div
-            key={i}
+            key={`${msg.time}-${msg.type}`}
             className={classes['fadeSlideIn']}
             style={{
               alignSelf: msg.type === 'user' ? 'flex-end' : 'flex-start',
@@ -361,9 +362,9 @@ function PricingCard({ plan }: Readonly<{ plan: PricingPlan }>) {
           marginBottom: 28,
         }}
       >
-        {plan.features.map((f, i) => (
+        {plan.features.map((f) => (
           <div
-            key={i}
+            key={f}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -697,9 +698,9 @@ export function LandingPage() {
             flexWrap: 'wrap',
           }}
         >
-          {STEPS.map((s, i) => (
+          {STEPS.map((s) => (
             <div
-              key={i}
+              key={s.num}
               style={{
                 flex: '1 1 240px',
                 maxWidth: 290,
@@ -822,8 +823,8 @@ export function LandingPage() {
             alignItems: 'flex-start',
           }}
         >
-          {PRICING.map((plan, i) => (
-            <PricingCard key={i} plan={plan} />
+          {PRICING.map((plan) => (
+            <PricingCard key={plan.name} plan={plan} />
           ))}
         </div>
       </section>
