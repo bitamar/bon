@@ -40,14 +40,21 @@ describe('App routing', () => {
     expect(screen.getAllByText('bon')[0]).toBeInTheDocument();
   });
 
-  it('redirects to login when unauthenticated', async () => {
+  it('redirects to landing page when unauthenticated', async () => {
     getMeMock.mockResolvedValueOnce(null);
 
     renderApp();
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /כניסה עם Google/i })).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('חשבונית מס')).toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: /מחירים/ })).toBeInTheDocument();
+  });
+
+  it('shows landing page at /welcome', async () => {
+    getMeMock.mockResolvedValueOnce(null);
+
+    renderApp('/welcome');
+
+    await waitFor(() => expect(screen.getByText('חשבונית מס')).toBeInTheDocument());
   });
 
   it('shows loader before hydration completes', async () => {
@@ -64,8 +71,6 @@ describe('App routing', () => {
     expect(screen.getByLabelText('Loading user')).toBeInTheDocument();
 
     resolveGetMe?.(null);
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /כניסה עם Google/i })).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('חשבונית מס')).toBeInTheDocument());
   });
 });
