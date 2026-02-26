@@ -122,6 +122,35 @@ export async function findInvoiceByIdForUpdate(
 }
 ```
 
+### New Helper — `buildFinalizationSnapshot`
+
+Add to `invoice-service.ts` (co-located with `finalize`). Captures point-in-time data so the finalized invoice is self-contained:
+
+```typescript
+interface FinalizationSnapshot {
+  issueDate: string;          // from body
+  dueDate: string | null;     // from body
+  paymentTerms: string | null; // from body
+  customerSnapshot: {          // null when invoice has no customer
+    name: string;
+    address: string;
+    taxId: string;
+  } | null;
+  businessSnapshot: {
+    name: string;
+    address: string;
+    taxId: string;
+    vatRate: number;
+  };
+}
+
+function buildFinalizationSnapshot(
+  customer: Customer | null,
+  business: Business,
+  body: FinalizeBody
+): FinalizationSnapshot;
+```
+
 ### Pre-requisite from T-ARCH-01
 
 `findBusinessById` in `api/src/repositories/business-repository.ts` must accept a `txOrDb` parameter (currently it does not — verified). T-ARCH-01 adds this.
@@ -131,7 +160,7 @@ export async function findInvoiceByIdForUpdate(
 | File | Change |
 |------|--------|
 | `api/src/repositories/invoice-repository.ts` | Add `findInvoiceByIdForUpdate` |
-| `api/src/services/invoice-service.ts` | Move all finalize reads + validation inside transaction |
+| `api/src/services/invoice-service.ts` | Move all finalize reads + validation inside transaction; add `buildFinalizationSnapshot` helper |
 | `api/tests/services/invoice-service.test.ts` | Add test for concurrent finalization attempt |
 | `api/tests/repositories/invoice-repository.test.ts` | Test for `findInvoiceByIdForUpdate` |
 
