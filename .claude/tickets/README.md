@@ -70,14 +70,13 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 |--------|------|--------|--------|
 | [T06](./T06-invoice-schema.md) | Invoice Data Model & VAT Engine | ✅ | main |
 | [T07](./T07-invoice-create-ui.md) | Invoice API + Create/Edit (backend) | ✅ | main (PR #12) |
-| [T7.5](./T7.5-invoice-edit-frontend.md) | Invoice Create/Edit Frontend (draft editor) | 🔄 | T7.5-invoice-edit-frontend |
-| | *Architecture Fixes T-ARCH-01 through T-ARCH-05 execute here — see [Architecture Fixes](#architecture-fixes-from-deep-review--execute-before-t08) section above* | | |
-| [T08](./T08-invoice-finalization.md) | Invoice Finalization & Detail View (split into 4 sub-tickets) | 🔒 | — |
-| — [T08-A](./T08-A-shared-config.md) | Shared Invoice Config | 🔒 | — |
-| — [T08-B](./T08-B-finalize-backend.md) | Backend: Finalize Endpoint Extension | 🔒 | — |
-| — [T08-C](./T08-C-finalization-flow.md) | Frontend: Finalization Flow | 🔒 | — |
-| — [T08-D](./T08-D-detail-view.md) | Frontend: Detail View + Routing | 🔒 | — |
-| [T09](./T09-invoice-list.md) | Invoice List & Search | 🔒 | — |
+| [T7.5](./T7.5-invoice-edit-frontend.md) | Invoice Create/Edit Frontend (draft editor) | ✅ | main (PR #13) |
+| [T08](./T08-invoice-finalization.md) | Invoice Finalization & Detail View (split into 4 sub-tickets) | ✅ | main |
+| — [T08-A](./T08-A-shared-config.md) | Shared Invoice Config | ✅ | main (PR #18) |
+| — [T08-B](./T08-B-finalize-backend.md) | Backend: Finalize Endpoint Extension | ✅ | main (PR #17) |
+| — [T08-C](./T08-C-finalization-flow.md) | Frontend: Finalization Flow | ✅ | main (PR #22) |
+| — [T08-D](./T08-D-detail-view.md) | Frontend: Detail View + Routing | ✅ | main (PR #22) |
+| [T09](./T09-invoice-list.md) | Invoice List & Search | 🔄 | claude/continue-t8-next-steps-NZgfx |
 | — [T09-B](./T09-B-invoice-aggregates.md) | Invoice List Aggregates & Summary Row | 🔒 | — |
 
 ### Phase 3 — PDF
