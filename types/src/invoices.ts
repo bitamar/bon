@@ -70,7 +70,7 @@ export const updateInvoiceDraftBodySchema = z
   .object({
     customerId: nullableUuid.optional(),
     documentType: documentTypeSchema.optional(),
-    invoiceDate: nullableDateString.optional(),
+    invoiceDate: dateString.optional(),
     dueDate: nullableDateString.optional(),
     notes: z.union([z.string().trim(), z.literal(null)]).optional(),
     internalNotes: z.union([z.string().trim(), z.literal(null)]).optional(),

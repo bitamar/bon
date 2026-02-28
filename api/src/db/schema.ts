@@ -92,7 +92,7 @@ export const businesses = pgTable(
   (table) => [
     check(
       'businesses_soft_delete_check',
-      sql`(${table.isActive} = true AND ${table.deletedAt} IS NULL) OR (${table.isActive} = false AND ${table.deletedAt} IS NOT NULL)`
+      sql`(${table.isActive} AND ${table.deletedAt} IS NULL) OR (NOT ${table.isActive} AND ${table.deletedAt} IS NOT NULL)`
     ),
   ]
 );
@@ -183,7 +183,7 @@ export const customers = pgTable(
     index('customers_business_id_idx').on(table.businessId),
     check(
       'customers_soft_delete_check',
-      sql`(${table.isActive} = true AND ${table.deletedAt} IS NULL) OR (${table.isActive} = false AND ${table.deletedAt} IS NOT NULL)`
+      sql`(${table.isActive} AND ${table.deletedAt} IS NULL) OR (NOT ${table.isActive} AND ${table.deletedAt} IS NOT NULL)`
     ),
   ]
 );

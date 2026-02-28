@@ -261,7 +261,7 @@ export async function getInvoice(businessId: string, invoiceId: string) {
 export type UpdateDraftInput = {
   customerId?: string | null | undefined;
   documentType?: DocumentType | undefined;
-  invoiceDate?: string | null | undefined;
+  invoiceDate?: string | undefined;
   dueDate?: string | null | undefined;
   notes?: string | null | undefined;
   internalNotes?: string | null | undefined;
@@ -280,7 +280,7 @@ export async function updateDraft(businessId: string, invoiceId: string, input: 
     updatedAt: now,
     ...(input.customerId !== undefined && { customerId: input.customerId }),
     ...(input.documentType !== undefined && { documentType: input.documentType }),
-    ...(input.invoiceDate != null && { invoiceDate: input.invoiceDate }),
+    ...(input.invoiceDate !== undefined && { invoiceDate: input.invoiceDate }),
     ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
     ...(input.notes !== undefined && { notes: input.notes }),
     ...(input.internalNotes !== undefined && { internalNotes: input.internalNotes }),

@@ -48,6 +48,12 @@ describe('customer-repository', () => {
     await resetDb();
   });
 
+  // ── helpers ──
+
+  function deletedCustomerOverrides(extra: Record<string, unknown> = {}) {
+    return { name: 'Deleted', isActive: false, deletedAt: new Date(), ...extra };
+  }
+
   // ── soft-delete CHECK constraint ────────────────────────────────────────
 
   describe('soft-delete CHECK constraint', () => {
@@ -179,12 +185,7 @@ describe('customer-repository', () => {
 
     it('returns null for a soft-deleted customer with matching taxId', async () => {
       const { business } = await setupBusiness();
-      await insertTestCustomer(business.id, {
-        name: 'Deleted',
-        taxId: '515303055',
-        isActive: false,
-        deletedAt: new Date(),
-      });
+      await insertTestCustomer(business.id, deletedCustomerOverrides({ taxId: '515303055' }));
 
       const result = await findCustomerByTaxId(business.id, '515303055');
 
@@ -252,11 +253,7 @@ describe('customer-repository', () => {
     it('returns all active customers when no query', async () => {
       const { business } = await setupBusiness();
       await insertTestCustomer(business.id, { name: 'Active' });
-      await insertTestCustomer(business.id, {
-        name: 'Deleted',
-        isActive: false,
-        deletedAt: new Date(),
-      });
+      await insertTestCustomer(business.id, deletedCustomerOverrides());
 
       const results = await searchCustomers(business.id, undefined, true, 50);
 
@@ -267,11 +264,7 @@ describe('customer-repository', () => {
     it('returns inactive customers when activeOnly is false', async () => {
       const { business } = await setupBusiness();
       await insertTestCustomer(business.id, { name: 'Active' });
-      await insertTestCustomer(business.id, {
-        name: 'Deleted',
-        isActive: false,
-        deletedAt: new Date(),
-      });
+      await insertTestCustomer(business.id, deletedCustomerOverrides());
 
       const results = await searchCustomers(business.id, undefined, false, 50);
 

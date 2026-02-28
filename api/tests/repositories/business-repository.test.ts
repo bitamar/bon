@@ -8,6 +8,18 @@ import {
 } from '../../src/repositories/business-repository.js';
 import { createUser, createTestBusiness } from '../utils/businesses.js';
 
+// ── helpers ──
+
+function buildBusinessData(userId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    name: 'Test Biz',
+    businessType: 'exempt_dealer' as const,
+    registrationNumber: randomUUID(),
+    createdByUserId: userId,
+    ...overrides,
+  };
+}
+
 describe('business-repository', () => {
   beforeEach(async () => {
     await resetDb();
@@ -16,18 +28,6 @@ describe('business-repository', () => {
   afterEach(async () => {
     await resetDb();
   });
-
-  // ── helpers ──
-
-  function buildBusinessData(userId: string, overrides: Record<string, unknown> = {}) {
-    return {
-      name: 'Test Biz',
-      businessType: 'exempt_dealer' as const,
-      registrationNumber: randomUUID(),
-      createdByUserId: userId,
-      ...overrides,
-    };
-  }
 
   // ── soft-delete CHECK constraint ────────────────────────────────────────
 

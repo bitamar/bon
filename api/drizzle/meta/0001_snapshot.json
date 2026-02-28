@@ -1,5 +1,5 @@
 {
-  "id": "b7910272-f706-4515-9dbc-49508da49b57",
+  "id": "65750fb2-7d4f-45b4-9408-3b4faebbf7cc",
   "prevId": "9ba6b6c1-ddf2-4329-933d-6d915835f096",
   "version": "7",
   "dialect": "postgresql",
@@ -159,7 +159,7 @@
       "checkConstraints": {
         "businesses_soft_delete_check": {
           "name": "businesses_soft_delete_check",
-          "value": "(\"businesses\".\"is_active\" = true AND \"businesses\".\"deleted_at\" IS NULL) OR (\"businesses\".\"is_active\" = false AND \"businesses\".\"deleted_at\" IS NOT NULL)"
+          "value": "(\"businesses\".\"is_active\" AND \"businesses\".\"deleted_at\" IS NULL) OR (NOT \"businesses\".\"is_active\" AND \"businesses\".\"deleted_at\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
@@ -334,7 +334,7 @@
       "checkConstraints": {
         "customers_soft_delete_check": {
           "name": "customers_soft_delete_check",
-          "value": "(\"customers\".\"is_active\" = true AND \"customers\".\"deleted_at\" IS NULL) OR (\"customers\".\"is_active\" = false AND \"customers\".\"deleted_at\" IS NOT NULL)"
+          "value": "(\"customers\".\"is_active\" AND \"customers\".\"deleted_at\" IS NULL) OR (NOT \"customers\".\"is_active\" AND \"customers\".\"deleted_at\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
