@@ -183,9 +183,9 @@ function WhatsAppMockup() {
           backgroundImage: WA_PATTERN_BG,
         }}
       >
-        {CHAT_MESSAGES.map((msg, i) => (
+        {CHAT_MESSAGES.map((msg) => (
           <div
-            key={i}
+            key={`${msg.type}-${msg.time}`}
             style={{
               alignSelf: msg.type === 'user' ? 'flex-end' : 'flex-start',
               maxWidth: '82%',
@@ -338,9 +338,9 @@ function PricingCard({ plan }: Readonly<{ plan: PricingPlan }>) {
           marginBottom: 28,
         }}
       >
-        {plan.features.map((f, i) => (
+        {plan.features.map((f) => (
           <div
-            key={i}
+            key={f}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -664,9 +664,9 @@ export function LandingPage() {
             flexWrap: 'wrap',
           }}
         >
-          {STEPS.map((s, i) => (
+          {STEPS.map((s) => (
             <div
-              key={i}
+              key={s.num}
               style={{
                 flex: '1 1 240px',
                 maxWidth: 290,
@@ -788,8 +788,8 @@ export function LandingPage() {
             alignItems: 'flex-start',
           }}
         >
-          {PRICING.map((plan, i) => (
-            <PricingCard key={i} plan={plan} />
+          {PRICING.map((plan) => (
+            <PricingCard key={plan.name} plan={plan} />
           ))}
         </div>
       </section>
