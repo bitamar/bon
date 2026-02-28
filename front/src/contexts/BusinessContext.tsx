@@ -63,6 +63,9 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
       }
     }
 
+    // Don't invalidate while still loading — businesses is [] during fetch
+    if (isPending) return;
+
     if (activeBusinessId && !businesses.some((b) => b.id === activeBusinessId)) {
       if (businesses.length > 0) {
         const firstBusiness = businesses[0];
@@ -85,7 +88,7 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
         localStorage.removeItem(ACTIVE_BUSINESS_KEY);
       }
     }
-  }, [businesses, activeBusinessId, urlBusinessId, location, navigate]);
+  }, [businesses, activeBusinessId, isPending, urlBusinessId, location, navigate]);
 
   const activeBusiness = useMemo(() => {
     if (!activeBusinessId) return null;
