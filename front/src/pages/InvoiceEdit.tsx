@@ -35,7 +35,7 @@ import { fetchBusiness } from '../api/businesses';
 import { fetchCustomer } from '../api/customers';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
-import { formatMinorUnits, toMinorUnits } from '@bon/types/formatting';
+import { formatMinorUnits, fromMinorUnits, toMinorUnits } from '@bon/types/formatting';
 import { showErrorNotification, showSuccessNotification } from '../lib/notifications';
 import { calculateInvoiceTotals } from '@bon/types/vat';
 import type { DocumentType, UpdateInvoiceDraftBody } from '@bon/types/invoices';
@@ -193,7 +193,7 @@ export function InvoiceEdit() {
                   description: it.description,
                   catalogNumber: it.catalogNumber ?? '',
                   quantity: it.quantity,
-                  unitPrice: it.unitPriceMinorUnits / 100,
+                  unitPrice: fromMinorUnits(it.unitPriceMinorUnits),
                   discountPercent: it.discountPercent,
                   vatRateBasisPoints: it.vatRateBasisPoints,
                 }))
