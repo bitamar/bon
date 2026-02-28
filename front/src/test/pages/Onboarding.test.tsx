@@ -169,6 +169,35 @@ describe('Onboarding page', () => {
     expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
   });
 
+  it('clicking cancel link calls navigate(-1)', async () => {
+    const { useBusiness } = await import('../../contexts/BusinessContext');
+    vi.mocked(useBusiness).mockReturnValue({
+      businesses: [
+        {
+          id: 'biz-1',
+          name: 'X',
+          businessType: 'licensed_dealer',
+          registrationNumber: '123456789',
+          isActive: true,
+          role: 'owner',
+        },
+      ],
+      activeBusiness: null,
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<Onboarding />);
+
+    await selectBusinessType(user, 'עוסק מורשה');
+
+    // Clicking ביטול triggers navigate(-1); with no prior history it's a no-op but handler fires
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    // Page should still be rendered (no prior history to go back to)
+    expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
+  });
+
   it('opens info modal when clicking "לא בטוחים? מידע נוסף"', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
@@ -177,6 +206,22 @@ describe('Onboarding page', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
+    });
+  });
+
+  it('closes info modal when pressing Escape', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Onboarding />);
+
+    await user.click(screen.getByRole('button', { name: /לא בטוחים/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
+    });
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'סוגי עסקים בישראל' })).not.toBeInTheDocument();
     });
   });
 

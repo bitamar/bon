@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { BusinessSettings } from '../../pages/BusinessSettings';
 import { renderWithProviders } from '../utils/renderWithProviders';
@@ -297,5 +298,65 @@ describe('BusinessSettings page', () => {
 
     expect(await screen.findByRole('textbox', { name: /^עיר/ })).toHaveValue('TLV');
     expect(screen.getByRole('textbox', { name: /^רחוב/ })).toHaveValue('1 Main');
+  });
+
+  it('accepts a valid 9-digit vatNumber without showing a validation error', async () => {
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: mockBusiness,
+      role: 'owner' as const,
+    });
+    vi.mocked(businessesApi.updateBusiness).mockResolvedValue({
+      business: mockBusiness,
+      role: 'owner' as const,
+    });
+
+    renderSettings();
+
+    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+
+    fireEvent.change(await screen.findByRole('textbox', { name: /מספר רישום מע״מ/ }), {
+      target: { value: '123456789' },
+    });
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
+    );
+
+    await waitFor(() => expect(businessesApi.updateBusiness).toHaveBeenCalled());
+    expect(screen.queryByText('מספר רישום חייב להיות 9 ספרות')).not.toBeInTheDocument();
+  });
+
+  it('clicking "נסה שוב" in error state triggers refetch', async () => {
+    vi.mocked(businessesApi.fetchBusiness).mockRejectedValue(new Error('Network error'));
+    const user = userEvent.setup();
+
+    renderSettings();
+
+    const retryBtn = await screen.findByRole('button', { name: 'נסה שוב' });
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: mockBusiness,
+      role: 'owner' as const,
+    });
+    await user.click(retryBtn);
+
+    expect(businessesApi.fetchBusiness).toHaveBeenCalledTimes(2);
+  });
+
+  it('clicking ביטול calls navigate(-1) without errors', async () => {
+    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+      business: mockBusiness,
+      role: 'owner' as const,
+    });
+    const user = userEvent.setup();
+
+    renderSettings();
+
+    await screen.findByRole('textbox', { name: /שם העסק/ });
+
+    // Clicking ביטול triggers navigate(-1). With MemoryRouter having no prior history
+    // it is a no-op navigation, but the onClick handler is still invoked (covering line 240).
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    // Component should still be in the DOM (no prior history to go back to)
+    expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
   });
 });

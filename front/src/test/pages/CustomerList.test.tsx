@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { CustomerList } from '../../pages/CustomerList';
@@ -145,5 +145,83 @@ describe('CustomerList page', () => {
 
     await screen.findByText('עדיין אין לקוחות');
     expect(customersApi.fetchCustomers).toHaveBeenCalledWith('biz-1', undefined, undefined, 200);
+  });
+
+  it('clicking "נסה שוב" in error state calls refetch', async () => {
+    const user = userEvent.setup();
+    vi.mocked(customersApi.fetchCustomers).mockRejectedValue(new Error('fail'));
+    renderCustomerList();
+
+    const retryBtn = await screen.findByRole('button', { name: 'נסה שוב' });
+    vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
+    await user.click(retryBtn);
+
+    expect(customersApi.fetchCustomers).toHaveBeenCalledTimes(2);
+  });
+
+  it('clicking "הוסף לקוח ראשון" in empty state navigates to new customer page', async () => {
+    const user = userEvent.setup();
+    vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/customers" element={<CustomerList />} />
+        <Route
+          path="/businesses/:businessId/customers/new"
+          element={<div>new-customer-page</div>}
+        />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/customers'] } }
+    );
+
+    const addBtn = await screen.findByRole('button', { name: 'הוסף לקוח ראשון' });
+    await user.click(addBtn);
+
+    expect(await screen.findByText('new-customer-page')).toBeInTheDocument();
+  });
+
+  it('clicking "לקוח חדש" navigates to new customer page', async () => {
+    const user = userEvent.setup();
+    vi.mocked(customersApi.fetchCustomers).mockResolvedValue({
+      customers: [mockCustomers[0]!],
+    });
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/customers" element={<CustomerList />} />
+        <Route
+          path="/businesses/:businessId/customers/new"
+          element={<div>new-customer-page</div>}
+        />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/customers'] } }
+    );
+
+    const newBtn = await screen.findByRole('button', { name: 'לקוח חדש' });
+    await user.click(newBtn);
+
+    expect(await screen.findByText('new-customer-page')).toBeInTheDocument();
+  });
+
+  it('changing filter to "הכל" includes inactive customers in the fetch', async () => {
+    const user = userEvent.setup();
+    vi.mocked(customersApi.fetchCustomers).mockResolvedValue({
+      customers: [mockCustomers[0]!],
+    });
+    renderCustomerList();
+
+    await screen.findByText('חברת אלפא');
+
+    const allOption = screen.getByRole('radio', { name: 'הכל' });
+    await user.click(allOption);
+
+    await waitFor(() => {
+      expect(customersApi.fetchCustomers).toHaveBeenCalledWith(
+        'biz-1',
+        undefined,
+        'false',
+        expect.any(Number)
+      );
+    });
   });
 });

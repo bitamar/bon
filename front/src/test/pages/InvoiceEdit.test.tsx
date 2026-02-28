@@ -217,6 +217,25 @@ describe('InvoiceEdit page', () => {
     expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
   });
 
+  it('shows error when clicking finalize with line item that has price but no description', async () => {
+    const noDesc = makeDraftInvoice();
+    noDesc.items = [{ ...noDesc.items[0]!, description: '' }];
+    setupDraftMocks();
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(noDesc);
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+    await user.click(screen.getByRole('button', { name: 'הפק חשבונית' }));
+
+    await waitFor(() => {
+      expect(showErrorNotification).toHaveBeenCalledWith(
+        'יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר'
+      );
+    });
+    expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
+  });
+
   it('saves draft before starting finalization flow', async () => {
     const withCustomer = { customerId: 'cust-1' };
     setupDraftMocks(withCustomer);
@@ -234,6 +253,45 @@ describe('InvoiceEdit page', () => {
 
     // After save succeeds, finalization flow starts (profile gate opens because mock business is incomplete)
     expect(await screen.findByText('נדרש להשלים פרטי עסק')).toBeInTheDocument();
+  });
+
+  it('disables finalize and delete buttons when role is user', async () => {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer' as const,
+        role: 'user',
+      },
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+    setupDraftMocks();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    expect(screen.getByRole('button', { name: 'מחק טיוטה' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'הפק חשבונית' })).toBeDisabled();
+  });
+
+  it('shows validation errors alert when finalizing with no customer selected', async () => {
+    setupDraftMocks(); // draft has customerId: null by default
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(makeDraftInvoice());
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    await user.click(screen.getByRole('button', { name: 'הפק חשבונית' }));
+
+    await waitFor(() => {
+      expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalled();
+    });
+
+    expect(await screen.findByText('לא ניתן להפיק חשבונית')).toBeInTheDocument();
+    expect(screen.getByText('יש לבחור לקוח לפני הפקת חשבונית')).toBeInTheDocument();
   });
 
   it('does not start finalization when save fails', async () => {
@@ -318,6 +376,33 @@ describe('InvoiceEdit page', () => {
     await screen.findByRole('heading', { name: 'עריכת חשבונית' });
 
     expect(screen.getByText('נשמר')).toBeInTheDocument();
+  });
+
+  it('changing document type via SegmentedControl updates form', async () => {
+    setupDraftMocks();
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    // Click the "חשבונית מס קבלה" radio option to trigger onChange
+    const radioOption = screen.getByRole('radio', { name: 'חשבונית מס קבלה' });
+    await user.click(radioOption);
+
+    // The SegmentedControl onChange should have fired; the description updates
+    expect(screen.getByText('מסמך חיוב הכולל אישור תשלום')).toBeInTheDocument();
+  });
+
+  it('changing internal notes textarea updates form', async () => {
+    setupDraftMocks();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    const internalNotesInput = screen.getByRole('textbox', { name: 'הערות פנימיות' });
+    fireEvent.change(internalNotesInput, { target: { value: 'הערה פנימית' } });
+
+    expect(internalNotesInput).toHaveValue('הערה פנימית');
   });
 
   it('shows success toast on manual save', async () => {
