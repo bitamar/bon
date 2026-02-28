@@ -272,6 +272,7 @@ export function InvoiceEdit() {
   // ── Autosave (debounced 2s, only after hydration) ──
 
   const debouncedSave = useDebouncedCallback(() => {
+    if (saveMutation.isPending) return;
     if (form.isDirty()) {
       const payload = buildPayload(form.values);
       if (payload) {
@@ -452,8 +453,9 @@ export function InvoiceEdit() {
                   data={DOC_TYPE_OPTIONS}
                   value={form.values.documentType}
                   onChange={(val) => {
-                    const match = DOC_TYPE_OPTIONS.find((o) => o.value === val);
-                    if (match) form.setFieldValue('documentType', match.value);
+                    if (DOC_TYPE_OPTIONS.some((o) => o.value === val)) {
+                      form.setFieldValue('documentType', val as DocumentType);
+                    }
                   }}
                   fullWidth
                 />
