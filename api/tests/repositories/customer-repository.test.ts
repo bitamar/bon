@@ -48,6 +48,37 @@ describe('customer-repository', () => {
     await resetDb();
   });
 
+  // ── soft-delete CHECK constraint ────────────────────────────────────────
+
+  describe('soft-delete CHECK constraint', () => {
+    it('rejects inserting isActive=false without deletedAt', async () => {
+      const { business } = await setupBusiness();
+
+      await expect(insertTestCustomer(business.id, { isActive: false })).rejects.toThrow();
+    });
+
+    it('rejects inserting isActive=true with deletedAt set', async () => {
+      const { business } = await setupBusiness();
+
+      await expect(
+        insertTestCustomer(business.id, { isActive: true, deletedAt: new Date() })
+      ).rejects.toThrow();
+    });
+
+    it('allows inserting isActive=false with deletedAt set', async () => {
+      const { business } = await setupBusiness();
+
+      const result = await insertTestCustomer(business.id, {
+        isActive: false,
+        deletedAt: new Date(),
+      });
+
+      expect(result).not.toBeNull();
+      expect(result?.isActive).toBe(false);
+      expect(result?.deletedAt).not.toBeNull();
+    });
+  });
+
   // ── insertCustomer ──────────────────────────────────────────────────────
 
   describe('insertCustomer', () => {
@@ -152,6 +183,7 @@ describe('customer-repository', () => {
         name: 'Deleted',
         taxId: '515303055',
         isActive: false,
+        deletedAt: new Date(),
       });
 
       const result = await findCustomerByTaxId(business.id, '515303055');
@@ -220,7 +252,11 @@ describe('customer-repository', () => {
     it('returns all active customers when no query', async () => {
       const { business } = await setupBusiness();
       await insertTestCustomer(business.id, { name: 'Active' });
-      await insertTestCustomer(business.id, { name: 'Deleted', isActive: false });
+      await insertTestCustomer(business.id, {
+        name: 'Deleted',
+        isActive: false,
+        deletedAt: new Date(),
+      });
 
       const results = await searchCustomers(business.id, undefined, true, 50);
 
@@ -231,7 +267,11 @@ describe('customer-repository', () => {
     it('returns inactive customers when activeOnly is false', async () => {
       const { business } = await setupBusiness();
       await insertTestCustomer(business.id, { name: 'Active' });
-      await insertTestCustomer(business.id, { name: 'Deleted', isActive: false });
+      await insertTestCustomer(business.id, {
+        name: 'Deleted',
+        isActive: false,
+        deletedAt: new Date(),
+      });
 
       const results = await searchCustomers(business.id, undefined, false, 50);
 

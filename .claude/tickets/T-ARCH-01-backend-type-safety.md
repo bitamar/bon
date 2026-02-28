@@ -105,5 +105,5 @@ Target: ~8–12 files changed. No new features, no new endpoints. Pure refactor.
 ## Links
 
 - Branch: `claude/implement-arch-tickets-PORUw`
-- PR: pending creation (branch pushed)
+- PR: `#29`
 - Deployed: ⬜

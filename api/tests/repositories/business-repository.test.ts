@@ -17,6 +17,50 @@ describe('business-repository', () => {
     await resetDb();
   });
 
+  // ── helpers ──
+
+  function buildBusinessData(userId: string, overrides: Record<string, unknown> = {}) {
+    return {
+      name: 'Test Biz',
+      businessType: 'exempt_dealer' as const,
+      registrationNumber: randomUUID(),
+      createdByUserId: userId,
+      ...overrides,
+    };
+  }
+
+  // ── soft-delete CHECK constraint ────────────────────────────────────────
+
+  describe('soft-delete CHECK constraint', () => {
+    it('rejects inserting isActive=false without deletedAt', async () => {
+      const user = await createUser();
+
+      await expect(
+        insertBusiness(buildBusinessData(user.id, { isActive: false }))
+      ).rejects.toThrow();
+    });
+
+    it('rejects inserting isActive=true with deletedAt set', async () => {
+      const user = await createUser();
+
+      await expect(
+        insertBusiness(buildBusinessData(user.id, { isActive: true, deletedAt: new Date() }))
+      ).rejects.toThrow();
+    });
+
+    it('allows inserting isActive=false with deletedAt set', async () => {
+      const user = await createUser();
+
+      const result = await insertBusiness(
+        buildBusinessData(user.id, { isActive: false, deletedAt: new Date() })
+      );
+
+      expect(result).not.toBeNull();
+      expect(result?.isActive).toBe(false);
+      expect(result?.deletedAt).not.toBeNull();
+    });
+  });
+
   describe('insertBusiness', () => {
     it('inserts and returns a business record', async () => {
       const user = await createUser();

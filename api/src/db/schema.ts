@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   date,
   foreignKey,
   index,
@@ -62,30 +63,39 @@ export const sessions = pgTable(
   ]
 );
 
-export const businesses = pgTable('businesses', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: text('name').notNull(),
-  businessType: businessTypeEnum('business_type').notNull(),
-  registrationNumber: text('registration_number').notNull().unique(),
-  vatNumber: text('vat_number').unique(),
-  streetAddress: text('street_address'),
-  city: text('city'),
-  postalCode: text('postal_code'),
-  phone: text('phone'),
-  email: text('email'),
-  invoiceNumberPrefix: text('invoice_number_prefix'),
-  startingInvoiceNumber: integer('starting_invoice_number').notNull().default(1),
-  // stored as basis points: 1700 = 17.00%
-  defaultVatRate: integer('default_vat_rate').notNull().default(STANDARD_VAT_RATE_BP),
-  logoUrl: text('logo_url'),
-  isActive: boolean('is_active').notNull().default(true),
-  deletedAt: timestamp('deleted_at', { withTimezone: true }),
-  createdByUserId: uuid('created_by_user_id')
-    .notNull()
-    .references(() => users.id),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export const businesses = pgTable(
+  'businesses',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    businessType: businessTypeEnum('business_type').notNull(),
+    registrationNumber: text('registration_number').notNull().unique(),
+    vatNumber: text('vat_number').unique(),
+    streetAddress: text('street_address'),
+    city: text('city'),
+    postalCode: text('postal_code'),
+    phone: text('phone'),
+    email: text('email'),
+    invoiceNumberPrefix: text('invoice_number_prefix'),
+    startingInvoiceNumber: integer('starting_invoice_number').notNull().default(1),
+    // stored as basis points: 1700 = 17.00%
+    defaultVatRate: integer('default_vat_rate').notNull().default(STANDARD_VAT_RATE_BP),
+    logoUrl: text('logo_url'),
+    isActive: boolean('is_active').notNull().default(true),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check(
+      'businesses_soft_delete_check',
+      sql`(${table.isActive} = true AND ${table.deletedAt} IS NULL) OR (${table.isActive} = false AND ${table.deletedAt} IS NOT NULL)`
+    ),
+  ]
+);
 
 export const userBusinesses = pgTable(
   'user_businesses',
@@ -171,6 +181,10 @@ export const customers = pgTable(
         sql.join([table.taxId, sql.raw('is not null and'), table.isActive, sql.raw('= true')])
       ),
     index('customers_business_id_idx').on(table.businessId),
+    check(
+      'customers_soft_delete_check',
+      sql`(${table.isActive} = true AND ${table.deletedAt} IS NULL) OR (${table.isActive} = false AND ${table.deletedAt} IS NOT NULL)`
+    ),
   ]
 );
 
