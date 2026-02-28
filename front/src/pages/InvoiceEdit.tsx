@@ -203,7 +203,7 @@ export function InvoiceEdit() {
       form.resetDirty();
       hasHydrated.current = true;
     }
-  }, [invoiceQuery.data, defaultVatRate, form]);
+  }, [invoiceQuery.data, defaultVatRate]);
 
   // ── VAT lock logic ──
 
@@ -275,7 +275,7 @@ export function InvoiceEdit() {
     if (form.isDirty()) {
       const payload = buildPayload(form.values);
       if (payload) {
-        savedValuesRef.current = form.values;
+        savedValuesRef.current = structuredClone(form.values);
         saveMutation.mutate(payload);
       }
     }
@@ -296,6 +296,7 @@ export function InvoiceEdit() {
     const handler = (e: BeforeUnloadEvent) => {
       if (isDirty && !isSaving) {
         e.preventDefault();
+        e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handler);
