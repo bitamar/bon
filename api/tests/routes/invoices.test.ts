@@ -145,6 +145,21 @@ describe('routes/invoices', () => {
     return ctx;
   }
 
+  async function listInvoicesReq(sessionId: string, businessId: string, query?: string) {
+    const url = query
+      ? `/businesses/${businessId}/invoices?${query}`
+      : `/businesses/${businessId}/invoices`;
+    return injectAuthed(ctx.app, sessionId, { method: 'GET', url });
+  }
+
+  async function setupOwnerWithTwoDrafts() {
+    const { sessionId, business } = await createOwnerWithBusiness();
+    const customer = await createCustomer(sessionId, business.id);
+    const first = await createDraftWithItems(sessionId, business.id, customer.id);
+    const second = await createDraftWithItems(sessionId, business.id, customer.id);
+    return { sessionId, business, customer, first, second };
+  }
+
   // ── POST ──
 
   describe('POST /businesses/:businessId/invoices', () => {
@@ -461,23 +476,6 @@ describe('routes/invoices', () => {
   // ── GET LIST ──
 
   describe('GET /businesses/:businessId/invoices', () => {
-    // ── helpers ──
-
-    async function listInvoicesReq(sessionId: string, businessId: string, query?: string) {
-      return injectAuthed(ctx.app, sessionId, {
-        method: 'GET',
-        url: `/businesses/${businessId}/invoices${query ? `?${query}` : ''}`,
-      });
-    }
-
-    async function setupOwnerWithTwoDrafts() {
-      const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(sessionId, business.id);
-      const first = await createDraftWithItems(sessionId, business.id, customer.id);
-      const second = await createDraftWithItems(sessionId, business.id, customer.id);
-      return { sessionId, business, customer, first, second };
-    }
-
     it('returns empty list when no invoices exist', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 

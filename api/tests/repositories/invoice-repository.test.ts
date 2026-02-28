@@ -50,6 +50,20 @@ async function createTestInvoice(bizId: string, overrides: Record<string, unknow
   });
 }
 
+async function seedCustomer(bizId: string) {
+  const now = new Date();
+  const [customer] = await db
+    .insert(customers)
+    .values({
+      businessId: bizId,
+      name: `Customer ${randomUUID()}`,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
+  return customer!;
+}
+
 function makeItem(invoiceId: string, position: number) {
   return {
     invoiceId,
@@ -231,40 +245,6 @@ describe('findInvoices / countInvoices', () => {
 
   // ── helpers ──
 
-  async function seedBiz() {
-    const [user] = await db
-      .insert(users)
-      .values({ email: `user-${randomUUID()}@test.com`, name: 'Test' })
-      .returning();
-    const now = new Date();
-    const [biz] = await db
-      .insert(businesses)
-      .values({
-        name: 'Test Biz',
-        businessType: 'licensed_dealer',
-        registrationNumber: String(randomInt(100_000_000, 1_000_000_000)),
-        createdByUserId: user!.id,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
-    return biz!;
-  }
-
-  async function seedCustomer(bizId: string) {
-    const now = new Date();
-    const [customer] = await db
-      .insert(customers)
-      .values({
-        businessId: bizId,
-        name: `Customer ${randomUUID()}`,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
-    return customer!;
-  }
-
   function baseFilters() {
     return {
       businessId,
@@ -276,7 +256,7 @@ describe('findInvoices / countInvoices', () => {
 
   beforeEach(async () => {
     await resetDb();
-    const biz = await seedBiz();
+    const biz = await seedBusinessWithOwner();
     businessId = biz.id;
   });
 
@@ -423,7 +403,7 @@ describe('findInvoices / countInvoices', () => {
   });
 
   it('isolates invoices between businesses', async () => {
-    const otherBiz = await seedBiz();
+    const otherBiz = await seedBusinessWithOwner();
 
     await createTestInvoice(businessId);
     await createTestInvoice(businessId);
