@@ -263,6 +263,51 @@ describe('InvoiceEdit page', () => {
     expect(screen.getByRole('button', { name: 'נסה שוב' })).toBeInTheDocument();
   });
 
+  it('retry button triggers refetch after error', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockRejectedValue(new Error('network error'));
+    vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
+    const user = userEvent.setup();
+    renderEdit();
+
+    expect(await screen.findByText('לא הצלחנו לטעון את החשבונית')).toBeInTheDocument();
+
+    // Set up successful response before clicking retry
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeDraftInvoice());
+
+    await user.click(screen.getByRole('button', { name: 'נסה שוב' }));
+
+    expect(await screen.findByRole('heading', { name: 'עריכת חשבונית' })).toBeInTheDocument();
+  });
+
+  it('changing notes fields updates form state', async () => {
+    setupDraftMocks();
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(makeDraftInvoice());
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    const notesTextarea = screen.getByLabelText('הערות ללקוח');
+    await user.clear(notesTextarea);
+    await user.type(notesTextarea, 'הערה חדשה');
+
+    const internalNotesTextarea = screen.getByLabelText('הערות פנימיות');
+    await user.type(internalNotesTextarea, 'הערה פנימית');
+
+    await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
+
+    await waitFor(() => {
+      expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalledWith(
+        'biz-1',
+        'inv-1',
+        expect.objectContaining({
+          notes: 'הערה חדשה',
+          internalNotes: 'הערה פנימית',
+        })
+      );
+    });
+  });
+
   it('locks VAT to 0 when document type is receipt', async () => {
     const receiptInvoice = makeDraftInvoice({ documentType: 'receipt' });
     receiptInvoice.items = [{ ...receiptInvoice.items[0]!, vatRateBasisPoints: 1700 }];
@@ -307,6 +352,63 @@ describe('InvoiceEdit page', () => {
     await waitFor(() => {
       expect(invoicesApi.deleteInvoiceDraft).toHaveBeenCalledWith('biz-1', 'inv-1');
     });
+  });
+
+  it('initializes with an empty row when invoice has no items', async () => {
+    const noItems = makeDraftInvoice();
+    noItems.items = [];
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(noItems);
+    vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(noItems);
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    // An empty row should be rendered (description input is empty)
+    await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
+
+    await waitFor(() => {
+      expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalledWith(
+        'biz-1',
+        'inv-1',
+        expect.objectContaining({ items: [] })
+      );
+    });
+  });
+
+  it('sorts items by position before populating form', async () => {
+    const outOfOrder = makeDraftInvoice();
+    outOfOrder.items = [
+      { ...outOfOrder.items[0]!, id: 'item-2', position: 1, description: 'שני' },
+      { ...outOfOrder.items[0]!, id: 'item-1', position: 0, description: 'ראשון' },
+    ];
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(outOfOrder);
+    vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    const descriptions = screen.getAllByDisplayValue(/ראשון|שני/);
+    expect(descriptions[0]).toHaveValue('ראשון');
+    expect(descriptions[1]).toHaveValue('שני');
+  });
+
+  it('shows validation errors when finalizing with no customer selected', async () => {
+    setupDraftMocks({ customerId: null });
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(makeDraftInvoice());
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    await user.click(screen.getByRole('button', { name: 'הפק חשבונית' }));
+
+    await waitFor(() => {
+      expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalled();
+    });
+
+    expect(await screen.findByText('יש לבחור לקוח לפני הפקת חשבונית')).toBeInTheDocument();
   });
 
   // ── Save indicator ──

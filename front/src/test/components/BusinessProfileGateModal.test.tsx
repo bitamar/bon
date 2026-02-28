@@ -103,4 +103,29 @@ describe('BusinessProfileGateModal', () => {
     expect(await screen.findByText('לא הצלחנו לשמור את פרטי העסק')).toBeInTheDocument();
     expect(defaultProps.onSaved).not.toHaveBeenCalled();
   });
+
+  it('clicking cancel clears error and calls onClose', async () => {
+    vi.mocked(businessApi.updateBusiness).mockRejectedValue(new Error('network'));
+    const user = userEvent.setup();
+    renderModal({ name: '' });
+
+    await user.type(screen.getByLabelText(/שם העסק/), 'עסק חדש');
+    await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
+    expect(await screen.findByText('לא הצלחנו לשמור את פרטי העסק')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    expect(defaultProps.onClose).toHaveBeenCalled();
+    expect(screen.queryByText('לא הצלחנו לשמור את פרטי העסק')).not.toBeInTheDocument();
+  });
+
+  it('shows validation error when submitting with missing address', async () => {
+    const user = userEvent.setup();
+    renderModal({ streetAddress: null, city: null });
+
+    await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
+
+    expect(screen.getByText('עיר נדרשת')).toBeInTheDocument();
+    expect(businessApi.updateBusiness).not.toHaveBeenCalled();
+  });
 });

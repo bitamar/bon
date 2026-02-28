@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFinalizationFlow } from '../../hooks/useFinalizationFlow';
 import { makeTestBusiness } from '../utils/businessStubs';
+import { HttpError } from '../../lib/http';
 import type { ReactNode } from 'react';
 
 vi.mock('../../api/invoices', () => ({
@@ -237,5 +238,91 @@ describe('useFinalizationFlow', () => {
     expect(result.current.step).toBe('idle');
     expect(result.current.vatExemptionReason).toBeNull();
     expect(result.current.confirming).toBe(false);
+  });
+
+  it('shows validation error when invoiceDate is more than 7 days in the future', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 10);
+
+    const { result } = renderHook(
+      () => useFinalizationFlow({ ...defaultParams, invoiceDate: futureDate }),
+      { wrapper: makeWrapper() }
+    );
+
+    act(() => result.current.startFinalization());
+
+    expect(result.current.validationErrors).toContain(
+      'תאריך החשבונית לא יכול להיות יותר מ-7 ימים בעתיד'
+    );
+    expect(result.current.step).toBe('idle');
+  });
+
+  it('onProfileSaved transitions to vat_exemption when needsVatExemption is true', () => {
+    const incompleteBusiness = { ...makeTestBusiness(), city: null };
+    const { result } = renderHook(
+      () =>
+        useFinalizationFlow({
+          ...defaultParams,
+          business: incompleteBusiness,
+          businessType: 'licensed_dealer',
+          totalVatMinorUnits: 0,
+        }),
+      { wrapper: makeWrapper() }
+    );
+
+    act(() => result.current.startFinalization());
+    expect(result.current.step).toBe('profile_gate');
+
+    act(() => result.current.onProfileSaved());
+    expect(result.current.step).toBe('vat_exemption');
+  });
+
+  it('confirmFinalize handles customer_inactive error', async () => {
+    vi.mocked(invoicesApi.finalizeInvoice).mockRejectedValue(
+      new HttpError(422, 'customer_inactive', { code: 'customer_inactive' })
+    );
+
+    const { result } = renderHook(() => useFinalizationFlow(defaultParams), {
+      wrapper: makeWrapper(),
+    });
+
+    act(() => result.current.startFinalization());
+    await act(async () => result.current.confirmFinalize());
+
+    expect(result.current.step).toBe('idle');
+    expect(notifications.showErrorNotification).toHaveBeenCalledWith(
+      'הלקוח שנבחר אינו פעיל. חזור לטיוטה ובחר לקוח אחר'
+    );
+  });
+
+  it('confirmFinalize handles missing_vat_exemption_reason error', async () => {
+    vi.mocked(invoicesApi.finalizeInvoice).mockRejectedValue(
+      new HttpError(422, 'missing_vat_exemption_reason', { code: 'missing_vat_exemption_reason' })
+    );
+
+    const { result } = renderHook(() => useFinalizationFlow(defaultParams), {
+      wrapper: makeWrapper(),
+    });
+
+    act(() => result.current.startFinalization());
+    await act(async () => result.current.confirmFinalize());
+
+    expect(result.current.step).toBe('vat_exemption');
+  });
+
+  it('confirmFinalize handles sequence_conflict error', async () => {
+    vi.mocked(invoicesApi.finalizeInvoice).mockRejectedValue(
+      new HttpError(409, 'sequence_conflict', { code: 'sequence_conflict' })
+    );
+
+    const { result } = renderHook(() => useFinalizationFlow(defaultParams), {
+      wrapper: makeWrapper(),
+    });
+
+    act(() => result.current.startFinalization());
+    await act(async () => result.current.confirmFinalize());
+
+    expect(result.current.step).toBe('preview');
+    expect(notifications.showErrorNotification).toHaveBeenCalledWith('שגיאה בהקצאת מספר — נסו שוב');
   });
 });

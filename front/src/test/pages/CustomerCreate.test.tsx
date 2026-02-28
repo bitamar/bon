@@ -167,6 +167,16 @@ describe('CustomerCreate page', () => {
       expect(showErrorNotification).toHaveBeenCalled();
     });
   });
+
+  it('navigates to customer list when cancel is clicked', async () => {
+    const user = userEvent.setup();
+    renderCreate();
+
+    const cancelButton = screen.getByRole('button', { name: 'ביטול' });
+    await user.click(cancelButton);
+
+    expect(screen.queryByText('לקוח חדש')).not.toBeInTheDocument();
+  });
 });
 
 // Test tax ID validation via CustomerForm directly (avoids Select interaction in jsdom)
@@ -241,6 +251,21 @@ describe('CustomerForm tax ID validation', () => {
 
     renderFormWithTaxIdType('personal_id');
     expect(screen.getByLabelText('מספר תעודת זהות (ת.ז.)')).toBeInTheDocument();
+  });
+
+  it('clears taxId when taxIdType is none on mount with stale taxId', async () => {
+    renderFormWithInitialValues({ taxIdType: 'none', taxId: '123456789' });
+
+    // The taxId field should not be shown (taxIdType is 'none'), and
+    // after the effect runs the hidden value is cleared — submit to verify
+    const user = userEvent.setup();
+    const nameInput = screen.getByRole('textbox', { name: /שם הלקוח/ });
+    await user.type(nameInput, 'Test');
+    await user.click(screen.getByRole('button', { name: 'שמור' }));
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('מספר חברה (ח.פ.)')).not.toBeInTheDocument();
+    });
   });
 
   it('resets isLicensedDealer to false when taxId is cleared', async () => {

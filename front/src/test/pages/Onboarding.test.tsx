@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Route, Routes } from 'react-router-dom';
 import { Onboarding } from '../../pages/Onboarding';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
@@ -312,6 +313,52 @@ describe('Onboarding page', () => {
       const cached = queryClient.getQueryData<{ businesses: unknown[] }>(['businesses']);
       expect(cached?.businesses).toHaveLength(1);
       expect((cached?.businesses[0] as { id: string }).id).toBe('biz-new');
+    });
+  });
+
+  it('clicking cancel navigates back when businesses exist', async () => {
+    const { useBusiness } = await import('../../contexts/BusinessContext');
+    vi.mocked(useBusiness).mockReturnValue({
+      businesses: [
+        {
+          id: 'biz-1',
+          name: 'X',
+          businessType: 'licensed_dealer',
+          registrationNumber: '123456789',
+          isActive: true,
+          role: 'owner',
+        },
+      ],
+      activeBusiness: null,
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route path="/prev" element={<div>prev-page</div>} />
+        <Route path="/onboarding" element={<Onboarding />} />
+      </Routes>,
+      { router: { initialEntries: ['/prev', '/onboarding'], initialIndex: 1 } }
+    );
+
+    await selectBusinessType(user, 'עוסק מורשה');
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    expect(await screen.findByText('prev-page')).toBeInTheDocument();
+  });
+
+  it('closes info modal when pressing Escape', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Onboarding />);
+
+    await user.click(screen.getByRole('button', { name: /לא בטוחים/ }));
+    expect(await screen.findByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'סוגי עסקים בישראל' })).not.toBeInTheDocument();
     });
   });
 });

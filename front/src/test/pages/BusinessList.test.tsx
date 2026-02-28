@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useLocation } from 'react-router-dom';
 import { BusinessList } from '../../pages/BusinessList';
@@ -204,5 +204,128 @@ describe('BusinessList page', () => {
 
     expect(switchBusiness).not.toHaveBeenCalled();
     expect(screen.getByTestId('location')).toHaveTextContent('/businesses/biz-1/settings');
+  });
+
+  it('clicking "צור עסק חדש" card navigates to /onboarding', async () => {
+    const user = userEvent.setup();
+    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer',
+        role: 'owner',
+      },
+      businesses: [business],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(
+      <>
+        <BusinessList />
+        <LocationDisplay />
+      </>
+    );
+
+    await user.click(screen.getByRole('button', { name: /צור עסק חדש/ }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/onboarding');
+  });
+
+  it('"צור עסק" button in empty state navigates to /onboarding', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: null,
+      businesses: [],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(
+      <>
+        <BusinessList />
+        <LocationDisplay />
+      </>
+    );
+
+    await user.click(screen.getByRole('button', { name: 'צור עסק' }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/onboarding');
+  });
+
+  it('AddBusinessCard responds to keyboard Enter by navigating to /onboarding', () => {
+    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer',
+        role: 'owner',
+      },
+      businesses: [business],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(
+      <>
+        <BusinessList />
+        <LocationDisplay />
+      </>
+    );
+
+    const addCard = screen.getByRole('button', { name: /צור עסק חדש/ });
+    fireEvent.keyDown(addCard, { key: 'Enter' });
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/onboarding');
+  });
+
+  it('BusinessCard applies hover styles on mouseEnter and reverts on mouseLeave', () => {
+    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: null,
+      businesses: [business],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(<BusinessList />);
+
+    const card = screen.getByText('Test Co').closest('[class*="Card"]') as HTMLElement;
+    fireEvent.mouseEnter(card);
+    expect(card.style.transform).toBe('translateY(-2px)');
+
+    fireEvent.mouseLeave(card);
+    expect(card.style.transform).toBe('');
+  });
+
+  it('AddBusinessCard applies hover styles on mouseEnter and reverts on mouseLeave', () => {
+    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer',
+        role: 'owner',
+      },
+      businesses: [business],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(<BusinessList />);
+
+    const addCard = screen.getByRole('button', { name: /צור עסק חדש/ });
+    fireEvent.mouseEnter(addCard);
+    expect(addCard.style.borderColor).toBe('var(--mantine-color-brand-4)');
+
+    fireEvent.mouseLeave(addCard);
+    expect(addCard.style.borderColor).toBe('var(--mantine-color-gray-3)');
   });
 });

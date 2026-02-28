@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { InvoiceDetail } from '../../pages/InvoiceDetail';
 import { renderWithProviders } from '../utils/renderWithProviders';
@@ -132,5 +133,43 @@ describe('InvoiceDetail page', () => {
 
     expect(await screen.findByText('ייצוא שירותים §30(א)(5)')).toBeInTheDocument();
     expect(screen.getByText(/סיבת פטור ממע"מ/)).toBeInTheDocument();
+  });
+
+  it('retry button triggers refetch after error', async () => {
+    vi.mocked(invoicesApi.fetchInvoice)
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValue(makeFinalizedInvoice());
+    const user = userEvent.setup();
+    renderDetail();
+
+    const retryButton = await screen.findByRole('button', { name: 'נסה שוב' });
+    await user.click(retryButton);
+
+    expect(await screen.findByText('INV-0001')).toBeInTheDocument();
+  });
+
+  it('shows discount percentage when line item has a discount', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue({
+      ...makeFinalizedInvoice(),
+      items: [
+        {
+          id: 'item-1',
+          invoiceId: 'inv-1',
+          position: 0,
+          description: 'שירות ייעוץ',
+          catalogNumber: null,
+          quantity: 2,
+          unitPriceMinorUnits: 10000,
+          discountPercent: 10,
+          vatRateBasisPoints: 1700,
+          lineTotalMinorUnits: 18000,
+          vatAmountMinorUnits: 3060,
+          lineTotalInclVatMinorUnits: 21060,
+        },
+      ],
+    });
+    renderDetail();
+
+    expect(await screen.findByText('10%')).toBeInTheDocument();
   });
 });

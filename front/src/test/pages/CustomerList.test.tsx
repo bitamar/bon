@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { CustomerList } from '../../pages/CustomerList';
@@ -8,6 +8,9 @@ import { renderWithProviders } from '../utils/renderWithProviders';
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/customers', () => ({
   fetchCustomers: vi.fn(),
+}));
+vi.mock('../../lib/notifications', () => ({
+  extractErrorMessage: vi.fn((_err: unknown, fallback: string) => fallback),
 }));
 
 import { useBusiness } from '../../contexts/BusinessContext';
@@ -56,6 +59,7 @@ function renderCustomerList() {
   return renderWithProviders(
     <Routes>
       <Route path="/businesses/:businessId/customers" element={<CustomerList />} />
+      <Route path="/businesses/:businessId/customers/new" element={<div>new-customer-page</div>} />
     </Routes>,
     { router: { initialEntries: ['/businesses/biz-1/customers'] } }
   );
@@ -82,7 +86,9 @@ describe('CustomerList page', () => {
   it('shows error state with retry', async () => {
     vi.mocked(customersApi.fetchCustomers).mockRejectedValue(new Error('fail'));
     renderCustomerList();
-    expect(await screen.findByText('לא הצלחנו לטעון את רשימת הלקוחות')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText('לא הצלחנו לטעון את רשימת הלקוחות')[0]).toBeInTheDocument();
+    });
     expect(screen.getByRole('button', { name: 'נסה שוב' })).toBeInTheDocument();
   });
 
@@ -145,5 +151,44 @@ describe('CustomerList page', () => {
 
     await screen.findByText('עדיין אין לקוחות');
     expect(customersApi.fetchCustomers).toHaveBeenCalledWith('biz-1', undefined, undefined, 200);
+  });
+
+  it('clicking "לקוח חדש" navigates to the new customer page', async () => {
+    vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: mockCustomers });
+    const user = userEvent.setup();
+    renderCustomerList();
+
+    await screen.findByText('חברת אלפא');
+    await user.click(screen.getByRole('button', { name: /לקוח חדש/ }));
+
+    expect(await screen.findByText('new-customer-page')).toBeInTheDocument();
+  });
+
+  it('retry button triggers refetch after error', async () => {
+    vi.mocked(customersApi.fetchCustomers).mockRejectedValue(new Error('fail'));
+    const user = userEvent.setup();
+    renderCustomerList();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('לא הצלחנו לטעון את רשימת הלקוחות')[0]).toBeInTheDocument();
+    });
+
+    vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: mockCustomers });
+    await user.click(screen.getByRole('button', { name: 'נסה שוב' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('חברת אלפא')).toBeInTheDocument();
+    });
+  });
+
+  it('clicking "הוסף לקוח ראשון" in empty state navigates to new customer page', async () => {
+    vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
+    const user = userEvent.setup();
+    renderCustomerList();
+
+    await screen.findByText('עדיין אין לקוחות');
+    await user.click(screen.getByRole('button', { name: 'הוסף לקוח ראשון' }));
+
+    expect(await screen.findByText('new-customer-page')).toBeInTheDocument();
   });
 });

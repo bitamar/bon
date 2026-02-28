@@ -17,9 +17,18 @@ vi.mock('../../api/address', () => ({
   fetchAllStreetsForCity: vi.fn().mockResolvedValue([]),
   filterOptions: vi.fn(() => []),
 }));
+vi.mock('../../lib/notifications', () => ({
+  showErrorNotification: vi.fn(),
+  showSuccessNotification: vi.fn(),
+  extractErrorMessage: vi.fn((error: unknown, fallback: string) => {
+    if (error instanceof Error && error.message) return error.message;
+    return fallback;
+  }),
+}));
 
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as customersApi from '../../api/customers';
+import { showErrorNotification } from '../../lib/notifications';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 
 const mockCustomer = {
@@ -162,6 +171,35 @@ describe('CustomerDetail page', () => {
 
     await waitFor(() => {
       expect(customersApi.deleteCustomer).toHaveBeenCalledWith('biz-1', 'c1');
+    });
+  });
+
+  it('shows error notification on generic update failure', async () => {
+    vi.mocked(customersApi.fetchCustomer).mockResolvedValue({ customer: mockCustomer });
+    vi.mocked(customersApi.updateCustomer).mockRejectedValue(new Error('Server error'));
+    const user = userEvent.setup();
+    renderDetail();
+
+    await screen.findByRole('heading', { name: 'חברת אלפא' });
+
+    await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
+
+    await waitFor(() => {
+      expect(showErrorNotification).toHaveBeenCalled();
+    });
+  });
+
+  it('navigates to customer list when cancel is clicked', async () => {
+    vi.mocked(customersApi.fetchCustomer).mockResolvedValue({ customer: mockCustomer });
+    const user = userEvent.setup();
+    renderDetail();
+
+    await screen.findByRole('heading', { name: 'חברת אלפא' });
+
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'חברת אלפא' })).not.toBeInTheDocument();
     });
   });
 });
