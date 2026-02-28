@@ -13,8 +13,8 @@ vi.mock('../../lib/notifications', () => ({
   extractErrorMessage: vi.fn((_error: unknown, fallback: string) => fallback),
 }));
 vi.mock('../../api/address', () => ({
-  fetchAllCities: vi.fn().mockResolvedValue({ data: [], error: false }),
-  fetchAllStreetsForCity: vi.fn().mockResolvedValue({ data: [], error: false }),
+  fetchAllCities: vi.fn().mockResolvedValue([]),
+  fetchAllStreetsForCity: vi.fn().mockResolvedValue([]),
   filterOptions: vi.fn().mockReturnValue([]),
 }));
 

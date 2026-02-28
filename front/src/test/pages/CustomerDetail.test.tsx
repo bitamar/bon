@@ -13,8 +13,8 @@ vi.mock('../../api/customers', () => ({
   deleteCustomer: vi.fn(),
 }));
 vi.mock('../../api/address', () => ({
-  fetchAllCities: vi.fn().mockResolvedValue({ data: [], error: false }),
-  fetchAllStreetsForCity: vi.fn().mockResolvedValue({ data: [], error: false }),
+  fetchAllCities: vi.fn().mockResolvedValue([]),
+  fetchAllStreetsForCity: vi.fn().mockResolvedValue([]),
   filterOptions: vi.fn(() => []),
 }));
 

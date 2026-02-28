@@ -51,9 +51,9 @@ export function AddressAutocomplete({
   });
 
   const {
-    data: citiesResult,
+    data: allCities = [],
     isFetching: citiesLoading,
-    isError: citiesQueryError,
+    isError: citiesApiError,
   } = useQuery({
     queryKey: ['address', 'cities'],
     queryFn: fetchAllCities,
@@ -61,13 +61,10 @@ export function AddressAutocomplete({
     gcTime: Infinity,
   });
 
-  const allCities = citiesResult?.data ?? [];
-  const citiesApiError = citiesQueryError || (citiesResult?.error === true && !citiesLoading);
-
   const {
-    data: streetsResult,
+    data: allStreets = [],
     isFetching: streetsLoading,
-    isError: streetsQueryError,
+    isError: streetsApiError,
   } = useQuery({
     queryKey: ['address', 'streets', selectedCityCode],
     queryFn: () => fetchAllStreetsForCity(selectedCityCode ?? ''),
@@ -75,9 +72,6 @@ export function AddressAutocomplete({
     staleTime: 24 * 60 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
   });
-
-  const allStreets = streetsResult?.data ?? [];
-  const streetsApiError = streetsQueryError || (streetsResult?.error === true && !streetsLoading);
 
   const apiUnavailable = citiesApiError || streetsApiError;
 
@@ -105,7 +99,7 @@ export function AddressAutocomplete({
         {option.name}
       </Combobox.Option>
     ));
-  } else if (cityQuery.length > 0 && !citiesLoading) {
+  } else if (cityQuery.length > 0 && !citiesLoading && !citiesApiError) {
     cityDropdownContent = <Combobox.Empty>לא נמצאו תוצאות</Combobox.Empty>;
   }
 

@@ -39,19 +39,19 @@ function TestForm() {
 type User = ReturnType<typeof userEvent.setup>;
 
 function mockCitiesSuccess(cities: addressApi.CityOption[]) {
-  vi.mocked(addressApi.fetchAllCities).mockResolvedValue({ data: cities, error: false });
+  vi.mocked(addressApi.fetchAllCities).mockResolvedValue(cities);
 }
 
 function mockCitiesError() {
-  vi.mocked(addressApi.fetchAllCities).mockResolvedValue({ data: [], error: true });
+  vi.mocked(addressApi.fetchAllCities).mockRejectedValue(new Error('API unavailable'));
 }
 
 function mockStreetsSuccess(streets: addressApi.StreetOption[]) {
-  vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue({ data: streets, error: false });
+  vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue(streets);
 }
 
 function mockStreetsError() {
-  vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue({ data: [], error: true });
+  vi.mocked(addressApi.fetchAllStreetsForCity).mockRejectedValue(new Error('API unavailable'));
 }
 
 async function selectCity(user: User, cityName: string) {
