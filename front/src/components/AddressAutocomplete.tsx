@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Box, Combobox, Group, Loader, Stack, TextInput, useCombobox } from '@mantine/core';
+import { Alert, Box, Combobox, Group, Loader, Stack, TextInput, useCombobox } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllCities, fetchAllStreetsForCity, filterOptions } from '../api/address';
 
@@ -50,20 +50,36 @@ export function AddressAutocomplete({
     onDropdownClose: () => streetCombobox.resetSelectedOption(),
   });
 
-  const { data: allCities = [], isFetching: citiesLoading } = useQuery({
+  const {
+    data: citiesResult,
+    isFetching: citiesLoading,
+    isError: citiesQueryError,
+  } = useQuery({
     queryKey: ['address', 'cities'],
     queryFn: fetchAllCities,
     staleTime: Infinity,
     gcTime: Infinity,
   });
 
-  const { data: allStreets = [], isFetching: streetsLoading } = useQuery({
+  const allCities = citiesResult?.data ?? [];
+  const citiesApiError = citiesQueryError || (citiesResult?.error === true && !citiesLoading);
+
+  const {
+    data: streetsResult,
+    isFetching: streetsLoading,
+    isError: streetsQueryError,
+  } = useQuery({
     queryKey: ['address', 'streets', selectedCityCode],
     queryFn: () => fetchAllStreetsForCity(selectedCityCode ?? ''),
     enabled: selectedCityCode !== null,
     staleTime: 24 * 60 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
   });
+
+  const allStreets = streetsResult?.data ?? [];
+  const streetsApiError = streetsQueryError || (streetsResult?.error === true && !streetsLoading);
+
+  const apiUnavailable = citiesApiError || streetsApiError;
 
   const filteredCities = filterOptions(allCities, cityQuery).slice(0, MAX_DROPDOWN_ITEMS);
   const filteredStreets = filterOptions(allStreets, streetName).slice(0, MAX_DROPDOWN_ITEMS);
@@ -72,7 +88,8 @@ export function AddressAutocomplete({
   const streetInputProps = form.getInputProps('streetAddress');
   const postalInputProps = form.getInputProps('postalCode');
 
-  const fieldsDisabled = disabled === true || selectedCityCode === null;
+  // When the API is down, allow free-text input for all fields
+  const fieldsDisabled = disabled === true || (selectedCityCode === null && !citiesApiError);
 
   const resetStreet = () => {
     setStreetName('');
@@ -101,12 +118,22 @@ export function AddressAutocomplete({
         {option.name}
       </Combobox.Option>
     ));
-  } else if (streetName.length > 0) {
+  } else if (streetName.length > 0 && !streetsApiError) {
     streetDropdownContent = <Combobox.Empty>לא נמצאו תוצאות</Combobox.Empty>;
   }
 
+  // In API-error mode, the city field is a plain TextInput (no dropdown)
+  const showCityDropdown = !citiesApiError && filteredCities.length > 0;
+  const showStreetDropdown = !streetsApiError && !citiesApiError;
+
   return (
     <Stack gap="sm">
+      {apiUnavailable && (
+        <Alert variant="light" color="yellow" data-testid="address-api-warning">
+          שירות הכתובות אינו זמין כרגע. ניתן להקליד את הכתובת ידנית.
+        </Alert>
+      )}
+
       {/* City — select first */}
       <Combobox
         store={cityCombobox}
@@ -125,7 +152,7 @@ export function AddressAutocomplete({
           <TextInput
             label="עיר / ישוב"
             required={required}
-            placeholder="הקלד שם עיר..."
+            placeholder={citiesApiError ? 'הקלד שם עיר...' : 'הקלד שם עיר...'}
             value={cityQuery}
             onChange={(e) => {
               const value = e.target.value;
@@ -135,9 +162,15 @@ export function AddressAutocomplete({
                 setSelectedCityCode(null);
                 resetStreet();
               }
-              cityCombobox.openDropdown();
+              if (showCityDropdown) {
+                cityCombobox.openDropdown();
+              }
             }}
-            onFocus={() => cityCombobox.openDropdown()}
+            onFocus={() => {
+              if (!citiesApiError) {
+                cityCombobox.openDropdown();
+              }
+            }}
             onBlur={() => cityCombobox.closeDropdown()}
             rightSection={citiesLoading ? <Loader size={16} /> : null}
             disabled={disabled === true}
@@ -176,10 +209,12 @@ export function AddressAutocomplete({
                   setHouseNumber('');
                   setAptDetails('');
                   form.setFieldValue('streetAddress', value);
-                  streetCombobox.openDropdown();
+                  if (showStreetDropdown) {
+                    streetCombobox.openDropdown();
+                  }
                 }}
                 onFocus={() => {
-                  if (!fieldsDisabled) {
+                  if (!fieldsDisabled && showStreetDropdown) {
                     if (suppressNextStreetOpen.current) {
                       suppressNextStreetOpen.current = false;
                     } else {

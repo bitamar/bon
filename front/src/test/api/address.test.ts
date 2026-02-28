@@ -35,25 +35,28 @@ describe('address api', () => {
       const result = await fetchAllCities();
 
       expect(fetchMock).toHaveBeenCalledOnce();
-      expect(result).toEqual([
-        { name: 'תל אביב - יפו', code: '5000 ' },
-        { name: 'ירושלים', code: '3000 ' },
-      ]);
+      expect(result).toEqual({
+        data: [
+          { name: 'תל אביב - יפו', code: '5000 ' },
+          { name: 'ירושלים', code: '3000 ' },
+        ],
+        error: false,
+      });
     });
 
-    it('returns empty array on network error', async () => {
+    it('returns error result on network error', async () => {
       fetchMock.mockRejectedValueOnce(new Error('Network error'));
       const result = await fetchAllCities();
-      expect(result).toEqual([]);
+      expect(result).toEqual({ data: [], error: true });
     });
 
-    it('returns empty array on malformed response', async () => {
+    it('returns error result on malformed response', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: vi.fn().mockResolvedValueOnce({ unexpected: 'data' }),
       });
       const result = await fetchAllCities();
-      expect(result).toEqual([]);
+      expect(result).toEqual({ data: [], error: true });
     });
   });
 
@@ -77,22 +80,25 @@ describe('address api', () => {
       const callUrl = decodeURIComponent(fetchMock.mock.calls[0]?.[0] as string);
       expect(callUrl).toContain('סמל_ישוב');
       expect(callUrl).toContain('5000');
-      expect(result).toEqual([{ name: 'רוטשילד' }, { name: 'דיזנגוף' }]);
+      expect(result).toEqual({
+        data: [{ name: 'רוטשילד' }, { name: 'דיזנגוף' }],
+        error: false,
+      });
     });
 
-    it('returns empty array on network error', async () => {
+    it('returns error result on network error', async () => {
       fetchMock.mockRejectedValueOnce(new Error('Network error'));
       const result = await fetchAllStreetsForCity('5000 ');
-      expect(result).toEqual([]);
+      expect(result).toEqual({ data: [], error: true });
     });
 
-    it('returns empty array on malformed response', async () => {
+    it('returns error result on malformed response', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: vi.fn().mockResolvedValueOnce({ bad: 'shape' }),
       });
       const result = await fetchAllStreetsForCity('5000 ');
-      expect(result).toEqual([]);
+      expect(result).toEqual({ data: [], error: true });
     });
   });
 

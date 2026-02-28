@@ -30,8 +30,13 @@ export interface StreetOption {
   name: string;
 }
 
+export interface AddressApiResult<T> {
+  data: T[];
+  error: boolean;
+}
+
 /** Fetch all ~1300 Israeli cities/settlements in one request. Cache forever — they rarely change. */
-export async function fetchAllCities(): Promise<CityOption[]> {
+export async function fetchAllCities(): Promise<AddressApiResult<CityOption>> {
   try {
     const url = new URL(BASE_URL);
     url.searchParams.set('resource_id', CITIES_RESOURCE_ID);
@@ -42,21 +47,25 @@ export async function fetchAllCities(): Promise<CityOption[]> {
     const json: unknown = await response.json();
 
     const parsed = dataGovResponseSchema(cityRecordSchema).safeParse(json);
-    if (!parsed.success) return [];
+    if (!parsed.success) return { data: [], error: true };
 
-    return parsed.data.result.records
+    const data = parsed.data.result.records
       .map((r) => ({
         name: r['שם_ישוב'].trim(),
         code: r['סמל_ישוב'], // keep raw value (with trailing space) for use as filter
       }))
       .filter((c) => c.name && c.name !== 'לא רשום');
+
+    return { data, error: false };
   } catch {
-    return [];
+    return { data: [], error: true };
   }
 }
 
 /** Fetch all streets for a given city code in one request. Cache per city. */
-export async function fetchAllStreetsForCity(cityCode: string): Promise<StreetOption[]> {
+export async function fetchAllStreetsForCity(
+  cityCode: string
+): Promise<AddressApiResult<StreetOption>> {
   try {
     const url = new URL(BASE_URL);
     url.searchParams.set('resource_id', STREETS_RESOURCE_ID);
@@ -68,13 +77,15 @@ export async function fetchAllStreetsForCity(cityCode: string): Promise<StreetOp
     const json: unknown = await response.json();
 
     const parsed = dataGovResponseSchema(streetRecordSchema).safeParse(json);
-    if (!parsed.success) return [];
+    if (!parsed.success) return { data: [], error: true };
 
-    return parsed.data.result.records
+    const data = parsed.data.result.records
       .map((r) => ({ name: r['שם_רחוב'].trim() }))
       .filter((s) => s.name);
+
+    return { data, error: false };
   } catch {
-    return [];
+    return { data: [], error: true };
   }
 }
 
