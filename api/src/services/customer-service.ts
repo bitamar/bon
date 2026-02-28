@@ -5,6 +5,7 @@ import {
   updateCustomer,
   searchCustomers,
   type CustomerRecord,
+  type CustomerInsert,
 } from '../repositories/customer-repository.js';
 import { conflict, extractConstraintName, isErrorWithCode, notFound } from '../lib/app-error.js';
 import {
@@ -125,24 +126,25 @@ export async function getCustomerById(businessId: string, customerId: string) {
   return { customer: serializeCustomer(customer) } satisfies CustomerResponse;
 }
 
-function buildCustomerUpdates(input: UpdateCustomerInput, now: Date): Record<string, unknown> {
-  const updates: Record<string, unknown> = { updatedAt: now };
-  if (input.name != null) updates['name'] = input.name;
-  if (input.taxId !== undefined) updates['taxId'] = input.taxId;
-  if (input.taxIdType !== undefined) updates['taxIdType'] = input.taxIdType ?? 'none';
-  if (input.isLicensedDealer != null) updates['isLicensedDealer'] = input.isLicensedDealer;
-  if (input.email !== undefined) updates['email'] = input.email;
-  if (input.phone !== undefined) updates['phone'] = input.phone;
-  if (input.streetAddress !== undefined) updates['streetAddress'] = input.streetAddress;
-  if (input.city !== undefined) updates['city'] = input.city;
-  if (input.postalCode !== undefined) updates['postalCode'] = input.postalCode;
-  if (input.contactName !== undefined) updates['contactName'] = input.contactName;
-  if (input.notes !== undefined) updates['notes'] = input.notes;
-  if (input.isActive != null) {
-    updates['isActive'] = input.isActive;
-    updates['deletedAt'] = input.isActive ? null : now;
-  }
-  return updates;
+function buildCustomerUpdates(input: UpdateCustomerInput, now: Date): Partial<CustomerInsert> {
+  return {
+    updatedAt: now,
+    ...(input.name != null && { name: input.name }),
+    ...(input.taxId !== undefined && { taxId: input.taxId }),
+    ...(input.taxIdType !== undefined && { taxIdType: input.taxIdType ?? 'none' }),
+    ...(input.isLicensedDealer != null && { isLicensedDealer: input.isLicensedDealer }),
+    ...(input.email !== undefined && { email: input.email }),
+    ...(input.phone !== undefined && { phone: input.phone }),
+    ...(input.streetAddress !== undefined && { streetAddress: input.streetAddress }),
+    ...(input.city !== undefined && { city: input.city }),
+    ...(input.postalCode !== undefined && { postalCode: input.postalCode }),
+    ...(input.contactName !== undefined && { contactName: input.contactName }),
+    ...(input.notes !== undefined && { notes: input.notes }),
+    ...(input.isActive != null && {
+      isActive: input.isActive,
+      deletedAt: input.isActive ? null : now,
+    }),
+  };
 }
 
 export async function updateCustomerById(
@@ -153,11 +155,7 @@ export async function updateCustomerById(
   const updates = buildCustomerUpdates(input, new Date());
 
   try {
-    const customer = await updateCustomer(
-      customerId,
-      businessId,
-      updates as Parameters<typeof updateCustomer>[2]
-    );
+    const customer = await updateCustomer(customerId, businessId, updates);
     if (!customer) throw notFound();
 
     return { customer: serializeCustomer(customer) } satisfies CustomerResponse;

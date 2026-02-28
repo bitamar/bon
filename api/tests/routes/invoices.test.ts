@@ -454,6 +454,16 @@ describe('routes/invoices', () => {
       expect(body.invoice.vatExemptionReason).toBe('Not actually needed');
     });
 
+    it('rejects double-finalization of same draft (422)', async () => {
+      const { sessionId, business, invoice } = await setupOwnerDraft();
+
+      const res1 = await finalizeInvoice(sessionId, business.id, invoice.id);
+      expect(res1.statusCode).toBe(200);
+
+      const res2 = await finalizeInvoice(sessionId, business.id, invoice.id);
+      expectError(res2, 422, 'not_draft');
+    });
+
     it('assigns sequential numbers at finalization time, not creation time', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
       const customer = await createCustomer(sessionId, business.id);

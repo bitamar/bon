@@ -1,22 +1,27 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { businesses } from '../db/schema.js';
+import type { DbOrTx } from '../db/types.js';
 
 export type BusinessRecord = (typeof businesses)['$inferSelect'];
 export type BusinessInsert = (typeof businesses)['$inferInsert'];
 
-export async function insertBusiness(data: BusinessInsert) {
-  const rows = await db.insert(businesses).values(data).returning();
+export async function insertBusiness(data: BusinessInsert, txOrDb: DbOrTx = db) {
+  const rows = await txOrDb.insert(businesses).values(data).returning();
   return rows[0] ?? null;
 }
 
-export async function findBusinessById(businessId: string) {
-  const rows = await db.select().from(businesses).where(eq(businesses.id, businessId));
+export async function findBusinessById(businessId: string, txOrDb: DbOrTx = db) {
+  const rows = await txOrDb.select().from(businesses).where(eq(businesses.id, businessId));
   return rows[0] ?? null;
 }
 
-export async function updateBusiness(businessId: string, updates: Partial<BusinessInsert>) {
-  const rows = await db
+export async function updateBusiness(
+  businessId: string,
+  updates: Partial<BusinessInsert>,
+  txOrDb: DbOrTx = db
+) {
+  const rows = await txOrDb
     .update(businesses)
     .set(updates)
     .where(eq(businesses.id, businessId))

@@ -2,9 +2,13 @@ import { z } from 'zod';
 import { isoDateTime, nonEmptyString, nullableString, optionalNullableString, uuidSchema } from './common.js';
 import { validateIsraeliId } from './validation.js';
 
-export const businessTypeSchema = z.enum(['licensed_dealer', 'exempt_dealer', 'limited_company']);
+export const BUSINESS_TYPES = ['licensed_dealer', 'exempt_dealer', 'limited_company'] as const;
 
-export const businessRoleSchema = z.enum(['owner', 'admin', 'user']);
+export const BUSINESS_ROLES = ['owner', 'admin', 'user'] as const;
+
+export const businessTypeSchema = z.enum(BUSINESS_TYPES);
+
+export const businessRoleSchema = z.enum(BUSINESS_ROLES);
 
 export const registrationNumberSchema = z.string().trim().length(9).regex(/^\d{9}$/);
 

@@ -5,8 +5,24 @@ import {
   insertBusiness,
   findBusinessById,
   updateBusiness,
+  type BusinessInsert,
 } from '../../src/repositories/business-repository.js';
 import { createUser, createTestBusiness } from '../utils/businesses.js';
+
+// ── helpers ──
+
+function buildBusinessData(
+  userId: string,
+  overrides: Partial<BusinessInsert> = {}
+): BusinessInsert {
+  return {
+    name: 'Test Biz',
+    businessType: 'exempt_dealer' as const,
+    registrationNumber: randomUUID(),
+    createdByUserId: userId,
+    ...overrides,
+  };
+}
 
 describe('business-repository', () => {
   beforeEach(async () => {
@@ -15,6 +31,38 @@ describe('business-repository', () => {
 
   afterEach(async () => {
     await resetDb();
+  });
+
+  // ── soft-delete CHECK constraint ────────────────────────────────────────
+
+  describe('soft-delete CHECK constraint', () => {
+    it('rejects inserting isActive=false without deletedAt', async () => {
+      const user = await createUser();
+
+      await expect(
+        insertBusiness(buildBusinessData(user.id, { isActive: false }))
+      ).rejects.toThrow();
+    });
+
+    it('rejects inserting isActive=true with deletedAt set', async () => {
+      const user = await createUser();
+
+      await expect(
+        insertBusiness(buildBusinessData(user.id, { isActive: true, deletedAt: new Date() }))
+      ).rejects.toThrow();
+    });
+
+    it('allows inserting isActive=false with deletedAt set', async () => {
+      const user = await createUser();
+
+      const result = await insertBusiness(
+        buildBusinessData(user.id, { isActive: false, deletedAt: new Date() })
+      );
+
+      expect(result).not.toBeNull();
+      expect(result?.isActive).toBe(false);
+      expect(result?.deletedAt).not.toBeNull();
+    });
   });
 
   describe('insertBusiness', () => {
