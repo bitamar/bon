@@ -60,8 +60,7 @@ function statusParamToChip(status: string | null): ChipValue {
   if (status === 'draft') return 'draft';
   if (status === 'paid') return 'paid';
   if (status === 'cancelled') return 'cancelled';
-  if (status.includes('finalized') || status === 'finalized,sent,partially_paid')
-    return 'outstanding';
+  if (status === 'finalized,sent,partially_paid') return 'outstanding';
   return 'all';
 }
 
@@ -69,8 +68,8 @@ function statusParamToChip(status: string | null): ChipValue {
 
 function toDateValue(dateStr: string | null): DateValue {
   if (!dateStr) return null;
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year!, month! - 1, day);
+  const parts = dateStr.split('-').map(Number);
+  return new Date(parts[0] ?? 0, (parts[1] ?? 1) - 1, parts[2] ?? 1);
 }
 
 function toIsoDate(date: DateValue): string | null {
@@ -84,12 +83,13 @@ function toIsoDate(date: DateValue): string | null {
 
 // ── Overdue helper ──
 
+const MS_PER_DAY = 86_400_000;
+
 function daysOverdue(dueDate: string): number {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const due = new Date(dueDate);
-  const diff = today.getTime() - due.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
+  return Math.floor((today.getTime() - due.getTime()) / MS_PER_DAY);
 }
 
 const OVERDUE_STATUSES = new Set(['finalized', 'sent', 'partially_paid']);
@@ -111,17 +111,26 @@ function SkeletonRows() {
 function InvoiceRow({
   invoice,
   bizPrefix,
-}: Readonly<{ invoice: InvoiceListItem; bizPrefix: string }>) {
-  const navigate = useNavigate();
+  onNavigate,
+}: Readonly<{ invoice: InvoiceListItem; bizPrefix: string; onNavigate: (path: string) => void }>) {
   const statusConfig = INVOICE_STATUS_CONFIG[invoice.status];
   const docLabel = DOCUMENT_TYPE_LABELS[invoice.documentType];
   const overdue =
     invoice.dueDate && OVERDUE_STATUSES.has(invoice.status) ? daysOverdue(invoice.dueDate) : 0;
+  const detailPath = `${bizPrefix}/invoices/${invoice.id}`;
 
   return (
     <Table.Tr
       style={{ cursor: 'pointer' }}
-      onClick={() => navigate(`${bizPrefix}/invoices/${invoice.id}`)}
+      onClick={() => onNavigate(detailPath)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onNavigate(detailPath);
+        }
+      }}
+      tabIndex={0}
+      role="link"
     >
       <Table.Td>
         {invoice.documentNumber ? (
@@ -272,6 +281,76 @@ export function InvoiceList() {
   const isInitialLoading = invoicesQuery.isPending;
   const isFilterLoading = invoicesQuery.isFetching && !invoicesQuery.isPending;
 
+  function renderContent() {
+    if (isInitialLoading) return <SkeletonRows />;
+
+    if (invoicesQuery.error) {
+      return (
+        <StatusCard
+          status="error"
+          title="שגיאה בטעינת חשבוניות"
+          description="לא הצלחנו לטעון את רשימת החשבוניות"
+          primaryAction={{
+            label: 'נסה שוב',
+            onClick: () => invoicesQuery.refetch(),
+            loading: invoicesQuery.isFetching,
+          }}
+        />
+      );
+    }
+
+    if (invoicesQuery.data && invoicesQuery.data.invoices.length === 0) {
+      return hasActiveFilters ? (
+        <StatusCard
+          status="notFound"
+          title="לא נמצאו חשבוניות"
+          description="לא נמצאו חשבוניות התואמות את החיפוש. נסו לשנות את הסינון."
+          primaryAction={{ label: 'נקה פילטרים', onClick: clearAllFilters }}
+        />
+      ) : (
+        <StatusCard
+          status="empty"
+          title="עדיין לא הפקת חשבוניות"
+          description="לחצו 'חשבונית חדשה' כדי להתחיל."
+          primaryAction={{
+            label: 'חשבונית חדשה',
+            onClick: () => navigate(`${bizPrefix}/invoices/new`),
+          }}
+        />
+      );
+    }
+
+    if (!invoicesQuery.data) return null;
+
+    return (
+      <Box pos="relative">
+        <LoadingOverlay visible={isFilterLoading} loaderProps={{ size: 'sm' }} />
+        <Table highlightOnHover withRowBorders>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>מספר</Table.Th>
+              <Table.Th>סוג</Table.Th>
+              <Table.Th>לקוח</Table.Th>
+              <Table.Th>תאריך</Table.Th>
+              <Table.Th>סכום</Table.Th>
+              <Table.Th>סטטוס</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {invoicesQuery.data.invoices.map((invoice) => (
+              <InvoiceRow
+                key={invoice.id}
+                invoice={invoice}
+                bizPrefix={bizPrefix}
+                onNavigate={navigate}
+              />
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Box>
+    );
+  }
+
   return (
     <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
       <Stack gap="md">
@@ -338,64 +417,8 @@ export function InvoiceList() {
           </Stack>
         </Paper>
 
-        {/* T09-B placeholder for summary row */}
-        <Box />
-
         {/* Content area */}
-        {isInitialLoading ? (
-          <SkeletonRows />
-        ) : invoicesQuery.error ? (
-          <StatusCard
-            status="error"
-            title="שגיאה בטעינת חשבוניות"
-            description="לא הצלחנו לטעון את רשימת החשבוניות"
-            primaryAction={{
-              label: 'נסה שוב',
-              onClick: () => invoicesQuery.refetch(),
-              loading: invoicesQuery.isFetching,
-            }}
-          />
-        ) : invoicesQuery.data && invoicesQuery.data.invoices.length === 0 ? (
-          hasActiveFilters ? (
-            <StatusCard
-              status="notFound"
-              title="לא נמצאו חשבוניות"
-              description="לא נמצאו חשבוניות התואמות את החיפוש. נסו לשנות את הסינון."
-              primaryAction={{ label: 'נקה פילטרים', onClick: clearAllFilters }}
-            />
-          ) : (
-            <StatusCard
-              status="empty"
-              title="עדיין לא הפקת חשבוניות"
-              description="לחצו 'חשבונית חדשה' כדי להתחיל."
-              primaryAction={{
-                label: 'חשבונית חדשה',
-                onClick: () => navigate(`${bizPrefix}/invoices/new`),
-              }}
-            />
-          )
-        ) : invoicesQuery.data ? (
-          <Box pos="relative">
-            <LoadingOverlay visible={isFilterLoading} loaderProps={{ size: 'sm' }} />
-            <Table highlightOnHover withRowBorders>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>מספר</Table.Th>
-                  <Table.Th>סוג</Table.Th>
-                  <Table.Th>לקוח</Table.Th>
-                  <Table.Th>תאריך</Table.Th>
-                  <Table.Th>סכום</Table.Th>
-                  <Table.Th>סטטוס</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {invoicesQuery.data.invoices.map((invoice) => (
-                  <InvoiceRow key={invoice.id} invoice={invoice} bizPrefix={bizPrefix} />
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Box>
-        ) : null}
+        {renderContent()}
 
         {/* Pagination */}
         {totalPages > 1 ? (

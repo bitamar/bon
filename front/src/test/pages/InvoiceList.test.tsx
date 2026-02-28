@@ -52,6 +52,16 @@ function renderInvoiceList(initialPath = '/businesses/biz-1/invoices') {
   );
 }
 
+function mockDefaultInvoices(response = mockListResponse()) {
+  vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(response);
+}
+
+async function renderWithInvoices(response = mockListResponse()) {
+  mockDefaultInvoices(response);
+  renderInvoiceList();
+  await screen.findByText('INV-001');
+}
+
 describe('InvoiceList page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -61,19 +71,16 @@ describe('InvoiceList page', () => {
 
   it('shows error when no active business', () => {
     mockNoBusiness(useBusiness);
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse());
+    mockDefaultInvoices();
     renderInvoiceList();
     expect(screen.getByText('לא נבחר עסק')).toBeInTheDocument();
   });
 
-  it('shows loading skeleton', () => {
+  it('shows loading skeleton while fetching', () => {
     vi.mocked(invoicesApi.fetchInvoices).mockReturnValue(new Promise(() => {}));
     renderInvoiceList();
     expect(screen.getByText('חשבוניות')).toBeInTheDocument();
-    // 5 skeleton rows rendered during loading
-    expect(
-      document.querySelectorAll('[data-testid="skeleton"], .mantine-Skeleton-root').length
-    ).toBeGreaterThanOrEqual(0);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('shows error state with retry', async () => {
@@ -95,7 +102,7 @@ describe('InvoiceList page', () => {
         totalInclVatMinorUnits: 5000,
       }),
     ];
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse(invoices));
+    mockDefaultInvoices(mockListResponse(invoices));
     renderInvoiceList();
 
     // First row: finalized invoice
@@ -105,29 +112,27 @@ describe('InvoiceList page', () => {
     expect(screen.getByText('הופקה')).toBeInTheDocument();
 
     // Second row: draft — "טיוטה" appears twice (documentNumber placeholder + status badge)
-    expect(screen.getAllByText('טיוטה').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('טיוטה')).toHaveLength(2);
     expect(screen.getByText('לא נבחר לקוח')).toBeInTheDocument();
     expect(screen.getByText('קבלה')).toBeInTheDocument();
   });
 
   it('shows empty state with CTA when no invoices and no filters', async () => {
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse([], 0));
+    mockDefaultInvoices(mockListResponse([], 0));
     renderInvoiceList();
     expect(await screen.findByText('עדיין לא הפקת חשבוניות')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'חשבונית חדשה' })).toBeInTheDocument();
   });
 
   it('shows not-found state when filters active but no results', async () => {
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse([], 0));
+    mockDefaultInvoices(mockListResponse([], 0));
     renderInvoiceList('/businesses/biz-1/invoices?status=draft');
     expect(await screen.findByText('לא נמצאו חשבוניות')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'נקה פילטרים' })).toBeInTheDocument();
   });
 
   it('renders filter chips', async () => {
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse());
-    renderInvoiceList();
-    await screen.findByText('INV-001');
+    await renderWithInvoices();
 
     expect(screen.getByText('כל החשבוניות')).toBeInTheDocument();
     expect(screen.getByText('טיוטות')).toBeInTheDocument();
@@ -138,62 +143,44 @@ describe('InvoiceList page', () => {
 
   it('clicking a filter chip calls fetchInvoices with correct status', async () => {
     const user = userEvent.setup();
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse());
-    renderInvoiceList();
-    await screen.findByText('INV-001');
+    await renderWithInvoices();
 
     const draftChip = screen.getByText('טיוטות');
     await user.click(draftChip);
 
-    // After clicking, fetchInvoices should be called with status=draft
     const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
     const lastCall = calls[calls.length - 1];
     expect(lastCall?.[1]).toMatchObject({ status: 'draft' });
   });
 
   it('shows pagination when total exceeds page size', async () => {
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse([mockInvoice()], 40));
-    renderInvoiceList();
-    await screen.findByText('INV-001');
+    await renderWithInvoices(mockListResponse([mockInvoice()], 40));
 
-    // Mantine Pagination renders page buttons
     expect(screen.getByRole('button', { name: '2' })).toBeInTheDocument();
   });
 
   it('does not show pagination for single page', async () => {
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse([mockInvoice()], 5));
-    renderInvoiceList();
-    await screen.findByText('INV-001');
+    await renderWithInvoices(mockListResponse([mockInvoice()], 5));
 
     expect(screen.queryByRole('button', { name: '2' })).not.toBeInTheDocument();
   });
 
   it('renders "חשבונית חדשה" button linking to new invoice page', async () => {
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse());
-    renderInvoiceList();
-    await screen.findByText('INV-001');
+    await renderWithInvoices();
 
     const newButton = screen.getByRole('link', { name: /חשבונית חדשה/ });
     expect(newButton).toHaveAttribute('href', '/businesses/biz-1/invoices/new');
   });
 
   it('shows overdue indicator for overdue invoices', async () => {
-    const pastDate = '2026-01-01';
-    const invoice = mockInvoice({
-      dueDate: pastDate,
-      status: 'finalized',
-    });
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse([invoice]));
-    renderInvoiceList();
-    await screen.findByText('INV-001');
+    const invoice = mockInvoice({ dueDate: '2026-01-01', status: 'finalized' });
+    await renderWithInvoices(mockListResponse([invoice]));
 
     expect(screen.getByText(/באיחור/)).toBeInTheDocument();
   });
 
   it('renders table headers', async () => {
-    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse());
-    renderInvoiceList();
-    await screen.findByText('INV-001');
+    await renderWithInvoices();
 
     const headers = screen.getAllByRole('columnheader');
     const headerTexts = headers.map((h) => h.textContent);
