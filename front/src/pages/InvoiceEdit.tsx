@@ -394,7 +394,6 @@ export function InvoiceEdit() {
                   label="תאריך חשבונית"
                   value={form.invoiceDate}
                   onChange={(val) => setForm({ ...form, invoiceDate: toDateOrNull(val) })}
-                  clearable
                 />
                 <DatePickerInput
                   label="תאריך תשלום"

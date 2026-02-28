@@ -5,12 +5,16 @@ import {
   insertBusiness,
   findBusinessById,
   updateBusiness,
+  type BusinessInsert,
 } from '../../src/repositories/business-repository.js';
 import { createUser, createTestBusiness } from '../utils/businesses.js';
 
 // ── helpers ──
 
-function buildBusinessData(userId: string, overrides: Record<string, unknown> = {}) {
+function buildBusinessData(
+  userId: string,
+  overrides: Partial<BusinessInsert> = {}
+): BusinessInsert {
   return {
     name: 'Test Biz',
     businessType: 'exempt_dealer' as const,
