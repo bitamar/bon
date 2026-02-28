@@ -22,6 +22,15 @@ export async function findInvoiceById(invoiceId: string, businessId: string, txO
   return rows[0] ?? null;
 }
 
+export async function findInvoiceByIdForUpdate(invoiceId: string, businessId: string, tx: DbOrTx) {
+  const rows = await tx
+    .select()
+    .from(invoices)
+    .where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId)))
+    .for('update');
+  return rows[0] ?? null;
+}
+
 export async function updateInvoice(
   invoiceId: string,
   businessId: string,

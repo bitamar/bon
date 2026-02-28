@@ -49,8 +49,8 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T-ARCH-01](./T-ARCH-01-backend-type-safety.md) | Backend Type Safety & Data Layer Cleanup | 🔒 | — |
-| [T-ARCH-02](./T-ARCH-02-toctou-finalization.md) | Fix TOCTOU Race in Invoice Finalization | 🔒 | — |
+| [T-ARCH-01](./T-ARCH-01-backend-type-safety.md) | Backend Type Safety & Data Layer Cleanup | ✅ | main (PR #29) |
+| [T-ARCH-02](./T-ARCH-02-toctou-finalization.md) | Fix TOCTOU Race in Invoice Finalization | 🔄 | claude/implement-arch2-b1uLi |
 | [T-ARCH-03](./T-ARCH-03-frontend-routing.md) | Add businessId to Frontend Routes | 🔒 | — |
 | [T-ARCH-04](./T-ARCH-04-invoice-form-state.md) | Invoice Form: useForm + Autosave | 🔒 | — |
 | [T-ARCH-05](./T-ARCH-05-rbac-enforcement.md) | Enforce Role-Based Access Control | 🔒 | — |

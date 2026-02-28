@@ -5,6 +5,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import {
   insertInvoice,
   findInvoiceById,
+  findInvoiceByIdForUpdate,
   updateInvoice,
   deleteInvoice,
   insertItems,
@@ -121,6 +122,30 @@ describe('invoice-repository', () => {
 
     it('returns null for non-existent id', async () => {
       const found = await findInvoiceById(randomUUID(), businessId);
+      expect(found).toBeNull();
+    });
+  });
+
+  // ── findInvoiceByIdForUpdate ──
+
+  describe('findInvoiceByIdForUpdate', () => {
+    it('returns the invoice when it exists', async () => {
+      const created = await createTestInvoice(businessId);
+      const found = await findInvoiceByIdForUpdate(created!.id, businessId, db);
+
+      expect(found).not.toBeNull();
+      expect(found!.id).toBe(created!.id);
+    });
+
+    it('returns null for wrong businessId', async () => {
+      const created = await createTestInvoice(businessId);
+      const found = await findInvoiceByIdForUpdate(created!.id, randomUUID(), db);
+
+      expect(found).toBeNull();
+    });
+
+    it('returns null for non-existent id', async () => {
+      const found = await findInvoiceByIdForUpdate(randomUUID(), businessId, db);
       expect(found).toBeNull();
     });
   });
