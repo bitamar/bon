@@ -5,19 +5,6 @@
   overflow: hidden;
 }
 
-.blobsContainer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  will-change: transform, opacity;
-}
-
 .noise {
   position: absolute;
   inset: -50%;

@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import classes from './LandingPage.module.css';
 
@@ -124,26 +123,6 @@ const WA_PATTERN_BG =
   "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9c2b6' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
 
 function WhatsAppMockup() {
-  const [visibleMessages, setVisibleMessages] = useState<typeof CHAT_MESSAGES>([]);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setVisibleMessages([]);
-    const timeouts = CHAT_MESSAGES.map((msg, i) =>
-      setTimeout(
-        () => {
-          setVisibleMessages((prev) => [...prev, msg]);
-        },
-        800 + i * 900
-      )
-    );
-    return () => timeouts.forEach(clearTimeout);
-  }, []);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
-  }, [visibleMessages]);
-
   return (
     <div
       style={{
@@ -204,10 +183,9 @@ function WhatsAppMockup() {
           backgroundImage: WA_PATTERN_BG,
         }}
       >
-        {visibleMessages.map((msg, i) => (
+        {CHAT_MESSAGES.map((msg, i) => (
           <div
             key={i}
-            className={classes['fadeSlideIn']}
             style={{
               alignSelf: msg.type === 'user' ? 'flex-end' : 'flex-start',
               maxWidth: '82%',
@@ -240,7 +218,6 @@ function WhatsAppMockup() {
             </div>
           </div>
         ))}
-        <div ref={chatEndRef} />
       </div>
 
       {/* Input bar */}
@@ -403,14 +380,6 @@ function PricingCard({ plan }: Readonly<{ plan: PricingPlan }>) {
 }
 
 export function LandingPage() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
   return (
     <div
       style={{
@@ -435,9 +404,8 @@ export function LandingPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: scrolled ? 'rgba(250,250,247,0.92)' : 'transparent',
-          borderBottom: scrolled ? `1px solid ${COLORS.border}` : 'none',
-          transition: 'all 0.3s ease',
+          background: 'rgba(250,250,247,0.92)',
+          borderBottom: `1px solid ${COLORS.border}`,
         }}
       >
         <div
@@ -663,7 +631,6 @@ export function LandingPage() {
           padding: '80px 40px',
           maxWidth: 960,
           margin: '0 auto',
-          scrollMarginTop: 80,
         }}
       >
         <h2
@@ -790,7 +757,6 @@ export function LandingPage() {
           padding: '0 40px 80px',
           maxWidth: 1060,
           margin: '0 auto',
-          scrollMarginTop: 80,
         }}
       >
         <h2
