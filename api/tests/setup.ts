@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { join } from 'node:path';
+import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import pg from 'pg';
 import { afterAll, vi } from 'vitest';
 
@@ -15,12 +16,14 @@ process.env.RATE_LIMIT_TIME_WINDOW = '1000';
 
 // ── Provision a real PostgreSQL database for tests ──
 
+let pgContainer: StartedPostgreSqlContainer | undefined;
+
 async function provisionTestDatabase(): Promise<string> {
   // 1. Try testcontainers (requires a running Docker daemon)
   try {
     const { PostgreSqlContainer } = await import('@testcontainers/postgresql');
-    const container = await new PostgreSqlContainer('postgres:16').start();
-    return container.getConnectionUri();
+    pgContainer = await new PostgreSqlContainer('postgres:16').start();
+    return pgContainer.getConnectionUri();
   } catch {
     // Docker unavailable — fall through to native PostgreSQL
   }
@@ -32,15 +35,19 @@ async function provisionTestDatabase(): Promise<string> {
     process.env['TEST_PG_ADMIN_URL'] ?? 'postgres://postgres:postgres@localhost:5432/postgres';
   const dbName = 'bon_test';
   const adminClient = new pg.Client({ connectionString: adminUrl });
-  await adminClient.connect();
-  await adminClient.query(`CREATE DATABASE "${dbName}"`).catch((err: { code?: string }) => {
-    // 42P04 = database already exists — perfectly fine for reuse
-    if (err.code !== '42P04') throw err;
-  });
-  await adminClient.end();
+  try {
+    await adminClient.connect();
+    await adminClient.query(`CREATE DATABASE "${dbName}"`).catch((err: { code?: string }) => {
+      // 42P04 = database already exists — perfectly fine for reuse
+      if (err.code !== '42P04') throw err;
+    });
+  } finally {
+    await adminClient.end();
+  }
 
-  const baseUrl = adminUrl.replace(/\/[^/]+$/, '');
-  return `${baseUrl}/${dbName}`;
+  const parsed = new URL(adminUrl);
+  parsed.pathname = `/${dbName}`;
+  return parsed.toString();
 }
 
 process.env.DATABASE_URL = await provisionTestDatabase();
@@ -94,5 +101,8 @@ afterAll(async () => {
     await closeDb();
   } catch {
     // Ignore: DB client was never initialised.
+  }
+  if (pgContainer) {
+    await pgContainer.stop();
   }
 });

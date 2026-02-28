@@ -1,25 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { db } from '../../src/db/client.js';
-import {
-  businesses,
-  customers,
-  invoiceItems,
-  invoiceSequences,
-  invoices,
-  sessions,
-  userBusinesses,
-  users,
-} from '../../src/db/schema.js';
+import { sql } from 'drizzle-orm';
+import { sessions, users } from '../../src/db/schema.js';
 
 export async function resetDb() {
-  await db.delete(invoiceItems);
-  await db.delete(invoices);
-  await db.delete(invoiceSequences);
-  await db.delete(customers);
-  await db.delete(userBusinesses);
-  await db.delete(businesses);
-  await db.delete(sessions);
-  await db.delete(users);
+  // Use TRUNCATE CASCADE to handle all FK chains atomically.
+  await db.execute(
+    sql`TRUNCATE users, sessions, businesses, user_businesses, customers, invoices, invoice_items, invoice_sequences CASCADE`
+  );
 }
 
 export async function createTestUserWithSession() {
