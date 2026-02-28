@@ -7,6 +7,15 @@ import type { BusinessListItem } from '@bon/types/businesses';
 
 const ACTIVE_BUSINESS_KEY = 'bon:activeBusiness';
 
+function buildBusinessPath(
+  businessId: string,
+  location: { pathname: string; search: string; hash: string }
+): string {
+  const match = /^\/businesses\/[^/]+/.exec(location.pathname);
+  const suffix = match ? location.pathname.slice(match[0].length) : '';
+  return `/businesses/${businessId}${suffix || '/dashboard'}${location.search}${location.hash}`;
+}
+
 interface ActiveBusiness {
   id: string;
   name: string;
@@ -55,38 +64,33 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
 
   // Auto-select first business if none is active, or recover from invalid URL businessId
   useEffect(() => {
-    if (businesses.length > 0 && !activeBusinessId) {
-      const firstBusiness = businesses[0];
-      if (firstBusiness) {
-        setFallbackBusinessId(firstBusiness.id);
-        localStorage.setItem(ACTIVE_BUSINESS_KEY, firstBusiness.id);
-      }
+    if (businesses.length > 0 && !activeBusinessId && businesses[0]) {
+      setFallbackBusinessId(businesses[0].id);
+      localStorage.setItem(ACTIVE_BUSINESS_KEY, businesses[0].id);
     }
 
     // Don't invalidate while still loading — businesses is [] during fetch
     if (isPending) return;
 
-    if (activeBusinessId && !businesses.some((b) => b.id === activeBusinessId)) {
-      if (businesses.length > 0) {
-        const firstBusiness = businesses[0];
-        if (firstBusiness) {
-          setFallbackBusinessId(firstBusiness.id);
-          localStorage.setItem(ACTIVE_BUSINESS_KEY, firstBusiness.id);
-          // When the invalid id came from the URL, replace it so activeBusiness resolves
-          if (urlBusinessId) {
-            const pattern = /^\/businesses\/[^/]+/;
-            const match = pattern.exec(location.pathname);
-            const suffix = match ? location.pathname.slice(match[0].length) : '';
-            navigate(
-              `/businesses/${firstBusiness.id}${suffix || '/dashboard'}${location.search}${location.hash}`,
-              { replace: true }
-            );
-          }
-        }
-      } else {
-        setFallbackBusinessId(null);
-        localStorage.removeItem(ACTIVE_BUSINESS_KEY);
-      }
+    // activeBusinessId is valid — nothing to recover
+    if (!activeBusinessId || businesses.some((b) => b.id === activeBusinessId)) return;
+
+    // No businesses at all — clear everything
+    if (businesses.length === 0) {
+      setFallbackBusinessId(null);
+      localStorage.removeItem(ACTIVE_BUSINESS_KEY);
+      return;
+    }
+
+    // Recover: fall back to first available business
+    const fallback = businesses[0];
+    if (!fallback) return;
+
+    setFallbackBusinessId(fallback.id);
+    localStorage.setItem(ACTIVE_BUSINESS_KEY, fallback.id);
+    // When the invalid id came from the URL, replace it so activeBusiness resolves
+    if (urlBusinessId) {
+      navigate(buildBusinessPath(fallback.id, location), { replace: true });
     }
   }, [businesses, activeBusinessId, isPending, urlBusinessId, location, navigate]);
 
@@ -113,11 +117,7 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
         queryClient.invalidateQueries({ queryKey: ['businesses', oldId] });
       }
 
-      const businessPathPattern = /^\/businesses\/[^/]+/;
-      const match = businessPathPattern.exec(location.pathname);
-      const suffix = match ? location.pathname.slice(match[0].length) : '';
-      const normalizedSuffix = suffix || '/dashboard';
-      navigate(`/businesses/${businessId}${normalizedSuffix}${location.search}${location.hash}`);
+      navigate(buildBusinessPath(businessId, location));
     },
     [activeBusinessId, queryClient, location, navigate]
   );
