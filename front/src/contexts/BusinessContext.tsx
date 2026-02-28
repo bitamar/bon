@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { queryKeys } from '../lib/queryKeys';
 import { fetchBusinesses } from '../api/businesses';
 import type { BusinessListItem } from '@bon/types/businesses';
@@ -24,9 +25,25 @@ const BusinessContext = createContext<BusinessContextValue | undefined>(undefine
 
 export function BusinessProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const queryClient = useQueryClient();
-  const [activeBusinessId, setActiveBusinessId] = useState<string | null>(() => {
-    return localStorage.getItem(ACTIVE_BUSINESS_KEY);
-  });
+  const navigate = useNavigate();
+  const location = useLocation();
+  const params = useParams<{ businessId?: string }>();
+
+  const urlBusinessId = params.businessId ?? null;
+
+  const [fallbackBusinessId, setFallbackBusinessId] = useState<string | null>(() =>
+    localStorage.getItem(ACTIVE_BUSINESS_KEY)
+  );
+
+  const activeBusinessId = urlBusinessId ?? fallbackBusinessId;
+
+  // Sync localStorage when URL businessId changes
+  useEffect(() => {
+    if (urlBusinessId) {
+      localStorage.setItem(ACTIVE_BUSINESS_KEY, urlBusinessId);
+      setFallbackBusinessId(urlBusinessId);
+    }
+  }, [urlBusinessId]);
 
   const { data, isPending } = useQuery({
     queryKey: queryKeys.userBusinesses(),
@@ -36,11 +53,12 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
 
   const businesses = data?.businesses ?? [];
 
+  // Auto-select first business if none is active
   useEffect(() => {
     if (businesses.length > 0 && !activeBusinessId) {
       const firstBusiness = businesses[0];
       if (firstBusiness) {
-        setActiveBusinessId(firstBusiness.id);
+        setFallbackBusinessId(firstBusiness.id);
         localStorage.setItem(ACTIVE_BUSINESS_KEY, firstBusiness.id);
       }
     }
@@ -49,11 +67,11 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
       if (businesses.length > 0) {
         const firstBusiness = businesses[0];
         if (firstBusiness) {
-          setActiveBusinessId(firstBusiness.id);
+          setFallbackBusinessId(firstBusiness.id);
           localStorage.setItem(ACTIVE_BUSINESS_KEY, firstBusiness.id);
         }
       } else {
-        setActiveBusinessId(null);
+        setFallbackBusinessId(null);
         localStorage.removeItem(ACTIVE_BUSINESS_KEY);
       }
     }
@@ -73,11 +91,21 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
 
   const switchBusiness = useCallback(
     (businessId: string) => {
-      setActiveBusinessId(businessId);
+      const oldId = activeBusinessId;
       localStorage.setItem(ACTIVE_BUSINESS_KEY, businessId);
-      queryClient.invalidateQueries();
+      setFallbackBusinessId(businessId);
+
+      if (oldId) {
+        queryClient.invalidateQueries({ queryKey: ['businesses', oldId] });
+      }
+
+      const prefix = `/businesses/${oldId ?? ''}`;
+      const suffix = location.pathname.startsWith(prefix)
+        ? location.pathname.slice(prefix.length)
+        : location.pathname;
+      navigate(`/businesses/${businessId}${suffix}`);
     },
-    [queryClient]
+    [activeBusinessId, queryClient, location.pathname, navigate]
   );
 
   const value = useMemo(

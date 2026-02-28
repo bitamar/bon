@@ -82,7 +82,7 @@ export function Onboarding() {
           },
         ],
       }));
-      navigate('/business/settings');
+      navigate(`/businesses/${data.business.id}/settings`);
     },
     onError: (error) => {
       if (

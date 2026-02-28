@@ -10,7 +10,8 @@ import type { CustomerFormHandle } from '../components/CustomerForm';
  */
 export function handleDuplicateTaxIdError(
   error: unknown,
-  formRef: RefObject<CustomerFormHandle | null>
+  formRef: RefObject<CustomerFormHandle | null>,
+  businessId: string
 ): boolean {
   if (!(error instanceof HttpError) || error.status !== 409) return false;
 
@@ -30,7 +31,7 @@ export function handleDuplicateTaxIdError(
         {`מספר מזהה זה כבר קיים עבור ${body.details.existingCustomerName} `}
         <Anchor
           component={Link}
-          to={`/business/customers/${body.details.existingCustomerId}`}
+          to={`/businesses/${businessId}/customers/${body.details.existingCustomerId}`}
           size="sm"
         >
           עבור ללקוח הקיים

@@ -29,6 +29,8 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const { activeBusiness } = useBusiness();
 
+  const bizPrefix = activeBusiness ? `/businesses/${activeBusiness.id}` : '';
+
   return (
     <AppShell.Navbar className={classes['navbar'] ?? ''}>
       <Box className={classes['logoArea'] ?? ''}>
@@ -46,10 +48,10 @@ export default function Navbar() {
       <ScrollArea type="auto" style={{ flex: 1 }} px="xs">
         <NavLink
           component={Link}
-          to="/"
+          to={activeBusiness ? `${bizPrefix}/dashboard` : '/'}
           label="ראשי"
           leftSection={<IconHome2 size={18} />}
-          active={pathname === '/'}
+          active={pathname.includes('/dashboard')}
           className={navLinkClass}
         />
         <NavLink
@@ -57,15 +59,15 @@ export default function Navbar() {
           to="/businesses"
           label="עסקים"
           leftSection={<IconBuilding size={18} />}
-          active={pathname.startsWith('/businesses') || pathname === '/onboarding'}
+          active={pathname === '/businesses' || pathname === '/onboarding'}
           className={navLinkClass}
         />
         <NavLink
           component={Link}
-          to="/business/customers"
+          to={activeBusiness ? `${bizPrefix}/customers` : '/'}
           label="לקוחות"
           leftSection={<IconAddressBook size={18} />}
-          active={pathname.startsWith('/business/customers')}
+          active={pathname.includes('/customers')}
           className={navLinkClass}
         />
         <NavLink

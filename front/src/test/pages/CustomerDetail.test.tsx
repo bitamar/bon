@@ -45,9 +45,9 @@ const mockCustomer = {
 function renderDetail() {
   return renderWithProviders(
     <Routes>
-      <Route path="/business/customers/:customerId" element={<CustomerDetail />} />
+      <Route path="/businesses/:businessId/customers/:customerId" element={<CustomerDetail />} />
     </Routes>,
-    { router: { initialEntries: ['/business/customers/c1'] } }
+    { router: { initialEntries: ['/businesses/biz-1/customers/c1'] } }
   );
 }
 
@@ -140,7 +140,7 @@ describe('CustomerDetail page', () => {
     expect(await screen.findByText(/מספר מזהה זה כבר קיים עבור חברה אחרת/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'עבור ללקוח הקיים' })).toHaveAttribute(
       'href',
-      '/business/customers/other-c1'
+      '/businesses/biz-1/customers/other-c1'
     );
   });
 

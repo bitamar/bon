@@ -15,7 +15,7 @@ import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
 import { useApiMutation } from '../lib/useApiMutation';
 import { fetchBusiness, updateBusiness } from '../api/businesses';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
@@ -62,11 +62,12 @@ export function BusinessSettings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeBusiness } = useBusiness();
+  const { businessId = '' } = useParams<{ businessId: string }>();
 
   const businessQuery = useQuery({
-    queryKey: queryKeys.business(activeBusiness?.id ?? ''),
-    queryFn: () => fetchBusiness(activeBusiness!.id),
-    enabled: !!activeBusiness,
+    queryKey: queryKeys.business(businessId),
+    queryFn: () => fetchBusiness(businessId),
+    enabled: !!businessId,
   });
 
   const form = useForm<UpdateBusinessBody & { registrationNumber: string }>({
@@ -132,7 +133,7 @@ export function BusinessSettings() {
     errorToast: { fallbackMessage: 'לא הצלחנו לשמור את השינויים, נסו שוב' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.userBusinesses() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.business(activeBusiness!.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.business(businessId) });
     },
   });
 
@@ -172,7 +173,7 @@ export function BusinessSettings() {
 
   const onSubmit = form.onSubmit((values) => {
     const { registrationNumber: _, ...updateData } = values;
-    updateMutation.mutate({ id: activeBusiness.id, data: updateData });
+    updateMutation.mutate({ id: businessId, data: updateData });
   });
 
   const initialCity = businessQuery.data?.business.city ?? '';

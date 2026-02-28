@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Container } from '@mantine/core';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { StatusCard } from '../components/StatusCard';
 import { useApiMutation } from '../lib/useApiMutation';
 import { createInvoiceDraft } from '../api/invoices';
@@ -10,7 +10,7 @@ import type { InvoiceResponse } from '@bon/types/invoices';
 export function InvoiceNew() {
   const navigate = useNavigate();
   const { activeBusiness } = useBusiness();
-  const businessId = activeBusiness?.id ?? '';
+  const { businessId = '' } = useParams<{ businessId: string }>();
   const calledRef = useRef(false);
 
   const createMutation = useApiMutation<InvoiceResponse>({
@@ -18,7 +18,7 @@ export function InvoiceNew() {
     successToast: false,
     errorToast: false,
     onSuccess: (data) => {
-      navigate(`/business/invoices/${data.invoice.id}/edit`, { replace: true });
+      navigate(`/businesses/${businessId}/invoices/${data.invoice.id}/edit`, { replace: true });
     },
   });
 

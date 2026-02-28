@@ -189,8 +189,7 @@ export function BusinessList() {
             isActive={activeBusiness?.id === business.id}
             onSwitch={() => switchBusiness(business.id)}
             onEdit={() => {
-              switchBusiness(business.id);
-              navigate('/business/settings');
+              navigate(`/businesses/${business.id}/settings`);
             }}
           />
         ))}

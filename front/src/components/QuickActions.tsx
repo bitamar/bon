@@ -1,8 +1,10 @@
 import { Button, Card, SimpleGrid, Text } from '@mantine/core';
 import { IconFileInvoice, IconSettings, IconUserPlus } from '@tabler/icons-react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 export function QuickActions() {
+  const { businessId } = useParams<{ businessId: string }>();
+
   return (
     <Card withBorder radius="lg" p="lg">
       <Text fw={600} mb="md">
@@ -11,7 +13,7 @@ export function QuickActions() {
       <SimpleGrid cols={1} spacing="xs">
         <Button
           component={Link}
-          to="/business/invoices/new"
+          to={`/businesses/${businessId}/invoices/new`}
           variant="light"
           leftSection={<IconFileInvoice size={18} />}
           justify="start"
@@ -21,7 +23,7 @@ export function QuickActions() {
         </Button>
         <Button
           component={Link}
-          to="/business/customers/new"
+          to={`/businesses/${businessId}/customers/new`}
           variant="light"
           leftSection={<IconUserPlus size={18} />}
           justify="start"
@@ -31,7 +33,7 @@ export function QuickActions() {
         </Button>
         <Button
           component={Link}
-          to="/business/settings"
+          to={`/businesses/${businessId}/settings`}
           variant="light"
           leftSection={<IconSettings size={18} />}
           justify="start"

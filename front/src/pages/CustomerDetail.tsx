@@ -35,19 +35,20 @@ function buildUpdatePayload(values: CustomerFormValues): UpdateCustomerBody {
 }
 
 export function CustomerDetail() {
-  const { customerId = '' } = useParams<{ customerId: string }>();
+  const { businessId = '', customerId = '' } = useParams<{
+    businessId: string;
+    customerId: string;
+  }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeBusiness } = useBusiness();
   const formRef = useRef<CustomerFormHandle>(null);
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
 
-  const businessId = activeBusiness?.id ?? '';
-
   const customerQuery = useQuery({
     queryKey: queryKeys.customer(businessId, customerId),
     queryFn: () => fetchCustomer(businessId, customerId),
-    enabled: !!activeBusiness && !!customerId,
+    enabled: !!businessId && !!customerId,
   });
 
   const updateMutation = useApiMutation({
@@ -55,7 +56,7 @@ export function CustomerDetail() {
     errorToast: false,
     successToast: { message: 'הלקוח עודכן בהצלחה' },
     onError: (error) => {
-      if (handleDuplicateTaxIdError(error, formRef)) return;
+      if (handleDuplicateTaxIdError(error, formRef, businessId)) return;
       showErrorNotification(extractErrorMessage(error, 'משהו לא עבד, נסו שוב'));
     },
     onSuccess: () => {
@@ -72,7 +73,7 @@ export function CustomerDetail() {
       queryClient.invalidateQueries({ queryKey: queryKeys.customer(businessId, customerId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.customers(businessId) });
       closeDelete();
-      navigate('/business/customers');
+      navigate(`/businesses/${businessId}/customers`);
     },
   });
 
@@ -143,7 +144,7 @@ export function CustomerDetail() {
               isPending={updateMutation.isPending}
               submitLabel="שמור שינויים"
               cancelLabel="ביטול"
-              onCancel={() => navigate('/business/customers')}
+              onCancel={() => navigate(`/businesses/${businessId}/customers`)}
               initialCity={initialCity}
               initialStreetAddress={initialStreetAddress}
             />

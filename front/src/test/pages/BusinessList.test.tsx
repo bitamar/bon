@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BusinessList } from '../../pages/BusinessList';
 import { renderWithProviders } from '../utils/renderWithProviders';
@@ -171,7 +171,7 @@ describe('BusinessList page', () => {
     expect(addCard).toHaveAttribute('tabindex', '0');
   });
 
-  it('clicking "ערוך" calls switchBusiness and navigates to /business/settings', async () => {
+  it('clicking "ערוך" navigates to /businesses/{id}/settings', async () => {
     const user = userEvent.setup();
     const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
 
@@ -191,6 +191,6 @@ describe('BusinessList page', () => {
 
     await user.click(screen.getByRole('button', { name: 'ערוך' }));
 
-    await waitFor(() => expect(switchBusiness).toHaveBeenCalledWith('biz-1'));
+    expect(switchBusiness).not.toHaveBeenCalled();
   });
 });

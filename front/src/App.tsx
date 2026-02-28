@@ -20,6 +20,14 @@ import { InvoiceEdit } from './pages/InvoiceEdit';
 import { InvoiceDetail } from './pages/InvoiceDetail';
 import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
+import { BusinessRoute } from './components/BusinessRoute';
+import { LegacyRedirect } from './components/LegacyRedirect';
+
+function HomeRedirect() {
+  const { activeBusiness } = useBusiness();
+  if (!activeBusiness) return <Navigate to="/businesses" replace />;
+  return <Navigate to={`/businesses/${activeBusiness.id}/dashboard`} replace />;
+}
 
 function ProtectedRoute({ children }: Readonly<{ children: ReactNode }>) {
   const { user, isHydrated } = useAuth();
@@ -128,16 +136,20 @@ export default function AppRoutes() {
               </ProtectedRoute>
             }
           >
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<HomeRedirect />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/businesses" element={<BusinessList />} />
-            <Route path="/business/settings" element={<BusinessSettings />} />
-            <Route path="/business/customers" element={<CustomerList />} />
-            <Route path="/business/customers/new" element={<CustomerCreate />} />
-            <Route path="/business/customers/:customerId" element={<CustomerDetail />} />
-            <Route path="/business/invoices/new" element={<InvoiceNew />} />
-            <Route path="/business/invoices/:invoiceId" element={<InvoiceDetail />} />
-            <Route path="/business/invoices/:invoiceId/edit" element={<InvoiceEdit />} />
+            <Route path="/businesses/:businessId" element={<BusinessRoute />}>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="settings" element={<BusinessSettings />} />
+              <Route path="customers" element={<CustomerList />} />
+              <Route path="customers/new" element={<CustomerCreate />} />
+              <Route path="customers/:customerId" element={<CustomerDetail />} />
+              <Route path="invoices/new" element={<InvoiceNew />} />
+              <Route path="invoices/:invoiceId" element={<InvoiceDetail />} />
+              <Route path="invoices/:invoiceId/edit" element={<InvoiceEdit />} />
+            </Route>
+            <Route path="/business/*" element={<LegacyRedirect />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
