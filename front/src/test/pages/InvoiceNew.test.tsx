@@ -58,10 +58,13 @@ const mockInvoiceResponse = {
 function renderNew() {
   return renderWithProviders(
     <Routes>
-      <Route path="/business/invoices/new" element={<InvoiceNew />} />
-      <Route path="/business/invoices/:invoiceId/edit" element={<div>edit page</div>} />
+      <Route path="/businesses/:businessId/invoices/new" element={<InvoiceNew />} />
+      <Route
+        path="/businesses/:businessId/invoices/:invoiceId/edit"
+        element={<div>edit page</div>}
+      />
     </Routes>,
-    { router: { initialEntries: ['/business/invoices/new'] } }
+    { router: { initialEntries: ['/businesses/biz-1/invoices/new'] } }
   );
 }
 

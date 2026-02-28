@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
+import { Route, Routes } from 'react-router-dom';
 import { Dashboard } from '../../pages/Dashboard';
 import { renderWithProviders } from '../utils/renderWithProviders';
 import * as dashboardDataModule from '../../hooks/useDashboardData';
@@ -12,12 +13,23 @@ vi.mock('../../hooks/useDashboardData', async (importOriginal) => {
 
 const useDashboardDataMock = vi.mocked(dashboardDataModule.useDashboardData);
 
+// ── helpers ──
+
+function renderDashboard() {
+  return renderWithProviders(
+    <Routes>
+      <Route path="/businesses/:businessId/dashboard" element={<Dashboard />} />
+    </Routes>,
+    { router: { initialEntries: ['/businesses/biz-1/dashboard'] } }
+  );
+}
+
 describe('Dashboard page', () => {
   it('renders KPI cards and sections when data is loaded', () => {
     const mockData = createMockDashboardData();
     useDashboardDataMock.mockReturnValue({ data: mockData, isLoading: false, error: null });
 
-    renderWithProviders(<Dashboard />);
+    renderDashboard();
 
     expect(screen.getByRole('heading', { name: 'ראשי' })).toBeInTheDocument();
     expect(screen.getByText('הכנסות החודש')).toBeInTheDocument();
@@ -30,7 +42,7 @@ describe('Dashboard page', () => {
     const mockData = createMockDashboardData();
     useDashboardDataMock.mockReturnValue({ data: mockData, isLoading: false, error: null });
 
-    renderWithProviders(<Dashboard />);
+    renderDashboard();
 
     expect(screen.getByText('פעולות מהירות')).toBeInTheDocument();
     expect(screen.getByText('הגדרות עסק')).toBeInTheDocument();
@@ -39,7 +51,7 @@ describe('Dashboard page', () => {
   it('renders loading skeletons when loading', () => {
     useDashboardDataMock.mockReturnValue({ data: undefined, isLoading: true, error: null });
 
-    const { container } = renderWithProviders(<Dashboard />);
+    const { container } = renderDashboard();
 
     const skeletons = container.querySelectorAll('[data-visible="true"]');
     expect(skeletons.length).toBeGreaterThan(0);
@@ -52,7 +64,7 @@ describe('Dashboard page', () => {
       error: new Error('fail'),
     });
 
-    renderWithProviders(<Dashboard />);
+    renderDashboard();
 
     expect(screen.getByText('שגיאה בטעינת הנתונים')).toBeInTheDocument();
   });

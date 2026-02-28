@@ -14,7 +14,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconUserPlus } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
 import { fetchCustomers } from '../api/customers';
@@ -59,12 +59,11 @@ function formatTaxId(taxId: string | null, taxIdType: TaxIdType): string {
 
 export function CustomerList() {
   const navigate = useNavigate();
+  const { businessId = '' } = useParams<{ businessId: string }>();
   const { activeBusiness } = useBusiness();
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebouncedValue(search, 150);
   const [activeFilter, setActiveFilter] = useState<'false' | undefined>(undefined);
-
-  const businessId = activeBusiness?.id ?? '';
 
   const customersQuery = useQuery({
     queryKey: [
@@ -72,7 +71,7 @@ export function CustomerList() {
       { q: debouncedSearch || undefined, active: activeFilter },
     ],
     queryFn: () => fetchCustomers(businessId, debouncedSearch || undefined, activeFilter, 200),
-    enabled: !!activeBusiness,
+    enabled: !!businessId,
   });
 
   if (!activeBusiness) {
@@ -119,7 +118,7 @@ export function CustomerList() {
           <PageTitle order={3}>לקוחות</PageTitle>
           <Button
             leftSection={<IconUserPlus size={18} />}
-            onClick={() => navigate('/business/customers/new')}
+            onClick={() => navigate(`/businesses/${businessId}/customers/new`)}
           >
             לקוח חדש
           </Button>
@@ -146,7 +145,7 @@ export function CustomerList() {
         {customers.length === 0 ? (
           <EmptyState
             hasSearchQuery={hasSearchQuery}
-            onAddFirst={() => navigate('/business/customers/new')}
+            onAddFirst={() => navigate(`/businesses/${businessId}/customers/new`)}
           />
         ) : (
           <Stack gap="xs">
@@ -154,7 +153,7 @@ export function CustomerList() {
               <UnstyledButton
                 key={customer.id}
                 component={Link}
-                to={`/business/customers/${customer.id}`}
+                to={`/businesses/${businessId}/customers/${customer.id}`}
                 style={customer.isActive ? undefined : { opacity: 0.5 }}
               >
                 <Paper withBorder radius="md" p="md">

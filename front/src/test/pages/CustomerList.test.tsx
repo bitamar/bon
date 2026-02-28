@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Route, Routes } from 'react-router-dom';
 import { CustomerList } from '../../pages/CustomerList';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
@@ -49,6 +50,17 @@ const mockCustomers = [
   },
 ];
 
+// ── helpers ──
+
+function renderCustomerList() {
+  return renderWithProviders(
+    <Routes>
+      <Route path="/businesses/:businessId/customers" element={<CustomerList />} />
+    </Routes>,
+    { router: { initialEntries: ['/businesses/biz-1/customers'] } }
+  );
+}
+
 describe('CustomerList page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -57,26 +69,26 @@ describe('CustomerList page', () => {
 
   it('shows error when no active business', () => {
     mockNoBusiness(useBusiness);
-    renderWithProviders(<CustomerList />);
+    renderCustomerList();
     expect(screen.getByText('לא נבחר עסק')).toBeInTheDocument();
   });
 
   it('shows loading state', () => {
     vi.mocked(customersApi.fetchCustomers).mockReturnValue(new Promise(() => {}));
-    renderWithProviders(<CustomerList />);
+    renderCustomerList();
     expect(screen.getByText('טוען לקוחות...')).toBeInTheDocument();
   });
 
   it('shows error state with retry', async () => {
     vi.mocked(customersApi.fetchCustomers).mockRejectedValue(new Error('fail'));
-    renderWithProviders(<CustomerList />);
+    renderCustomerList();
     expect(await screen.findByText('לא הצלחנו לטעון את רשימת הלקוחות')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'נסה שוב' })).toBeInTheDocument();
   });
 
   it('renders customer list with formatted data', async () => {
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: mockCustomers });
-    renderWithProviders(<CustomerList />);
+    renderCustomerList();
 
     expect(await screen.findByText('חברת אלפא')).toBeInTheDocument();
     expect(screen.getByText('51-2345678')).toBeInTheDocument();
@@ -89,7 +101,7 @@ describe('CustomerList page', () => {
 
   it('shows inactive badge for inactive customers', async () => {
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: mockCustomers });
-    renderWithProviders(<CustomerList />);
+    renderCustomerList();
 
     expect(await screen.findByText('לא פעיל')).toBeInTheDocument();
   });
@@ -98,15 +110,15 @@ describe('CustomerList page', () => {
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue({
       customers: [mockCustomers[0]!],
     });
-    renderWithProviders(<CustomerList />);
+    renderCustomerList();
 
     const link = await screen.findByRole('link', { name: /חברת אלפא/ });
-    expect(link).toHaveAttribute('href', '/business/customers/c1');
+    expect(link).toHaveAttribute('href', '/businesses/biz-1/customers/c1');
   });
 
   it('shows empty state with CTA when no customers', async () => {
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
-    renderWithProviders(<CustomerList />);
+    renderCustomerList();
 
     expect(await screen.findByText('עדיין אין לקוחות')).toBeInTheDocument();
     expect(screen.getByText('הוסיפו לקוח ראשון כדי להתחיל ליצור חשבוניות')).toBeInTheDocument();
@@ -116,7 +128,7 @@ describe('CustomerList page', () => {
   it('shows not-found state when search yields no results', async () => {
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
     const user = userEvent.setup();
-    renderWithProviders(<CustomerList />);
+    renderCustomerList();
 
     const searchInput = await screen.findByPlaceholderText('חיפוש לפי שם או מספר מזהה...');
     await user.type(searchInput, 'nonexistent');
@@ -129,7 +141,7 @@ describe('CustomerList page', () => {
 
   it('calls fetchCustomers with limit=200', async () => {
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
-    renderWithProviders(<CustomerList />);
+    renderCustomerList();
 
     await screen.findByText('עדיין אין לקוחות');
     expect(customersApi.fetchCustomers).toHaveBeenCalledWith('biz-1', undefined, undefined, 200);

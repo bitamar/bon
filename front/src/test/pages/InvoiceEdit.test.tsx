@@ -89,11 +89,11 @@ function setupDraftMocks(invoiceOverrides: Partial<Invoice> = {}) {
 function renderEdit() {
   return renderWithProviders(
     <Routes>
-      <Route path="/business/invoices/:invoiceId/edit" element={<InvoiceEdit />} />
-      <Route path="/business/invoices/:invoiceId" element={<div>detail-page</div>} />
-      <Route path="/" element={<div>home</div>} />
+      <Route path="/businesses/:businessId/invoices/:invoiceId/edit" element={<InvoiceEdit />} />
+      <Route path="/businesses/:businessId/invoices/:invoiceId" element={<div>detail-page</div>} />
+      <Route path="/businesses/:businessId/dashboard" element={<div>home</div>} />
     </Routes>,
-    { router: { initialEntries: ['/business/invoices/inv-1/edit'] } }
+    { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1/edit'] } }
   );
 }
 

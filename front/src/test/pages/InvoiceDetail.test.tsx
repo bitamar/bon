@@ -18,10 +18,13 @@ import { makeFinalizedInvoice } from '../utils/invoiceStubs';
 function renderDetail() {
   return renderWithProviders(
     <Routes>
-      <Route path="/business/invoices/:invoiceId" element={<InvoiceDetail />} />
-      <Route path="/business/invoices/:invoiceId/edit" element={<div>edit-page</div>} />
+      <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      <Route
+        path="/businesses/:businessId/invoices/:invoiceId/edit"
+        element={<div>edit-page</div>}
+      />
     </Routes>,
-    { router: { initialEntries: ['/business/invoices/inv-1'] } }
+    { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
   );
 }
 

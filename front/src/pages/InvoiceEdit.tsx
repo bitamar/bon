@@ -90,24 +90,25 @@ function makeEmptyRow(defaultVatRate: number): LineItemFormRow {
 }
 
 export function InvoiceEdit() {
-  const { invoiceId = '' } = useParams<{ invoiceId: string }>();
+  const { businessId = '', invoiceId = '' } = useParams<{
+    businessId: string;
+    invoiceId: string;
+  }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeBusiness } = useBusiness();
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
 
-  const businessId = activeBusiness?.id ?? '';
-
   const invoiceQuery = useQuery({
     queryKey: queryKeys.invoice(businessId, invoiceId),
     queryFn: () => fetchInvoice(businessId, invoiceId),
-    enabled: !!activeBusiness && !!invoiceId,
+    enabled: !!businessId && !!invoiceId,
   });
 
   const businessQuery = useQuery({
     queryKey: queryKeys.business(businessId),
     queryFn: () => fetchBusiness(businessId),
-    enabled: !!activeBusiness,
+    enabled: !!businessId,
   });
 
   const defaultVatRate = businessQuery.data?.business.defaultVatRate ?? 1700;
@@ -184,7 +185,7 @@ export function InvoiceEdit() {
   const customerQuery = useQuery({
     queryKey: queryKeys.customer(businessId, form?.customerId ?? ''),
     queryFn: () => fetchCustomer(businessId, form?.customerId ?? ''),
-    enabled: !!activeBusiness && !!form?.customerId,
+    enabled: !!businessId && !!form?.customerId,
   });
 
   // ── Finalization flow ──
@@ -214,7 +215,7 @@ export function InvoiceEdit() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices(businessId) });
       closeDelete();
-      navigate('/');
+      navigate(`/businesses/${businessId}/dashboard`);
     },
   });
 
@@ -257,7 +258,7 @@ export function InvoiceEdit() {
   const invoice = invoiceQuery.data.invoice;
 
   if (invoice.status !== 'draft') {
-    return <Navigate to={`/business/invoices/${invoiceId}`} replace />;
+    return <Navigate to={`/businesses/${businessId}/invoices/${invoiceId}`} replace />;
   }
 
   if (!form || !headerTotals) {

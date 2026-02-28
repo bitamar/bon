@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Container, Paper, Stack } from '@mantine/core';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
@@ -37,21 +37,20 @@ export function CustomerCreate() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeBusiness } = useBusiness();
+  const { businessId = '' } = useParams<{ businessId: string }>();
   const formRef = useRef<CustomerFormHandle>(null);
-
-  const businessId = activeBusiness?.id ?? '';
 
   const createMutation = useApiMutation({
     mutationFn: (data: CreateCustomerBody) => createCustomer(businessId, data),
     errorToast: false,
     successToast: { message: 'הלקוח נוצר בהצלחה' },
     onError: (error) => {
-      if (handleDuplicateTaxIdError(error, formRef)) return;
+      if (handleDuplicateTaxIdError(error, formRef, businessId)) return;
       showErrorNotification(extractErrorMessage(error, 'משהו לא עבד, נסו שוב'));
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.customers(businessId) });
-      navigate(`/business/customers/${data.customer.id}`);
+      navigate(`/businesses/${businessId}/customers/${data.customer.id}`);
     },
   });
 
@@ -74,7 +73,7 @@ export function CustomerCreate() {
             isPending={createMutation.isPending}
             submitLabel="שמור"
             cancelLabel="ביטול"
-            onCancel={() => navigate('/business/customers')}
+            onCancel={() => navigate(`/businesses/${businessId}/customers`)}
           />
         </Paper>
       </Stack>

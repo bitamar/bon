@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useLocation } from 'react-router-dom';
 import { BusinessList } from '../../pages/BusinessList';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
@@ -26,6 +27,11 @@ const mockBusiness = (
   role: 'owner' as const,
   ...overrides,
 });
+
+function LocationDisplay() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}</div>;
+}
 
 describe('BusinessList page', () => {
   const switchBusiness = vi.fn();
@@ -171,7 +177,7 @@ describe('BusinessList page', () => {
     expect(addCard).toHaveAttribute('tabindex', '0');
   });
 
-  it('clicking "ערוך" calls switchBusiness and navigates to /business/settings', async () => {
+  it('clicking "ערוך" navigates to /businesses/{id}/settings', async () => {
     const user = userEvent.setup();
     const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
 
@@ -187,10 +193,16 @@ describe('BusinessList page', () => {
       isLoading: false,
     });
 
-    renderWithProviders(<BusinessList />);
+    renderWithProviders(
+      <>
+        <BusinessList />
+        <LocationDisplay />
+      </>
+    );
 
     await user.click(screen.getByRole('button', { name: 'ערוך' }));
 
-    await waitFor(() => expect(switchBusiness).toHaveBeenCalledWith('biz-1'));
+    expect(switchBusiness).not.toHaveBeenCalled();
+    expect(screen.getByTestId('location')).toHaveTextContent('/businesses/biz-1/settings');
   });
 });

@@ -54,10 +54,13 @@ const mockCustomerResponse = {
 function renderCreate() {
   return renderWithProviders(
     <Routes>
-      <Route path="/business/customers/new" element={<CustomerCreate />} />
-      <Route path="/business/customers/:customerId" element={<div>detail page</div>} />
+      <Route path="/businesses/:businessId/customers/new" element={<CustomerCreate />} />
+      <Route
+        path="/businesses/:businessId/customers/:customerId"
+        element={<div>detail page</div>}
+      />
     </Routes>,
-    { router: { initialEntries: ['/business/customers/new'] } }
+    { router: { initialEntries: ['/businesses/biz-1/customers/new'] } }
   );
 }
 

@@ -49,7 +49,7 @@ export function CustomerSelect({
         rightSection={isLoading ? <Loader size={16} /> : undefined}
         error={error ? 'שגיאה בטעינת לקוחות' : undefined}
       />
-      <Anchor component={Link} to="/business/customers/new" size="sm">
+      <Anchor component={Link} to={`/businesses/${businessId}/customers/new`} size="sm">
         + לקוח חדש
       </Anchor>
     </Stack>

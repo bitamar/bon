@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { Route, Routes } from 'react-router-dom';
 import { BusinessSettings } from '../../pages/BusinessSettings';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
@@ -21,6 +22,17 @@ vi.mock('../../api/address', () => ({
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as businessesApi from '../../api/businesses';
 import { activeBusinessStub } from '../utils/businessStubs';
+
+// ── helpers ──
+
+function renderSettings() {
+  return renderWithProviders(
+    <Routes>
+      <Route path="/businesses/:businessId/settings" element={<BusinessSettings />} />
+    </Routes>,
+    { router: { initialEntries: ['/businesses/biz-1/settings'] } }
+  );
+}
 
 const mockBusiness = {
   id: 'biz-1',
@@ -62,7 +74,7 @@ describe('BusinessSettings page', () => {
       isLoading: false,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     expect(screen.getByText('לא נבחר עסק')).toBeInTheDocument();
   });
@@ -70,7 +82,7 @@ describe('BusinessSettings page', () => {
   it('shows loading state while fetching', async () => {
     vi.mocked(businessesApi.fetchBusiness).mockReturnValue(new Promise(() => {}));
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     expect(await screen.findByText('טוען נתוני עסק...')).toBeInTheDocument();
   });
@@ -81,7 +93,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -91,7 +103,7 @@ describe('BusinessSettings page', () => {
   it('shows error state when fetchBusiness rejects', async () => {
     vi.mocked(businessesApi.fetchBusiness).mockRejectedValue(new Error('Network error'));
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     expect(await screen.findByText('לא הצלחנו לטעון את נתוני העסק')).toBeInTheDocument();
   });
@@ -106,7 +118,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
     await screen.findByRole('textbox', { name: /שם העסק/ });
@@ -128,7 +140,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -150,7 +162,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -178,7 +190,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -192,7 +204,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     expect(await screen.findByText('עוסק מורשה')).toBeInTheDocument();
   });
@@ -203,7 +215,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -224,7 +236,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -244,7 +256,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -257,7 +269,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -279,7 +291,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderWithProviders(<BusinessSettings />);
+    renderSettings();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 

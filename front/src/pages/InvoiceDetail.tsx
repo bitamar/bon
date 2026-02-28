@@ -74,15 +74,16 @@ function DetailSkeleton() {
 }
 
 export function InvoiceDetail() {
-  const { invoiceId = '' } = useParams<{ invoiceId: string }>();
+  const { businessId = '', invoiceId = '' } = useParams<{
+    businessId: string;
+    invoiceId: string;
+  }>();
   const { activeBusiness } = useBusiness();
-
-  const businessId = activeBusiness?.id ?? '';
 
   const invoiceQuery = useQuery({
     queryKey: queryKeys.invoice(businessId, invoiceId),
     queryFn: () => fetchInvoice(businessId, invoiceId),
-    enabled: !!activeBusiness && !!invoiceId,
+    enabled: !!businessId && !!invoiceId,
   });
 
   // ── Guards ──
@@ -119,7 +120,7 @@ export function InvoiceDetail() {
 
   // Draft invoices redirect to edit page
   if (invoice.status === 'draft') {
-    return <Navigate to={`/business/invoices/${invoiceId}/edit`} replace />;
+    return <Navigate to={`/businesses/${businessId}/invoices/${invoiceId}/edit`} replace />;
   }
 
   const statusConfig = INVOICE_STATUS_CONFIG[invoice.status];
