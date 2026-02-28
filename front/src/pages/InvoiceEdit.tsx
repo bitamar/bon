@@ -296,7 +296,6 @@ export function InvoiceEdit() {
     const handler = (e: BeforeUnloadEvent) => {
       if (isDirty && !isSaving) {
         e.preventDefault();
-        e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handler);
