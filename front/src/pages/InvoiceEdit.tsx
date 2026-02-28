@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   Alert,
   Badge,
@@ -14,7 +14,8 @@ import {
   Textarea,
 } from '@mantine/core';
 import { DatePickerInput, type DateValue } from '@mantine/dates';
-import { useDisclosure } from '@mantine/hooks';
+import { useForm } from '@mantine/form';
+import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -26,6 +27,7 @@ import { InvoiceTotals } from '../components/InvoiceTotals';
 import { BusinessProfileGateModal } from '../components/BusinessProfileGateModal';
 import { VatExemptionReasonModal } from '../components/VatExemptionReasonModal';
 import { InvoicePreviewModal } from '../components/InvoicePreviewModal';
+import { SaveIndicator, type SaveStatus } from '../components/SaveIndicator';
 import { useFinalizationFlow } from '../hooks/useFinalizationFlow';
 import { useApiMutation } from '../lib/useApiMutation';
 import { deleteInvoiceDraft, fetchInvoice, updateInvoiceDraft } from '../api/invoices';
@@ -33,8 +35,8 @@ import { fetchBusiness } from '../api/businesses';
 import { fetchCustomer } from '../api/customers';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
-import { formatMinorUnits, toMinorUnits } from '@bon/types/formatting';
-import { showErrorNotification } from '../lib/notifications';
+import { formatMinorUnits, fromMinorUnits, toMinorUnits } from '@bon/types/formatting';
+import { showErrorNotification, showSuccessNotification } from '../lib/notifications';
 import { calculateInvoiceTotals } from '@bon/types/vat';
 import type { DocumentType, UpdateInvoiceDraftBody } from '@bon/types/invoices';
 
@@ -89,6 +91,36 @@ function makeEmptyRow(defaultVatRate: number): LineItemFormRow {
   };
 }
 
+function buildPayload(values: InvoiceFormValues): UpdateInvoiceDraftBody | null {
+  const nonEmptyItems = values.items.filter(
+    (item) => item.description.trim() !== '' || item.unitPrice !== 0
+  );
+
+  const hasPartialRows = nonEmptyItems.some(
+    (item) => item.description.trim() === '' && item.unitPrice !== 0
+  );
+
+  if (hasPartialRows) return null;
+
+  return {
+    documentType: values.documentType,
+    customerId: values.customerId ?? null,
+    invoiceDate: values.invoiceDate ? toLocalDateString(values.invoiceDate) : undefined,
+    dueDate: values.dueDate ? toLocalDateString(values.dueDate) : null,
+    notes: values.notes || null,
+    internalNotes: values.internalNotes || null,
+    items: nonEmptyItems.map((item, index) => ({
+      description: item.description,
+      catalogNumber: item.catalogNumber || undefined,
+      quantity: item.quantity,
+      unitPriceMinorUnits: toMinorUnits(item.unitPrice),
+      discountPercent: item.discountPercent,
+      vatRateBasisPoints: item.vatRateBasisPoints,
+      position: index,
+    })),
+  };
+}
+
 export function InvoiceEdit() {
   const { businessId = '', invoiceId = '' } = useParams<{
     businessId: string;
@@ -114,54 +146,77 @@ export function InvoiceEdit() {
   const defaultVatRate = businessQuery.data?.business.defaultVatRate ?? 1700;
   const businessType = businessQuery.data?.business.businessType;
 
-  const initialValues = useMemo((): InvoiceFormValues | null => {
-    if (!invoiceQuery.data) return null;
-    const { invoice, items } = invoiceQuery.data;
-    return {
-      documentType: invoice.documentType,
-      customerId: invoice.customerId,
-      invoiceDate: parseDate(invoice.invoiceDate),
-      dueDate: parseDate(invoice.dueDate),
-      notes: invoice.notes ?? '',
-      internalNotes: invoice.internalNotes ?? '',
-      items:
-        items.length > 0
-          ? items
-              .sort((a, b) => a.position - b.position)
-              .map((it) => ({
-                key: it.id,
-                description: it.description,
-                catalogNumber: it.catalogNumber ?? '',
-                quantity: it.quantity,
-                unitPrice: it.unitPriceMinorUnits / 100,
-                discountPercent: it.discountPercent,
-                vatRateBasisPoints: it.vatRateBasisPoints,
-              }))
-          : [makeEmptyRow(defaultVatRate)],
-    };
+  // ── Form (useForm from @mantine/form) ──
+
+  const form = useForm<InvoiceFormValues>({
+    initialValues: {
+      documentType: 'tax_invoice',
+      customerId: null,
+      invoiceDate: null,
+      dueDate: null,
+      notes: '',
+      internalNotes: '',
+      items: [makeEmptyRow(1700)],
+    },
+    validate: {
+      items: {
+        description: (value, values, path) => {
+          const index = Number(path.split('.')[1]);
+          const item = values.items[index];
+          return item && item.unitPrice > 0 && !value.trim() ? 'נדרש תיאור' : null;
+        },
+      },
+    },
+  });
+
+  // ── Hydration guard ──
+
+  const hasHydrated = useRef(false);
+  const savedValuesRef = useRef<InvoiceFormValues | null>(null);
+
+  useEffect(() => {
+    if (invoiceQuery.data && !hasHydrated.current) {
+      const { invoice, items } = invoiceQuery.data;
+      const serverValues: InvoiceFormValues = {
+        documentType: invoice.documentType,
+        customerId: invoice.customerId,
+        invoiceDate: parseDate(invoice.invoiceDate),
+        dueDate: parseDate(invoice.dueDate),
+        notes: invoice.notes ?? '',
+        internalNotes: invoice.internalNotes ?? '',
+        items:
+          items.length > 0
+            ? items
+                .sort((a, b) => a.position - b.position)
+                .map((it) => ({
+                  key: it.id,
+                  description: it.description,
+                  catalogNumber: it.catalogNumber ?? '',
+                  quantity: it.quantity,
+                  unitPrice: fromMinorUnits(it.unitPriceMinorUnits),
+                  discountPercent: it.discountPercent,
+                  vatRateBasisPoints: it.vatRateBasisPoints,
+                }))
+            : [makeEmptyRow(defaultVatRate)],
+      };
+      form.setValues(serverValues);
+      form.resetDirty();
+      hasHydrated.current = true;
+    }
   }, [invoiceQuery.data, defaultVatRate]);
 
-  const [form, setForm] = useState<InvoiceFormValues | null>(null);
+  // ── VAT lock logic ──
 
-  // Only initialize once — subsequent refetches are intentionally ignored to
-  // avoid overwriting the user's unsaved edits.
-  useEffect(() => {
-    if (initialValues && !form) {
-      setForm(initialValues);
-    }
-  }, [initialValues, form]);
-
-  // VAT lock logic
-  const vatLocked = form?.documentType === 'receipt' || businessType === 'exempt_dealer';
+  const vatLocked = form.values.documentType === 'receipt' || businessType === 'exempt_dealer';
 
   useEffect(() => {
-    if (vatLocked && form) {
-      const needsUpdate = form.items.some((item) => item.vatRateBasisPoints !== 0);
+    if (vatLocked && hasHydrated.current) {
+      const needsUpdate = form.values.items.some((item) => item.vatRateBasisPoints !== 0);
       if (needsUpdate) {
-        setForm({
-          ...form,
-          items: form.items.map((item) => ({ ...item, vatRateBasisPoints: 0 })),
-        });
+        form.setFieldValue(
+          'items',
+          form.values.items.map((item) => ({ ...item, vatRateBasisPoints: 0 }))
+        );
       }
     }
   }, [vatLocked, form]);
@@ -169,23 +224,22 @@ export function InvoiceEdit() {
   // ── Totals ──
 
   const headerTotals = useMemo(() => {
-    if (!form) return null;
     return calculateInvoiceTotals(
-      form.items.map((row) => ({
+      form.values.items.map((row) => ({
         quantity: row.quantity,
         unitPriceMinorUnits: toMinorUnits(row.unitPrice),
         discountPercent: row.discountPercent,
         vatRateBasisPoints: row.vatRateBasisPoints,
       }))
     );
-  }, [form]);
+  }, [form.values.items]);
 
   // ── Fetch selected customer info for preview ──
 
   const customerQuery = useQuery({
-    queryKey: queryKeys.customer(businessId, form?.customerId ?? ''),
-    queryFn: () => fetchCustomer(businessId, form?.customerId ?? ''),
-    enabled: !!businessId && !!form?.customerId,
+    queryKey: queryKeys.customer(businessId, form.values.customerId ?? ''),
+    queryFn: () => fetchCustomer(businessId, form.values.customerId ?? ''),
+    enabled: !!businessId && !!form.values.customerId,
   });
 
   // ── Finalization flow ──
@@ -195,19 +249,61 @@ export function InvoiceEdit() {
     invoiceId,
     business: businessQuery.data?.business ?? null,
     businessType,
-    customerId: form?.customerId ?? null,
-    items: form?.items ?? [],
-    invoiceDate: form?.invoiceDate ?? null,
-    totalVatMinorUnits: headerTotals?.vatMinorUnits ?? 0,
+    customerId: form.values.customerId ?? null,
+    items: form.values.items,
+    invoiceDate: form.values.invoiceDate ?? null,
+    totalVatMinorUnits: headerTotals.vatMinorUnits,
   });
+
+  // ── Save mutation (shared by manual save and autosave) ──
 
   const saveMutation = useApiMutation({
     mutationFn: (data: UpdateInvoiceDraftBody) => updateInvoiceDraft(businessId, invoiceId, data),
-    successToast: { message: 'הטיוטה נשמרה בהצלחה' },
+    successToast: false,
     onSuccess: () => {
+      if (savedValuesRef.current) {
+        form.resetDirty(savedValuesRef.current);
+        savedValuesRef.current = null;
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.invoice(businessId, invoiceId) });
     },
   });
+
+  // ── Autosave (debounced 2s, only after hydration) ──
+
+  const debouncedSave = useDebouncedCallback(() => {
+    if (saveMutation.isPending) return;
+    if (form.isDirty()) {
+      const payload = buildPayload(form.values);
+      if (payload) {
+        savedValuesRef.current = structuredClone(form.values);
+        saveMutation.mutate(payload);
+      }
+    }
+  }, 2000);
+
+  useEffect(() => {
+    if (hasHydrated.current && form.isDirty()) {
+      debouncedSave();
+    }
+  }, [form.values, debouncedSave]);
+
+  // ── beforeunload ──
+
+  const isDirty = form.isDirty();
+  const isSaving = saveMutation.isPending;
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty && !isSaving) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty, isSaving]);
+
+  // ── Delete mutation ──
 
   const deleteMutation = useApiMutation({
     mutationFn: () => deleteInvoiceDraft(businessId, invoiceId),
@@ -261,7 +357,7 @@ export function InvoiceEdit() {
     return <Navigate to={`/businesses/${businessId}/invoices/${invoiceId}`} replace />;
   }
 
-  if (!form || !headerTotals) {
+  if (!hasHydrated.current) {
     return (
       <Container size="md" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
         <StatusCard status="loading" title="טוען חשבונית..." />
@@ -271,56 +367,38 @@ export function InvoiceEdit() {
 
   // ── Save logic ──
 
-  function buildSavePayload(): UpdateInvoiceDraftBody | null {
-    if (!form) return null;
-
-    const nonEmptyItems = form.items.filter(
-      (item) => item.description.trim() !== '' || item.unitPrice !== 0
-    );
-
-    const hasPartialRows = nonEmptyItems.some(
-      (item) => item.description.trim() === '' && item.unitPrice !== 0
-    );
-
-    if (hasPartialRows) {
-      showErrorNotification('יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר');
-      return null;
-    }
-
-    return {
-      documentType: form.documentType,
-      customerId: form.customerId ?? null,
-      invoiceDate: form.invoiceDate ? toLocalDateString(form.invoiceDate) : undefined,
-      dueDate: form.dueDate ? toLocalDateString(form.dueDate) : null,
-      notes: form.notes || null,
-      internalNotes: form.internalNotes || null,
-      items: nonEmptyItems.map((item, index) => ({
-        description: item.description,
-        catalogNumber: item.catalogNumber || undefined,
-        quantity: item.quantity,
-        unitPriceMinorUnits: toMinorUnits(item.unitPrice),
-        discountPercent: item.discountPercent,
-        vatRateBasisPoints: item.vatRateBasisPoints,
-        position: index,
-      })),
-    };
-  }
-
   function handleSave() {
-    const payload = buildSavePayload();
-    if (payload) saveMutation.mutate(payload);
+    const payload = buildPayload(form.values);
+    if (!payload) {
+      showErrorNotification('יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר');
+      return;
+    }
+    savedValuesRef.current = form.values;
+    saveMutation.mutate(payload, {
+      onSuccess: () => showSuccessNotification('הטיוטה נשמרה בהצלחה'),
+    });
   }
 
   async function handleFinalize() {
-    const payload = buildSavePayload();
-    if (!payload) return;
+    const payload = buildPayload(form.values);
+    if (!payload) {
+      showErrorNotification('יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר');
+      return;
+    }
     try {
+      savedValuesRef.current = form.values;
       await saveMutation.mutateAsync(payload);
       finalization.startFinalization();
     } catch {
       // Error toast already shown by useApiMutation
     }
   }
+
+  // ── Save indicator status ──
+
+  let saveStatus: SaveStatus = 'saved';
+  if (saveMutation.isPending) saveStatus = 'saving';
+  else if (form.isDirty()) saveStatus = 'unsaved';
 
   // ── Customer info for preview ──
 
@@ -344,6 +422,7 @@ export function InvoiceEdit() {
               </Badge>
             </Group>
             <Group gap="sm">
+              <SaveIndicator status={saveStatus} />
               <Text size="lg" fw={600}>
                 {formatMinorUnits(headerTotals.totalInclVatMinorUnits)}
               </Text>
@@ -372,34 +451,35 @@ export function InvoiceEdit() {
               <Stack gap={4}>
                 <SegmentedControl
                   data={DOC_TYPE_OPTIONS}
-                  value={form.documentType}
+                  value={form.values.documentType}
                   onChange={(val) => {
-                    const match = DOC_TYPE_OPTIONS.find((o) => o.value === val);
-                    if (match) setForm({ ...form, documentType: match.value });
+                    if (DOC_TYPE_OPTIONS.some((o) => o.value === val)) {
+                      form.setFieldValue('documentType', val as DocumentType);
+                    }
                   }}
                   fullWidth
                 />
                 <Text size="xs" c="dimmed">
-                  {DOC_TYPE_DESCRIPTIONS[form.documentType]}
+                  {DOC_TYPE_DESCRIPTIONS[form.values.documentType]}
                 </Text>
               </Stack>
 
               <CustomerSelect
                 businessId={businessId}
-                value={form.customerId}
-                onChange={(val) => setForm({ ...form, customerId: val })}
+                value={form.values.customerId}
+                onChange={(val) => form.setFieldValue('customerId', val)}
               />
 
               <Group grow>
                 <DatePickerInput
                   label="תאריך חשבונית"
-                  value={form.invoiceDate}
-                  onChange={(val) => setForm({ ...form, invoiceDate: toDateOrNull(val) })}
+                  value={form.values.invoiceDate}
+                  onChange={(val) => form.setFieldValue('invoiceDate', toDateOrNull(val))}
                 />
                 <DatePickerInput
                   label="תאריך תשלום"
-                  value={form.dueDate}
-                  onChange={(val) => setForm({ ...form, dueDate: toDateOrNull(val) })}
+                  value={form.values.dueDate}
+                  onChange={(val) => form.setFieldValue('dueDate', toDateOrNull(val))}
                   clearable
                 />
               </Group>
@@ -407,28 +487,28 @@ export function InvoiceEdit() {
               <Divider label="פריטים" labelPosition="center" />
 
               <InvoiceLineItems
-                items={form.items}
-                onChange={(items) => setForm({ ...form, items })}
+                items={form.values.items}
+                onChange={(items) => form.setFieldValue('items', items)}
                 vatLocked={vatLocked}
                 defaultVatRate={defaultVatRate}
               />
 
-              <InvoiceTotals items={form.items} />
+              <InvoiceTotals items={form.values.items} />
 
               <Divider label="הערות" labelPosition="center" />
 
               <Textarea
                 label="הערות ללקוח"
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.currentTarget.value })}
+                value={form.values.notes}
+                onChange={(e) => form.setFieldValue('notes', e.currentTarget.value)}
                 autosize
                 minRows={2}
               />
 
               <Textarea
                 label="הערות פנימיות"
-                value={form.internalNotes}
-                onChange={(e) => setForm({ ...form, internalNotes: e.currentTarget.value })}
+                value={form.values.internalNotes}
+                onChange={(e) => form.setFieldValue('internalNotes', e.currentTarget.value)}
                 autosize
                 minRows={2}
                 styles={{ input: { backgroundColor: 'var(--mantine-color-gray-0)' } }}
@@ -492,7 +572,7 @@ export function InvoiceEdit() {
         opened={finalization.step === 'vat_exemption'}
         onClose={finalization.closeModal}
         onConfirm={finalization.onVatExemptionConfirmed}
-        invoiceNotes={form.notes}
+        invoiceNotes={form.values.notes}
       />
 
       <InvoicePreviewModal
@@ -500,11 +580,11 @@ export function InvoiceEdit() {
         onClose={finalization.closeModal}
         onConfirm={finalization.confirmFinalize}
         confirming={finalization.confirming}
-        documentType={form.documentType}
-        invoiceDate={form.invoiceDate ? toLocalDateString(form.invoiceDate) : null}
+        documentType={form.values.documentType}
+        invoiceDate={form.values.invoiceDate ? toLocalDateString(form.values.invoiceDate) : null}
         customer={customerInfo}
-        items={form.items}
-        notes={form.notes}
+        items={form.values.items}
+        notes={form.values.notes}
         vatExemptionReason={finalization.vatExemptionReason}
       />
     </>

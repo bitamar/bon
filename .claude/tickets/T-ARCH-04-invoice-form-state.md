@@ -1,6 +1,6 @@
 # T-ARCH-04 — Invoice Form: useForm + Autosave
 
-**Status**: ⬜ Not started
+**Status**: ✅ Complete
 **Phase**: Cross-cutting (UX)
 **Requires**: T-ARCH-03 merged (routing must be stable before form changes)
 **Blocks**: T08-C (finalization flow needs proper form validation/dirty tracking)
@@ -127,18 +127,18 @@ Keep the explicit save button as well (for users who want certainty), but make i
 
 ## Acceptance Criteria
 
-- [ ] InvoiceEdit uses `@mantine/form` `useForm()` for state management
-- [ ] Per-field validation errors display inline (not only at save time)
-- [ ] Autosave triggers 2 seconds after last edit (only after hydration)
-- [ ] Autosave does NOT fire on initial form population from server data
-- [ ] Test: initial load with server data does not trigger a save mutation
-- [ ] Test: editing a field after hydration triggers autosave after 2s debounce
-- [ ] `beforeunload` warns about unsaved changes
-- [ ] Save indicator shows current save status
-- [ ] Explicit "Save Draft" button still available
-- [ ] VAT lock logic still works (receipts + exempt dealers → 0% forced)
-- [ ] All existing InvoiceEdit tests updated and passing
-- [ ] `npm run check` passes
+- [x] InvoiceEdit uses `@mantine/form` `useForm()` for state management
+- [x] Per-field validation errors display inline (not only at save time)
+- [x] Autosave triggers 2 seconds after last edit (only after hydration)
+- [x] Autosave does NOT fire on initial form population from server data
+- [x] Test: initial load with server data does not trigger a save mutation
+- [x] Test: editing a field after hydration triggers autosave after 2s debounce
+- [x] `beforeunload` warns about unsaved changes
+- [x] Save indicator shows current save status
+- [x] Explicit "Save Draft" button still available
+- [x] VAT lock logic still works (receipts + exempt dealers → 0% forced)
+- [x] All existing InvoiceEdit tests updated and passing
+- [x] `npm run check` passes
 
 ---
 
@@ -154,6 +154,6 @@ Keep the explicit save button as well (for users who want certainty), but make i
 
 ## Links
 
-- Branch: —
+- Branch: `claude/implement-tarch04-q2fKb`
 - PR: —
 - Deployed: ⬜
