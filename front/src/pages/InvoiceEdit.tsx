@@ -289,7 +289,7 @@ export function InvoiceEdit() {
     return {
       documentType: form.documentType,
       customerId: form.customerId ?? null,
-      invoiceDate: form.invoiceDate ? toLocalDateString(form.invoiceDate) : null,
+      invoiceDate: form.invoiceDate ? toLocalDateString(form.invoiceDate) : undefined,
       dueDate: form.dueDate ? toLocalDateString(form.dueDate) : null,
       notes: form.notes || null,
       internalNotes: form.internalNotes || null,
@@ -394,7 +394,6 @@ export function InvoiceEdit() {
                   label="תאריך חשבונית"
                   value={form.invoiceDate}
                   onChange={(val) => setForm({ ...form, invoiceDate: toDateOrNull(val) })}
-                  clearable
                 />
                 <DatePickerInput
                   label="תאריך תשלום"

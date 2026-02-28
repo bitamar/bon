@@ -10,7 +10,9 @@ import {
 import { israeliPhoneSchema, postalCodeSchema } from './businesses.js';
 import { validateIsraeliId } from './validation.js';
 
-export const taxIdTypeSchema = z.enum(['company_id', 'vat_number', 'personal_id', 'none']);
+export const TAX_ID_TYPES = ['company_id', 'vat_number', 'personal_id', 'none'] as const;
+
+export const taxIdTypeSchema = z.enum(TAX_ID_TYPES);
 
 export const customerSchema = z.object({
   id: uuidSchema,

@@ -1,11 +1,8 @@
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { db } from '../db/client.js';
 import { invoiceItems, invoices } from '../db/schema.js';
-import type * as schema from '../db/schema.js';
+import type { DbOrTx } from '../db/types.js';
 import { escapeLikePattern } from '../lib/query-utils.js';
-
-type DbOrTx = NodePgDatabase<typeof schema>;
 
 export type InvoiceRecord = (typeof invoices)['$inferSelect'];
 export type InvoiceInsert = (typeof invoices)['$inferInsert'];

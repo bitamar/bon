@@ -1,0 +1,2 @@
+ALTER TABLE "businesses" ADD CONSTRAINT "businesses_soft_delete_check" CHECK (("businesses"."is_active" AND "businesses"."deleted_at" IS NULL) OR (NOT "businesses"."is_active" AND "businesses"."deleted_at" IS NOT NULL));--> statement-breakpoint
+ALTER TABLE "customers" ADD CONSTRAINT "customers_soft_delete_check" CHECK (("customers"."is_active" AND "customers"."deleted_at" IS NULL) OR (NOT "customers"."is_active" AND "customers"."deleted_at" IS NOT NULL));

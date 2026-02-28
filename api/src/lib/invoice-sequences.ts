@@ -1,10 +1,7 @@
 import { sql } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { invoiceSequences } from '../db/schema.js';
-import type * as schema from '../db/schema.js';
 import type { DocumentType, SequenceGroup } from '@bon/types/invoices';
-
-type Transaction = NodePgDatabase<typeof schema>;
+import type { DbOrTx } from '../db/types.js';
 
 const SEQUENCE_GROUP_MAP: Record<DocumentType, SequenceGroup> = {
   tax_invoice: 'tax_document',
@@ -30,7 +27,7 @@ export function documentTypeToSequenceGroup(documentType: DocumentType): Sequenc
  * — this is acceptable. What is NOT acceptable is two invoices with the same number.
  */
 export async function assignInvoiceNumber(
-  tx: Transaction,
+  tx: DbOrTx,
   businessId: string,
   documentType: DocumentType,
   prefix: string,
