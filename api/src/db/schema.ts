@@ -16,45 +16,22 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import { STANDARD_VAT_RATE_BP, DEFAULT_CURRENCY } from '@bon/types/vat';
+import { BUSINESS_TYPES, BUSINESS_ROLES } from '@bon/types/businesses';
+import { TAX_ID_TYPES } from '@bon/types/customers';
+import {
+  DOCUMENT_TYPES,
+  SEQUENCE_GROUPS,
+  INVOICE_STATUSES,
+  ALLOCATION_STATUSES,
+} from '@bon/types/invoices';
 
-export const businessTypeEnum = pgEnum('business_type', [
-  'licensed_dealer',
-  'exempt_dealer',
-  'limited_company',
-]);
-export const businessRoleEnum = pgEnum('business_role', ['owner', 'admin', 'user']);
-export const taxIdTypeEnum = pgEnum('tax_id_type', [
-  'company_id',
-  'vat_number',
-  'personal_id',
-  'none',
-]);
-export const documentTypeEnum = pgEnum('document_type', [
-  'tax_invoice',
-  'tax_invoice_receipt',
-  'receipt',
-  'credit_note',
-]);
-export const sequenceGroupEnum = pgEnum('sequence_group', [
-  'tax_document',
-  'credit_note',
-  'receipt',
-]);
-export const invoiceStatusEnum = pgEnum('invoice_status', [
-  'draft',
-  'finalized',
-  'sent',
-  'paid',
-  'partially_paid',
-  'cancelled',
-  'credited',
-]);
-export const allocationStatusEnum = pgEnum('allocation_status', [
-  'pending',
-  'approved',
-  'rejected',
-  'emergency',
-]);
+export const businessTypeEnum = pgEnum('business_type', BUSINESS_TYPES);
+export const businessRoleEnum = pgEnum('business_role', BUSINESS_ROLES);
+export const taxIdTypeEnum = pgEnum('tax_id_type', TAX_ID_TYPES);
+export const documentTypeEnum = pgEnum('document_type', DOCUMENT_TYPES);
+export const sequenceGroupEnum = pgEnum('sequence_group', SEQUENCE_GROUPS);
+export const invoiceStatusEnum = pgEnum('invoice_status', INVOICE_STATUSES);
+export const allocationStatusEnum = pgEnum('allocation_status', ALLOCATION_STATUSES);
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),

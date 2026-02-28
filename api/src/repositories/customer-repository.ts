@@ -2,17 +2,22 @@ import { and, eq, ilike, or } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { customers } from '../db/schema.js';
 import { escapeLikePattern } from '../lib/query-utils.js';
+import type { DbOrTx } from '../db/types.js';
 
 export type CustomerRecord = (typeof customers)['$inferSelect'];
 export type CustomerInsert = (typeof customers)['$inferInsert'];
 
-export async function insertCustomer(data: CustomerInsert) {
-  const rows = await db.insert(customers).values(data).returning();
+export async function insertCustomer(data: CustomerInsert, txOrDb: DbOrTx = db) {
+  const rows = await txOrDb.insert(customers).values(data).returning();
   return rows[0] ?? null;
 }
 
-export async function findCustomerById(customerId: string, businessId: string) {
-  const rows = await db
+export async function findCustomerById(
+  customerId: string,
+  businessId: string,
+  txOrDb: DbOrTx = db
+) {
+  const rows = await txOrDb
     .select()
     .from(customers)
     .where(and(eq(customers.id, customerId), eq(customers.businessId, businessId)));
@@ -22,9 +27,10 @@ export async function findCustomerById(customerId: string, businessId: string) {
 export async function updateCustomer(
   customerId: string,
   businessId: string,
-  updates: Partial<CustomerInsert>
+  updates: Partial<CustomerInsert>,
+  txOrDb: DbOrTx = db
 ) {
-  const rows = await db
+  const rows = await txOrDb
     .update(customers)
     .set(updates)
     .where(and(eq(customers.id, customerId), eq(customers.businessId, businessId)))
@@ -32,8 +38,8 @@ export async function updateCustomer(
   return rows[0] ?? null;
 }
 
-export async function findCustomerByTaxId(businessId: string, taxId: string) {
-  const rows = await db
+export async function findCustomerByTaxId(businessId: string, taxId: string, txOrDb: DbOrTx = db) {
+  const rows = await txOrDb
     .select({ id: customers.id, name: customers.name })
     .from(customers)
     .where(
@@ -50,7 +56,8 @@ export async function searchCustomers(
   businessId: string,
   query: string | undefined,
   activeOnly: boolean,
-  limit: number
+  limit: number,
+  txOrDb: DbOrTx = db
 ) {
   const conditions = [eq(customers.businessId, businessId)];
 
@@ -67,7 +74,7 @@ export async function searchCustomers(
     if (textSearch) conditions.push(textSearch);
   }
 
-  return db
+  return txOrDb
     .select({
       id: customers.id,
       name: customers.name,

@@ -8,11 +8,13 @@ import {
   findItemsByInvoiceId,
   type InvoiceRecord,
   type InvoiceItemRecord,
+  type InvoiceInsert,
 } from '../repositories/invoice-repository.js';
 import { findCustomerById } from '../repositories/customer-repository.js';
 import { findBusinessById } from '../repositories/business-repository.js';
 import { notFound, unprocessableEntity } from '../lib/app-error.js';
 import { assignInvoiceNumber, documentTypeToSequenceGroup } from '../lib/invoice-sequences.js';
+import { toNumber } from '../lib/numeric.js';
 import { calculateLine, calculateInvoiceTotals, STANDARD_VAT_RATE_BP } from '@bon/types/vat';
 import { db } from '../db/client.js';
 import type {
@@ -75,9 +77,9 @@ function serializeInvoiceItem(record: InvoiceItemRecord): LineItem {
     position: record.position,
     description: record.description,
     catalogNumber: record.catalogNumber ?? null,
-    quantity: Number(record.quantity),
+    quantity: toNumber(record.quantity),
     unitPriceMinorUnits: record.unitPriceMinorUnits,
-    discountPercent: Number(record.discountPercent),
+    discountPercent: toNumber(record.discountPercent),
     vatRateBasisPoints: record.vatRateBasisPoints,
     lineTotalMinorUnits: record.lineTotalMinorUnits,
     vatAmountMinorUnits: record.vatAmountMinorUnits,
@@ -129,9 +131,9 @@ function buildResponse(invoice: InvoiceRecord, itemRecords: InvoiceItemRecord[])
 
 function toLineInput(record: InvoiceItemRecord) {
   return {
-    quantity: Number(record.quantity),
+    quantity: toNumber(record.quantity),
     unitPriceMinorUnits: record.unitPriceMinorUnits,
-    discountPercent: Number(record.discountPercent),
+    discountPercent: toNumber(record.discountPercent),
     vatRateBasisPoints: record.vatRateBasisPoints,
   };
 }
@@ -231,14 +233,15 @@ export async function updateDraft(businessId: string, invoiceId: string, input: 
   }
 
   const now = new Date();
-  const updates: Record<string, unknown> = { updatedAt: now };
-
-  if (input.customerId !== undefined) updates['customerId'] = input.customerId;
-  if (input.documentType !== undefined) updates['documentType'] = input.documentType;
-  if (input.invoiceDate !== undefined) updates['invoiceDate'] = input.invoiceDate;
-  if (input.dueDate !== undefined) updates['dueDate'] = input.dueDate;
-  if (input.notes !== undefined) updates['notes'] = input.notes;
-  if (input.internalNotes !== undefined) updates['internalNotes'] = input.internalNotes;
+  const updates: Partial<InvoiceInsert> = {
+    updatedAt: now,
+    ...(input.customerId !== undefined && { customerId: input.customerId }),
+    ...(input.documentType !== undefined && { documentType: input.documentType }),
+    ...(input.invoiceDate != null && { invoiceDate: input.invoiceDate }),
+    ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
+    ...(input.notes !== undefined && { notes: input.notes }),
+    ...(input.internalNotes !== undefined && { internalNotes: input.internalNotes }),
+  };
 
   if (input.items !== undefined) {
     return db.transaction(async (tx) => {
@@ -251,19 +254,16 @@ export async function updateDraft(businessId: string, invoiceId: string, input: 
         const totals = computeTotals(input.items!);
         Object.assign(updates, totals);
       } else {
-        updates['subtotalMinorUnits'] = 0;
-        updates['discountMinorUnits'] = 0;
-        updates['totalExclVatMinorUnits'] = 0;
-        updates['vatMinorUnits'] = 0;
-        updates['totalInclVatMinorUnits'] = 0;
+        Object.assign(updates, {
+          subtotalMinorUnits: 0,
+          discountMinorUnits: 0,
+          totalExclVatMinorUnits: 0,
+          vatMinorUnits: 0,
+          totalInclVatMinorUnits: 0,
+        });
       }
 
-      const updated = await updateInvoice(
-        invoiceId,
-        businessId,
-        updates as Parameters<typeof updateInvoice>[2],
-        tx
-      );
+      const updated = await updateInvoice(invoiceId, businessId, updates, tx);
       if (!updated) throw notFound();
 
       const items = await findItemsByInvoiceId(invoiceId, tx);
@@ -271,11 +271,7 @@ export async function updateDraft(businessId: string, invoiceId: string, input: 
     });
   }
 
-  const updated = await updateInvoice(
-    invoiceId,
-    businessId,
-    updates as Parameters<typeof updateInvoice>[2]
-  );
+  const updated = await updateInvoice(invoiceId, businessId, updates);
   if (!updated) throw notFound();
 
   const items = await findItemsByInvoiceId(invoiceId);
@@ -403,7 +399,7 @@ export async function finalize(
         vatExemptionReason: body.vatExemptionReason ?? null,
         ...totals,
         updatedAt: now,
-      } as Parameters<typeof updateInvoice>[2],
+      },
       tx
     );
     if (!updated) throw notFound();

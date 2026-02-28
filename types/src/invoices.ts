@@ -13,16 +13,16 @@ import {
 
 // ── Enums ──
 
-export const documentTypeSchema = z.enum([
+export const DOCUMENT_TYPES = [
   'tax_invoice',
   'tax_invoice_receipt',
   'receipt',
   'credit_note',
-]);
+] as const;
 
-export const sequenceGroupSchema = z.enum(['tax_document', 'credit_note', 'receipt']);
+export const SEQUENCE_GROUPS = ['tax_document', 'credit_note', 'receipt'] as const;
 
-export const invoiceStatusSchema = z.enum([
+export const INVOICE_STATUSES = [
   'draft',
   'finalized',
   'sent',
@@ -30,9 +30,17 @@ export const invoiceStatusSchema = z.enum([
   'partially_paid',
   'cancelled',
   'credited',
-]);
+] as const;
 
-export const allocationStatusSchema = z.enum(['pending', 'approved', 'rejected', 'emergency']);
+export const ALLOCATION_STATUSES = ['pending', 'approved', 'rejected', 'emergency'] as const;
+
+export const documentTypeSchema = z.enum(DOCUMENT_TYPES);
+
+export const sequenceGroupSchema = z.enum(SEQUENCE_GROUPS);
+
+export const invoiceStatusSchema = z.enum(INVOICE_STATUSES);
+
+export const allocationStatusSchema = z.enum(ALLOCATION_STATUSES);
 
 // ── Request schemas ──
 

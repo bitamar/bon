@@ -148,25 +148,29 @@ export async function updateBusinessById(
   }
 
   const now = new Date();
-  const updates: Record<string, unknown> = { updatedAt: now };
+  const updates: Partial<BusinessInsert> = {
+    updatedAt: now,
+    // Non-nullable fields: only update when a real value is provided
+    ...(input.name != null && { name: input.name }),
+    ...(input.defaultVatRate != null && { defaultVatRate: input.defaultVatRate }),
+    ...(input.isActive != null && {
+      isActive: input.isActive,
+      deletedAt: input.isActive ? null : now,
+    }),
+    // Nullable fields: update whenever the key is present (including null to clear)
+    ...(input.vatNumber !== undefined && { vatNumber: input.vatNumber }),
+    ...(input.streetAddress !== undefined && { streetAddress: input.streetAddress }),
+    ...(input.city !== undefined && { city: input.city }),
+    ...(input.postalCode !== undefined && { postalCode: input.postalCode }),
+    ...(input.phone !== undefined && { phone: input.phone }),
+    ...(input.email !== undefined && { email: input.email }),
+    ...(input.invoiceNumberPrefix !== undefined && {
+      invoiceNumberPrefix: input.invoiceNumberPrefix,
+    }),
+    ...(input.logoUrl !== undefined && { logoUrl: input.logoUrl }),
+  };
 
-  // Non-nullable fields: only update when a real value is provided
-  if (input.name != null) updates['name'] = input.name;
-  if (input.defaultVatRate != null) updates['defaultVatRate'] = input.defaultVatRate;
-  if (input.isActive != null) updates['isActive'] = input.isActive;
-
-  // Nullable fields: update whenever the key is present (including null to clear)
-  if (input.vatNumber !== undefined) updates['vatNumber'] = input.vatNumber;
-  if (input.streetAddress !== undefined) updates['streetAddress'] = input.streetAddress;
-  if (input.city !== undefined) updates['city'] = input.city;
-  if (input.postalCode !== undefined) updates['postalCode'] = input.postalCode;
-  if (input.phone !== undefined) updates['phone'] = input.phone;
-  if (input.email !== undefined) updates['email'] = input.email;
-  if (input.invoiceNumberPrefix !== undefined)
-    updates['invoiceNumberPrefix'] = input.invoiceNumberPrefix;
-  if (input.logoUrl !== undefined) updates['logoUrl'] = input.logoUrl;
-
-  const business = await updateBusiness(businessId, updates as Partial<BusinessInsert>);
+  const business = await updateBusiness(businessId, updates);
 
   if (!business) throw notFound();
 
