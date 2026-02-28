@@ -99,13 +99,13 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
         queryClient.invalidateQueries({ queryKey: ['businesses', oldId] });
       }
 
-      const prefix = `/businesses/${oldId ?? ''}`;
-      const suffix = location.pathname.startsWith(prefix)
-        ? location.pathname.slice(prefix.length)
-        : location.pathname;
-      navigate(`/businesses/${businessId}${suffix}`);
+      const businessPathPattern = /^\/businesses\/[^/]+/;
+      const match = businessPathPattern.exec(location.pathname);
+      const suffix = match ? location.pathname.slice(match[0].length) : '';
+      const normalizedSuffix = suffix || '/dashboard';
+      navigate(`/businesses/${businessId}${normalizedSuffix}${location.search}${location.hash}`);
     },
-    [activeBusinessId, queryClient, location.pathname, navigate]
+    [activeBusinessId, queryClient, location, navigate]
   );
 
   const value = useMemo(

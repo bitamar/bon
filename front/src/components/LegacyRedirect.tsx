@@ -10,8 +10,10 @@ export function LegacyRedirect() {
     return <Navigate to="/businesses" replace />;
   }
 
-  const suffix = location.pathname.replace(/^\/business/, '');
-  const canonicalPath = `/businesses/${businessId}${suffix}`;
+  const suffix = location.pathname.replace(/^\/business(?=\/|$)/, '');
+  const normalizedSuffix = suffix.startsWith('/') ? suffix : `/${suffix}`;
+  const encodedId = encodeURIComponent(businessId);
+  const canonicalPath = `/businesses/${encodedId}${normalizedSuffix}`;
   const fullPath = `${canonicalPath}${location.search}${location.hash}`;
 
   return <Navigate to={fullPath} replace />;

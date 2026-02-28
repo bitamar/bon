@@ -2,7 +2,7 @@ import { Anchor, Loader, Select, Stack } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { fetchCustomers } from '../api/customers';
 import { queryKeys } from '../lib/queryKeys';
 
@@ -19,7 +19,6 @@ export function CustomerSelect({
   onChange,
   disabled,
 }: Readonly<CustomerSelectProps>) {
-  const { businessId: urlBusinessId } = useParams<{ businessId: string }>();
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebouncedValue(search, 300);
 
@@ -50,7 +49,7 @@ export function CustomerSelect({
         rightSection={isLoading ? <Loader size={16} /> : undefined}
         error={error ? 'שגיאה בטעינת לקוחות' : undefined}
       />
-      <Anchor component={Link} to={`/businesses/${urlBusinessId}/customers/new`} size="sm">
+      <Anchor component={Link} to={`/businesses/${businessId}/customers/new`} size="sm">
         + לקוח חדש
       </Anchor>
     </Stack>

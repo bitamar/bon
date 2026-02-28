@@ -1,6 +1,6 @@
 # T-ARCH-03 — Add businessId to Frontend Routes
 
-**Status**: ✅ Done
+**Status**: 🔄 In progress
 **Phase**: Cross-cutting (architecture)
 **Requires**: T7.5 merged
 **Blocks**: T08-C, T08-D (all new pages should use the correct routing pattern from the start)
