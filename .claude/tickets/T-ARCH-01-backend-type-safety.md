@@ -1,6 +1,6 @@
 # T-ARCH-01 — Backend Type Safety & Data Layer Cleanup
 
-**Status**: ⬜ Not started
+**Status**: ✅ Done
 **Phase**: Cross-cutting (architecture)
 **Requires**: T7.5 merged
 **Blocks**: T08 (prevents latent bugs from propagating into finalization and beyond)
@@ -86,13 +86,13 @@ Both `isActive: boolean` and `deletedAt: timestamp` exist for soft delete. The d
 
 ## Acceptance Criteria
 
-- [ ] No `Record<string, unknown>` in service update builders — all typed as `Partial<*Insert>`
-- [ ] All repository functions in customer-repository and business-repository accept optional `txOrDb` parameter (matching invoice-repository pattern)
-- [ ] Numeric column conversions use a shared helper
-- [ ] At least one enum (documentType or invoiceStatus) uses shared const array between Drizzle and Zod
-- [ ] Soft delete pattern is consistent (either single-flag or constrained dual-flag)
-- [ ] `npm run check` passes
-- [ ] Existing tests still pass (no behavior change)
+- [x] No `Record<string, unknown>` in service update builders — all typed as `Partial<*Insert>`
+- [x] All repository functions in customer-repository and business-repository accept optional `txOrDb` parameter (matching invoice-repository pattern)
+- [x] Numeric column conversions use a shared helper
+- [x] At least one enum (documentType or invoiceStatus) uses shared const array between Drizzle and Zod
+- [x] Soft delete pattern is consistent (either single-flag or constrained dual-flag)
+- [x] `npm run check` passes
+- [x] Existing tests still pass (no behavior change)
 
 ---
 
@@ -104,6 +104,6 @@ Target: ~8–12 files changed. No new features, no new endpoints. Pure refactor.
 
 ## Links
 
-- Branch: —
-- PR: —
+- Branch: `claude/implement-arch-tickets-PORUw`
+- PR: pending creation (branch pushed)
 - Deployed: ⬜
