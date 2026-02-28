@@ -257,8 +257,7 @@ describe('invoice-repository', () => {
 
 // ── findInvoices / countInvoices ──
 
-/** pg-mem returns date columns as Date objects even when mode:'string' is set in the schema.
- *  This helper normalises whatever comes back to a YYYY-MM-DD string for assertions. */
+/** Normalise date values to a YYYY-MM-DD string for assertions. */
 function toDateStr(value: string | Date | null | undefined): string | null {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString().slice(0, 10);

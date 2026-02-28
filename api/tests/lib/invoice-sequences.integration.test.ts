@@ -1,52 +1,23 @@
 /**
  * Integration test for concurrent invoice sequence assignment.
  *
- * Runs against real PostgreSQL on port 5433 (dev DB).
- * pg-mem cannot test row-level locking (SELECT FOR UPDATE).
- *
- * Automatically skipped when:
- *   - SKIP_INTEGRATION=1 is set
- *   - Real PG on port 5433 is unreachable
- *   - The invoice_sequences table doesn't exist (migration not applied)
+ * Runs against real PostgreSQL (testcontainers or native).
+ * Tests row-level locking (SELECT FOR UPDATE) with concurrent transactions.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import pg from 'pg';
-import { eq } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
+import { db } from '../../src/db/client.js';
 import * as schema from '../../src/db/schema.js';
 import { assignInvoiceNumber } from '../../src/lib/invoice-sequences.js';
+import { resetDb } from '../utils/db.js';
 
-const DATABASE_URL = 'postgres://postgres:postgres@localhost:5433/bon_dev';
-
-async function canConnect(): Promise<boolean> {
-  if (process.env['SKIP_INTEGRATION'] === '1') return false;
-  const client = new pg.Client({ connectionString: DATABASE_URL });
-  try {
-    await client.connect();
-    // Check that the required table exists
-    const result = await client.query("SELECT to_regclass('public.invoice_sequences') AS cls");
-    return result.rows[0]?.cls != null;
-  } catch {
-    return false;
-  } finally {
-    await client.end().catch(() => {});
-  }
-}
-
-const isAvailable = await canConnect();
-
-describe.skipIf(!isAvailable)('assignInvoiceNumber — concurrency (real PG)', () => {
-  let pool: pg.Pool;
-  let db: ReturnType<typeof drizzle<typeof schema>>;
+describe('assignInvoiceNumber — concurrency (real PG)', () => {
   let businessId: string;
-  let userId: string;
 
-  beforeAll(async () => {
-    pool = new pg.Pool({ connectionString: DATABASE_URL });
-    db = drizzle(pool, { schema });
+  beforeEach(async () => {
+    await resetDb();
 
-    userId = randomUUID();
+    const userId = randomUUID();
     await db.insert(schema.users).values({
       id: userId,
       email: `integration-${randomUUID()}@test.com`,
@@ -64,19 +35,6 @@ describe.skipIf(!isAvailable)('assignInvoiceNumber — concurrency (real PG)', (
       .returning();
 
     businessId = business!.id;
-  });
-
-  afterAll(async () => {
-    if (db && businessId) {
-      await db
-        .delete(schema.invoiceSequences)
-        .where(eq(schema.invoiceSequences.businessId, businessId));
-      await db.delete(schema.businesses).where(eq(schema.businesses.id, businessId));
-      await db.delete(schema.users).where(eq(schema.users.id, userId));
-    }
-    if (pool) {
-      await pool.end();
-    }
   });
 
   it('50 concurrent requests produce 50 distinct sequential numbers', async () => {

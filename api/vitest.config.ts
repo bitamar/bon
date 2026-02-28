@@ -6,6 +6,7 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     setupFiles: ['tests/setup.ts'],
     maxWorkers: 1,
+    hookTimeout: 30_000,
     coverage: {
       provider: 'v8',
       enabled: false,

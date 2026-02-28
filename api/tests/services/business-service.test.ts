@@ -98,9 +98,8 @@ describe('business-service', () => {
       const user = await createUser();
       const input = makeBusinessInput();
 
-      // pg-mem + Drizzle wraps errors in DrizzleQueryError which loses the .code property.
-      // Spy on insertBusiness to throw a PG-style error with code '23505' so the service
-      // can detect it via isErrorWithCode — the same check that runs against real PostgreSQL.
+      // Spy on insertBusiness to throw a PG-style duplicate key error so we can verify
+      // the service detects it via isErrorWithCode and returns a 409.
       const pgError = Object.assign(new Error('duplicate key value violates unique constraint'), {
         code: '23505',
         constraint: 'businesses_registration_number_unique',
