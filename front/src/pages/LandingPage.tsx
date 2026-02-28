@@ -120,6 +120,8 @@ const PRICING: PricingPlan[] = [
   },
 ];
 
+const NAV_HEIGHT = 64;
+const SCROLL_MARGIN_TOP = 80;
 const API_DOCS_URL = `${API_BASE_URL}/docs`;
 
 function scrollToSection(e: React.MouseEvent<HTMLAnchorElement>, id: string) {
@@ -408,7 +410,7 @@ export function LandingPage() {
           right: 0,
           zIndex: 100,
           padding: '0 32px',
-          height: 64,
+          height: NAV_HEIGHT,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -456,6 +458,7 @@ export function LandingPage() {
             href={API_DOCS_URL}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="API (opens in a new tab)"
             style={{
               fontSize: 14,
               color: COLORS.textMuted,
@@ -575,6 +578,7 @@ export function LandingPage() {
               href={API_DOCS_URL}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="תיעוד API (opens in a new tab)"
               style={{
                 fontSize: 14,
                 color: COLORS.textMuted,
@@ -649,7 +653,7 @@ export function LandingPage() {
           padding: '80px 40px',
           maxWidth: 960,
           margin: '0 auto',
-          scrollMarginTop: 80,
+          scrollMarginTop: SCROLL_MARGIN_TOP,
         }}
       >
         <h2
@@ -776,7 +780,7 @@ export function LandingPage() {
           padding: '0 40px 80px',
           maxWidth: 1060,
           margin: '0 auto',
-          scrollMarginTop: 80,
+          scrollMarginTop: SCROLL_MARGIN_TOP,
         }}
       >
         <h2
@@ -904,6 +908,7 @@ export function LandingPage() {
             href={API_DOCS_URL}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="API Docs (opens in a new tab)"
             style={{ color: COLORS.textLight, textDecoration: 'none' }}
           >
             API Docs
