@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { API_BASE_URL } from '../config';
 import classes from './LandingPage.module.css';
 
 const COLORS = {
@@ -118,6 +119,13 @@ const PRICING: PricingPlan[] = [
     highlighted: false,
   },
 ];
+
+const API_DOCS_URL = `${API_BASE_URL}/docs`;
+
+function scrollToSection(e: React.MouseEvent<HTMLAnchorElement>, id: string) {
+  e.preventDefault();
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+}
 
 const WA_PATTERN_BG =
   "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9c2b6' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
@@ -422,6 +430,7 @@ export function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
           <a
             href="#how"
+            onClick={(e) => scrollToSection(e, 'how')}
             style={{
               fontSize: 14,
               color: COLORS.textMuted,
@@ -433,6 +442,7 @@ export function LandingPage() {
           </a>
           <a
             href="#pricing"
+            onClick={(e) => scrollToSection(e, 'pricing')}
             style={{
               fontSize: 14,
               color: COLORS.textMuted,
@@ -442,15 +452,19 @@ export function LandingPage() {
           >
             מחירים
           </a>
-          <span
+          <a
+            href={API_DOCS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
               fontSize: 14,
               color: COLORS.textMuted,
+              textDecoration: 'none',
               fontWeight: 500,
             }}
           >
             API
-          </span>
+          </a>
           <Link
             to="/login"
             style={{
@@ -557,16 +571,20 @@ export function LandingPage() {
             >
               צור חשבון בחינם →
             </Link>
-            <span
+            <a
+              href={API_DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 fontSize: 14,
                 color: COLORS.textMuted,
                 fontWeight: 500,
                 padding: '14px 8px',
+                textDecoration: 'none',
               }}
             >
               תיעוד API
-            </span>
+            </a>
           </div>
 
           <div
@@ -631,6 +649,7 @@ export function LandingPage() {
           padding: '80px 40px',
           maxWidth: 960,
           margin: '0 auto',
+          scrollMarginTop: 80,
         }}
       >
         <h2
@@ -757,6 +776,7 @@ export function LandingPage() {
           padding: '0 40px 80px',
           maxWidth: 1060,
           margin: '0 auto',
+          scrollMarginTop: 80,
         }}
       >
         <h2
@@ -880,7 +900,14 @@ export function LandingPage() {
             color: COLORS.textLight,
           }}
         >
-          <span style={{ color: COLORS.textLight }}>API Docs</span>
+          <a
+            href={API_DOCS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: COLORS.textLight, textDecoration: 'none' }}
+          >
+            API Docs
+          </a>
           <span style={{ color: COLORS.textLight }}>תנאי שימוש</span>
           <span style={{ color: COLORS.textLight }}>פרטיות</span>
           <span style={{ color: COLORS.textLight }}>צור קשר</span>
