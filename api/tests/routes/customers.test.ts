@@ -76,6 +76,14 @@ describe('routes/customers', () => {
     });
   }
 
+  async function setupUserRoleCustomer() {
+    const { sessionId: ownerSession, business } = await createOwnerWithBusiness();
+    const customer = await createTestCustomer(ownerSession, business.id);
+    const { user: memberUser, sessionId: memberSession } = await createAuthedUser();
+    await addUserToBusiness(memberUser.id, business.id, 'user');
+    return { ownerSession, memberSession, business, customer };
+  }
+
   // ── POST ───────────────────────────────────────────────────────────────────
 
   describe('POST /businesses/:businessId/customers', () => {
@@ -430,14 +438,6 @@ describe('routes/customers', () => {
   // ── RBAC ────────────────────────────────────────────────────────────────────
 
   describe('RBAC: user role restrictions', () => {
-    async function setupUserRoleCustomer() {
-      const { sessionId: ownerSession, business } = await createOwnerWithBusiness();
-      const customer = await createTestCustomer(ownerSession, business.id);
-      const { user: memberUser, sessionId: memberSession } = await createAuthedUser();
-      await addUserToBusiness(memberUser.id, business.id, 'user');
-      return { ownerSession, memberSession, business, customer };
-    }
-
     it('returns 403 when user role tries to deactivate', async () => {
       const { memberSession, business, customer } = await setupUserRoleCustomer();
 

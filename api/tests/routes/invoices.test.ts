@@ -160,6 +160,15 @@ describe('routes/invoices', () => {
     return { sessionId, business, customer, first, second };
   }
 
+  async function setupUserRoleDraft() {
+    const { sessionId: ownerSession, business } = await createOwnerWithBusiness();
+    const customer = await createCustomer(ownerSession, business.id);
+    const { invoice } = await createDraftWithItems(ownerSession, business.id, customer.id);
+    const { user: memberUser, sessionId: memberSession } = await createAuthedUser();
+    await addUserToBusiness(memberUser.id, business.id, 'user');
+    return { ownerSession, memberSession, business, invoice };
+  }
+
   // ── POST ──
 
   describe('POST /businesses/:businessId/invoices', () => {
@@ -486,15 +495,6 @@ describe('routes/invoices', () => {
   // ── RBAC ──
 
   describe('RBAC: user role restrictions', () => {
-    async function setupUserRoleDraft() {
-      const { sessionId: ownerSession, business } = await createOwnerWithBusiness();
-      const customer = await createCustomer(ownerSession, business.id);
-      const { invoice } = await createDraftWithItems(ownerSession, business.id, customer.id);
-      const { user: memberUser, sessionId: memberSession } = await createAuthedUser();
-      await addUserToBusiness(memberUser.id, business.id, 'user');
-      return { ownerSession, memberSession, business, invoice };
-    }
-
     it('returns 403 when user role tries to finalize', async () => {
       const { memberSession, business, invoice } = await setupUserRoleDraft();
 
