@@ -39,6 +39,10 @@ async function insertTestCustomer(businessId: string, overrides: Record<string, 
   });
 }
 
+function deletedCustomerOverrides(extra: Record<string, unknown> = {}) {
+  return { name: 'Deleted', isActive: false, deletedAt: new Date(), ...extra };
+}
+
 describe('customer-repository', () => {
   beforeEach(async () => {
     await resetDb();
@@ -47,12 +51,6 @@ describe('customer-repository', () => {
   afterEach(async () => {
     await resetDb();
   });
-
-  // ── helpers ──
-
-  function deletedCustomerOverrides(extra: Record<string, unknown> = {}) {
-    return { name: 'Deleted', isActive: false, deletedAt: new Date(), ...extra };
-  }
 
   // ── soft-delete CHECK constraint ────────────────────────────────────────
 
