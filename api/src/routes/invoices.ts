@@ -5,6 +5,8 @@ import {
   updateInvoiceDraftBodySchema,
   finalizeInvoiceBodySchema,
   invoiceResponseSchema,
+  invoiceListQuerySchema,
+  invoiceListResponseSchema,
   invoiceIdParamSchema,
 } from '@bon/types/invoices';
 import { businessIdParamSchema } from '@bon/types/businesses';
@@ -12,6 +14,7 @@ import { okResponseSchema } from '@bon/types/common';
 import {
   createDraft,
   getInvoice,
+  listInvoices,
   updateDraft,
   deleteDraft,
   finalize,
@@ -35,6 +38,25 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       ensureBusinessContext(req);
       const result = await createDraft(req.businessContext.businessId, req.body);
       return reply.status(201).send(result);
+    }
+  );
+
+  app.get(
+    '/businesses/:businessId/invoices',
+    {
+      preHandler: [app.authenticate, app.requireBusinessAccess],
+      schema: {
+        tags: ['Invoices'],
+        params: businessIdParamSchema,
+        querystring: invoiceListQuerySchema,
+        response: {
+          200: invoiceListResponseSchema,
+        },
+      },
+    },
+    async (req) => {
+      ensureBusinessContext(req);
+      return listInvoices(req.businessContext.businessId, req.query);
     }
   );
 

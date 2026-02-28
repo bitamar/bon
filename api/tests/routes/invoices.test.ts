@@ -8,7 +8,7 @@ import {
   addUserToBusiness,
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
-import type { InvoiceResponse } from '@bon/types/invoices';
+import type { InvoiceListItem, InvoiceResponse } from '@bon/types/invoices';
 
 // ── module-level helpers ──
 
@@ -143,6 +143,21 @@ describe('routes/invoices', () => {
     const ctx = await setupOwnerDraft();
     await finalizeInvoice(ctx.sessionId, ctx.business.id, ctx.invoice.id);
     return ctx;
+  }
+
+  async function listInvoicesReq(sessionId: string, businessId: string, query?: string) {
+    const url = query
+      ? `/businesses/${businessId}/invoices?${query}`
+      : `/businesses/${businessId}/invoices`;
+    return injectAuthed(ctx.app, sessionId, { method: 'GET', url });
+  }
+
+  async function setupOwnerWithTwoDrafts() {
+    const { sessionId, business } = await createOwnerWithBusiness();
+    const customer = await createCustomer(sessionId, business.id);
+    const first = await createDraftWithItems(sessionId, business.id, customer.id);
+    const second = await createDraftWithItems(sessionId, business.id, customer.id);
+    return { sessionId, business, customer, first, second };
   }
 
   // ── POST ──
@@ -455,6 +470,178 @@ describe('routes/invoices', () => {
 
       expect(body2.invoice.sequenceNumber).toBe(1);
       expect(body1.invoice.sequenceNumber).toBe(2);
+    });
+  });
+
+  // ── GET LIST ──
+
+  describe('GET /businesses/:businessId/invoices', () => {
+    it('returns empty list when no invoices exist', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+
+      const res = await listInvoicesReq(sessionId, business.id);
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as { invoices: InvoiceListItem[]; total: number };
+      expect(body.invoices).toHaveLength(0);
+      expect(body.total).toBe(0);
+    });
+
+    it('returns invoices with correct shape', async () => {
+      const { sessionId, business, customer, first } = await setupOwnerWithTwoDrafts();
+
+      const res = await listInvoicesReq(sessionId, business.id);
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as { invoices: InvoiceListItem[]; total: number };
+      expect(body.total).toBe(2);
+      expect(body.invoices).toHaveLength(2);
+
+      const item = body.invoices.find((inv) => inv.id === first.invoice.id);
+      expect(item).toBeDefined();
+      expect(item?.businessId).toBe(business.id);
+      expect(item?.customerId).toBe(customer.id);
+      expect(item?.documentType).toBe('tax_invoice');
+      expect(item?.status).toBe('draft');
+      expect(item?.isOverdue).toBe(false);
+      expect(item?.invoiceDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(item?.totalInclVatMinorUnits).toBeGreaterThanOrEqual(0);
+      expect(item?.currency).toBe('ILS');
+      expect(item?.createdAt).toBeTruthy();
+    });
+
+    it('filters by a single status', async () => {
+      const { sessionId, business, customer } = await setupOwnerWithTwoDrafts();
+      const { invoice: draftInvoice } = await createDraftWithItems(
+        sessionId,
+        business.id,
+        customer.id
+      );
+      await finalizeInvoice(sessionId, business.id, draftInvoice.id);
+
+      const res = await listInvoicesReq(sessionId, business.id, 'status=draft');
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as { invoices: InvoiceListItem[]; total: number };
+      expect(body.invoices.every((inv) => inv.status === 'draft')).toBe(true);
+      expect(body.total).toBe(2);
+    });
+
+    it('filters by multiple statuses', async () => {
+      const { sessionId, business, customer } = await setupOwnerWithTwoDrafts();
+      const { invoice: toFinalize } = await createDraftWithItems(
+        sessionId,
+        business.id,
+        customer.id
+      );
+      await finalizeInvoice(sessionId, business.id, toFinalize.id);
+
+      const res = await listInvoicesReq(sessionId, business.id, 'status=draft,finalized');
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as { invoices: InvoiceListItem[]; total: number };
+      expect(body.total).toBe(3);
+      expect(body.invoices.some((inv) => inv.status === 'draft')).toBe(true);
+      expect(body.invoices.some((inv) => inv.status === 'finalized')).toBe(true);
+    });
+
+    it('filters by customerId', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const customerA = await createCustomer(sessionId, business.id, { name: 'Customer A' });
+      const customerB = await createCustomer(sessionId, business.id, { name: 'Customer B' });
+      const { invoice: invoiceA } = await createDraftWithItems(
+        sessionId,
+        business.id,
+        customerA.id
+      );
+      await createDraftWithItems(sessionId, business.id, customerB.id);
+
+      const res = await listInvoicesReq(sessionId, business.id, `customerId=${customerA.id}`);
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as { invoices: InvoiceListItem[]; total: number };
+      expect(body.total).toBe(1);
+      expect(body.invoices[0]?.id).toBe(invoiceA.id);
+      expect(body.invoices[0]?.customerId).toBe(customerA.id);
+    });
+
+    it('filters by date range', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const customer = await createCustomer(sessionId, business.id);
+
+      const earlyRes = await postInvoice(sessionId, business.id, {
+        documentType: 'tax_invoice',
+        customerId: customer.id,
+        items: [makeItem()],
+        invoiceDate: '2026-01-10',
+      });
+      const { invoice: earlyInvoice } = earlyRes.json() as InvoiceResponse;
+
+      await postInvoice(sessionId, business.id, {
+        documentType: 'tax_invoice',
+        customerId: customer.id,
+        items: [makeItem()],
+        invoiceDate: '2026-03-15',
+      });
+
+      const res = await listInvoicesReq(
+        sessionId,
+        business.id,
+        'dateFrom=2026-01-01&dateTo=2026-01-31'
+      );
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as { invoices: InvoiceListItem[]; total: number };
+      expect(body.total).toBe(1);
+      expect(body.invoices[0]?.id).toBe(earlyInvoice.id);
+    });
+
+    it('returns 400 when dateFrom is after dateTo', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+
+      const res = await listInvoicesReq(
+        sessionId,
+        business.id,
+        'dateFrom=2026-03-01&dateTo=2026-01-01'
+      );
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('returns 400 for an invalid sort value', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+
+      const res = await listInvoicesReq(sessionId, business.id, 'sort=invalid');
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('paginates results correctly', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const customer = await createCustomer(sessionId, business.id);
+      await createDraftWithItems(sessionId, business.id, customer.id);
+      await createDraftWithItems(sessionId, business.id, customer.id);
+      await createDraftWithItems(sessionId, business.id, customer.id);
+
+      const page1Res = await listInvoicesReq(sessionId, business.id, 'limit=2&page=1');
+      expect(page1Res.statusCode).toBe(200);
+      const page1 = page1Res.json() as { invoices: InvoiceListItem[]; total: number };
+      expect(page1.invoices).toHaveLength(2);
+      expect(page1.total).toBe(3);
+
+      const page2Res = await listInvoicesReq(sessionId, business.id, 'limit=2&page=2');
+      expect(page2Res.statusCode).toBe(200);
+      const page2 = page2Res.json() as { invoices: InvoiceListItem[]; total: number };
+      expect(page2.invoices).toHaveLength(1);
+      expect(page2.total).toBe(3);
+    });
+
+    it('returns 404 for a non-member business', async () => {
+      const { sessionId, business } = await setupNonMemberScenario();
+
+      const res = await listInvoicesReq(sessionId, business.id);
+
+      expect(res.statusCode).toBe(404);
     });
   });
 });
