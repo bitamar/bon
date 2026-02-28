@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { InvoiceEdit } from '../../pages/InvoiceEdit';
@@ -29,7 +29,7 @@ import { useBusiness } from '../../contexts/BusinessContext';
 import * as invoicesApi from '../../api/invoices';
 import * as businessApi from '../../api/businesses';
 import * as customersApi from '../../api/customers';
-import { showErrorNotification } from '../../lib/notifications';
+import { showErrorNotification, showSuccessNotification } from '../../lib/notifications';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 import { makeDraftInvoice } from '../utils/invoiceStubs';
 
@@ -306,6 +306,82 @@ describe('InvoiceEdit page', () => {
 
     await waitFor(() => {
       expect(invoicesApi.deleteInvoiceDraft).toHaveBeenCalledWith('biz-1', 'inv-1');
+    });
+  });
+
+  // ── Save indicator ──
+
+  it('shows save indicator as "saved" after initial load', async () => {
+    setupDraftMocks();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    expect(screen.getByText('נשמר')).toBeInTheDocument();
+  });
+
+  it('shows success toast on manual save', async () => {
+    setupDraftMocks();
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(makeDraftInvoice());
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
+
+    await waitFor(() => {
+      expect(showSuccessNotification).toHaveBeenCalledWith('הטיוטה נשמרה בהצלחה');
+    });
+  });
+
+  // ── Autosave ──
+
+  describe('autosave', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('does not fire on initial load', async () => {
+      setupDraftMocks();
+      renderEdit();
+
+      await vi.waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'עריכת חשבונית' })).toBeInTheDocument();
+      });
+
+      // Advance well past the debounce period
+      await vi.advanceTimersByTimeAsync(5000);
+
+      expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
+    });
+
+    it('fires after editing a field', async () => {
+      setupDraftMocks();
+      vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(makeDraftInvoice());
+      renderEdit();
+
+      await vi.waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'עריכת חשבונית' })).toBeInTheDocument();
+      });
+
+      // Edit the notes textarea using fireEvent (avoids fake timer conflicts with userEvent)
+      const notesInput = screen.getByDisplayValue('הערה לדוגמה');
+      fireEvent.change(notesInput, { target: { value: 'הערה חדשה' } });
+
+      // Advance past debounce period
+      await vi.advanceTimersByTimeAsync(2500);
+
+      await vi.waitFor(() => {
+        expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalled();
+      });
+
+      // Autosave should NOT show success toast
+      expect(showSuccessNotification).not.toHaveBeenCalled();
     });
   });
 });
