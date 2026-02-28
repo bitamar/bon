@@ -53,7 +53,7 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
 
   const businesses = data?.businesses ?? [];
 
-  // Auto-select first business if none is active
+  // Auto-select first business if none is active, or recover from invalid URL businessId
   useEffect(() => {
     if (businesses.length > 0 && !activeBusinessId) {
       const firstBusiness = businesses[0];
@@ -69,13 +69,23 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
         if (firstBusiness) {
           setFallbackBusinessId(firstBusiness.id);
           localStorage.setItem(ACTIVE_BUSINESS_KEY, firstBusiness.id);
+          // When the invalid id came from the URL, replace it so activeBusiness resolves
+          if (urlBusinessId) {
+            const pattern = /^\/businesses\/[^/]+/;
+            const match = pattern.exec(location.pathname);
+            const suffix = match ? location.pathname.slice(match[0].length) : '';
+            navigate(
+              `/businesses/${firstBusiness.id}${suffix || '/dashboard'}${location.search}${location.hash}`,
+              { replace: true }
+            );
+          }
         }
       } else {
         setFallbackBusinessId(null);
         localStorage.removeItem(ACTIVE_BUSINESS_KEY);
       }
     }
-  }, [businesses, activeBusinessId]);
+  }, [businesses, activeBusinessId, urlBusinessId, location, navigate]);
 
   const activeBusiness = useMemo(() => {
     if (!activeBusinessId) return null;
@@ -92,6 +102,7 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
   const switchBusiness = useCallback(
     (businessId: string) => {
       const oldId = activeBusinessId;
+      if (businessId === oldId) return;
       localStorage.setItem(ACTIVE_BUSINESS_KEY, businessId);
       setFallbackBusinessId(businessId);
 
