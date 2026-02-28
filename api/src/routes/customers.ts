@@ -15,6 +15,8 @@ import {
   getCustomerById,
   updateCustomerById,
   listCustomers,
+  deactivateCustomer,
+  reactivateCustomer,
 } from '../services/customer-service.js';
 
 const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
@@ -99,7 +101,11 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.delete(
     '/businesses/:businessId/customers/:customerId',
     {
-      preHandler: [app.authenticate, app.requireBusinessAccess],
+      preHandler: [
+        app.authenticate,
+        app.requireBusinessAccess,
+        app.requireBusinessRole('owner', 'admin'),
+      ],
       schema: {
         tags: ['Customers'],
         params: customerIdParamSchema,
@@ -110,10 +116,52 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req) => {
       ensureBusinessContext(req);
-      await updateCustomerById(req.businessContext.businessId, req.params.customerId, {
-        isActive: false,
-      });
+      await deactivateCustomer(req.businessContext.businessId, req.params.customerId);
       return { ok: true as const };
+    }
+  );
+
+  app.post(
+    '/businesses/:businessId/customers/:customerId/deactivate',
+    {
+      preHandler: [
+        app.authenticate,
+        app.requireBusinessAccess,
+        app.requireBusinessRole('owner', 'admin'),
+      ],
+      schema: {
+        tags: ['Customers'],
+        params: customerIdParamSchema,
+        response: {
+          200: customerResponseSchema,
+        },
+      },
+    },
+    async (req) => {
+      ensureBusinessContext(req);
+      return deactivateCustomer(req.businessContext.businessId, req.params.customerId);
+    }
+  );
+
+  app.post(
+    '/businesses/:businessId/customers/:customerId/reactivate',
+    {
+      preHandler: [
+        app.authenticate,
+        app.requireBusinessAccess,
+        app.requireBusinessRole('owner', 'admin'),
+      ],
+      schema: {
+        tags: ['Customers'],
+        params: customerIdParamSchema,
+        response: {
+          200: customerResponseSchema,
+        },
+      },
+    },
+    async (req) => {
+      ensureBusinessContext(req);
+      return reactivateCustomer(req.businessContext.businessId, req.params.customerId);
     }
   );
 };

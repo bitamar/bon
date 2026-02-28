@@ -16,7 +16,7 @@ vi.mock('../../contexts/BusinessContext', () => ({
 }));
 
 // ── helpers ──
-function setupMocks() {
+function setupMocks(role = 'owner') {
   vi.mocked(useAuth).mockReturnValue({
     user: { id: '1', name: 'Test User', email: 'test@example.com', avatarUrl: null, phone: null },
     logout: vi.fn(),
@@ -29,7 +29,7 @@ function setupMocks() {
       id: 'biz-1',
       name: 'Test Co',
       businessType: 'licensed_dealer',
-      role: 'owner',
+      role,
     },
     businesses: [],
     switchBusiness: vi.fn(),
@@ -62,5 +62,17 @@ describe('Navbar', () => {
 
     expect(screen.getByText('Test User')).toBeInTheDocument();
     expect(screen.getByText('Test Co')).toBeInTheDocument();
+  });
+
+  it('hides settings link for non-owner roles', () => {
+    setupMocks('admin');
+    renderWithProviders(
+      <AppShell navbar={{ width: 260, breakpoint: 'sm' }}>
+        <Navbar />
+      </AppShell>
+    );
+
+    expect(screen.queryByText('הגדרות')).not.toBeInTheDocument();
+    expect(screen.getByText('ראשי')).toBeInTheDocument();
   });
 });

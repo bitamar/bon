@@ -6,7 +6,7 @@ import type {
 } from 'fastify';
 import fp from 'fastify-plugin';
 import { findUserBusiness } from '../repositories/user-business-repository.js';
-import { notFound } from '../lib/app-error.js';
+import { forbidden, notFound } from '../lib/app-error.js';
 import { ensureAuthed } from './auth.js';
 
 export type BusinessRole = 'owner' | 'admin' | 'user';
@@ -60,7 +60,7 @@ const businessContextPluginFn: FastifyPluginAsync = async (app) => {
       }
 
       if (!allowedRoles.includes(req.businessContext.role)) {
-        throw notFound({ message: 'Business not found' });
+        throw forbidden({ message: `Requires ${allowedRoles.join(' or ')} role` });
       }
     };
     return handler;

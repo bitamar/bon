@@ -76,7 +76,6 @@ export const updateCustomerBodySchema = z
     postalCode: z.union([postalCodeSchema, z.literal(null)]).optional(),
     contactName: optionalNullableString,
     notes: z.union([z.string().trim(), z.literal(null)]).optional(),
-    isActive: z.boolean().optional(),
   })
   .strict()
   .refine((data) => !data.isLicensedDealer || data.taxId !== null, {

@@ -55,7 +55,7 @@ describe('plugins/business-context', () => {
       expect(res.statusCode).toBe(200);
     });
 
-    it('returns 404 when user role is insufficient (role=user)', async () => {
+    it('returns 403 when user role is insufficient (role=user)', async () => {
       const { user, sessionId } = await createAuthedUser();
       const ownerUser = await createUser();
       const business = await createTestBusiness(ownerUser.id);
@@ -68,7 +68,7 @@ describe('plugins/business-context', () => {
         payload: { name: 'Hacked Name' },
       });
 
-      expect(res.statusCode).toBe(404);
+      expect(res.statusCode).toBe(403);
     });
   });
 

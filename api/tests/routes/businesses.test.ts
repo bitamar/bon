@@ -216,5 +216,33 @@ describe('routes/businesses', () => {
 
       expect(res.statusCode).toBe(404);
     });
+
+    it('returns 403 for admin role (owner-only)', async () => {
+      const { business } = await createOwnerWithBusiness();
+      const { user: adminUser, sessionId: adminSession } = await createAuthedUser();
+      await addUserToBusiness(adminUser.id, business.id, 'admin');
+
+      const res = await injectAuthed(ctx.app, adminSession, {
+        method: 'PATCH',
+        url: `/businesses/${business.id}`,
+        payload: { name: 'Admin Update' },
+      });
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('returns 403 for user role', async () => {
+      const { business } = await createOwnerWithBusiness();
+      const { user: memberUser, sessionId: memberSession } = await createAuthedUser();
+      await addUserToBusiness(memberUser.id, business.id, 'user');
+
+      const res = await injectAuthed(ctx.app, memberSession, {
+        method: 'PATCH',
+        url: `/businesses/${business.id}`,
+        payload: { name: 'User Update' },
+      });
+
+      expect(res.statusCode).toBe(403);
+    });
   });
 });

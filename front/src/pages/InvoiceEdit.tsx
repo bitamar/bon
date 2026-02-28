@@ -12,6 +12,7 @@ import {
   Stack,
   Text,
   Textarea,
+  Tooltip,
 } from '@mantine/core';
 import { DatePickerInput, type DateValue } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -130,6 +131,8 @@ export function InvoiceEdit() {
   const queryClient = useQueryClient();
   const { activeBusiness } = useBusiness();
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
+
+  const canFinalize = activeBusiness?.role !== 'user';
 
   const invoiceQuery = useQuery({
     queryKey: queryKeys.invoice(businessId, invoiceId),
@@ -517,16 +520,24 @@ export function InvoiceEdit() {
           </Paper>
 
           <Group justify="space-between">
-            <Button variant="subtle" color="red" onClick={openDelete}>
-              מחק טיוטה
-            </Button>
+            <Tooltip label="Requires admin or owner permissions" disabled={canFinalize}>
+              <Button variant="subtle" color="red" onClick={openDelete} disabled={!canFinalize}>
+                מחק טיוטה
+              </Button>
+            </Tooltip>
             <Group gap="sm">
               <Button variant="default" onClick={handleSave} loading={saveMutation.isPending}>
                 שמור טיוטה
               </Button>
-              <Button onClick={handleFinalize} loading={saveMutation.isPending}>
-                הפק חשבונית
-              </Button>
+              <Tooltip label="Requires admin or owner permissions" disabled={canFinalize}>
+                <Button
+                  onClick={handleFinalize}
+                  loading={saveMutation.isPending}
+                  disabled={!canFinalize}
+                >
+                  הפק חשבונית
+                </Button>
+              </Tooltip>
             </Group>
           </Group>
         </Stack>

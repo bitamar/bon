@@ -483,6 +483,39 @@ describe('routes/invoices', () => {
     });
   });
 
+  // ── RBAC ──
+
+  describe('RBAC: user role restrictions', () => {
+    async function setupUserRoleDraft() {
+      const { sessionId: ownerSession, business } = await createOwnerWithBusiness();
+      const customer = await createCustomer(ownerSession, business.id);
+      const { invoice } = await createDraftWithItems(ownerSession, business.id, customer.id);
+      const { user: memberUser, sessionId: memberSession } = await createAuthedUser();
+      await addUserToBusiness(memberUser.id, business.id, 'user');
+      return { ownerSession, memberSession, business, invoice };
+    }
+
+    it('returns 403 when user role tries to finalize', async () => {
+      const { memberSession, business, invoice } = await setupUserRoleDraft();
+
+      const res = await finalizeInvoice(memberSession, business.id, invoice.id);
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('returns 403 when user role tries to delete and invoice still exists', async () => {
+      const { ownerSession, memberSession, business, invoice } = await setupUserRoleDraft();
+
+      const res = await deleteInvoice(memberSession, business.id, invoice.id);
+
+      expect(res.statusCode).toBe(403);
+
+      // Invoice should still exist
+      const getRes = await getInvoice(ownerSession, business.id, invoice.id);
+      expect(getRes.statusCode).toBe(200);
+    });
+  });
+
   // ── GET LIST ──
 
   describe('GET /businesses/:businessId/invoices', () => {
