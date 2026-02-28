@@ -1,4 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { queryKeys } from '../lib/queryKeys';
@@ -36,6 +44,8 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
+  const locationRef = useRef(location);
+  locationRef.current = location;
   const params = useParams<{ businessId?: string }>();
 
   const urlBusinessId = params.businessId ?? null;
@@ -117,9 +127,9 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
         queryClient.invalidateQueries({ queryKey: ['businesses', oldId] });
       }
 
-      navigate(buildBusinessPath(businessId, location));
+      navigate(buildBusinessPath(businessId, locationRef.current));
     },
-    [activeBusinessId, queryClient, location, navigate]
+    [activeBusinessId, queryClient, navigate]
   );
 
   const value = useMemo(
