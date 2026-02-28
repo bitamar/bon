@@ -318,13 +318,15 @@ export async function updateDraft(businessId: string, invoiceId: string, input: 
 }
 
 export async function deleteDraft(businessId: string, invoiceId: string) {
-  const existing = await findInvoiceById(invoiceId, businessId);
-  if (!existing) throw notFound();
-  if (existing.status !== 'draft') {
-    throw unprocessableEntity({ code: 'not_draft' });
-  }
+  await db.transaction(async (tx) => {
+    const existing = await findInvoiceByIdForUpdate(invoiceId, businessId, tx);
+    if (!existing) throw notFound();
+    if (existing.status !== 'draft') {
+      throw unprocessableEntity({ code: 'not_draft' });
+    }
 
-  await deleteInvoice(invoiceId, businessId);
+    await deleteInvoice(invoiceId, businessId, tx);
+  });
 }
 
 function buildFinalizationSnapshot(
