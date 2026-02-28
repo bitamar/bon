@@ -395,11 +395,9 @@ export function InvoiceEdit() {
 
   // ── Save indicator status ──
 
-  const saveStatus: SaveStatus = saveMutation.isPending
-    ? 'saving'
-    : form.isDirty()
-      ? 'unsaved'
-      : 'saved';
+  let saveStatus: SaveStatus = 'saved';
+  if (saveMutation.isPending) saveStatus = 'saving';
+  else if (form.isDirty()) saveStatus = 'unsaved';
 
   // ── Customer info for preview ──
 
