@@ -271,32 +271,32 @@ export type UpdateDraftInput = {
 };
 
 export async function updateDraft(businessId: string, invoiceId: string, input: UpdateDraftInput) {
-  const existing = await findInvoiceById(invoiceId, businessId);
-  if (!existing) throw notFound();
-  if (existing.status !== 'draft') {
-    throw unprocessableEntity({ code: 'not_draft' });
-  }
+  return db.transaction(async (tx) => {
+    const existing = await findInvoiceByIdForUpdate(invoiceId, businessId, tx);
+    if (!existing) throw notFound();
+    if (existing.status !== 'draft') {
+      throw unprocessableEntity({ code: 'not_draft' });
+    }
 
-  const now = new Date();
-  const updates: Partial<InvoiceInsert> = {
-    updatedAt: now,
-    ...(input.customerId !== undefined && { customerId: input.customerId }),
-    ...(input.documentType !== undefined && { documentType: input.documentType }),
-    ...(input.invoiceDate !== undefined && { invoiceDate: input.invoiceDate }),
-    ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
-    ...(input.notes !== undefined && { notes: input.notes }),
-    ...(input.internalNotes !== undefined && { internalNotes: input.internalNotes }),
-  };
+    const now = new Date();
+    const updates: Partial<InvoiceInsert> = {
+      updatedAt: now,
+      ...(input.customerId !== undefined && { customerId: input.customerId }),
+      ...(input.documentType !== undefined && { documentType: input.documentType }),
+      ...(input.invoiceDate != null && { invoiceDate: input.invoiceDate }),
+      ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
+      ...(input.notes !== undefined && { notes: input.notes }),
+      ...(input.internalNotes !== undefined && { internalNotes: input.internalNotes }),
+    };
 
-  if (input.items !== undefined) {
-    return db.transaction(async (tx) => {
+    if (input.items !== undefined) {
       await deleteItemsByInvoiceId(invoiceId, tx);
-      if (input.items!.length > 0) {
+      if (input.items.length > 0) {
         await insertItems(
-          input.items!.map((i) => buildItemInsert(invoiceId, i)),
+          input.items.map((i) => buildItemInsert(invoiceId, i)),
           tx
         );
-        const totals = computeTotals(input.items!);
+        const totals = computeTotals(input.items);
         Object.assign(updates, totals);
       } else {
         Object.assign(updates, {
@@ -307,20 +307,14 @@ export async function updateDraft(businessId: string, invoiceId: string, input: 
           totalInclVatMinorUnits: 0,
         });
       }
+    }
 
-      const updated = await updateInvoice(invoiceId, businessId, updates, tx);
-      if (!updated) throw notFound();
+    const updated = await updateInvoice(invoiceId, businessId, updates, tx);
+    if (!updated) throw notFound();
 
-      const items = await findItemsByInvoiceId(invoiceId, tx);
-      return buildResponse(updated, items);
-    });
-  }
-
-  const updated = await updateInvoice(invoiceId, businessId, updates);
-  if (!updated) throw notFound();
-
-  const items = await findItemsByInvoiceId(invoiceId);
-  return buildResponse(updated, items);
+    const items = await findItemsByInvoiceId(invoiceId, tx);
+    return buildResponse(updated, items);
+  });
 }
 
 export async function deleteDraft(businessId: string, invoiceId: string) {

@@ -2,7 +2,7 @@ import { AppError } from './app-error.js';
 
 /**
  * Converts a Drizzle numeric column value (string) to a finite number.
- * Throws if the value is not a finite number.
+ * Throws AppError if the value is not a finite number.
  */
 export function toNumber(value: string): number {
   const n = Number(value);
