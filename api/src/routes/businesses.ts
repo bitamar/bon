@@ -73,11 +73,7 @@ const businessRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.patch(
     '/businesses/:businessId',
     {
-      preHandler: [
-        app.authenticate,
-        app.requireBusinessAccess,
-        app.requireBusinessRole('owner', 'admin'),
-      ],
+      preHandler: [app.authenticate, app.requireBusinessAccess, app.requireBusinessRole('owner')],
       schema: {
         tags: ['Businesses'],
         params: businessIdParamSchema,

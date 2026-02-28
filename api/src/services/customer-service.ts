@@ -64,7 +64,6 @@ export type UpdateCustomerInput = {
   postalCode?: string | null | undefined;
   contactName?: string | null | undefined;
   notes?: string | null | undefined;
-  isActive?: boolean | undefined;
 };
 
 async function throwDuplicateTaxIdConflict(
@@ -140,10 +139,6 @@ function buildCustomerUpdates(input: UpdateCustomerInput, now: Date): Partial<Cu
     ...(input.postalCode !== undefined && { postalCode: input.postalCode }),
     ...(input.contactName !== undefined && { contactName: input.contactName }),
     ...(input.notes !== undefined && { notes: input.notes }),
-    ...(input.isActive != null && {
-      isActive: input.isActive,
-      deletedAt: input.isActive ? null : now,
-    }),
   };
 }
 
@@ -192,4 +187,26 @@ export async function listCustomers(
       isActive: r.isActive,
     })),
   } satisfies CustomerListResponse;
+}
+
+export async function deactivateCustomer(businessId: string, customerId: string) {
+  const now = new Date();
+  const customer = await updateCustomer(customerId, businessId, {
+    isActive: false,
+    deletedAt: now,
+    updatedAt: now,
+  });
+  if (!customer) throw notFound();
+  return { customer: serializeCustomer(customer) } satisfies CustomerResponse;
+}
+
+export async function reactivateCustomer(businessId: string, customerId: string) {
+  const now = new Date();
+  const customer = await updateCustomer(customerId, businessId, {
+    isActive: true,
+    deletedAt: null,
+    updatedAt: now,
+  });
+  if (!customer) throw notFound();
+  return { customer: serializeCustomer(customer) } satisfies CustomerResponse;
 }

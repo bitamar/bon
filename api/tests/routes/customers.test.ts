@@ -5,6 +5,7 @@ import {
   createAuthedUser,
   createTestBusiness,
   createUser,
+  addUserToBusiness,
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 
@@ -59,6 +60,28 @@ describe('routes/customers', () => {
   async function createTestCustomer(sessionId: string, businessId: string, payload?: object) {
     const res = await postCustomer(sessionId, businessId, payload ?? { name: 'Test Customer' });
     return (res.json() as { customer: { id: string } }).customer;
+  }
+
+  async function deactivateCustomer(sessionId: string, businessId: string, customerId: string) {
+    return injectAuthed(ctx.app, sessionId, {
+      method: 'POST',
+      url: `/businesses/${businessId}/customers/${customerId}/deactivate`,
+    });
+  }
+
+  async function reactivateCustomer(sessionId: string, businessId: string, customerId: string) {
+    return injectAuthed(ctx.app, sessionId, {
+      method: 'POST',
+      url: `/businesses/${businessId}/customers/${customerId}/reactivate`,
+    });
+  }
+
+  async function setupUserRoleCustomer() {
+    const { sessionId: ownerSession, business } = await createOwnerWithBusiness();
+    const customer = await createTestCustomer(ownerSession, business.id);
+    const { user: memberUser, sessionId: memberSession } = await createAuthedUser();
+    await addUserToBusiness(memberUser.id, business.id, 'user');
+    return { ownerSession, memberSession, business, customer };
   }
 
   // ── POST ───────────────────────────────────────────────────────────────────
@@ -253,10 +276,7 @@ describe('routes/customers', () => {
       const { sessionId, business } = await createOwnerWithBusiness();
       const customer = await createTestCustomer(sessionId, business.id, { name: 'Active' });
       const toDelete = await createTestCustomer(sessionId, business.id, { name: 'Deleted' });
-      await injectAuthed(ctx.app, sessionId, {
-        method: 'DELETE',
-        url: `/businesses/${business.id}/customers/${toDelete.id}`,
-      });
+      await deactivateCustomer(sessionId, business.id, toDelete.id);
 
       const res = await getCustomers(sessionId, business.id);
       const body = res.json() as { customers: { id: string }[] };
@@ -269,10 +289,7 @@ describe('routes/customers', () => {
       const { sessionId, business } = await createOwnerWithBusiness();
       await createTestCustomer(sessionId, business.id, { name: 'Active' });
       const toDelete = await createTestCustomer(sessionId, business.id, { name: 'Deleted' });
-      await injectAuthed(ctx.app, sessionId, {
-        method: 'DELETE',
-        url: `/businesses/${business.id}/customers/${toDelete.id}`,
-      });
+      await deactivateCustomer(sessionId, business.id, toDelete.id);
 
       const res = await getCustomers(sessionId, business.id, 'active=false');
       const body = res.json() as { customers: { name: string }[] };
@@ -353,23 +370,13 @@ describe('routes/customers', () => {
       expect((res.json() as { error: string }).error).toBe('duplicate_tax_id');
     });
 
-    it('clears deletedAt when re-activating a customer', async () => {
+    it('rejects isActive in PATCH body with 400', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
-      const customer = await createTestCustomer(sessionId, business.id, { name: 'Reactivate Me' });
+      const customer = await createTestCustomer(sessionId, business.id);
 
-      // Soft-delete
-      await injectAuthed(ctx.app, sessionId, {
-        method: 'DELETE',
-        url: `/businesses/${business.id}/customers/${customer.id}`,
-      });
+      const res = await patchCustomer(sessionId, business.id, customer.id, { isActive: false });
 
-      // Re-activate
-      const res = await patchCustomer(sessionId, business.id, customer.id, { isActive: true });
-
-      expect(res.statusCode).toBe(200);
-      const body = res.json() as { customer: { isActive: boolean; deletedAt: string | null } };
-      expect(body.customer.isActive).toBe(true);
-      expect(body.customer.deletedAt).toBeNull();
+      expect(res.statusCode).toBe(400);
     });
   });
 
@@ -396,6 +403,78 @@ describe('routes/customers', () => {
         .customer;
       expect(c.isActive).toBe(false);
       expect(c.deletedAt).not.toBeNull();
+    });
+  });
+
+  // ── Deactivate / Reactivate ─────────────────────────────────────────────
+
+  describe('POST .../deactivate and .../reactivate', () => {
+    it('deactivates a customer', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const customer = await createTestCustomer(sessionId, business.id);
+
+      const res = await deactivateCustomer(sessionId, business.id, customer.id);
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as { customer: { isActive: boolean; deletedAt: string | null } };
+      expect(body.customer.isActive).toBe(false);
+      expect(body.customer.deletedAt).not.toBeNull();
+    });
+
+    it('reactivates a customer and clears deletedAt', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const customer = await createTestCustomer(sessionId, business.id);
+      await deactivateCustomer(sessionId, business.id, customer.id);
+
+      const res = await reactivateCustomer(sessionId, business.id, customer.id);
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as { customer: { isActive: boolean; deletedAt: string | null } };
+      expect(body.customer.isActive).toBe(true);
+      expect(body.customer.deletedAt).toBeNull();
+    });
+  });
+
+  // ── RBAC ────────────────────────────────────────────────────────────────────
+
+  describe('RBAC: user role restrictions', () => {
+    it('returns 403 when user role tries to deactivate', async () => {
+      const { memberSession, business, customer } = await setupUserRoleCustomer();
+
+      const res = await deactivateCustomer(memberSession, business.id, customer.id);
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('returns 403 when user role tries to reactivate', async () => {
+      const { ownerSession, memberSession, business, customer } = await setupUserRoleCustomer();
+      await deactivateCustomer(ownerSession, business.id, customer.id);
+
+      const res = await reactivateCustomer(memberSession, business.id, customer.id);
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('returns 403 when user role tries to DELETE', async () => {
+      const { memberSession, business, customer } = await setupUserRoleCustomer();
+
+      const res = await injectAuthed(ctx.app, memberSession, {
+        method: 'DELETE',
+        url: `/businesses/${business.id}/customers/${customer.id}`,
+      });
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('allows user role to PATCH customer fields', async () => {
+      const { memberSession, business, customer } = await setupUserRoleCustomer();
+
+      const res = await patchCustomer(memberSession, business.id, customer.id, {
+        name: 'Updated by user',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect((res.json() as { customer: { name: string } }).customer.name).toBe('Updated by user');
     });
   });
 });

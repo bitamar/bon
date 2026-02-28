@@ -100,7 +100,11 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.delete(
     '/businesses/:businessId/invoices/:invoiceId',
     {
-      preHandler: [app.authenticate, app.requireBusinessAccess],
+      preHandler: [
+        app.authenticate,
+        app.requireBusinessAccess,
+        app.requireBusinessRole('owner', 'admin'),
+      ],
       schema: {
         tags: ['Invoices'],
         params: invoiceIdParamSchema,
@@ -119,7 +123,11 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.post(
     '/businesses/:businessId/invoices/:invoiceId/finalize',
     {
-      preHandler: [app.authenticate, app.requireBusinessAccess],
+      preHandler: [
+        app.authenticate,
+        app.requireBusinessAccess,
+        app.requireBusinessRole('owner', 'admin'),
+      ],
       schema: {
         tags: ['Invoices'],
         params: invoiceIdParamSchema,

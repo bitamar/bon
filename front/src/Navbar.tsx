@@ -76,14 +76,16 @@ export default function Navbar() {
           disabled
           className={disabledClass}
         />
-        <NavLink
-          component={Link}
-          to="/settings"
-          label="הגדרות"
-          leftSection={<IconSettings size={18} />}
-          active={pathname.startsWith('/settings')}
-          className={navLinkClass}
-        />
+        {activeBusiness?.role === 'owner' && (
+          <NavLink
+            component={Link}
+            to="/settings"
+            label="הגדרות"
+            leftSection={<IconSettings size={18} />}
+            active={pathname.startsWith('/settings')}
+            className={navLinkClass}
+          />
+        )}
       </ScrollArea>
 
       <Box className={classes['userSection'] ?? ''}>

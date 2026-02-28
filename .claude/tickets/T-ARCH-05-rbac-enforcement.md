@@ -1,6 +1,6 @@
 # T-ARCH-05 — Enforce Role-Based Access Control
 
-**Status**: ⬜ Not started
+**Status**: ✅ Done
 **Phase**: Cross-cutting (security)
 **Requires**: None (RBAC enforcement is route-level preHandlers + frontend conditionals — no data-layer changes needed)
 **Blocks**: Nothing strictly, but should ideally land before T08 so RBAC protects destructive actions (finalize, delete) from the start
