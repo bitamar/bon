@@ -1,7 +1,8 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { invoiceItems, invoices } from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
+import { escapeLikePattern } from '../lib/query-utils.js';
 
 export type InvoiceRecord = (typeof invoices)['$inferSelect'];
 export type InvoiceInsert = (typeof invoices)['$inferInsert'];
@@ -58,4 +59,106 @@ export async function findItemsByInvoiceId(invoiceId: string, txOrDb: DbOrTx = d
     .from(invoiceItems)
     .where(eq(invoiceItems.invoiceId, invoiceId))
     .orderBy(invoiceItems.position);
+}
+
+// ── list / count ──
+
+export interface InvoiceListFilters {
+  businessId: string;
+  status?: InvoiceRecord['status'][];
+  customerId?: string;
+  documentType?: InvoiceRecord['documentType'];
+  dateFrom?: string;
+  dateTo?: string;
+  q?: string;
+  sort: string;
+  offset: number;
+  limit: number;
+}
+
+function buildListConditions(filters: InvoiceListFilters) {
+  const conditions = [eq(invoices.businessId, filters.businessId)];
+
+  if (filters.status && filters.status.length > 0) {
+    conditions.push(inArray(invoices.status, filters.status));
+  }
+  if (filters.customerId) {
+    conditions.push(eq(invoices.customerId, filters.customerId));
+  }
+  if (filters.documentType) {
+    conditions.push(eq(invoices.documentType, filters.documentType));
+  }
+  if (filters.dateFrom) {
+    conditions.push(gte(invoices.invoiceDate, filters.dateFrom));
+  }
+  if (filters.dateTo) {
+    conditions.push(lte(invoices.invoiceDate, filters.dateTo));
+  }
+  if (filters.q) {
+    const pattern = `%${escapeLikePattern(filters.q)}%`;
+    const textSearch = or(
+      ilike(invoices.documentNumber, pattern),
+      ilike(invoices.customerName, pattern)
+    );
+    if (textSearch) conditions.push(textSearch);
+  }
+
+  return conditions;
+}
+
+const SORT_MAP: Record<string, ReturnType<typeof asc>> = {
+  'invoiceDate:asc': asc(invoices.invoiceDate),
+  'invoiceDate:desc': desc(invoices.invoiceDate),
+  'totalInclVatMinorUnits:asc': asc(invoices.totalInclVatMinorUnits),
+  'totalInclVatMinorUnits:desc': desc(invoices.totalInclVatMinorUnits),
+  'createdAt:desc': desc(invoices.createdAt),
+};
+
+export async function findInvoices(filters: InvoiceListFilters, txOrDb: DbOrTx = db) {
+  const conditions = buildListConditions(filters);
+  const isDueDateSort = filters.sort.startsWith('dueDate:');
+
+  let query = txOrDb
+    .select({
+      id: invoices.id,
+      businessId: invoices.businessId,
+      customerId: invoices.customerId,
+      customerName: invoices.customerName,
+      documentType: invoices.documentType,
+      status: invoices.status,
+      isOverdue: invoices.isOverdue,
+      sequenceGroup: invoices.sequenceGroup,
+      documentNumber: invoices.documentNumber,
+      invoiceDate: invoices.invoiceDate,
+      dueDate: invoices.dueDate,
+      totalInclVatMinorUnits: invoices.totalInclVatMinorUnits,
+      currency: invoices.currency,
+      createdAt: invoices.createdAt,
+    })
+    .from(invoices)
+    .where(and(...conditions))
+    .$dynamic();
+
+  if (isDueDateSort) {
+    const nullsLast = sql`CASE WHEN ${invoices.dueDate} IS NULL THEN 1 ELSE 0 END`;
+    const direction =
+      filters.sort === 'dueDate:asc' ? asc(invoices.dueDate) : desc(invoices.dueDate);
+    query = query.orderBy(nullsLast, direction);
+  } else {
+    const sortExpr = SORT_MAP[filters.sort];
+    if (sortExpr) {
+      query = query.orderBy(sortExpr);
+    }
+  }
+
+  return query.offset(filters.offset).limit(filters.limit);
+}
+
+export async function countInvoices(filters: InvoiceListFilters, txOrDb: DbOrTx = db) {
+  const conditions = buildListConditions(filters);
+  const rows = await txOrDb
+    .select({ value: count() })
+    .from(invoices)
+    .where(and(...conditions));
+  return rows[0]?.value ?? 0;
 }

@@ -6,9 +6,12 @@ import {
   insertItems,
   deleteItemsByInvoiceId,
   findItemsByInvoiceId,
+  findInvoices,
+  countInvoices,
   type InvoiceRecord,
   type InvoiceItemRecord,
   type InvoiceInsert,
+  type InvoiceListFilters,
 } from '../repositories/invoice-repository.js';
 import { findCustomerById } from '../repositories/customer-repository.js';
 import { findBusinessById } from '../repositories/business-repository.js';
@@ -21,6 +24,9 @@ import type {
   Invoice,
   LineItem,
   InvoiceResponse,
+  InvoiceListItem,
+  InvoiceListQuery,
+  InvoiceListResponse,
   LineItemInput,
   DocumentType,
 } from '@bon/types/invoices';
@@ -84,6 +90,43 @@ function serializeInvoiceItem(record: InvoiceItemRecord): LineItem {
     lineTotalMinorUnits: record.lineTotalMinorUnits,
     vatAmountMinorUnits: record.vatAmountMinorUnits,
     lineTotalInclVatMinorUnits: record.lineTotalInclVatMinorUnits,
+  };
+}
+
+function serializeInvoiceListItem(
+  record: Pick<
+    InvoiceRecord,
+    | 'id'
+    | 'businessId'
+    | 'customerId'
+    | 'customerName'
+    | 'documentType'
+    | 'status'
+    | 'isOverdue'
+    | 'sequenceGroup'
+    | 'documentNumber'
+    | 'invoiceDate'
+    | 'dueDate'
+    | 'totalInclVatMinorUnits'
+    | 'currency'
+    | 'createdAt'
+  >
+): InvoiceListItem {
+  return {
+    id: record.id,
+    businessId: record.businessId,
+    customerId: record.customerId ?? null,
+    customerName: record.customerName ?? null,
+    documentType: record.documentType,
+    status: record.status,
+    isOverdue: record.isOverdue,
+    sequenceGroup: record.sequenceGroup ?? null,
+    documentNumber: record.documentNumber ?? null,
+    invoiceDate: coerceToDateString(record.invoiceDate),
+    dueDate: record.dueDate ? coerceToDateString(record.dueDate) : null,
+    totalInclVatMinorUnits: record.totalInclVatMinorUnits,
+    currency: record.currency,
+    createdAt: record.createdAt.toISOString(),
   };
 }
 
@@ -406,4 +449,29 @@ export async function finalize(
 
     return buildResponse(updated, updatedItems);
   });
+}
+
+export async function listInvoices(
+  businessId: string,
+  query: InvoiceListQuery
+): Promise<InvoiceListResponse> {
+  const filters: InvoiceListFilters = {
+    businessId,
+    sort: query.sort,
+    offset: (query.page - 1) * query.limit,
+    limit: query.limit,
+  };
+  if (query.status) filters.status = query.status;
+  if (query.customerId) filters.customerId = query.customerId;
+  if (query.documentType) filters.documentType = query.documentType;
+  if (query.dateFrom) filters.dateFrom = query.dateFrom;
+  if (query.dateTo) filters.dateTo = query.dateTo;
+  if (query.q) filters.q = query.q;
+
+  const [rows, total] = await Promise.all([findInvoices(filters), countInvoices(filters)]);
+
+  return {
+    invoices: rows.map(serializeInvoiceListItem),
+    total,
+  };
 }

@@ -5,7 +5,7 @@
 export function toNumber(value: string): number {
   const n = Number(value);
   if (!Number.isFinite(n)) {
-    throw new Error(`Expected a finite number, got: ${value}`);
+    throw new TypeError(`Expected a finite number, got: ${value}`);
   }
   return n;
 }

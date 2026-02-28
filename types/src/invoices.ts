@@ -160,7 +160,9 @@ export const invoiceListItemSchema = z.object({
   sequenceGroup: z.union([sequenceGroupSchema, z.literal(null)]),
   documentNumber: nullableString,
   invoiceDate: dateString,
+  dueDate: nullableDateString,
   totalInclVatMinorUnits: z.number().int(),
+  currency: z.string(),
   createdAt: isoDateTime,
 });
 
@@ -169,6 +171,46 @@ export const invoiceListItemSchema = z.object({
 export const invoiceIdParamSchema = z.object({
   businessId: uuidSchema,
   invoiceId: uuidSchema,
+});
+
+// ── Query / list response schemas ──
+
+export const invoiceListQuerySchema = z
+  .object({
+    status: z
+      .string()
+      .trim()
+      .transform((s) => s.split(',').map((v) => v.trim()).filter(Boolean))
+      .pipe(z.array(invoiceStatusSchema).min(1))
+      .optional(),
+    customerId: uuidSchema.optional(),
+    documentType: documentTypeSchema.optional(),
+    dateFrom: z.string().trim().date().optional(),
+    dateTo: z.string().trim().date().optional(),
+    q: z.string().trim().max(100).optional(),
+    sort: z
+      .enum([
+        'invoiceDate:asc',
+        'invoiceDate:desc',
+        'dueDate:asc',
+        'dueDate:desc',
+        'totalInclVatMinorUnits:asc',
+        'totalInclVatMinorUnits:desc',
+        'createdAt:desc',
+      ])
+      .optional()
+      .default('invoiceDate:desc'),
+    page: z.coerce.number().int().min(1).optional().default(1),
+    limit: z.coerce.number().int().min(1).max(200).optional().default(20),
+  })
+  .refine((data) => !data.dateFrom || !data.dateTo || data.dateFrom <= data.dateTo, {
+    message: 'תאריך סיום חייב להיות אחרי תאריך התחלה',
+    path: ['dateTo'],
+  });
+
+export const invoiceListResponseSchema = z.object({
+  invoices: z.array(invoiceListItemSchema),
+  total: z.number().int().nonnegative(),
 });
 
 // ── Type exports ──
@@ -193,4 +235,6 @@ export type LineItem = z.infer<typeof lineItemSchema>;
 export type Invoice = z.infer<typeof invoiceSchema>;
 export type InvoiceResponse = z.infer<typeof invoiceResponseSchema>;
 export type InvoiceListItem = z.infer<typeof invoiceListItemSchema>;
+export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
+export type InvoiceListResponse = z.infer<typeof invoiceListResponseSchema>;
 export type InvoiceIdParam = z.infer<typeof invoiceIdParamSchema>;
