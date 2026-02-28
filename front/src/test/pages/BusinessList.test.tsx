@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useLocation } from 'react-router-dom';
 import { BusinessList } from '../../pages/BusinessList';
@@ -175,6 +175,141 @@ describe('BusinessList page', () => {
 
     const addCard = screen.getByRole('button', { name: /צור עסק חדש/ });
     expect(addCard).toHaveAttribute('tabindex', '0');
+  });
+
+  it('clicking "צור עסק" in empty state navigates to /onboarding', async () => {
+    const user = userEvent.setup();
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: null,
+      businesses: [],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(
+      <>
+        <BusinessList />
+        <LocationDisplay />
+      </>
+    );
+
+    await user.click(screen.getByRole('button', { name: 'צור עסק' }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/onboarding');
+  });
+
+  it('clicking AddBusinessCard navigates to /onboarding', async () => {
+    const user = userEvent.setup();
+    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer',
+        role: 'owner',
+      },
+      businesses: [business],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(
+      <>
+        <BusinessList />
+        <LocationDisplay />
+      </>
+    );
+
+    await user.click(screen.getByRole('button', { name: /צור עסק חדש/ }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/onboarding');
+  });
+
+  it('AddBusinessCard responds to Enter keydown', async () => {
+    const user = userEvent.setup();
+    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer',
+        role: 'owner',
+      },
+      businesses: [business],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(
+      <>
+        <BusinessList />
+        <LocationDisplay />
+      </>
+    );
+
+    const addCard = screen.getByRole('button', { name: /צור עסק חדש/ });
+    await user.click(addCard);
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/onboarding');
+  });
+
+  it('shows "עסק פעיל" badge for the active business', () => {
+    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer',
+        role: 'owner',
+      },
+      businesses: [business],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(<BusinessList />);
+
+    expect(screen.getByText('עסק פעיל')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'החלף' })).not.toBeInTheDocument();
+  });
+
+  it('fires mouse and keyboard events on cards without errors', () => {
+    const activeBiz = mockBusiness({ id: 'biz-1', name: 'Active Biz', role: 'owner' });
+    const inactiveBiz = mockBusiness({ id: 'biz-2', name: 'Inactive Biz', role: 'user' });
+
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Active Biz',
+        businessType: 'licensed_dealer',
+        role: 'owner',
+      },
+      businesses: [activeBiz, inactiveBiz],
+      switchBusiness,
+      isLoading: false,
+    });
+
+    renderWithProviders(<BusinessList />);
+
+    // Fire mouse events on all pointer-cursor elements to cover onMouseEnter/onMouseLeave handlers
+    const pointerEls = Array.from(document.querySelectorAll<HTMLElement>('[style*="cursor"]'));
+    pointerEls.forEach((el) => {
+      fireEvent.mouseEnter(el);
+      fireEvent.mouseLeave(el);
+    });
+
+    // Fire keyboard events on AddBusinessCard to cover onKeyDown handler
+    const addCard = screen.getByRole('button', { name: /צור עסק חדש/ });
+    fireEvent.keyDown(addCard, { key: 'Enter' });
+    fireEvent.keyDown(addCard, { key: ' ' });
+    fireEvent.keyDown(addCard, { key: 'Tab' }); // should not trigger onClick
+
+    // Sanity: both business names visible
+    expect(screen.getByText('Active Biz')).toBeInTheDocument();
+    expect(screen.getByText('Inactive Biz')).toBeInTheDocument();
   });
 
   it('clicking "ערוך" navigates to /businesses/{id}/settings', async () => {

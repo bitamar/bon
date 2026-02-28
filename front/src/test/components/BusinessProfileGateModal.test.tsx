@@ -92,6 +92,45 @@ describe('BusinessProfileGateModal', () => {
     });
   });
 
+  it('calls onClose when clicking ביטול', async () => {
+    const user = userEvent.setup();
+    renderModal({ name: '' });
+
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    expect(defaultProps.onClose).toHaveBeenCalled();
+  });
+
+  it('submits only vatNumber when only vatNumber is missing', async () => {
+    vi.mocked(businessApi.updateBusiness).mockResolvedValue({
+      business: makeTestBusiness(),
+      role: 'owner',
+    });
+    const user = userEvent.setup();
+    renderModal({ vatNumber: null });
+
+    await user.clear(screen.getByLabelText(/מע"מ/));
+    await user.type(screen.getByLabelText(/מע"מ/), '123456789');
+    await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
+
+    await waitFor(() => {
+      expect(businessApi.updateBusiness).toHaveBeenCalledWith('biz-1', { vatNumber: '123456789' });
+    });
+    expect(defaultProps.onSaved).toHaveBeenCalled();
+  });
+
+  it('shows vatNumber validation error for wrong format', async () => {
+    const user = userEvent.setup();
+    renderModal({ vatNumber: null });
+
+    await user.clear(screen.getByLabelText(/מע"מ/));
+    await user.type(screen.getByLabelText(/מע"מ/), '123');
+    await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
+
+    expect(await screen.findByText('מספר מע"מ חייב להיות 9 ספרות')).toBeInTheDocument();
+    expect(businessApi.updateBusiness).not.toHaveBeenCalled();
+  });
+
   it('shows inline error when PATCH fails', async () => {
     vi.mocked(businessApi.updateBusiness).mockRejectedValue(new Error('network'));
     const user = userEvent.setup();
