@@ -152,7 +152,7 @@ export function AddressAutocomplete({
           <TextInput
             label="עיר / ישוב"
             required={required}
-            placeholder={citiesApiError ? 'הקלד שם עיר...' : 'הקלד שם עיר...'}
+            placeholder="הקלד שם עיר..."
             value={cityQuery}
             onChange={(e) => {
               const value = e.target.value;
