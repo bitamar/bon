@@ -1,12 +1,24 @@
 import { fetchJson } from '../lib/http';
 import {
+  invoiceListResponseSchema,
   invoiceResponseSchema,
   type CreateInvoiceDraftBody,
   type FinalizeInvoiceBody,
+  type InvoiceListResponse,
   type InvoiceResponse,
   type UpdateInvoiceDraftBody,
 } from '@bon/types/invoices';
 import { okResponseSchema } from '@bon/types/common';
+
+export async function fetchInvoices(
+  businessId: string,
+  params: Record<string, string>
+): Promise<InvoiceListResponse> {
+  const qs = new URLSearchParams(params).toString();
+  const basePath = `/businesses/${businessId}/invoices`;
+  const json = await fetchJson<unknown>(qs ? `${basePath}?${qs}` : basePath);
+  return invoiceListResponseSchema.parse(json);
+}
 
 export async function createInvoiceDraft(
   businessId: string,
