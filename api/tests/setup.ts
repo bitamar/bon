@@ -18,21 +18,7 @@ process.env.RATE_LIMIT_TIME_WINDOW = '1000';
 
 let pgContainer: StartedPostgreSqlContainer | undefined;
 
-async function provisionTestDatabase(): Promise<string> {
-  // 1. Try testcontainers (requires a running Docker daemon)
-  try {
-    const { PostgreSqlContainer } = await import('@testcontainers/postgresql');
-    pgContainer = await new PostgreSqlContainer('postgres:16').start();
-    return pgContainer.getConnectionUri();
-  } catch {
-    // Docker unavailable — fall through to native PostgreSQL
-  }
-
-  // 2. Fall back to native PostgreSQL with a dedicated test database.
-  //    The database is created once and reused across runs; resetDb() handles
-  //    inter-test isolation via TRUNCATE.
-  const adminUrl =
-    process.env['TEST_PG_ADMIN_URL'] ?? 'postgres://postgres:postgres@localhost:5432/postgres';
+async function createNativeTestDb(adminUrl: string): Promise<string> {
   const dbName = 'bon_test';
   const adminClient = new pg.Client({ connectionString: adminUrl });
   try {
@@ -48,6 +34,27 @@ async function provisionTestDatabase(): Promise<string> {
   const parsed = new URL(adminUrl);
   parsed.pathname = `/${dbName}`;
   return parsed.toString();
+}
+
+async function provisionTestDatabase(): Promise<string> {
+  // 1. If an explicit admin URL is provided (CI), use it directly — skip testcontainers
+  //    so we don't start a second PostgreSQL container alongside the CI service container.
+  const explicitUrl = process.env['TEST_PG_ADMIN_URL'];
+  if (explicitUrl) {
+    return createNativeTestDb(explicitUrl);
+  }
+
+  // 2. Try testcontainers (requires a running Docker daemon)
+  try {
+    const { PostgreSqlContainer } = await import('@testcontainers/postgresql');
+    pgContainer = await new PostgreSqlContainer('postgres:16').start();
+    return pgContainer.getConnectionUri();
+  } catch {
+    // Docker unavailable — fall through to native PostgreSQL
+  }
+
+  // 3. Fall back to native PostgreSQL at default location.
+  return createNativeTestDb('postgres://postgres:postgres@localhost:5432/postgres');
 }
 
 process.env.DATABASE_URL = await provisionTestDatabase();
