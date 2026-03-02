@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { CustomerCreate } from '../../pages/CustomerCreate';
@@ -167,6 +167,22 @@ describe('CustomerCreate page', () => {
       expect(showErrorNotification).toHaveBeenCalled();
     });
   });
+
+  it('clicking ביטול navigates back to customers list', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/customers/new" element={<CustomerCreate />} />
+        <Route path="/businesses/:businessId/customers" element={<div>customers-list</div>} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/customers/new'] } }
+    );
+
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    expect(await screen.findByText('customers-list')).toBeInTheDocument();
+  });
 });
 
 // Test tax ID validation via CustomerForm directly (avoids Select interaction in jsdom)
@@ -270,5 +286,35 @@ describe('CustomerForm tax ID validation', () => {
     await user.click(toggle);
 
     expect(screen.getByRole('switch', { name: /עוסק מורשה/ })).toBeChecked();
+  });
+
+  it('clears taxId when switching to "ללא מספר מזהה" via hidden Select option', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderFormWithInitialValues({
+      taxIdType: 'company_id',
+      taxId: '123456782',
+    });
+
+    // Mantine Select pre-renders all options hidden in the DOM; click directly
+    const noneOption = screen.getByRole('option', { name: 'ללא מספר מזהה', hidden: true });
+    fireEvent.click(noneOption);
+
+    await waitFor(() => {
+      // taxId field should be hidden (taxIdType is now 'none')
+      expect(screen.queryByLabelText('מספר חברה (ח.פ.)')).not.toBeInTheDocument();
+    });
+
+    // Fill in the required name field and submit to verify taxId was cleared
+    const nameInput = screen.getByRole('textbox', { name: /שם הלקוח/ });
+    await user.type(nameInput, 'Test');
+
+    await user.click(screen.getByRole('button', { name: 'שמור' }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ taxId: '', taxIdType: 'none' }),
+        expect.anything()
+      );
+    });
   });
 });

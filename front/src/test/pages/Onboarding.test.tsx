@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Route, Routes } from 'react-router-dom';
 import { Onboarding } from '../../pages/Onboarding';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
@@ -61,6 +62,27 @@ async function selectBusinessType(user: User, type: 'עוסק מורשה' | 'ע�
   await user.click(screen.getByText(type));
 }
 
+async function setupWithExistingBusiness(user: User) {
+  const { useBusiness } = await import('../../contexts/BusinessContext');
+  vi.mocked(useBusiness).mockReturnValue({
+    businesses: [
+      {
+        id: 'biz-1',
+        name: 'X',
+        businessType: 'licensed_dealer',
+        registrationNumber: '123456789',
+        isActive: true,
+        role: 'owner',
+      },
+    ],
+    activeBusiness: null,
+    switchBusiness: vi.fn(),
+    isLoading: false,
+  });
+  renderWithProviders(<Onboarding />);
+  await selectBusinessType(user, 'עוסק מורשה');
+}
+
 async function fillAndSubmit(
   user: User,
   opts: { name: string; registrationNumber: string; type: 'עוסק מורשה' | 'עוסק פטור' | 'חברה בע״מ' }
@@ -75,6 +97,16 @@ async function fillAndSubmit(
   await user.click(screen.getByRole('button', { name: 'יצירת עסק' }));
   await waitFor(() => expect(businessesApi.createBusiness).toHaveBeenCalled());
   return vi.mocked(businessesApi.createBusiness).mock.calls[0]?.[0];
+}
+
+async function openInfoModal() {
+  const user = userEvent.setup();
+  renderWithProviders(<Onboarding />);
+  await user.click(screen.getByRole('button', { name: /לא בטוחים/ }));
+  await waitFor(() => {
+    expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
+  });
+  return user;
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -145,6 +177,14 @@ describe('Onboarding page', () => {
   });
 
   it('shows cancel link when businesses exist', async () => {
+    const user = userEvent.setup();
+    await setupWithExistingBusiness(user);
+
+    expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
+  });
+
+  it('clicking cancel link navigates back', async () => {
+    const user = userEvent.setup();
     const { useBusiness } = await import('../../contexts/BusinessContext');
     vi.mocked(useBusiness).mockReturnValue({
       businesses: [
@@ -161,22 +201,34 @@ describe('Onboarding page', () => {
       switchBusiness: vi.fn(),
       isLoading: false,
     });
-    const user = userEvent.setup();
-    renderWithProviders(<Onboarding />);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/prev" element={<div>prev-page</div>} />
+      </Routes>,
+      { router: { initialEntries: ['/prev', '/onboarding'] } }
+    );
 
     await selectBusinessType(user, 'עוסק מורשה');
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
 
-    expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
+    expect(await screen.findByText('prev-page')).toBeInTheDocument();
   });
 
   it('opens info modal when clicking "לא בטוחים? מידע נוסף"', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Onboarding />);
+    await openInfoModal();
 
-    await user.click(screen.getByRole('button', { name: /לא בטוחים/ }));
+    expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
+  });
+
+  it('closes info modal when pressing Escape', async () => {
+    const user = await openInfoModal();
+
+    await user.keyboard('{Escape}');
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'סוגי עסקים בישראל' })).not.toBeInTheDocument();
     });
   });
 

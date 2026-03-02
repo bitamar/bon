@@ -4,6 +4,7 @@ import {
   fetchInvoice,
   updateInvoiceDraft,
   deleteInvoiceDraft,
+  finalizeInvoice,
 } from '../../api/invoices';
 import { HttpError } from '../../lib/http';
 
@@ -150,6 +151,26 @@ describe('invoices api', () => {
         expect.objectContaining({ method: 'DELETE', credentials: 'include' })
       );
       expect(result).toEqual({ ok: true });
+    });
+  });
+
+  describe('finalizeInvoice', () => {
+    it('calls POST to finalize endpoint and returns InvoiceResponse', async () => {
+      mockOk(minimalInvoiceResponse);
+
+      const payload = { invoiceDate: '2026-02-20' };
+      const result = await finalizeInvoice(BIZ_ID, INV_ID, payload);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${import.meta.env.VITE_API_BASE_URL}/businesses/${BIZ_ID}/invoices/${INV_ID}/finalize`,
+        expect.objectContaining({ method: 'POST', credentials: 'include' })
+      );
+      expect(result).toMatchObject(minimalInvoiceResponse);
+    });
+
+    it('throws HttpError on failure', async () => {
+      mockFail(422);
+      await expect(finalizeInvoice(BIZ_ID, INV_ID, {})).rejects.toBeInstanceOf(HttpError);
     });
   });
 });

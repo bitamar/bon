@@ -46,7 +46,7 @@ export function CustomerSelect({
         onChange={onChange}
         onSearchChange={setSearch}
         disabled={disabled ?? false}
-        rightSection={isLoading ? <Loader size={16} /> : undefined}
+        rightSection={isLoading ? <Loader size={16} role="status" /> : undefined}
         error={error ? 'שגיאה בטעינת לקוחות' : undefined}
       />
       <Anchor component={Link} to={`/businesses/${businessId}/customers/new`} size="sm">

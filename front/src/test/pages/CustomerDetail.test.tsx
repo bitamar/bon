@@ -76,6 +76,36 @@ describe('CustomerDetail page', () => {
     expect(screen.getByRole('button', { name: 'נסה שוב' })).toBeInTheDocument();
   });
 
+  it('clicking "נסה שוב" in error state triggers refetch', async () => {
+    vi.mocked(customersApi.fetchCustomer).mockRejectedValue(new Error('fail'));
+    const user = userEvent.setup();
+    renderDetail();
+
+    const retryBtn = await screen.findByRole('button', { name: 'נסה שוב' });
+    vi.mocked(customersApi.fetchCustomer).mockResolvedValue({ customer: mockCustomer });
+    await user.click(retryBtn);
+
+    expect(customersApi.fetchCustomer).toHaveBeenCalledTimes(2);
+  });
+
+  it('clicking ביטול navigates back to customers list', async () => {
+    vi.mocked(customersApi.fetchCustomer).mockResolvedValue({ customer: mockCustomer });
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/customers/:customerId" element={<CustomerDetail />} />
+        <Route path="/businesses/:businessId/customers" element={<div>customers-list</div>} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/customers/c1'] } }
+    );
+
+    await screen.findByRole('heading', { name: 'חברת אלפא' });
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    expect(await screen.findByText('customers-list')).toBeInTheDocument();
+  });
+
   it('loads and displays customer data', async () => {
     vi.mocked(customersApi.fetchCustomer).mockResolvedValue({ customer: mockCustomer });
     renderDetail();

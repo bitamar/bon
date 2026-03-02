@@ -51,6 +51,14 @@ function renderPreview(overrides: Partial<typeof defaultProps> = {}) {
   return renderWithProviders(<InvoicePreviewModal {...defaultProps} {...overrides} />);
 }
 
+async function pressEscapeOnPreview(confirming: boolean) {
+  const onClose = vi.fn();
+  const user = userEvent.setup();
+  renderPreview({ confirming, onClose });
+  await user.keyboard('{Escape}');
+  return { onClose };
+}
+
 describe('InvoicePreviewModal', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -129,5 +137,19 @@ describe('InvoicePreviewModal', () => {
     renderPreview({ items: [makeItem({ discountPercent: 10 })] });
 
     expect(screen.getByText('הנחה')).toBeInTheDocument();
+  });
+
+  it('does not call onClose when Escape is pressed and confirming is true', async () => {
+    const { onClose } = await pressEscapeOnPreview(true);
+
+    // Since confirming=true, the onClose guard prevents calling it
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('calls onClose via Modal handler when confirming is false and Escape is pressed', async () => {
+    const { onClose } = await pressEscapeOnPreview(false);
+
+    // confirming=false → the onClose guard allows the call
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

@@ -14,15 +14,35 @@ const mockUser: AuthUser = {
 };
 
 vi.mock('../../auth/api');
+vi.mock('../../api/businesses', () => ({
+  fetchBusinesses: vi.fn(),
+  fetchBusiness: vi.fn(),
+  updateBusiness: vi.fn(),
+  createBusiness: vi.fn(),
+}));
+
+import * as businessesApi from '../../api/businesses';
+
+const mockBizItem = {
+  id: 'biz-1',
+  name: 'Test Co',
+  businessType: 'licensed_dealer' as const,
+  registrationNumber: '123456789',
+  isActive: true,
+  role: 'owner' as const,
+};
+
 describe('App routing', () => {
   const getMeMock = vi.mocked(authApi.getMe);
 
   beforeEach(() => {
     getMeMock.mockResolvedValue({ user: mockUser });
+    vi.mocked(businessesApi.fetchBusinesses).mockResolvedValue({ businesses: [] });
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   function renderApp(path = '/') {
@@ -72,5 +92,29 @@ describe('App routing', () => {
 
     resolveGetMe?.(null);
     await waitFor(() => expect(screen.getByText('חשבונית מס')).toBeInTheDocument());
+  });
+
+  it('OnboardingGuard redirects to /onboarding when no businesses', async () => {
+    // businesses is [] → OnboardingGuard navigates to /onboarding
+    vi.mocked(businessesApi.fetchBusinesses).mockResolvedValue({ businesses: [] });
+
+    renderApp('/settings');
+
+    // The Onboarding page should render after the redirect
+    await waitFor(() => {
+      expect(screen.getByText('יצירת העסק שלך')).toBeInTheDocument();
+    });
+  });
+
+  it('HomeRedirect navigates to active business dashboard when activeBusiness is set', async () => {
+    // Put an active business in localStorage so HomeRedirect can navigate to it
+    localStorage.setItem('bon:activeBusiness', 'biz-1');
+    vi.mocked(businessesApi.fetchBusinesses).mockResolvedValue({ businesses: [mockBizItem] });
+
+    renderApp('/');
+
+    // After businesses load, OnboardingGuard allows through → HomeRedirect runs and
+    // navigates to /businesses/biz-1/dashboard → Dashboard renders with a heading 'ראשי'
+    await screen.findByRole('heading', { name: 'ראשי' });
   });
 });
