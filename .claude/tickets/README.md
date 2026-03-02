@@ -76,7 +76,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | — [T08-B](./T08-B-finalize-backend.md) | Backend: Finalize Endpoint Extension | ✅ | main (PR #17) |
 | — [T08-C](./T08-C-finalization-flow.md) | Frontend: Finalization Flow | ✅ | main (PR #22) |
 | — [T08-D](./T08-D-detail-view.md) | Frontend: Detail View + Routing | ✅ | main (PR #22) |
-| [T09](./T09-invoice-list.md) | Invoice List & Search | 🔄 | claude/continue-t8-next-steps-NZgfx |
+| [T09](./T09-invoice-list.md) | Invoice List & Search | ✅ | main |
 | — [T09-B](./T09-B-invoice-aggregates.md) | Invoice List Aggregates & Summary Row | 🔒 | — |
 
 ### Phase 3 — PDF
