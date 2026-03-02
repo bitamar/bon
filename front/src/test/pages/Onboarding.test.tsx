@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Route, Routes } from 'react-router-dom';
 import { Onboarding } from '../../pages/Onboarding';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
@@ -172,35 +173,57 @@ describe('Onboarding page', () => {
     expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
   });
 
-  it('clicking cancel link triggers navigate without errors', async () => {
+  it('clicking cancel link navigates back', async () => {
     const user = userEvent.setup();
-    await setupWithExistingBusiness(user);
+    const { useBusiness } = await import('../../contexts/BusinessContext');
+    vi.mocked(useBusiness).mockReturnValue({
+      businesses: [
+        {
+          id: 'biz-1',
+          name: 'X',
+          businessType: 'licensed_dealer',
+          registrationNumber: '123456789',
+          isActive: true,
+          role: 'owner',
+        },
+      ],
+      activeBusiness: null,
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
 
+    renderWithProviders(
+      <Routes>
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/prev" element={<div>prev-page</div>} />
+      </Routes>,
+      { router: { initialEntries: ['/prev', '/onboarding'] } }
+    );
+
+    await selectBusinessType(user, 'עוסק מורשה');
     await user.click(screen.getByRole('button', { name: 'ביטול' }));
 
-    // Page should still be rendered (no prior history to go back to)
-    expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
+    expect(await screen.findByText('prev-page')).toBeInTheDocument();
   });
 
-  it('opens info modal when clicking "לא בטוחים? מידע נוסף"', async () => {
+  async function openInfoModal() {
     const user = userEvent.setup();
     renderWithProviders(<Onboarding />);
-
     await user.click(screen.getByRole('button', { name: /לא בטוחים/ }));
-
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
     });
+    return user;
+  }
+
+  it('opens info modal when clicking "לא בטוחים? מידע נוסף"', async () => {
+    await openInfoModal();
+
+    expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
   });
 
   it('closes info modal when pressing Escape', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Onboarding />);
-
-    await user.click(screen.getByRole('button', { name: /לא בטוחים/ }));
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
-    });
+    const user = await openInfoModal();
 
     await user.keyboard('{Escape}');
 

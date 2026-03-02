@@ -32,4 +32,20 @@ describe('handleDuplicateTaxIdError', () => {
     expect(result).toBe(true);
     expect(setFieldError).toHaveBeenCalledWith('taxId', 'מספר מזהה זה כבר קשור ללקוח קיים');
   });
+
+  it('sets JSX error with link when customer details are provided', () => {
+    const setFieldError = vi.fn();
+    const error = new HttpError(409, 'duplicate_tax_id', {
+      error: 'duplicate_tax_id',
+      details: { existingCustomerId: 'cust-123', existingCustomerName: 'Test Customer' },
+    });
+    const result = handleDuplicateTaxIdError(error, makeRef(setFieldError), 'biz-1');
+
+    expect(result).toBe(true);
+    expect(setFieldError).toHaveBeenCalledWith('taxId', expect.anything());
+
+    // Verify the JSX message contains the customer name and link
+    const message = setFieldError.mock.calls[0]![1];
+    expect(message).not.toBe('מספר מזהה זה כבר קשור ללקוח קיים');
+  });
 });

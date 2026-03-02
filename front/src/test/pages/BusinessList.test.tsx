@@ -48,6 +48,20 @@ describe('BusinessList page', () => {
     });
   }
 
+  function mockSingleOwnerBusinessContext() {
+    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
+    mockBusinessContext({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer',
+        role: 'owner',
+      },
+      businesses: [business],
+    });
+    return business;
+  }
+
   function renderWithLocation() {
     return renderWithProviders(
       <>
@@ -160,17 +174,7 @@ describe('BusinessList page', () => {
   });
 
   it('"צור עסק חדש" card is accessible and focusable', () => {
-    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
-
-    mockBusinessContext({
-      activeBusiness: {
-        id: 'biz-1',
-        name: 'Test Co',
-        businessType: 'licensed_dealer',
-        role: 'owner',
-      },
-      businesses: [business],
-    });
+    mockSingleOwnerBusinessContext();
 
     renderWithProviders(<BusinessList />);
 
@@ -191,17 +195,7 @@ describe('BusinessList page', () => {
 
   it('clicking AddBusinessCard navigates to /onboarding', async () => {
     const user = userEvent.setup();
-    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
-
-    mockBusinessContext({
-      activeBusiness: {
-        id: 'biz-1',
-        name: 'Test Co',
-        businessType: 'licensed_dealer',
-        role: 'owner',
-      },
-      businesses: [business],
-    });
+    mockSingleOwnerBusinessContext();
 
     renderWithLocation();
 
@@ -212,17 +206,7 @@ describe('BusinessList page', () => {
 
   it('AddBusinessCard responds to Enter keydown', async () => {
     const user = userEvent.setup();
-    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
-
-    mockBusinessContext({
-      activeBusiness: {
-        id: 'biz-1',
-        name: 'Test Co',
-        businessType: 'licensed_dealer',
-        role: 'owner',
-      },
-      businesses: [business],
-    });
+    mockSingleOwnerBusinessContext();
 
     renderWithLocation();
 
@@ -234,17 +218,7 @@ describe('BusinessList page', () => {
   });
 
   it('shows "עסק פעיל" badge for the active business', () => {
-    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
-
-    mockBusinessContext({
-      activeBusiness: {
-        id: 'biz-1',
-        name: 'Test Co',
-        businessType: 'licensed_dealer',
-        role: 'owner',
-      },
-      businesses: [business],
-    });
+    mockSingleOwnerBusinessContext();
 
     renderWithProviders(<BusinessList />);
 
@@ -288,17 +262,7 @@ describe('BusinessList page', () => {
 
   it('clicking "ערוך" navigates to /businesses/{id}/settings', async () => {
     const user = userEvent.setup();
-    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
-
-    mockBusinessContext({
-      activeBusiness: {
-        id: 'biz-1',
-        name: 'Test Co',
-        businessType: 'licensed_dealer',
-        role: 'owner',
-      },
-      businesses: [business],
-    });
+    mockSingleOwnerBusinessContext();
 
     renderWithLocation();
 

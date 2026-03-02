@@ -59,6 +59,7 @@ describe('CustomerSelect', () => {
       hidden: true,
     });
     expect(option).toBeInTheDocument();
+    expect(option.textContent).not.toContain('—');
   });
 
   it('renders with city in label when customer has a city', async () => {
@@ -86,10 +87,8 @@ describe('CustomerSelect', () => {
     renderSelect();
 
     // React Query starts the fetch asynchronously; wait for the Loader to appear.
-    // Mantine's Loader renders an element with a class containing "Loader"
     await waitFor(() => {
-      const loaderEl = document.querySelector('[class*="Loader"]');
-      expect(loaderEl).toBeInTheDocument();
+      expect(screen.getByRole('status')).toBeInTheDocument();
     });
   });
 
@@ -101,11 +100,11 @@ describe('CustomerSelect', () => {
     expect(await screen.findByText('שגיאה בטעינת לקוחות')).toBeInTheDocument();
   });
 
-  it('renders "לקוח חדש" anchor link', () => {
+  it('renders "לקוח חדש" anchor link', async () => {
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue(makeListResponse([]));
 
     renderSelect();
 
-    expect(screen.getByRole('link', { name: '+ לקוח חדש' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: '+ לקוח חדש' })).toBeInTheDocument();
   });
 });

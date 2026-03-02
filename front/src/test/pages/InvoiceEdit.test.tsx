@@ -209,30 +209,23 @@ describe('InvoiceEdit page', () => {
     expect(showErrorNotification).not.toHaveBeenCalled();
   });
 
-  it('shows error when line item has price but no description', async () => {
+  async function expectMissingDescriptionValidation(buttonName: string) {
     const user = await renderEditWithNoDescriptionItem();
-
-    await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
-
+    await user.click(screen.getByRole('button', { name: buttonName }));
     await waitFor(() => {
       expect(showErrorNotification).toHaveBeenCalledWith(
         'יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר'
       );
     });
     expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
+  }
+
+  it('shows error when line item has price but no description', async () => {
+    await expectMissingDescriptionValidation('שמור טיוטה');
   });
 
   it('shows error when clicking finalize with line item that has price but no description', async () => {
-    const user = await renderEditWithNoDescriptionItem();
-
-    await user.click(screen.getByRole('button', { name: 'הפק חשבונית' }));
-
-    await waitFor(() => {
-      expect(showErrorNotification).toHaveBeenCalledWith(
-        'יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר'
-      );
-    });
-    expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
+    await expectMissingDescriptionValidation('הפק חשבונית');
   });
 
   it('saves draft before starting finalization flow', async () => {
