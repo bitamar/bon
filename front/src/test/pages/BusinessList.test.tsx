@@ -36,18 +36,34 @@ function LocationDisplay() {
 describe('BusinessList page', () => {
   const switchBusiness = vi.fn();
 
+  // ── helpers ──
+
+  function mockBusinessContext(overrides: Partial<ReturnType<typeof useBusiness>> = {}) {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: null,
+      businesses: [],
+      switchBusiness,
+      isLoading: false,
+      ...overrides,
+    });
+  }
+
+  function renderWithLocation() {
+    return renderWithProviders(
+      <>
+        <BusinessList />
+        <LocationDisplay />
+      </>
+    );
+  }
+
   beforeEach(() => {
     vi.resetAllMocks();
     switchBusiness.mockResolvedValue(undefined);
   });
 
   it('shows loading state when isLoading is true', () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: null,
-      businesses: [],
-      switchBusiness,
-      isLoading: true,
-    });
+    mockBusinessContext({ isLoading: true });
 
     renderWithProviders(<BusinessList />);
 
@@ -55,12 +71,7 @@ describe('BusinessList page', () => {
   });
 
   it('shows empty state when businesses is empty and not loading', () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: null,
-      businesses: [],
-      switchBusiness,
-      isLoading: false,
-    });
+    mockBusinessContext();
 
     renderWithProviders(<BusinessList />);
 
@@ -70,7 +81,7 @@ describe('BusinessList page', () => {
 
   it('renders business cards when businesses is non-empty', () => {
     const business = mockBusiness({ id: 'biz-1', name: 'Test Co' });
-    vi.mocked(useBusiness).mockReturnValue({
+    mockBusinessContext({
       activeBusiness: {
         id: 'biz-1',
         name: 'Test Co',
@@ -78,8 +89,6 @@ describe('BusinessList page', () => {
         role: 'owner',
       },
       businesses: [business],
-      switchBusiness,
-      isLoading: false,
     });
 
     renderWithProviders(<BusinessList />);
@@ -91,7 +100,7 @@ describe('BusinessList page', () => {
     const activeBiz = mockBusiness({ id: 'biz-1', name: 'Active Biz', role: 'user' });
     const otherBiz = mockBusiness({ id: 'biz-2', name: 'Other Biz', role: 'user' });
 
-    vi.mocked(useBusiness).mockReturnValue({
+    mockBusinessContext({
       activeBusiness: {
         id: 'biz-1',
         name: 'Active Biz',
@@ -99,8 +108,6 @@ describe('BusinessList page', () => {
         role: 'user',
       },
       businesses: [activeBiz, otherBiz],
-      switchBusiness,
-      isLoading: false,
     });
 
     renderWithProviders(<BusinessList />);
@@ -114,7 +121,7 @@ describe('BusinessList page', () => {
     const adminBiz = mockBusiness({ id: 'biz-2', name: 'Admin Biz', role: 'admin' });
     const userBiz = mockBusiness({ id: 'biz-3', name: 'User Biz', role: 'user' });
 
-    vi.mocked(useBusiness).mockReturnValue({
+    mockBusinessContext({
       activeBusiness: {
         id: 'biz-1',
         name: 'Owner Biz',
@@ -122,8 +129,6 @@ describe('BusinessList page', () => {
         role: 'owner',
       },
       businesses: [ownerBiz, adminBiz, userBiz],
-      switchBusiness,
-      isLoading: false,
     });
 
     renderWithProviders(<BusinessList />);
@@ -137,7 +142,7 @@ describe('BusinessList page', () => {
     const activeBiz = mockBusiness({ id: 'biz-1', name: 'Active Biz', role: 'user' });
     const otherBiz = mockBusiness({ id: 'biz-2', name: 'Other Biz', role: 'user' });
 
-    vi.mocked(useBusiness).mockReturnValue({
+    mockBusinessContext({
       activeBusiness: {
         id: 'biz-1',
         name: 'Active Biz',
@@ -145,8 +150,6 @@ describe('BusinessList page', () => {
         role: 'user',
       },
       businesses: [activeBiz, otherBiz],
-      switchBusiness,
-      isLoading: false,
     });
 
     renderWithProviders(<BusinessList />);
@@ -159,7 +162,7 @@ describe('BusinessList page', () => {
   it('"צור עסק חדש" card is accessible and focusable', () => {
     const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
 
-    vi.mocked(useBusiness).mockReturnValue({
+    mockBusinessContext({
       activeBusiness: {
         id: 'biz-1',
         name: 'Test Co',
@@ -167,8 +170,6 @@ describe('BusinessList page', () => {
         role: 'owner',
       },
       businesses: [business],
-      switchBusiness,
-      isLoading: false,
     });
 
     renderWithProviders(<BusinessList />);
@@ -179,19 +180,9 @@ describe('BusinessList page', () => {
 
   it('clicking "צור עסק" in empty state navigates to /onboarding', async () => {
     const user = userEvent.setup();
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: null,
-      businesses: [],
-      switchBusiness,
-      isLoading: false,
-    });
+    mockBusinessContext();
 
-    renderWithProviders(
-      <>
-        <BusinessList />
-        <LocationDisplay />
-      </>
-    );
+    renderWithLocation();
 
     await user.click(screen.getByRole('button', { name: 'צור עסק' }));
 
@@ -202,7 +193,7 @@ describe('BusinessList page', () => {
     const user = userEvent.setup();
     const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
 
-    vi.mocked(useBusiness).mockReturnValue({
+    mockBusinessContext({
       activeBusiness: {
         id: 'biz-1',
         name: 'Test Co',
@@ -210,16 +201,9 @@ describe('BusinessList page', () => {
         role: 'owner',
       },
       businesses: [business],
-      switchBusiness,
-      isLoading: false,
     });
 
-    renderWithProviders(
-      <>
-        <BusinessList />
-        <LocationDisplay />
-      </>
-    );
+    renderWithLocation();
 
     await user.click(screen.getByRole('button', { name: /צור עסק חדש/ }));
 
@@ -230,7 +214,7 @@ describe('BusinessList page', () => {
     const user = userEvent.setup();
     const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
 
-    vi.mocked(useBusiness).mockReturnValue({
+    mockBusinessContext({
       activeBusiness: {
         id: 'biz-1',
         name: 'Test Co',
@@ -238,19 +222,13 @@ describe('BusinessList page', () => {
         role: 'owner',
       },
       businesses: [business],
-      switchBusiness,
-      isLoading: false,
     });
 
-    renderWithProviders(
-      <>
-        <BusinessList />
-        <LocationDisplay />
-      </>
-    );
+    renderWithLocation();
 
     const addCard = screen.getByRole('button', { name: /צור עסק חדש/ });
-    await user.click(addCard);
+    addCard.focus();
+    await user.keyboard('{Enter}');
 
     expect(screen.getByTestId('location')).toHaveTextContent('/onboarding');
   });
@@ -258,7 +236,7 @@ describe('BusinessList page', () => {
   it('shows "עסק פעיל" badge for the active business', () => {
     const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
 
-    vi.mocked(useBusiness).mockReturnValue({
+    mockBusinessContext({
       activeBusiness: {
         id: 'biz-1',
         name: 'Test Co',
@@ -266,8 +244,6 @@ describe('BusinessList page', () => {
         role: 'owner',
       },
       businesses: [business],
-      switchBusiness,
-      isLoading: false,
     });
 
     renderWithProviders(<BusinessList />);
@@ -280,7 +256,7 @@ describe('BusinessList page', () => {
     const activeBiz = mockBusiness({ id: 'biz-1', name: 'Active Biz', role: 'owner' });
     const inactiveBiz = mockBusiness({ id: 'biz-2', name: 'Inactive Biz', role: 'user' });
 
-    vi.mocked(useBusiness).mockReturnValue({
+    mockBusinessContext({
       activeBusiness: {
         id: 'biz-1',
         name: 'Active Biz',
@@ -288,8 +264,6 @@ describe('BusinessList page', () => {
         role: 'owner',
       },
       businesses: [activeBiz, inactiveBiz],
-      switchBusiness,
-      isLoading: false,
     });
 
     renderWithProviders(<BusinessList />);
@@ -316,7 +290,7 @@ describe('BusinessList page', () => {
     const user = userEvent.setup();
     const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
 
-    vi.mocked(useBusiness).mockReturnValue({
+    mockBusinessContext({
       activeBusiness: {
         id: 'biz-1',
         name: 'Test Co',
@@ -324,16 +298,9 @@ describe('BusinessList page', () => {
         role: 'owner',
       },
       businesses: [business],
-      switchBusiness,
-      isLoading: false,
     });
 
-    renderWithProviders(
-      <>
-        <BusinessList />
-        <LocationDisplay />
-      </>
-    );
+    renderWithLocation();
 
     await user.click(screen.getByRole('button', { name: 'ערוך' }));
 

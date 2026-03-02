@@ -22,6 +22,23 @@ function makeListResponse(customers: CustomerListResponse['customers']): Custome
   return { customers };
 }
 
+function makeCustomer(
+  overrides: Partial<CustomerListResponse['customers'][number]> = {}
+): CustomerListResponse['customers'][number] {
+  return {
+    id: 'c-1',
+    name: 'חברת אלפא',
+    taxId: '123456789',
+    taxIdType: 'company_id',
+    isLicensedDealer: false,
+    city: null,
+    email: null,
+    streetAddress: null,
+    isActive: true,
+    ...overrides,
+  };
+}
+
 describe('CustomerSelect', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -29,43 +46,26 @@ describe('CustomerSelect', () => {
 
   it('renders without city in label when customer has no city', async () => {
     // Customer without city → label uses "name (taxId)" format (no city suffix)
-    vi.mocked(customersApi.fetchCustomers).mockResolvedValue(
-      makeListResponse([
-        {
-          id: 'c-1',
-          name: 'חברת אלפא',
-          taxId: '123456789',
-          taxIdType: 'company_id',
-          isLicensedDealer: false,
-          city: null,
-          email: null,
-          streetAddress: null,
-          isActive: true,
-        },
-      ])
-    );
+    vi.mocked(customersApi.fetchCustomers).mockResolvedValue(makeListResponse([makeCustomer()]));
 
     renderSelect();
 
     // Options are pre-rendered hidden; verify the input mounts without error
     expect(await screen.findByText('+ לקוח חדש')).toBeInTheDocument();
+
+    // Verify label format is "name (taxId)" with no city suffix
+    const option = await screen.findByRole('option', {
+      name: /חברת אלפא.*123456789/,
+      hidden: true,
+    });
+    expect(option).toBeInTheDocument();
   });
 
   it('renders with city in label when customer has a city', async () => {
     // Customer with city → label uses "name (taxId) — city" format
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue(
       makeListResponse([
-        {
-          id: 'c-2',
-          name: 'חברת בטא',
-          taxId: '987654321',
-          taxIdType: 'company_id',
-          isLicensedDealer: false,
-          city: 'תל אביב',
-          email: null,
-          streetAddress: null,
-          isActive: true,
-        },
+        makeCustomer({ id: 'c-2', name: 'חברת בטא', taxId: '987654321', city: 'תל אביב' }),
       ])
     );
 

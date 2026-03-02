@@ -45,6 +45,16 @@ const defaultParams = {
   totalVatMinorUnits: 1700,
 };
 
+async function confirmFinalizeWithError(error: HttpError) {
+  vi.mocked(invoicesApi.finalizeInvoice).mockRejectedValue(error);
+  const { result } = renderHook(() => useFinalizationFlow(defaultParams), {
+    wrapper: makeWrapper(),
+  });
+  act(() => result.current.startFinalization());
+  await act(async () => result.current.confirmFinalize());
+  return result;
+}
+
 function makeWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -260,15 +270,9 @@ describe('useFinalizationFlow', () => {
   });
 
   it('confirmFinalize handles customer_inactive error by going to idle', async () => {
-    const error = new HttpError(422, 'inactive', { code: 'customer_inactive' });
-    vi.mocked(invoicesApi.finalizeInvoice).mockRejectedValue(error);
-
-    const { result } = renderHook(() => useFinalizationFlow(defaultParams), {
-      wrapper: makeWrapper(),
-    });
-
-    act(() => result.current.startFinalization());
-    await act(async () => result.current.confirmFinalize());
+    const result = await confirmFinalizeWithError(
+      new HttpError(422, 'inactive', { code: 'customer_inactive' })
+    );
 
     expect(result.current.step).toBe('idle');
     expect(notifications.showErrorNotification).toHaveBeenCalledWith(
@@ -277,29 +281,17 @@ describe('useFinalizationFlow', () => {
   });
 
   it('confirmFinalize handles missing_vat_exemption_reason by going to vat_exemption', async () => {
-    const error = new HttpError(422, 'missing', { code: 'missing_vat_exemption_reason' });
-    vi.mocked(invoicesApi.finalizeInvoice).mockRejectedValue(error);
-
-    const { result } = renderHook(() => useFinalizationFlow(defaultParams), {
-      wrapper: makeWrapper(),
-    });
-
-    act(() => result.current.startFinalization());
-    await act(async () => result.current.confirmFinalize());
+    const result = await confirmFinalizeWithError(
+      new HttpError(422, 'missing', { code: 'missing_vat_exemption_reason' })
+    );
 
     expect(result.current.step).toBe('vat_exemption');
   });
 
   it('confirmFinalize handles sequence_conflict with error notification', async () => {
-    const error = new HttpError(409, 'conflict', { code: 'sequence_conflict' });
-    vi.mocked(invoicesApi.finalizeInvoice).mockRejectedValue(error);
-
-    const { result } = renderHook(() => useFinalizationFlow(defaultParams), {
-      wrapper: makeWrapper(),
-    });
-
-    act(() => result.current.startFinalization());
-    await act(async () => result.current.confirmFinalize());
+    const result = await confirmFinalizeWithError(
+      new HttpError(409, 'conflict', { code: 'sequence_conflict' })
+    );
 
     expect(notifications.showErrorNotification).toHaveBeenCalledWith('שגיאה בהקצאת מספר — נסו שוב');
     expect(result.current.step).toBe('preview');

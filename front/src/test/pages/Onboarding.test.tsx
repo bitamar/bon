@@ -61,6 +61,27 @@ async function selectBusinessType(user: User, type: 'עוסק מורשה' | 'ע�
   await user.click(screen.getByText(type));
 }
 
+async function setupWithExistingBusiness(user: User) {
+  const { useBusiness } = await import('../../contexts/BusinessContext');
+  vi.mocked(useBusiness).mockReturnValue({
+    businesses: [
+      {
+        id: 'biz-1',
+        name: 'X',
+        businessType: 'licensed_dealer',
+        registrationNumber: '123456789',
+        isActive: true,
+        role: 'owner',
+      },
+    ],
+    activeBusiness: null,
+    switchBusiness: vi.fn(),
+    isLoading: false,
+  });
+  renderWithProviders(<Onboarding />);
+  await selectBusinessType(user, 'עוסק מורשה');
+}
+
 async function fillAndSubmit(
   user: User,
   opts: { name: string; registrationNumber: string; type: 'עוסק מורשה' | 'עוסק פטור' | 'חברה בע״מ' }
@@ -145,53 +166,16 @@ describe('Onboarding page', () => {
   });
 
   it('shows cancel link when businesses exist', async () => {
-    const { useBusiness } = await import('../../contexts/BusinessContext');
-    vi.mocked(useBusiness).mockReturnValue({
-      businesses: [
-        {
-          id: 'biz-1',
-          name: 'X',
-          businessType: 'licensed_dealer',
-          registrationNumber: '123456789',
-          isActive: true,
-          role: 'owner',
-        },
-      ],
-      activeBusiness: null,
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
     const user = userEvent.setup();
-    renderWithProviders(<Onboarding />);
-
-    await selectBusinessType(user, 'עוסק מורשה');
+    await setupWithExistingBusiness(user);
 
     expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
   });
 
-  it('clicking cancel link calls navigate(-1)', async () => {
-    const { useBusiness } = await import('../../contexts/BusinessContext');
-    vi.mocked(useBusiness).mockReturnValue({
-      businesses: [
-        {
-          id: 'biz-1',
-          name: 'X',
-          businessType: 'licensed_dealer',
-          registrationNumber: '123456789',
-          isActive: true,
-          role: 'owner',
-        },
-      ],
-      activeBusiness: null,
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
+  it('clicking cancel link triggers navigate without errors', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<Onboarding />);
+    await setupWithExistingBusiness(user);
 
-    await selectBusinessType(user, 'עוסק מורשה');
-
-    // Clicking ביטול triggers navigate(-1); with no prior history it's a no-op but handler fires
     await user.click(screen.getByRole('button', { name: 'ביטול' }));
 
     // Page should still be rendered (no prior history to go back to)

@@ -289,7 +289,11 @@ describe('CustomerForm tax ID validation', () => {
   });
 
   it('clears taxId when switching to "ללא מספר מזהה" via hidden Select option', async () => {
-    renderFormWithInitialValues({ taxIdType: 'company_id', taxId: '123456782' });
+    const user = userEvent.setup();
+    const { onSubmit } = renderFormWithInitialValues({
+      taxIdType: 'company_id',
+      taxId: '123456782',
+    });
 
     // Mantine Select pre-renders all options hidden in the DOM; click directly
     const noneOption = screen.getByRole('option', { name: 'ללא מספר מזהה', hidden: true });
@@ -298,6 +302,19 @@ describe('CustomerForm tax ID validation', () => {
     await waitFor(() => {
       // taxId field should be hidden (taxIdType is now 'none')
       expect(screen.queryByLabelText('מספר חברה (ח.פ.)')).not.toBeInTheDocument();
+    });
+
+    // Fill in the required name field and submit to verify taxId was cleared
+    const nameInput = screen.getByRole('textbox', { name: /שם הלקוח/ });
+    await user.type(nameInput, 'Test');
+
+    await user.click(screen.getByRole('button', { name: 'שמור' }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ taxId: '', taxIdType: 'none' }),
+        expect.anything()
+      );
     });
   });
 });

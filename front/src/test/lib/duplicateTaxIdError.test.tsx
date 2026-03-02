@@ -5,7 +5,8 @@ import type { CustomerFormHandle } from '../../components/CustomerForm';
 import type { RefObject } from 'react';
 
 function makeRef(setFieldError = vi.fn()): RefObject<CustomerFormHandle | null> {
-  return { current: { setFieldError } } as unknown as RefObject<CustomerFormHandle | null>;
+  const ref: RefObject<CustomerFormHandle | null> = { current: { setFieldError } };
+  return ref;
 }
 
 describe('handleDuplicateTaxIdError', () => {

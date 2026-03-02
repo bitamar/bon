@@ -86,6 +86,17 @@ function setupDraftMocks(invoiceOverrides: Partial<Invoice> = {}) {
   vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
 }
 
+async function renderEditWithNoDescriptionItem() {
+  const noDesc = makeDraftInvoice();
+  noDesc.items = [{ ...noDesc.items[0]!, description: '' }];
+  setupDraftMocks();
+  vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(noDesc);
+  const user = userEvent.setup();
+  renderEdit();
+  await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+  return user;
+}
+
 function renderEdit() {
   return renderWithProviders(
     <Routes>
@@ -199,14 +210,8 @@ describe('InvoiceEdit page', () => {
   });
 
   it('shows error when line item has price but no description', async () => {
-    const noDesc = makeDraftInvoice();
-    noDesc.items = [{ ...noDesc.items[0]!, description: '' }];
-    setupDraftMocks();
-    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(noDesc);
-    const user = userEvent.setup();
-    renderEdit();
+    const user = await renderEditWithNoDescriptionItem();
 
-    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
     await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
 
     await waitFor(() => {
@@ -218,14 +223,8 @@ describe('InvoiceEdit page', () => {
   });
 
   it('shows error when clicking finalize with line item that has price but no description', async () => {
-    const noDesc = makeDraftInvoice();
-    noDesc.items = [{ ...noDesc.items[0]!, description: '' }];
-    setupDraftMocks();
-    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(noDesc);
-    const user = userEvent.setup();
-    renderEdit();
+    const user = await renderEditWithNoDescriptionItem();
 
-    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
     await user.click(screen.getByRole('button', { name: 'הפק חשבונית' }));
 
     await waitFor(() => {

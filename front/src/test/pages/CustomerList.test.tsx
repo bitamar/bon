@@ -156,7 +156,9 @@ describe('CustomerList page', () => {
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
     await user.click(retryBtn);
 
-    expect(customersApi.fetchCustomers).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(customersApi.fetchCustomers).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('clicking "הוסף לקוח ראשון" in empty state navigates to new customer page', async () => {

@@ -131,24 +131,25 @@ describe('InvoicePreviewModal', () => {
     expect(screen.getByText('הנחה')).toBeInTheDocument();
   });
 
-  it('does not call onClose when X is clicked and confirming is true', async () => {
+  // ── helpers ──
+
+  async function pressEscapeOnPreview(confirming: boolean) {
     const onClose = vi.fn();
     const user = userEvent.setup();
-    renderPreview({ confirming: true, onClose });
-
-    // Press Escape to trigger the Modal's onClose handler
+    renderPreview({ confirming, onClose });
     await user.keyboard('{Escape}');
+    return { onClose };
+  }
+
+  it('does not call onClose when Escape is pressed and confirming is true', async () => {
+    const { onClose } = await pressEscapeOnPreview(true);
 
     // Since confirming=true, the onClose guard prevents calling it
     expect(onClose).not.toHaveBeenCalled();
   });
 
   it('calls onClose via Modal handler when confirming is false and Escape is pressed', async () => {
-    const onClose = vi.fn();
-    const user = userEvent.setup();
-    renderPreview({ confirming: false, onClose });
-
-    await user.keyboard('{Escape}');
+    const { onClose } = await pressEscapeOnPreview(false);
 
     // confirming=false → the onClose guard allows the call
     expect(onClose).toHaveBeenCalledTimes(1);

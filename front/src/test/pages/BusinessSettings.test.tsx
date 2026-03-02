@@ -338,7 +338,9 @@ describe('BusinessSettings page', () => {
     });
     await user.click(retryBtn);
 
-    expect(businessesApi.fetchBusiness).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(businessesApi.fetchBusiness).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('clicking ביטול calls navigate(-1) without errors', async () => {
