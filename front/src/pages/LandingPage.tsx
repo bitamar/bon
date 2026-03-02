@@ -458,7 +458,7 @@ export function LandingPage() {
             href={API_DOCS_URL}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="API (opens in a new tab)"
+            aria-label="תיעוד API (opens in a new tab)"
             style={{
               fontSize: 14,
               color: COLORS.textMuted,
@@ -908,7 +908,7 @@ export function LandingPage() {
             href={API_DOCS_URL}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="API Docs (opens in a new tab)"
+            aria-label="תיעוד API (opens in a new tab)"
             style={{ color: COLORS.textLight, textDecoration: 'none' }}
           >
             API Docs
