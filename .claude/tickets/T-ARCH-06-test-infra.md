@@ -1,6 +1,6 @@
 # T-ARCH-06 — Replace pg-mem with testcontainers
 
-**Status**: ⬜ Not started
+**Status**: ✅ Done
 **Phase**: Cross-cutting (test infrastructure)
 **Requires**: Nothing (independent)
 **Blocks**: Nothing (can be done any time, but post-MVP is fine)

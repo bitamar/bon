@@ -52,9 +52,9 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T-ARCH-01](./T-ARCH-01-backend-type-safety.md) | Backend Type Safety & Data Layer Cleanup | ✅ | main |
 | [T-ARCH-02](./T-ARCH-02-toctou-finalization.md) | Fix TOCTOU Race in Invoice Finalization | ✅ | main |
 | [T-ARCH-03](./T-ARCH-03-frontend-routing.md) | Add businessId to Frontend Routes | ✅ | main |
-| [T-ARCH-04](./T-ARCH-04-invoice-form-state.md) | Invoice Form: useForm + Autosave | 🔒 | — |
-| [T-ARCH-05](./T-ARCH-05-rbac-enforcement.md) | Enforce Role-Based Access Control | 🔒 | — |
-| [T-ARCH-06](./T-ARCH-06-test-infra.md) | Replace pg-mem with testcontainers (post-MVP) | 🔒 | — |
+| [T-ARCH-04](./T-ARCH-04-invoice-form-state.md) | Invoice Form: useForm + Autosave | ✅ | main |
+| [T-ARCH-05](./T-ARCH-05-rbac-enforcement.md) | Enforce Role-Based Access Control | ✅ | main |
+| [T-ARCH-06](./T-ARCH-06-test-infra.md) | Replace pg-mem with testcontainers (post-MVP) |✅ | main |
 | [T-ARCH-07](./T-ARCH-07-address-error-handling.md) | Address API Error Handling (post-MVP) | 🔒 | — |
 
 ### Phase 1 — Customers
