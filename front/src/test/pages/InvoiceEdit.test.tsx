@@ -97,6 +97,17 @@ async function renderEditWithNoDescriptionItem() {
   return user;
 }
 
+async function expectMissingDescriptionValidation(buttonName: string) {
+  const user = await renderEditWithNoDescriptionItem();
+  await user.click(screen.getByRole('button', { name: buttonName }));
+  await waitFor(() => {
+    expect(showErrorNotification).toHaveBeenCalledWith(
+      'יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר'
+    );
+  });
+  expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
+}
+
 function renderEdit() {
   return renderWithProviders(
     <Routes>
@@ -208,17 +219,6 @@ describe('InvoiceEdit page', () => {
     });
     expect(showErrorNotification).not.toHaveBeenCalled();
   });
-
-  async function expectMissingDescriptionValidation(buttonName: string) {
-    const user = await renderEditWithNoDescriptionItem();
-    await user.click(screen.getByRole('button', { name: buttonName }));
-    await waitFor(() => {
-      expect(showErrorNotification).toHaveBeenCalledWith(
-        'יש שורות ללא תיאור — נא להוסיף תיאור לכל שורה עם מחיר'
-      );
-    });
-    expect(invoicesApi.updateInvoiceDraft).not.toHaveBeenCalled();
-  }
 
   it('shows error when line item has price but no description', async () => {
     await expectMissingDescriptionValidation('שמור טיוטה');

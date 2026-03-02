@@ -33,44 +33,42 @@ function LocationDisplay() {
   return <div data-testid="location">{location.pathname}</div>;
 }
 
+const switchBusiness = vi.fn();
+
+function mockBusinessContext(overrides: Partial<ReturnType<typeof useBusiness>> = {}) {
+  vi.mocked(useBusiness).mockReturnValue({
+    activeBusiness: null,
+    businesses: [],
+    switchBusiness,
+    isLoading: false,
+    ...overrides,
+  });
+}
+
+function mockSingleOwnerBusinessContext() {
+  const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
+  mockBusinessContext({
+    activeBusiness: {
+      id: 'biz-1',
+      name: 'Test Co',
+      businessType: 'licensed_dealer',
+      role: 'owner',
+    },
+    businesses: [business],
+  });
+  return business;
+}
+
+function renderWithLocation() {
+  return renderWithProviders(
+    <>
+      <BusinessList />
+      <LocationDisplay />
+    </>
+  );
+}
+
 describe('BusinessList page', () => {
-  const switchBusiness = vi.fn();
-
-  // ── helpers ──
-
-  function mockBusinessContext(overrides: Partial<ReturnType<typeof useBusiness>> = {}) {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: null,
-      businesses: [],
-      switchBusiness,
-      isLoading: false,
-      ...overrides,
-    });
-  }
-
-  function mockSingleOwnerBusinessContext() {
-    const business = mockBusiness({ id: 'biz-1', name: 'Test Co', role: 'owner' });
-    mockBusinessContext({
-      activeBusiness: {
-        id: 'biz-1',
-        name: 'Test Co',
-        businessType: 'licensed_dealer',
-        role: 'owner',
-      },
-      businesses: [business],
-    });
-    return business;
-  }
-
-  function renderWithLocation() {
-    return renderWithProviders(
-      <>
-        <BusinessList />
-        <LocationDisplay />
-      </>
-    );
-  }
-
   beforeEach(() => {
     vi.resetAllMocks();
     switchBusiness.mockResolvedValue(undefined);

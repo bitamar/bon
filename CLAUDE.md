@@ -5,6 +5,8 @@ The build plan is in `.claude/PLAN.md`. All agents should read it for context on
 
 The full development workflow (ticket lifecycle, deployment gates, agent rules) is in `.claude/WORKFLOW.md`. Read it before starting any task.
 
+Rules learned from SonarQube, CodeRabbit, and human code reviews are in `.claude/REVIEW_RULES.md`. **Read it before writing or modifying tests.** When a reviewer flags a new pattern, add it to that file so it never recurs.
+
 ## One Ticket at a Time — Merge Gate
 
 **This is the most important rule in this file.**

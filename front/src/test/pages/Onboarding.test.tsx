@@ -99,6 +99,16 @@ async function fillAndSubmit(
   return vi.mocked(businessesApi.createBusiness).mock.calls[0]?.[0];
 }
 
+async function openInfoModal() {
+  const user = userEvent.setup();
+  renderWithProviders(<Onboarding />);
+  await user.click(screen.getByRole('button', { name: /לא בטוחים/ }));
+  await waitFor(() => {
+    expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
+  });
+  return user;
+}
+
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 describe('Onboarding page', () => {
@@ -205,16 +215,6 @@ describe('Onboarding page', () => {
 
     expect(await screen.findByText('prev-page')).toBeInTheDocument();
   });
-
-  async function openInfoModal() {
-    const user = userEvent.setup();
-    renderWithProviders(<Onboarding />);
-    await user.click(screen.getByRole('button', { name: /לא בטוחים/ }));
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'סוגי עסקים בישראל' })).toBeInTheDocument();
-    });
-    return user;
-  }
 
   it('opens info modal when clicking "לא בטוחים? מידע נוסף"', async () => {
     await openInfoModal();
