@@ -51,6 +51,14 @@ function renderPreview(overrides: Partial<typeof defaultProps> = {}) {
   return renderWithProviders(<InvoicePreviewModal {...defaultProps} {...overrides} />);
 }
 
+async function pressEscapeOnPreview(confirming: boolean) {
+  const onClose = vi.fn();
+  const user = userEvent.setup();
+  renderPreview({ confirming, onClose });
+  await user.keyboard('{Escape}');
+  return { onClose };
+}
+
 describe('InvoicePreviewModal', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -130,16 +138,6 @@ describe('InvoicePreviewModal', () => {
 
     expect(screen.getByText('הנחה')).toBeInTheDocument();
   });
-
-  // ── helpers ──
-
-  async function pressEscapeOnPreview(confirming: boolean) {
-    const onClose = vi.fn();
-    const user = userEvent.setup();
-    renderPreview({ confirming, onClose });
-    await user.keyboard('{Escape}');
-    return { onClose };
-  }
 
   it('does not call onClose when Escape is pressed and confirming is true', async () => {
     const { onClose } = await pressEscapeOnPreview(true);

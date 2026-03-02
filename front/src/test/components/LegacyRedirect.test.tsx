@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
-import { useLocation } from 'react-router-dom';
-import { Route, Routes } from 'react-router-dom';
+import { useLocation, Route, Routes } from 'react-router-dom';
 import { LegacyRedirect } from '../../components/LegacyRedirect';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
