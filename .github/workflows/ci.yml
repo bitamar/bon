@@ -45,18 +45,6 @@ jobs:
       - name: Wait for database
         run: npx wait-on tcp:127.0.0.1:5432
 
-      - name: Recreate test database
-        env:
-          PGPASSWORD: postgres
-        run: |
-          psql -h 127.0.0.1 -U postgres -c 'DROP DATABASE IF EXISTS bon_test;' postgres
-          psql -h 127.0.0.1 -U postgres -c 'CREATE DATABASE bon_test;' postgres
-
-      - name: Apply migrations
-        env:
-          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/bon_test
-        run: npm run db:migrate --workspace api
-
       - name: TypeScript compilation
         run: npm run build --workspace api
 
@@ -65,16 +53,7 @@ jobs:
 
       - name: Run tests
         env:
-          NODE_ENV: test
-          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/bon_dev
-          APP_ORIGIN: http://localhost:3000
-          URL: http://localhost:3000
-          JWT_SECRET: "1234567890123456789012345678901234567890"
-          GOOGLE_CLIENT_ID: dummy-google-client-id
-          GOOGLE_CLIENT_SECRET: dummy-google-client-secret
-          TWILIO_SID: AC00000000000000000000000000000000
-          TWILIO_AUTH_TOKEN: 00000000000000000000000000000000
-          TWILIO_WHATSAPP_FROM: whatsapp:+15555550100
+          TEST_PG_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
         run: npm run coverage --workspace api
 
       - name: API coverage summary
@@ -89,12 +68,6 @@ jobs:
         with:
           header: API Coverage
           path: api-coverage.md
-
-      - name: Cleanup database
-        if: always()
-        env:
-          PGPASSWORD: postgres
-        run: psql -h 127.0.0.1 -U postgres -c 'DROP DATABASE IF EXISTS bon_test;' postgres
 
   frontend:
     name: Frontend - Build, Lint & Test

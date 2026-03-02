@@ -1,16 +1,68 @@
 import 'dotenv/config';
+import { join } from 'node:path';
+import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import pg from 'pg';
 import { afterAll, vi } from 'vitest';
 
-// Set consistent defaults for test env. Individual tests can override via module mocks when needed.
+// Set consistent defaults for test env.
 process.env.NODE_ENV = 'test';
 process.env.APP_ORIGIN = 'http://localhost:5173';
 process.env.JWT_SECRET = 'x'.repeat(32);
-process.env.DATABASE_URL = 'postgres://user:pass@localhost:5432/db';
 process.env.GOOGLE_CLIENT_ID = 'client-id';
 process.env.GOOGLE_CLIENT_SECRET = 'client-secret';
 process.env.URL = 'http://localhost:3000';
 process.env.RATE_LIMIT_MAX = '100';
 process.env.RATE_LIMIT_TIME_WINDOW = '1000';
+
+// ── Provision a real PostgreSQL database for tests ──
+
+let pgContainer: StartedPostgreSqlContainer | undefined;
+
+async function createNativeTestDb(adminUrl: string): Promise<string> {
+  const dbName = 'bon_test';
+  const adminClient = new pg.Client({ connectionString: adminUrl });
+  try {
+    await adminClient.connect();
+    await adminClient.query(`CREATE DATABASE "${dbName}"`).catch((err: { code?: string }) => {
+      // 42P04 = database already exists — perfectly fine for reuse
+      if (err.code !== '42P04') throw err;
+    });
+  } finally {
+    await adminClient.end();
+  }
+
+  const parsed = new URL(adminUrl);
+  parsed.pathname = `/${dbName}`;
+  return parsed.toString();
+}
+
+async function provisionTestDatabase(): Promise<string> {
+  // 1. If an explicit admin URL is provided (CI), use it directly — skip testcontainers
+  //    so we don't start a second PostgreSQL container alongside the CI service container.
+  const explicitUrl = process.env['TEST_PG_ADMIN_URL'];
+  if (explicitUrl) {
+    return createNativeTestDb(explicitUrl);
+  }
+
+  // 2. Try testcontainers (requires a running Docker daemon)
+  try {
+    const { PostgreSqlContainer } = await import('@testcontainers/postgresql');
+    pgContainer = await new PostgreSqlContainer('postgres:16').start();
+    return pgContainer.getConnectionUri();
+  } catch {
+    // Docker unavailable — fall through to native PostgreSQL
+  }
+
+  // 3. Fall back to native PostgreSQL at default location.
+  return createNativeTestDb('postgres://postgres:postgres@localhost:5432/postgres');
+}
+
+process.env.DATABASE_URL = await provisionTestDatabase();
+
+// Apply Drizzle migrations so the schema is ready for tests.
+const { db } = await import('../src/db/client.js');
+const { migrate } = await import('drizzle-orm/node-postgres/migrator');
+await migrate(db, { migrationsFolder: join(import.meta.dirname, '../drizzle') });
 
 // Avoid hitting the real Google OIDC discovery endpoint during tests.
 vi.mock('openid-client', () => {
@@ -51,14 +103,13 @@ vi.mock('openid-client', () => {
 });
 
 afterAll(async () => {
-  const tasks: Array<Promise<unknown>> = [];
-
   try {
     const { closeDb } = await import('../src/db/client.js');
-    tasks.push(closeDb());
+    await closeDb();
   } catch {
     // Ignore: DB client was never initialised.
   }
-
-  if (tasks.length > 0) await Promise.allSettled(tasks);
+  if (pgContainer) {
+    await pgContainer.stop();
+  }
 });
