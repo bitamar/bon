@@ -44,8 +44,8 @@ describe('BusinessProfileGateModal', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     // Restore address mocks cleared by resetAllMocks
-    vi.mocked(addressApi.fetchAllCities).mockResolvedValue({ data: [], error: false });
-    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue({ data: [], error: false });
+    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([]);
+    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
     vi.mocked(addressApi.filterOptions).mockReturnValue([]);
   });
 
