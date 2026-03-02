@@ -1,6 +1,6 @@
 # T-ARCH-07 — Address API Error Handling
 
-**Status**: ⬜ Not started
+**Status**: ✅ Done
 **Phase**: Cross-cutting (UX)
 **Requires**: Nothing
 **Blocks**: Nothing

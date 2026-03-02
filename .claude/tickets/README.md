@@ -55,7 +55,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T-ARCH-04](./T-ARCH-04-invoice-form-state.md) | Invoice Form: useForm + Autosave | ✅ | main |
 | [T-ARCH-05](./T-ARCH-05-rbac-enforcement.md) | Enforce Role-Based Access Control | ✅ | main |
 | [T-ARCH-06](./T-ARCH-06-test-infra.md) | Replace pg-mem with testcontainers (post-MVP) |✅ | main |
-| [T-ARCH-07](./T-ARCH-07-address-error-handling.md) | Address API Error Handling (post-MVP) | 🔒 | — |
+| [T-ARCH-07](./T-ARCH-07-address-error-handling.md) | Address API Error Handling (post-MVP) | ✅ | main |
 
 ### Phase 1 — Customers
 
