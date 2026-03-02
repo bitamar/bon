@@ -9,6 +9,7 @@ const Env = z.object({
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
   URL: z.string().url(),
+  PDF_SERVICE_URL: z.string().url().optional(),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_TIME_WINDOW: z
     .union([z.coerce.number().int().positive(), z.string()])

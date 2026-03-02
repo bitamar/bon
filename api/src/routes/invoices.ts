@@ -19,6 +19,7 @@ import {
   deleteDraft,
   finalize,
 } from '../services/invoice-service.js';
+import { generateInvoicePdf } from '../services/pdf-service.js';
 
 const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.post(
@@ -140,6 +141,28 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     async (req) => {
       ensureBusinessContext(req);
       return finalize(req.businessContext.businessId, req.params.invoiceId, req.body);
+    }
+  );
+
+  app.get(
+    '/businesses/:businessId/invoices/:invoiceId/pdf',
+    {
+      preHandler: [app.authenticate, app.requireBusinessAccess],
+      schema: {
+        tags: ['Invoices'],
+        params: invoiceIdParamSchema,
+      },
+    },
+    async (req, reply) => {
+      ensureBusinessContext(req);
+      const { pdf, filename } = await generateInvoicePdf(
+        req.businessContext.businessId,
+        req.params.invoiceId
+      );
+      return reply
+        .type('application/pdf')
+        .header('Content-Disposition', `inline; filename="${filename}"`)
+        .send(pdf);
     }
   );
 };
