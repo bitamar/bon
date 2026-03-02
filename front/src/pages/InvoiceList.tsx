@@ -299,7 +299,7 @@ export function InvoiceList() {
       );
     }
 
-    if (invoicesQuery.data && invoicesQuery.data.invoices.length === 0) {
+    if (invoicesQuery.data?.invoices.length === 0) {
       return hasActiveFilters ? (
         <StatusCard
           status="notFound"
