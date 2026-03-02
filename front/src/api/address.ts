@@ -30,52 +30,46 @@ export interface StreetOption {
   name: string;
 }
 
-/** Fetch all ~1300 Israeli cities/settlements in one request. Cache forever — they rarely change. */
+/** Fetch all ~1300 Israeli cities/settlements in one request. Throws on failure. */
 export async function fetchAllCities(): Promise<CityOption[]> {
-  try {
-    const url = new URL(BASE_URL);
-    url.searchParams.set('resource_id', CITIES_RESOURCE_ID);
-    url.searchParams.set('limit', '1500');
-    url.searchParams.set('fields', 'שם_ישוב,סמל_ישוב');
+  const url = new URL(BASE_URL);
+  url.searchParams.set('resource_id', CITIES_RESOURCE_ID);
+  url.searchParams.set('limit', '1500');
+  url.searchParams.set('fields', 'שם_ישוב,סמל_ישוב');
 
-    const response = await fetch(url.toString());
-    const json: unknown = await response.json();
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error(`Address API error: ${response.status} ${response.statusText}`);
+  const json: unknown = await response.json();
 
-    const parsed = dataGovResponseSchema(cityRecordSchema).safeParse(json);
-    if (!parsed.success) return [];
+  const parsed = dataGovResponseSchema(cityRecordSchema).safeParse(json);
+  if (!parsed.success) throw new Error('Invalid response from address API');
 
-    return parsed.data.result.records
-      .map((r) => ({
-        name: r['שם_ישוב'].trim(),
-        code: r['סמל_ישוב'], // keep raw value (with trailing space) for use as filter
-      }))
-      .filter((c) => c.name && c.name !== 'לא רשום');
-  } catch {
-    return [];
-  }
+  return parsed.data.result.records
+    .map((r) => ({
+      name: r['שם_ישוב'].trim(),
+      code: r['סמל_ישוב'],
+    }))
+    .filter((c) => c.name && c.name !== 'לא רשום');
 }
 
-/** Fetch all streets for a given city code in one request. Cache per city. */
+/** Fetch all streets for a given city code in one request. Throws on failure. */
 export async function fetchAllStreetsForCity(cityCode: string): Promise<StreetOption[]> {
-  try {
-    const url = new URL(BASE_URL);
-    url.searchParams.set('resource_id', STREETS_RESOURCE_ID);
-    url.searchParams.set('filters', JSON.stringify({ 'סמל_ישוב': cityCode }));
-    url.searchParams.set('limit', '5000');
-    url.searchParams.set('fields', 'שם_רחוב');
+  const url = new URL(BASE_URL);
+  url.searchParams.set('resource_id', STREETS_RESOURCE_ID);
+  url.searchParams.set('filters', JSON.stringify({ 'סמל_ישוב': cityCode }));
+  url.searchParams.set('limit', '5000');
+  url.searchParams.set('fields', 'שם_רחוב');
 
-    const response = await fetch(url.toString());
-    const json: unknown = await response.json();
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error(`Address API error: ${response.status} ${response.statusText}`);
+  const json: unknown = await response.json();
 
-    const parsed = dataGovResponseSchema(streetRecordSchema).safeParse(json);
-    if (!parsed.success) return [];
+  const parsed = dataGovResponseSchema(streetRecordSchema).safeParse(json);
+  if (!parsed.success) throw new Error('Invalid response from address API');
 
-    return parsed.data.result.records
-      .map((r) => ({ name: r['שם_רחוב'].trim() }))
-      .filter((s) => s.name);
-  } catch {
-    return [];
-  }
+  return parsed.data.result.records
+    .map((r) => ({ name: r['שם_רחוב'].trim() }))
+    .filter((s) => s.name);
 }
 
 /** Client-side substring filter for Hebrew text. */
