@@ -238,7 +238,7 @@ describe('BusinessList page', () => {
       businesses: [activeBiz, inactiveBiz],
     });
 
-    renderWithProviders(<BusinessList />);
+    renderWithLocation();
 
     // Fire mouse events on all pointer-cursor elements to cover onMouseEnter/onMouseLeave handlers
     const pointerEls = Array.from(document.querySelectorAll<HTMLElement>('[style*="cursor"]'));
@@ -249,11 +249,16 @@ describe('BusinessList page', () => {
 
     // Fire keyboard events on AddBusinessCard to cover onKeyDown handler
     const addCard = screen.getByRole('button', { name: /צור עסק חדש/ });
+
+    // Tab should NOT trigger navigation
+    fireEvent.keyDown(addCard, { key: 'Tab' });
+    expect(screen.getByTestId('location')).not.toHaveTextContent('/onboarding');
+
+    // Enter and Space trigger onClick (smoke coverage)
     fireEvent.keyDown(addCard, { key: 'Enter' });
     fireEvent.keyDown(addCard, { key: ' ' });
-    fireEvent.keyDown(addCard, { key: 'Tab' }); // should not trigger onClick
 
-    // Sanity: both business names visible
+    // Both business names still visible
     expect(screen.getByText('Active Biz')).toBeInTheDocument();
     expect(screen.getByText('Inactive Biz')).toBeInTheDocument();
   });

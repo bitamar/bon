@@ -72,3 +72,30 @@ import { useLocation, Route, Routes } from 'react-router-dom';
 ### Negative assertions for branch coverage
 
 - When testing that a branch is NOT taken, add an explicit negative assertion. E.g., when testing a label without city, assert `expect(text).not.toContain('—')` — don't rely solely on a permissive regex that would match both branches.
+- When testing that a key (e.g., Tab) does NOT trigger an action, assert the side-effect didn't happen (e.g., location didn't change). A comment like `// should not trigger onClick` without an assertion is insufficient.
+
+## Coverage Requirements
+
+### Mandatory test coverage
+
+- **Every new API route handler**: at least one test — happy path + one validation/error case.
+- **Every new form component**: at least one test — successful submission + one field validation error.
+- **Every new repository method**: at least one test.
+
+### Test file structure
+
+Test files must mirror the source tree:
+- Frontend: `front/src/test/` mirrors `front/src/` (e.g., `src/pages/Foo.tsx` → `src/test/pages/Foo.test.tsx`)
+- API: `api/tests/` mirrors `api/src/` (e.g., `src/routes/foo.ts` → `tests/routes/foo.test.ts`)
+
+### Helper extraction rules
+
+All shared test helpers **must** be defined at module scope (not inside `describe` or `it` — see S2004 above). This includes:
+
+- Mock setup functions (e.g., `mockBusinessContext`, `setupDraftMocks`)
+- Render wrappers (e.g., `renderWithLocation`, `renderEdit`)
+- Multi-step UI interaction helpers (e.g., `selectCity`, `selectStreet`, `openInfoModal`)
+- Assertion helpers (e.g., `expectMissingDescriptionValidation`)
+- Variables used by helpers (e.g., `const switchBusiness = vi.fn()`)
+
+Use `beforeEach(() => { vi.resetAllMocks(); })` inside `describe` to reset module-scoped mocks between tests.
