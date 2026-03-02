@@ -11,6 +11,8 @@ interface CustomerSelectProps {
   value: string | null;
   onChange: (value: string | null) => void;
   disabled?: boolean;
+  label?: string;
+  showCreateLink?: boolean;
 }
 
 export function CustomerSelect({
@@ -18,6 +20,8 @@ export function CustomerSelect({
   value,
   onChange,
   disabled,
+  label = 'לקוח',
+  showCreateLink = true,
 }: Readonly<CustomerSelectProps>) {
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -33,22 +37,28 @@ export function CustomerSelect({
     label: c.city ? `${c.name} (${c.taxId ?? ''}) — ${c.city}` : `${c.name} (${c.taxId ?? ''})`,
   }));
 
+  const select = (
+    <Select
+      label={label}
+      placeholder="חיפוש לקוח..."
+      searchable
+      clearable
+      nothingFoundMessage="לא נמצאו לקוחות"
+      data={options}
+      value={value}
+      onChange={onChange}
+      onSearchChange={setSearch}
+      disabled={disabled ?? false}
+      rightSection={isLoading ? <Loader size={16} role="status" /> : undefined}
+      error={error ? 'שגיאה בטעינת לקוחות' : undefined}
+    />
+  );
+
+  if (!showCreateLink) return select;
+
   return (
     <Stack gap={4}>
-      <Select
-        label="לקוח"
-        placeholder="חיפוש לקוח..."
-        searchable
-        clearable
-        nothingFoundMessage="לא נמצאו לקוחות"
-        data={options}
-        value={value}
-        onChange={onChange}
-        onSearchChange={setSearch}
-        disabled={disabled ?? false}
-        rightSection={isLoading ? <Loader size={16} role="status" /> : undefined}
-        error={error ? 'שגיאה בטעינת לקוחות' : undefined}
-      />
+      {select}
       <Anchor component={Link} to={`/businesses/${businessId}/customers/new`} size="sm">
         + לקוח חדש
       </Anchor>

@@ -106,4 +106,4 @@ Medium items also in the patch: partial unique index, checksum validation for al
 
 **Execution order**: T04 patch → deploy T03+T04+patch → verify in production → start T05.
 
-**Current focus**: T09 (Invoice List & Search) — backend PR1 complete, frontend PR2 next.
+**Current focus**: T09 (Invoice List & Search) — fully merged. Next: T09-B (Invoice Aggregates) or T10 (PDF Generation) pending prioritization.

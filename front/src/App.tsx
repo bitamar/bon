@@ -15,6 +15,7 @@ import { BusinessSettings } from './pages/BusinessSettings';
 import { CustomerList } from './pages/CustomerList';
 import { CustomerCreate } from './pages/CustomerCreate';
 import { CustomerDetail } from './pages/CustomerDetail';
+import { InvoiceList } from './pages/InvoiceList';
 import { InvoiceNew } from './pages/InvoiceNew';
 import { InvoiceEdit } from './pages/InvoiceEdit';
 import { InvoiceDetail } from './pages/InvoiceDetail';
@@ -145,6 +146,7 @@ export default function AppRoutes() {
               <Route path="customers" element={<CustomerList />} />
               <Route path="customers/new" element={<CustomerCreate />} />
               <Route path="customers/:customerId" element={<CustomerDetail />} />
+              <Route path="invoices" element={<InvoiceList />} />
               <Route path="invoices/new" element={<InvoiceNew />} />
               <Route path="invoices/:invoiceId" element={<InvoiceDetail />} />
               <Route path="invoices/:invoiceId/edit" element={<InvoiceEdit />} />
