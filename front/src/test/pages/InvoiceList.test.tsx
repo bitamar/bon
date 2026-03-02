@@ -173,7 +173,7 @@ describe('InvoiceList page', () => {
   });
 
   it('shows overdue indicator for overdue invoices', async () => {
-    const invoice = mockInvoice({ dueDate: '2026-01-01', status: 'finalized' });
+    const invoice = mockInvoice({ dueDate: '2000-01-01', status: 'finalized' });
     await renderWithInvoices(mockListResponse([invoice]));
 
     expect(screen.getByText(/באיחור/)).toBeInTheDocument();

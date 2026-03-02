@@ -88,7 +88,8 @@ const MS_PER_DAY = 86_400_000;
 function daysOverdue(dueDate: string): number {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const due = new Date(dueDate);
+  const parts = dueDate.split('-').map(Number);
+  const due = new Date(parts[0] ?? 0, (parts[1] ?? 1) - 1, parts[2] ?? 1);
   return Math.floor((today.getTime() - due.getTime()) / MS_PER_DAY);
 }
 
@@ -192,7 +193,8 @@ export function InvoiceList() {
   const customerId = searchParams.get('customerId') ?? undefined;
   const dateFrom = searchParams.get('dateFrom') ?? undefined;
   const dateTo = searchParams.get('dateTo') ?? undefined;
-  const page = Number(searchParams.get('page') ?? '1') || 1;
+  const rawPage = parseInt(searchParams.get('page') ?? '1', 10);
+  const page = Number.isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
 
   const statusParam = chipToStatusParam(chipValue);
   const sortParam = chipToSortParam(chipValue);
@@ -211,7 +213,7 @@ export function InvoiceList() {
   const invoicesQuery = useQuery({
     queryKey: queryKeys.invoiceList(businessId, queryParams),
     queryFn: () => fetchInvoices(businessId, queryParams),
-    enabled: !!businessId,
+    enabled: !!businessId && !!activeBusiness,
     placeholderData: (prev) => prev,
   });
 
