@@ -38,6 +38,7 @@ export async function fetchAllCities(): Promise<CityOption[]> {
   url.searchParams.set('fields', 'שם_ישוב,סמל_ישוב');
 
   const response = await fetch(url.toString());
+  if (!response.ok) throw new Error(`Address API error: ${response.status} ${response.statusText}`);
   const json: unknown = await response.json();
 
   const parsed = dataGovResponseSchema(cityRecordSchema).safeParse(json);
@@ -60,6 +61,7 @@ export async function fetchAllStreetsForCity(cityCode: string): Promise<StreetOp
   url.searchParams.set('fields', 'שם_רחוב');
 
   const response = await fetch(url.toString());
+  if (!response.ok) throw new Error(`Address API error: ${response.status} ${response.statusText}`);
   const json: unknown = await response.json();
 
   const parsed = dataGovResponseSchema(streetRecordSchema).safeParse(json);
