@@ -1,8 +1,8 @@
 # T09-B — Invoice List Aggregates & Summary Row
 
-**Status**: 🔒 Blocked (T09 must merge first)
+**Status**: 🚧 In Progress
 **Phase**: 2 — Invoices
-**Requires**: T09 merged
+**Requires**: T09 merged (done)
 
 ---
 
@@ -22,20 +22,21 @@ The invoice list's summary row shows aggregate totals: "סה"כ לגבייה" (t
     totalOutstandingMinorUnits: z.number().int(),
     countOutstanding: z.number().int(),
     totalFilteredMinorUnits: z.number().int(),
-    countFiltered: z.number().int(),
   })
   ```
+  **Note:** `countFiltered` removed — it duplicates the existing `total` field in the response root.
 - [ ] New repository methods:
-  - `aggregateOutstanding(businessId, filters)` — sum of `totalInclVatMinorUnits` for status IN (`finalized`, `sent`, `partially_paid`) within filtered set (customer + date + q filters apply, status filter chip does NOT override)
-  - `aggregateFiltered(filters)` — sum/count for entire filtered set
+  - `aggregateOutstanding(businessId, filters)` — sum of `totalInclVatMinorUnits` + count for status IN (`finalized`, `sent`, `partially_paid`) within filtered set (customer + date + q filters apply, status filter chip does NOT override)
+  - `aggregateFiltered(filters)` — sum for entire filtered set (count already covered by existing `countInvoices`)
 - [ ] Update `listInvoices` service method to run aggregate queries (parallel with `Promise.all`)
-- [ ] Tests for aggregate values
+- [ ] Tests for aggregate values (repository + route)
 
 ### Frontend
 
-- [ ] `InvoiceSummaryRow` component replaces the placeholder in the list page
+- [ ] `InvoiceSummaryRow` component inserted between filters and content in the list page
 - [ ] Shows: "ממתין לתשלום: ₪X,XXX (N חשבוניות)" + "סה"כ בסינון: ₪X,XXX"
 - [ ] Updates when filters change (from query response)
+- [ ] Test for InvoiceSummaryRow component
 
 ---
 
@@ -47,11 +48,12 @@ The invoice list's summary row shows aggregate totals: "סה"כ לגבייה" (t
 - [ ] Summary row displays in the list page
 - [ ] `npm run check` passes
 - [ ] Tests for aggregate repository methods + route response
+- [ ] Frontend component test for InvoiceSummaryRow
 
 ---
 
 ## Links
 
-- Branch: —
+- Branch: claude/review-t09b-plan-tj7Ig
 - PR: —
 - Deployed: ⬜

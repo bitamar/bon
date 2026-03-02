@@ -13,6 +13,8 @@ import {
   findItemsByInvoiceId,
   findInvoices,
   countInvoices,
+  aggregateOutstanding,
+  aggregateFiltered,
 } from '../../src/repositories/invoice-repository.js';
 import { resetDb } from '../utils/db.js';
 
@@ -444,5 +446,131 @@ describe('findInvoices / countInvoices', () => {
     expect(totalForOther).toBe(1);
     expect(rowsForBiz.every((r) => r.businessId === businessId)).toBe(true);
     expect(rowsForOther.every((r) => r.businessId === otherBiz.id)).toBe(true);
+  });
+});
+
+// ── aggregateOutstanding / aggregateFiltered ──
+
+function baseAggregateFilters(businessId: string) {
+  return {
+    businessId,
+    sort: 'createdAt:desc',
+    offset: 0,
+    limit: 50,
+  };
+}
+
+describe('aggregateOutstanding', () => {
+  let businessId: string;
+
+  beforeEach(async () => {
+    await resetDb();
+    const biz = await seedBusinessWithOwner();
+    businessId = biz.id;
+  });
+
+  it('sums only finalized, sent, and partially_paid invoices', async () => {
+    await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
+    await createTestInvoice(businessId, { status: 'finalized', totalInclVatMinorUnits: 2000 });
+    await createTestInvoice(businessId, { status: 'sent', totalInclVatMinorUnits: 3000 });
+    await createTestInvoice(businessId, { status: 'partially_paid', totalInclVatMinorUnits: 4000 });
+    await createTestInvoice(businessId, { status: 'paid', totalInclVatMinorUnits: 5000 });
+    await createTestInvoice(businessId, { status: 'cancelled', totalInclVatMinorUnits: 6000 });
+
+    const result = await aggregateOutstanding(baseAggregateFilters(businessId));
+
+    expect(result.total).toBe(9000); // 2000 + 3000 + 4000
+    expect(result.count).toBe(3);
+  });
+
+  it('ignores status filter chip but respects customer filter', async () => {
+    const customer = await seedCustomer(businessId);
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 1000,
+      customerId: customer.id,
+    });
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 2000,
+    });
+
+    const result = await aggregateOutstanding({
+      ...baseAggregateFilters(businessId),
+      status: ['draft'], // status chip set to draft — should be ignored
+      customerId: customer.id,
+    });
+
+    expect(result.total).toBe(1000);
+    expect(result.count).toBe(1);
+  });
+
+  it('respects date range filters', async () => {
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 1000,
+      invoiceDate: '2026-01-15',
+    });
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 2000,
+      invoiceDate: '2026-03-15',
+    });
+
+    const result = await aggregateOutstanding({
+      ...baseAggregateFilters(businessId),
+      dateFrom: '2026-01-01',
+      dateTo: '2026-01-31',
+    });
+
+    expect(result.total).toBe(1000);
+    expect(result.count).toBe(1);
+  });
+
+  it('returns zero when no outstanding invoices', async () => {
+    await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
+    await createTestInvoice(businessId, { status: 'paid', totalInclVatMinorUnits: 2000 });
+
+    const result = await aggregateOutstanding(baseAggregateFilters(businessId));
+
+    expect(result.total).toBe(0);
+    expect(result.count).toBe(0);
+  });
+});
+
+describe('aggregateFiltered', () => {
+  let businessId: string;
+
+  beforeEach(async () => {
+    await resetDb();
+    const biz = await seedBusinessWithOwner();
+    businessId = biz.id;
+  });
+
+  it('sums all invoices matching the current filters', async () => {
+    await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
+    await createTestInvoice(businessId, { status: 'finalized', totalInclVatMinorUnits: 2000 });
+    await createTestInvoice(businessId, { status: 'paid', totalInclVatMinorUnits: 3000 });
+
+    const result = await aggregateFiltered(baseAggregateFilters(businessId));
+
+    expect(result).toBe(6000);
+  });
+
+  it('respects status filter', async () => {
+    await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
+    await createTestInvoice(businessId, { status: 'finalized', totalInclVatMinorUnits: 2000 });
+
+    const result = await aggregateFiltered({
+      ...baseAggregateFilters(businessId),
+      status: ['draft'],
+    });
+
+    expect(result).toBe(1000);
+  });
+
+  it('returns zero when no invoices match', async () => {
+    const result = await aggregateFiltered(baseAggregateFilters(businessId));
+    expect(result).toBe(0);
   });
 });

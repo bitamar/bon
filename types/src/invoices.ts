@@ -208,9 +208,16 @@ export const invoiceListQuerySchema = z
     path: ['dateTo'],
   });
 
+export const invoiceListAggregatesSchema = z.object({
+  totalOutstandingMinorUnits: z.number().int(),
+  countOutstanding: z.number().int().nonnegative(),
+  totalFilteredMinorUnits: z.number().int(),
+});
+
 export const invoiceListResponseSchema = z.object({
   invoices: z.array(invoiceListItemSchema),
   total: z.number().int().nonnegative(),
+  aggregates: invoiceListAggregatesSchema,
 });
 
 // ── Type exports ──
@@ -236,5 +243,6 @@ export type Invoice = z.infer<typeof invoiceSchema>;
 export type InvoiceResponse = z.infer<typeof invoiceResponseSchema>;
 export type InvoiceListItem = z.infer<typeof invoiceListItemSchema>;
 export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
+export type InvoiceListAggregates = z.infer<typeof invoiceListAggregatesSchema>;
 export type InvoiceListResponse = z.infer<typeof invoiceListResponseSchema>;
 export type InvoiceIdParam = z.infer<typeof invoiceIdParamSchema>;

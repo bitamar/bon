@@ -8,7 +8,7 @@ import {
   addUserToBusiness,
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
-import type { InvoiceListItem, InvoiceResponse } from '@bon/types/invoices';
+import type { InvoiceListItem, InvoiceListResponse, InvoiceResponse } from '@bon/types/invoices';
 
 // ── module-level helpers ──
 
@@ -519,24 +519,29 @@ describe('routes/invoices', () => {
   // ── GET LIST ──
 
   describe('GET /businesses/:businessId/invoices', () => {
-    it('returns empty list when no invoices exist', async () => {
+    it('returns empty list with zero aggregates when no invoices exist', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 
       const res = await listInvoicesReq(sessionId, business.id);
 
       expect(res.statusCode).toBe(200);
-      const body = res.json() as { invoices: InvoiceListItem[]; total: number };
+      const body = res.json() as InvoiceListResponse;
       expect(body.invoices).toHaveLength(0);
       expect(body.total).toBe(0);
+      expect(body.aggregates).toEqual({
+        totalOutstandingMinorUnits: 0,
+        countOutstanding: 0,
+        totalFilteredMinorUnits: 0,
+      });
     });
 
-    it('returns invoices with correct shape', async () => {
+    it('returns invoices with correct shape including aggregates', async () => {
       const { sessionId, business, customer, first } = await setupOwnerWithTwoDrafts();
 
       const res = await listInvoicesReq(sessionId, business.id);
 
       expect(res.statusCode).toBe(200);
-      const body = res.json() as { invoices: InvoiceListItem[]; total: number };
+      const body = res.json() as InvoiceListResponse;
       expect(body.total).toBe(2);
       expect(body.invoices).toHaveLength(2);
 
@@ -551,6 +556,11 @@ describe('routes/invoices', () => {
       expect(item?.totalInclVatMinorUnits).toBeGreaterThanOrEqual(0);
       expect(item?.currency).toBe('ILS');
       expect(item?.createdAt).toBeTruthy();
+
+      // Aggregates shape check: drafts are not outstanding
+      expect(body.aggregates.countOutstanding).toBe(0);
+      expect(body.aggregates.totalOutstandingMinorUnits).toBe(0);
+      expect(body.aggregates.totalFilteredMinorUnits).toBeGreaterThanOrEqual(0);
     });
 
     it('filters by a single status', async () => {
@@ -677,6 +687,25 @@ describe('routes/invoices', () => {
       const page2 = page2Res.json() as { invoices: InvoiceListItem[]; total: number };
       expect(page2.invoices).toHaveLength(1);
       expect(page2.total).toBe(3);
+    });
+
+    it('returns outstanding aggregates ignoring status chip', async () => {
+      const { sessionId, business, invoice } = await setupOwnerDraft();
+
+      // Finalize the draft so it becomes "outstanding"
+      await finalizeInvoice(sessionId, business.id, invoice.id);
+
+      // Request with status=draft chip — outstanding should still count the finalized invoice
+      const res = await listInvoicesReq(sessionId, business.id, 'status=draft');
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as InvoiceListResponse;
+      // List is filtered to drafts — there are none now
+      expect(body.invoices).toHaveLength(0);
+      expect(body.total).toBe(0);
+      // But outstanding aggregate ignores the status chip
+      expect(body.aggregates.countOutstanding).toBe(1);
+      expect(body.aggregates.totalOutstandingMinorUnits).toBeGreaterThan(0);
     });
 
     it('returns 404 for a non-member business', async () => {
