@@ -7,6 +7,7 @@ import {
   Divider,
   Group,
   SimpleGrid,
+  Skeleton,
   Stack,
   Text,
 } from '@mantine/core';
@@ -147,19 +148,31 @@ function AddBusinessCard({ onClick }: Readonly<{ onClick: () => void }>) {
   );
 }
 
+function SkeletonCard() {
+  return (
+    <Card shadow="sm">
+      <Group justify="space-between" align="flex-start" mb="md">
+        <Stack gap={4}>
+          <Skeleton h={22} w={160} />
+          <Skeleton h={16} w={100} />
+        </Stack>
+        <Skeleton h={22} w={60} radius="xl" />
+      </Group>
+      <Skeleton h={14} w={140} mb="md" />
+      <Divider color="gray.2" mb="md" />
+      <Group justify="space-between">
+        <Skeleton h={28} w={80} radius="md" />
+        <Skeleton h={28} w={50} radius="md" />
+      </Group>
+    </Card>
+  );
+}
+
 export function BusinessList() {
   const { activeBusiness, businesses, switchBusiness, isLoading } = useBusiness();
   const navigate = useNavigate();
 
-  if (isLoading) {
-    return (
-      <Container size="lg" py="xl">
-        <StatusCard status="loading" title="טוען עסקים..." />
-      </Container>
-    );
-  }
-
-  if (businesses.length === 0) {
+  if (businesses.length === 0 && !isLoading) {
     return (
       <Container size="lg" py="xl">
         <StatusCard
@@ -182,17 +195,19 @@ export function BusinessList() {
       </PageTitle>
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-        {businesses.map((business) => (
-          <BusinessCard
-            key={business.id}
-            business={business}
-            isActive={activeBusiness?.id === business.id}
-            onSwitch={() => switchBusiness(business.id)}
-            onEdit={() => {
-              navigate(`/businesses/${business.id}/settings`);
-            }}
-          />
-        ))}
+        {isLoading
+          ? Array.from({ length: 3 }, (_, i) => <SkeletonCard key={i} />)
+          : businesses.map((business) => (
+              <BusinessCard
+                key={business.id}
+                business={business}
+                isActive={activeBusiness?.id === business.id}
+                onSwitch={() => switchBusiness(business.id)}
+                onEdit={() => {
+                  navigate(`/businesses/${business.id}/settings`);
+                }}
+              />
+            ))}
         <AddBusinessCard onClick={() => navigate('/onboarding')} />
       </SimpleGrid>
     </Container>

@@ -73,10 +73,12 @@ describe('CustomerList page', () => {
     expect(screen.getByText('לא נבחר עסק')).toBeInTheDocument();
   });
 
-  it('shows loading state', () => {
+  it('shows skeleton loading state while keeping page shell visible', () => {
     vi.mocked(customersApi.fetchCustomers).mockReturnValue(new Promise(() => {}));
     renderCustomerList();
-    expect(screen.getByText('טוען לקוחות...')).toBeInTheDocument();
+    // Page header and search bar remain visible during loading
+    expect(screen.getByText('לקוחות')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('חיפוש לפי שם או מספר מזהה...')).toBeInTheDocument();
   });
 
   it('shows error state with retry', async () => {

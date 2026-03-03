@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import {
   Badge,
+  Box,
   Button,
   Container,
   Group,
+  LoadingOverlay,
   Paper,
   SegmentedControl,
+  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -49,6 +52,16 @@ function EmptyState({
   );
 }
 
+function SkeletonRows() {
+  return (
+    <Stack gap="xs">
+      {Array.from({ length: 5 }, (_, i) => (
+        <Skeleton key={i} height={68} radius="md" />
+      ))}
+    </Stack>
+  );
+}
+
 function formatTaxId(taxId: string | null, taxIdType: TaxIdType): string {
   if (!taxId) return 'ללא מספר מזהה';
   if (taxIdType === 'company_id' && taxId.length === 9) {
@@ -72,7 +85,11 @@ export function CustomerList() {
     ],
     queryFn: () => fetchCustomers(businessId, debouncedSearch || undefined, activeFilter, 200),
     enabled: !!businessId,
+    placeholderData: (prev) => prev,
   });
+
+  const isInitialLoading = customersQuery.isPending;
+  const isFilterLoading = customersQuery.isFetching && !customersQuery.isPending;
 
   if (!activeBusiness) {
     return (
@@ -82,15 +99,7 @@ export function CustomerList() {
     );
   }
 
-  if (customersQuery.isPending) {
-    return (
-      <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-        <StatusCard status="loading" title="טוען לקוחות..." />
-      </Container>
-    );
-  }
-
-  if (customersQuery.error) {
+  if (customersQuery.error && !customersQuery.data) {
     const message = extractErrorMessage(customersQuery.error, 'לא הצלחנו לטעון את רשימת הלקוחות');
     return (
       <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
@@ -108,8 +117,67 @@ export function CustomerList() {
     );
   }
 
-  const customers = customersQuery.data.customers;
+  const customers = customersQuery.data?.customers ?? [];
   const hasSearchQuery = debouncedSearch.length > 0;
+
+  function renderContent() {
+    if (isInitialLoading) return <SkeletonRows />;
+
+    if (customers.length === 0) {
+      return (
+        <EmptyState
+          hasSearchQuery={hasSearchQuery}
+          onAddFirst={() => navigate(`/businesses/${businessId}/customers/new`)}
+        />
+      );
+    }
+
+    return (
+      <Box pos="relative">
+        <LoadingOverlay visible={isFilterLoading} loaderProps={{ size: 'sm' }} />
+        <Stack gap="xs">
+          {customers.map((customer) => (
+            <UnstyledButton
+              key={customer.id}
+              component={Link}
+              to={`/businesses/${businessId}/customers/${customer.id}`}
+              style={customer.isActive ? undefined : { opacity: 0.5 }}
+            >
+              <Paper withBorder radius="md" p="md">
+                <Group justify="space-between" wrap="nowrap">
+                  <Stack gap={2}>
+                    <Text fw={600}>{customer.name}</Text>
+                    <Group gap="xs">
+                      <Text size="sm" c="dimmed">
+                        {formatTaxId(customer.taxId, customer.taxIdType)}
+                      </Text>
+                      {customer.city ? (
+                        <Text size="sm" c="dimmed">
+                          {customer.city}
+                        </Text>
+                      ) : null}
+                    </Group>
+                  </Stack>
+                  <Group gap="xs">
+                    {customer.isLicensedDealer ? (
+                      <Badge color="blue" variant="light">
+                        עוסק מורשה
+                      </Badge>
+                    ) : null}
+                    {customer.isActive ? null : (
+                      <Badge color="gray" variant="light">
+                        לא פעיל
+                      </Badge>
+                    )}
+                  </Group>
+                </Group>
+              </Paper>
+            </UnstyledButton>
+          ))}
+        </Stack>
+      </Box>
+    );
+  }
 
   return (
     <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
@@ -142,53 +210,7 @@ export function CustomerList() {
           />
         </Group>
 
-        {customers.length === 0 ? (
-          <EmptyState
-            hasSearchQuery={hasSearchQuery}
-            onAddFirst={() => navigate(`/businesses/${businessId}/customers/new`)}
-          />
-        ) : (
-          <Stack gap="xs">
-            {customers.map((customer) => (
-              <UnstyledButton
-                key={customer.id}
-                component={Link}
-                to={`/businesses/${businessId}/customers/${customer.id}`}
-                style={customer.isActive ? undefined : { opacity: 0.5 }}
-              >
-                <Paper withBorder radius="md" p="md">
-                  <Group justify="space-between" wrap="nowrap">
-                    <Stack gap={2}>
-                      <Text fw={600}>{customer.name}</Text>
-                      <Group gap="xs">
-                        <Text size="sm" c="dimmed">
-                          {formatTaxId(customer.taxId, customer.taxIdType)}
-                        </Text>
-                        {customer.city ? (
-                          <Text size="sm" c="dimmed">
-                            {customer.city}
-                          </Text>
-                        ) : null}
-                      </Group>
-                    </Stack>
-                    <Group gap="xs">
-                      {customer.isLicensedDealer ? (
-                        <Badge color="blue" variant="light">
-                          עוסק מורשה
-                        </Badge>
-                      ) : null}
-                      {customer.isActive ? null : (
-                        <Badge color="gray" variant="light">
-                          לא פעיל
-                        </Badge>
-                      )}
-                    </Group>
-                  </Group>
-                </Paper>
-              </UnstyledButton>
-            ))}
-          </Stack>
-        )}
+        {renderContent()}
       </Stack>
     </Container>
   );
