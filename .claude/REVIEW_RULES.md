@@ -98,6 +98,73 @@ const total = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
 - When testing that a branch is NOT taken, add an explicit negative assertion. E.g., when testing a label without city, assert `expect(text).not.toContain('—')` — don't rely solely on a permissive regex that would match both branches.
 - When testing that a key (e.g., Tab) does NOT trigger an action, assert the side-effect didn't happen (e.g., location didn't change). A comment like `// should not trigger onClick` without an assertion is insufficient.
 
+## Error Handling Rules
+
+### Wrap raw errors in AppError at system boundaries
+
+Never rethrow raw filesystem, network, or third-party errors. Wrap them in `AppError` with a clear message and the original error as `cause`. This normalizes all errors to a consistent shape for the error handler.
+
+**Wrong:**
+```ts
+} catch (err: unknown) {
+  throw err;  // ❌ raw FS/network error leaks
+}
+```
+
+**Right:**
+```ts
+} catch (err: unknown) {
+  throw new AppError({
+    statusCode: 500,
+    code: 'storage_read_error',
+    message: 'Failed to read storage file',
+    cause: err,
+  });
+}
+```
+
+### Make cache reads and writes best-effort
+
+Cache operations (both reads and writes) must not abort a successful or otherwise-valid request. Wrap `storage.get()` and `storage.put()` in try/catch so failures fall through to live generation or still return the generated result.
+
+### Avoid interpolating user data into RegExp
+
+Never use `new RegExp(variable)` where the variable may contain regex metacharacters. Use `String.prototype.includes()` / `expect(...).toContain(...)` or escape the string first.
+
+**Wrong:**
+```ts
+expect(str).toMatch(new RegExp(`${userValue}.*\\.pdf"`));  // ❌ breaks if userValue has metacharacters
+```
+
+**Right:**
+```ts
+expect(str).toContain(`${userValue}.pdf"`);
+```
+
+### Use `String.raw` for regex-heavy strings in tests
+
+When building test assertions or patterns that contain backslashes, prefer `String.raw` to avoid double-escaping.
+
+### Timezone-consistent date/time formatting
+
+When formatting both a date and a time from the same ISO datetime, derive **both** using the same timezone. Never extract the date portion by splitting on `T` (which gives UTC) and then format the time in a local timezone — near UTC midnight these will show different days.
+
+### Fractional percentages: don't truncate with toFixed(0)
+
+When converting basis points (e.g., 1750) to a percentage string, handle fractional percents. `(1750 / 100).toFixed(0)` produces `"18"` (wrong). Check `basisPoints % 100 === 0` and use integer or one-decimal formatting accordingly.
+
+### Puppeteer errors must carry statusCode
+
+Errors thrown in the PDF rendering pipeline must include a `statusCode` property so route handlers can map them to the correct HTTP status. Use `Object.assign(new Error('...'), { statusCode: 503 })` for capacity/availability errors.
+
+### SSRF protection for Puppeteer rendering
+
+When loading HTML content in Puppeteer that may contain user-provided URLs (e.g., `logoUrl` in `<img>`), enable request interception and block requests to internal IP ranges (`10.*`, `172.16-31.*`, `192.168.*`, `127.*`, `169.254.*`, `localhost`), metadata endpoints, and non-HTTPS/HTTP protocols (`file://`, `data://`, `ftp://`).
+
+### Extract repeated mock setup into named helpers
+
+When the same `vi.spyOn(...)` mock setup appears in multiple tests, extract it into a named helper at module scope. If some tests need the spy reference for assertions, the helper should return the spy.
+
 ## Coverage Requirements
 
 ### Mandatory test coverage

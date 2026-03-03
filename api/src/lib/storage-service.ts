@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
+import { AppError } from './app-error.js';
 import { env } from '../env.js';
 
 export interface StorageService {
@@ -36,7 +37,12 @@ export const localStorageService: StorageService = {
       return await readFile(filePath(key));
     } catch (err: unknown) {
       if (isEnoent(err)) return null;
-      throw err;
+      throw new AppError({
+        statusCode: 500,
+        code: 'storage_read_error',
+        message: 'Failed to read storage file',
+        cause: err,
+      });
     }
   },
 
@@ -50,7 +56,12 @@ export const localStorageService: StorageService = {
       await unlink(filePath(key));
     } catch (err: unknown) {
       if (isEnoent(err)) return;
-      throw err;
+      throw new AppError({
+        statusCode: 500,
+        code: 'storage_delete_error',
+        message: 'Failed to delete storage file',
+        cause: err,
+      });
     }
   },
 };

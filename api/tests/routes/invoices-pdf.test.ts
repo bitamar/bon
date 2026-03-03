@@ -14,7 +14,11 @@ import type { InvoiceResponse } from '@bon/types/invoices';
 const FAKE_PDF = Buffer.from('%PDF-1.4 fake content');
 
 function mockFetchForPdf(): void {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+  mockFetchPdfWithSpy();
+}
+
+function mockFetchPdfWithSpy() {
+  return vi.spyOn(globalThis, 'fetch').mockResolvedValue(
     new Response(FAKE_PDF, {
       status: 200,
       headers: { 'Content-Type': 'application/pdf' },
@@ -106,7 +110,7 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
     expect(res.rawPayload).toEqual(FAKE_PDF);
   });
 
-  it('returns 500 when PDF service is unreachable', async () => {
+  it('returns 502 when PDF service is unreachable', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Connection refused'));
     const { sessionId, business } = await createOwnerWithBusiness();
     const customer = await createCustomer(sessionId, business.id);
@@ -114,15 +118,11 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
 
     const res = await getPdf(sessionId, business.id, invoice.id);
 
-    expect(res.statusCode).toBe(500);
+    expect(res.statusCode).toBe(502);
   });
 
   it('passes invoice data to the PDF service', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(FAKE_PDF, { status: 200, headers: { 'Content-Type': 'application/pdf' } })
-      );
+    const fetchSpy = mockFetchPdfWithSpy();
 
     const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
@@ -138,11 +138,7 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
   });
 
   it('sends isDraft: true for draft invoices', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(FAKE_PDF, { status: 200, headers: { 'Content-Type': 'application/pdf' } })
-      );
+    const fetchSpy = mockFetchPdfWithSpy();
 
     const { sessionId, business } = await createOwnerWithBusiness();
     const customer = await createCustomer(sessionId, business.id);
@@ -207,16 +203,11 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
     expect(res.statusCode).toBe(200);
     const disposition = res.headers['content-disposition'] as string;
     expect(finalized.documentNumber).toBeTruthy();
-    expect(disposition).toMatch(new RegExp(`${finalized.documentNumber}.*\\.pdf"`));
+    expect(disposition).toContain(`${finalized.documentNumber}.pdf"`);
   });
 
   it('serves finalized PDF from cache on second request without calling PDF service again', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(FAKE_PDF, {
-        status: 200,
-        headers: { 'Content-Type': 'application/pdf' },
-      })
-    );
+    const fetchSpy = mockFetchPdfWithSpy();
 
     const { sessionId, business, invoice } = await setupFinalizedInvoice();
 

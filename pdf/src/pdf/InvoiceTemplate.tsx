@@ -3,7 +3,8 @@ import { DOCUMENT_TYPE_PDF_LABELS, BUSINESS_TYPE_PDF_LABELS } from '@bon/types/p
 import { formatMinorUnits, formatDate } from '@bon/types/formatting';
 
 function formatVatRate(basisPoints: number): string {
-  return `${(basisPoints / 100).toFixed(0)}%`;
+  const pct = basisPoints / 100;
+  return basisPoints % 100 === 0 ? `${pct}%` : `${pct.toFixed(1)}%`;
 }
 
 function formatQuantity(qty: number): string {
@@ -12,13 +13,23 @@ function formatQuantity(qty: number): string {
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  const date = formatDate(iso.split('T')[0]!);
+  const formatter = new Intl.DateTimeFormat('he-IL', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'Asia/Jerusalem',
+  });
+  const parts = formatter.formatToParts(d);
+  const day = parts.find((p) => p.type === 'day')!.value;
+  const month = parts.find((p) => p.type === 'month')!.value;
+  const year = parts.find((p) => p.type === 'year')!.value;
+  const localDate = `${year}-${month}-${day}`;
   const time = d.toLocaleTimeString('he-IL', {
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'Asia/Jerusalem',
   });
-  return `${date} ${time}`;
+  return `${formatDate(localDate)} ${time}`;
 }
 
 export function InvoiceTemplate(props: Readonly<PdfRenderInput>) {

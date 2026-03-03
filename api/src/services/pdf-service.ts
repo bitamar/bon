@@ -35,7 +35,13 @@ async function callPdfService(input: PdfRenderInput): Promise<Buffer> {
         cause: err,
       });
     }
-    throw err;
+    if (err instanceof AppError) throw err;
+    throw new AppError({
+      statusCode: 502,
+      code: 'pdf_service_unreachable',
+      message: 'Failed to reach PDF service',
+      cause: err,
+    });
   } finally {
     clearTimeout(timeout);
   }
@@ -64,12 +70,16 @@ export async function generateInvoicePdf(
 
   // Only cache finalized (non-draft) invoices
   if (!isDraft) {
-    const cached = await storage.get(cacheKey(businessId, invoiceId));
-    if (cached) {
-      return {
-        pdf: cached,
-        filename: `${invoice.documentNumber ?? invoiceId}.pdf`,
-      };
+    try {
+      const cached = await storage.get(cacheKey(businessId, invoiceId));
+      if (cached) {
+        return {
+          pdf: cached,
+          filename: `${invoice.documentNumber ?? invoiceId}.pdf`,
+        };
+      }
+    } catch {
+      // Cache read failure is non-critical; fall through to live generation
     }
   }
 
