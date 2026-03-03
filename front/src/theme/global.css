@@ -46,7 +46,36 @@
   animation: fadeInUp 600ms ease-out;
 }
 
-/* Global loading progress bar */
+/* Global loading progress bar — indeterminate <progress> element */
+progress[aria-hidden] {
+  --_bar-color: var(--mantine-color-brand-5, var(--mantine-primary-color-filled));
+}
+
+progress[aria-hidden]:indeterminate::-webkit-progress-bar {
+  background: transparent;
+}
+
+progress[aria-hidden]:indeterminate::-webkit-progress-value {
+  background: var(--_bar-color);
+}
+
+progress[aria-hidden]:indeterminate::-moz-progress-bar {
+  background: var(--_bar-color);
+  animation: global-loading-bar 1.5s ease-in-out infinite;
+  transform-origin: left;
+}
+
+/* Chrome / Safari — animate via pseudo-element since ::-webkit-progress-value
+   doesn't render for indeterminate progress elements. */
+progress[aria-hidden]:indeterminate::after {
+  content: '';
+  display: block;
+  height: 100%;
+  background: var(--_bar-color);
+  animation: global-loading-bar 1.5s ease-in-out infinite;
+  transform-origin: left;
+}
+
 @keyframes global-loading-bar {
   0% {
     transform: scaleX(0) translateX(0);

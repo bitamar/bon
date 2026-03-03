@@ -16,30 +16,24 @@ export function useGlobalLoading() {
  */
 function ProgressBar({ visible }: Readonly<{ visible: boolean }>) {
   return (
-    <div
-      role="progressbar"
+    <progress
       aria-hidden={!visible}
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
+        width: '100%',
         height: 3,
         zIndex: 9999,
         pointerEvents: 'none',
         opacity: visible ? 1 : 0,
         transition: 'opacity 200ms ease-out',
+        appearance: 'none',
+        border: 'none',
+        background: 'transparent',
       }}
-    >
-      <div
-        style={{
-          height: '100%',
-          background: 'var(--mantine-color-brand-5, var(--mantine-primary-color-filled))',
-          animation: visible ? 'global-loading-bar 1.5s ease-in-out infinite' : 'none',
-          transformOrigin: 'left',
-        }}
-      />
-    </div>
+    />
   );
 }
 
