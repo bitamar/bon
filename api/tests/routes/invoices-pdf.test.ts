@@ -172,7 +172,7 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
 
     const { sessionId: otherSession } = await createAuthedUser();
     const otherUser = await createUser();
-    const _otherBusiness = await createTestBusiness(otherUser.id);
+    await createTestBusiness(otherUser.id);
 
     const res = await getPdf(otherSession, business.id, invoice.id);
 
@@ -201,5 +201,23 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
     const disposition = res.headers['content-disposition'] as string;
     // Finalized invoices have document numbers like "1" or with prefix
     expect(disposition).toContain('.pdf"');
+  });
+
+  it('serves finalized PDF from cache on second request without calling PDF service again', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(FAKE_PDF, {
+        status: 200,
+        headers: { 'Content-Type': 'application/pdf' },
+      })
+    );
+
+    const { sessionId, business, invoice } = await setupFinalizedInvoice();
+
+    await getPdf(sessionId, business.id, invoice.id);
+    const secondRes = await getPdf(sessionId, business.id, invoice.id);
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(secondRes.statusCode).toBe(200);
+    expect(secondRes.rawPayload).toEqual(FAKE_PDF);
   });
 });

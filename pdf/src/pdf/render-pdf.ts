@@ -37,7 +37,7 @@ export async function renderPdf(input: PdfRenderInput): Promise<Buffer> {
   try {
     page = await browser.newPage();
     const html = renderInvoiceHtml(input);
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 10_000 });
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,

@@ -234,8 +234,6 @@ export function InvoiceTemplate(props: Readonly<PdfRenderInput>) {
 }
 
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700&display=swap');
-
   * {
     margin: 0;
     padding: 0;
@@ -243,7 +241,7 @@ const CSS = `
   }
 
   body {
-    font-family: 'Heebo', Arial, sans-serif;
+    font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
     font-size: 11pt;
     color: #1a1a1a;
     line-height: 1.5;

@@ -159,9 +159,10 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         req.businessContext.businessId,
         req.params.invoiceId
       );
+      const safeFilename = filename.replaceAll(/[^\w.-]/g, '_');
       return reply
         .type('application/pdf')
-        .header('Content-Disposition', `inline; filename="${filename}"`)
+        .header('Content-Disposition', `inline; filename="${safeFilename}"`)
         .send(pdf);
     }
   );

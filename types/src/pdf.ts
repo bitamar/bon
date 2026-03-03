@@ -1,27 +1,36 @@
-import type { Invoice, LineItem, DocumentType } from './invoices.js';
+import { z } from 'zod';
+import { invoiceSchema, lineItemSchema } from './invoices.js';
+import type { DocumentType } from './invoices.js';
+import { businessTypeSchema } from './businesses.js';
 import type { BusinessType } from './businesses.js';
 
+/** Zod schema for business fields needed in the PDF header. */
+export const pdfBusinessDataSchema = z.object({
+  name: z.string(),
+  businessType: businessTypeSchema,
+  registrationNumber: z.string(),
+  vatNumber: z.string().nullable(),
+  streetAddress: z.string().nullable(),
+  city: z.string().nullable(),
+  postalCode: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  logoUrl: z.string().nullable(),
+});
+
 /** Business fields needed for the PDF header. */
-export interface PdfBusinessData {
-  name: string;
-  businessType: BusinessType;
-  registrationNumber: string;
-  vatNumber: string | null;
-  streetAddress: string | null;
-  city: string | null;
-  postalCode: string | null;
-  phone: string | null;
-  email: string | null;
-  logoUrl: string | null;
-}
+export type PdfBusinessData = z.infer<typeof pdfBusinessDataSchema>;
+
+/** Zod schema for the full payload sent to the PDF service. */
+export const pdfRenderInputSchema = z.object({
+  business: pdfBusinessDataSchema,
+  invoice: invoiceSchema,
+  items: z.array(lineItemSchema),
+  isDraft: z.boolean(),
+});
 
 /** Full payload sent to the PDF service to render an invoice. */
-export interface PdfRenderInput {
-  business: PdfBusinessData;
-  invoice: Invoice;
-  items: LineItem[];
-  isDraft: boolean;
-}
+export type PdfRenderInput = z.infer<typeof pdfRenderInputSchema>;
 
 /** Hebrew labels for document types on the printed invoice. */
 export const DOCUMENT_TYPE_PDF_LABELS: Record<DocumentType, string> = {

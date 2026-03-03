@@ -15,9 +15,6 @@ function cacheKey(invoiceId: string): string {
 }
 
 function serializeInvoiceForPdf(record: InvoiceRecord): Invoice {
-  const coerceDate = (v: unknown): string =>
-    typeof v === 'string' ? v : (v as Date).toISOString().split('T')[0]!;
-
   return {
     id: record.id,
     businessId: record.businessId,
@@ -33,9 +30,9 @@ function serializeInvoiceForPdf(record: InvoiceRecord): Invoice {
     sequenceNumber: record.sequenceNumber ?? null,
     documentNumber: record.documentNumber ?? null,
     creditedInvoiceId: record.creditedInvoiceId ?? null,
-    invoiceDate: coerceDate(record.invoiceDate),
+    invoiceDate: record.invoiceDate,
     issuedAt: record.issuedAt ? record.issuedAt.toISOString() : null,
-    dueDate: record.dueDate ? coerceDate(record.dueDate) : null,
+    dueDate: record.dueDate ?? null,
     notes: record.notes ?? null,
     internalNotes: record.internalNotes ?? null,
     currency: record.currency,
@@ -153,8 +150,4 @@ export async function generateInvoicePdf(
     pdf: pdfBuffer,
     filename: `${invoice.documentNumber ?? invoiceId}.pdf`,
   };
-}
-
-export async function invalidatePdfCache(invoiceId: string): Promise<void> {
-  await storage.del(cacheKey(invoiceId));
 }
