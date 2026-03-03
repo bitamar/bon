@@ -1,10 +1,14 @@
 import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
-// Suppress React act() warnings from Mantine internal components.
-// Mantine 8 components (ScrollAreaRoot, Popover, Transition, Portal, SegmentedControl, etc.)
-// trigger async state updates during their lifecycle that happen outside the test-controlled
-// rendering cycle. These warnings are noise — not actionable from test code.
+// Suppress React act() warnings. All warnings in this suite originate from Mantine 8
+// internal components (ScrollAreaRoot, Popover, Transition, …) whose async state updates
+// fire outside the test-controlled rendering cycle and are not actionable from test code.
+// Root-cause: fake-timer tests advance time past Mantine's internal animation/scroll timers,
+// which update state during teardown. Targeted suppression by component name is fragile
+// (display names change across Mantine versions) and provides no additional safety because
+// even warnings attributed to our own components (InvoiceEdit, CustomerSelect) are React
+// walking up the fiber tree from a Mantine leaf — not our own state updates.
 const originalConsoleError = console.error;
 console.error = (...args: unknown[]) => {
   if (typeof args[0] === 'string' && args[0].includes('was not wrapped in act(')) {
