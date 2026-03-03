@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, screen } from '@testing-library/react';
 import { GlobalLoadingIndicator, useGlobalLoading } from '../../components/GlobalLoadingIndicator';
 import { renderWithProviders } from '../utils/renderWithProviders';
@@ -22,21 +22,17 @@ function LoadingConsumer() {
 }
 
 describe('GlobalLoadingIndicator', () => {
-  let timeoutSpy: MockInstance<typeof globalThis.setTimeout>;
-
   beforeEach(() => {
     vi.useFakeTimers();
-    timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     useIsFetchingMock.mockReset();
     useIsMutatingMock.mockReset();
   });
 
   afterEach(() => {
-    timeoutSpy.mockRestore();
     vi.useRealTimers();
   });
 
-  it('reports loading state while there are active queries or mutations', () => {
+  it('reports loading state after show delay when there are active queries', () => {
     useIsFetchingMock.mockReturnValue(1);
     useIsMutatingMock.mockReturnValue(0);
 
@@ -46,7 +42,38 @@ describe('GlobalLoadingIndicator', () => {
       </GlobalLoadingIndicator>
     );
 
+    // Not visible immediately (show delay of 120ms)
+    expect(screen.getByText('idle')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
     expect(screen.getByText('busy')).toBeInTheDocument();
+  });
+
+  it('renders a progress bar when visible', () => {
+    useIsFetchingMock.mockReturnValue(1);
+    useIsMutatingMock.mockReturnValue(0);
+
+    renderWithProviders(
+      <GlobalLoadingIndicator>
+        <LoadingConsumer />
+      </GlobalLoadingIndicator>
+    );
+
+    const progressBar = screen.getByRole('progressbar', { hidden: true });
+    expect(progressBar).toBeInTheDocument();
+
+    // Initially hidden
+    expect(progressBar).toHaveAttribute('aria-hidden', 'true');
+
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
+    // Visible after show delay
+    expect(progressBar).toHaveAttribute('aria-hidden', 'false');
   });
 
   it('delays clearing the loading state after activity stops', () => {
@@ -58,8 +85,14 @@ describe('GlobalLoadingIndicator', () => {
         <LoadingConsumer />
       </GlobalLoadingIndicator>
     );
+
+    // Advance past show delay
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
     expect(screen.getByText('busy')).toBeInTheDocument();
 
+    // Rerender with no active queries
     act(() => {
       rerender(
         <GlobalLoadingIndicator>
@@ -68,10 +101,11 @@ describe('GlobalLoadingIndicator', () => {
       );
     });
 
-    expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 300);
+    // Still busy due to 300ms hide delay
+    expect(screen.getByText('busy')).toBeInTheDocument();
 
     act(() => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(300);
     });
 
     expect(screen.getByText('idle')).toBeInTheDocument();

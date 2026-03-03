@@ -74,12 +74,15 @@ describe('BusinessList page', () => {
     switchBusiness.mockResolvedValue(undefined);
   });
 
-  it('shows loading state when isLoading is true', () => {
+  it('shows skeleton cards and page title when isLoading is true', () => {
     mockBusinessContext({ isLoading: true });
 
     renderWithProviders(<BusinessList />);
 
-    expect(screen.getByText('טוען עסקים...')).toBeInTheDocument();
+    // Page title remains visible during loading
+    expect(screen.getByText('העסקים שלי')).toBeInTheDocument();
+    // "Add business" card is still visible
+    expect(screen.getByRole('button', { name: /צור עסק חדש/ })).toBeInTheDocument();
   });
 
   it('shows empty state when businesses is empty and not loading', () => {

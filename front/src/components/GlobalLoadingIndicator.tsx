@@ -1,6 +1,7 @@
-import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { useIsFetching, useIsMutating } from '@tanstack/react-query';
 
+const SHOW_DELAY_MS = 120;
 const HIDE_DELAY_MS = 300;
 
 const GlobalLoadingContext = createContext(false);
@@ -9,26 +10,69 @@ export function useGlobalLoading() {
   return useContext(GlobalLoadingContext);
 }
 
+/**
+ * Thin animated progress bar fixed to the top of the viewport.
+ * Shows after a short delay so instant requests never flash.
+ */
+function ProgressBar({ visible }: Readonly<{ visible: boolean }>) {
+  return (
+    <div
+      role="progressbar"
+      aria-hidden={!visible}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 3,
+        zIndex: 9999,
+        pointerEvents: 'none',
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 200ms ease-out',
+      }}
+    >
+      <div
+        style={{
+          height: '100%',
+          background: 'var(--mantine-color-brand-5, var(--mantine-primary-color-filled))',
+          animation: visible ? 'global-loading-bar 1.5s ease-in-out infinite' : 'none',
+          transformOrigin: 'left',
+        }}
+      />
+    </div>
+  );
+}
+
 export function GlobalLoadingIndicator({ children }: Readonly<{ children?: ReactNode }>) {
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
   const busy = isFetching + isMutating > 0;
   const [visible, setVisible] = useState(false);
+  const showTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const hideTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
+    clearTimeout(showTimeout.current);
+    clearTimeout(hideTimeout.current);
+
     if (busy) {
-      setVisible(true);
+      // Delay showing so very fast requests never flash the bar
+      showTimeout.current = setTimeout(() => setVisible(true), SHOW_DELAY_MS);
     } else {
-      timeout = setTimeout(() => setVisible(false), HIDE_DELAY_MS);
+      // Keep bar visible briefly after finishing so it doesn't flicker
+      hideTimeout.current = setTimeout(() => setVisible(false), HIDE_DELAY_MS);
     }
 
     return () => {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
+      clearTimeout(showTimeout.current);
+      clearTimeout(hideTimeout.current);
     };
   }, [busy]);
 
-  return <GlobalLoadingContext.Provider value={visible}>{children}</GlobalLoadingContext.Provider>;
+  return (
+    <GlobalLoadingContext.Provider value={visible}>
+      <ProgressBar visible={visible} />
+      {children}
+    </GlobalLoadingContext.Provider>
+  );
 }
