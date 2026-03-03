@@ -32,15 +32,21 @@ describe('GlobalLoadingIndicator', () => {
     vi.useRealTimers();
   });
 
-  it('reports loading state after show delay when there are active queries', () => {
-    useIsFetchingMock.mockReturnValue(1);
-    useIsMutatingMock.mockReturnValue(0);
+  // ── helpers ──
 
-    renderWithProviders(
+  function renderIndicator() {
+    return renderWithProviders(
       <GlobalLoadingIndicator>
         <LoadingConsumer />
       </GlobalLoadingIndicator>
     );
+  }
+
+  it('reports loading state after show delay when there are active queries', () => {
+    useIsFetchingMock.mockReturnValue(1);
+    useIsMutatingMock.mockReturnValue(0);
+
+    renderIndicator();
 
     // Not visible immediately (show delay of 120ms)
     expect(screen.getByText('idle')).toBeInTheDocument();
@@ -56,11 +62,7 @@ describe('GlobalLoadingIndicator', () => {
     useIsFetchingMock.mockReturnValue(1);
     useIsMutatingMock.mockReturnValue(0);
 
-    renderWithProviders(
-      <GlobalLoadingIndicator>
-        <LoadingConsumer />
-      </GlobalLoadingIndicator>
-    );
+    renderIndicator();
 
     const progressBar = screen.getByRole('progressbar', { hidden: true });
     expect(progressBar).toBeInTheDocument();
@@ -80,11 +82,7 @@ describe('GlobalLoadingIndicator', () => {
     useIsFetchingMock.mockReturnValueOnce(1).mockReturnValue(0);
     useIsMutatingMock.mockReturnValue(0);
 
-    const { rerender } = renderWithProviders(
-      <GlobalLoadingIndicator>
-        <LoadingConsumer />
-      </GlobalLoadingIndicator>
-    );
+    const { rerender } = renderIndicator();
 
     // Advance past show delay
     act(() => {

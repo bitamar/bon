@@ -91,6 +91,17 @@ progress[aria-hidden]:indeterminate::after {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  progress[aria-hidden]:indeterminate::-moz-progress-bar {
+    animation: none;
+  }
+
+  progress[aria-hidden]:indeterminate::after {
+    animation: none;
+    transform: scaleX(1);
+  }
+}
+
 /* Logo glow animation (used by onboarding inline styles) */
 @keyframes onboardingGlow {
   0%,
