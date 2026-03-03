@@ -32,8 +32,28 @@ This ticket builds the abstraction layer + OAuth2 token management. No real SHAA
 ### ShaamService Interface
 
 - [ ] `ShaamService` interface defined in `api/src/services/shaam/types.ts`:
-  - `requestAllocationNumber(businessId, invoice, lineItems): Promise<AllocationResult>`
+  - `requestAllocationNumber(request: AllocationRequest): Promise<AllocationResult>`
   - **No emergency methods** — those belong to T14 when the interface is extended
+- [ ] `AllocationRequest` type defined with all fields T13 needs for the ITA payload:
+  ```typescript
+  interface AllocationRequest {
+    readonly businessId: string;
+    readonly invoiceId: string;
+    readonly documentType: string;
+    readonly documentNumber: string;
+    readonly invoiceDate: string;
+    readonly totalExclVatMinorUnits: number;
+    readonly vatMinorUnits: number;
+    readonly totalInclVatMinorUnits: number;
+    readonly customerTaxId: string | null;
+    readonly items: ReadonlyArray<{
+      readonly description: string;
+      readonly quantity: number;
+      readonly unitPriceMinorUnits: number;
+      readonly lineTotalMinorUnits: number;
+    }>;
+  }
+  ```
 - [ ] `AllocationResult` type:
   ```typescript
   type AllocationResult =
@@ -93,10 +113,11 @@ This ticket builds the abstraction layer + OAuth2 token management. No real SHAA
 - [ ] Key: 32-byte key, hex-encoded (64 hex chars) from `SHAAM_ENCRYPTION_KEY` env var
 - [ ] No key rotation for MVP — documented limitation
 
-### Token Refresh
+### Credentials Repository
 
-- [ ] Refresh logic: refresh 5 minutes before `tokenExpiresAt`
-- [ ] On refresh failure: set `needsReauth = true` on the credentials row
+- [ ] T12 builds the **data layer only**: table + repository + encrypt/decrypt
+- [ ] The actual token refresh mechanism (cron job, middleware check, or pg-boss task that calls refresh 5 min before `tokenExpiresAt`) is **deferred to T13** — T12 just provides the `markNeedsReauth()` method
+- [ ] On refresh failure (when implemented in T13): set `needsReauth = true` on the credentials row
 - [ ] Email notification on re-auth needed is **deferred** to post-T11 (no email infrastructure yet)
 - [ ] Repository: `ShaamCredentialsRepository` with methods:
   - `findByBusinessId(businessId): Promise<ShaamCredentials | null>`
@@ -116,7 +137,7 @@ This ticket builds the abstraction layer + OAuth2 token management. No real SHAA
 - [ ] Logic:
   1. If `vatMinorUnits === 0` → `false` (no VAT = no SHAAM)
   2. If `!customer.isLicensedDealer` → `false` (B2C = no SHAAM)
-  3. If `totalExclVatMinorUnits <= currentThreshold(asOfDate) * 100` → `false` (below threshold in minor units)
+  3. If `totalExclVatMinorUnits <= currentThreshold(asOfDate) * 100` → `false` (at or below threshold in minor units; must be **strictly above** to require allocation)
   4. Otherwise → `true`
 - [ ] `shouldRequestAllocation()` wrapper — for now just delegates to `requiresAllocationNumber()`. The `business.alwaysRequestAllocation` field doesn't exist yet; add a TODO comment noting it will be added with the business settings page.
 - [ ] Threshold constants exported from `types/src/shaam.ts`:
@@ -157,6 +178,7 @@ This ticket builds the abstraction layer + OAuth2 token management. No real SHAA
 - [ ] Unit tests for `encrypt`/`decrypt` round-trip
 - [ ] Repository tests for `ShaamCredentialsRepository` (upsert, find, markNeedsReauth)
 - [ ] Tests for `ShaamMockClient` basic behavior
+- [ ] `api/tests/utils/db.ts` `resetDb()` TRUNCATE list updated to include `business_shaam_credentials`
 - [ ] `npm run check` passes
 
 ---
@@ -236,6 +258,7 @@ T13 (SHAAM Allocation Requests) depends on the following being in place:
 |------|-------------|
 | Emergency number methods on interface | T14 |
 | OAuth2 consent flow (redirect + callback endpoints) | T13 architecture |
+| Token refresh mechanism (cron/pg-boss job, 5-min-before-expiry check) | T13 |
 | `business.alwaysRequestAllocation` field | Business settings ticket |
 | Email notification on re-auth needed | Post-T11 |
 | Encryption key rotation | Post-MVP |
@@ -246,6 +269,6 @@ T13 (SHAAM Allocation Requests) depends on the following being in place:
 
 ## Links
 
-- Branch: —
-- PR: —
+- Branch: (to be filled during implementation)
+- PR: (to be filled during implementation)
 - Deployed: ⬜
