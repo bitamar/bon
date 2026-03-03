@@ -12,8 +12,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { queryKeys } from '../lib/queryKeys';
 import { fetchBusinesses } from '../api/businesses';
 import type { BusinessListItem } from '@bon/types/businesses';
-
-const ACTIVE_BUSINESS_KEY = 'bon:activeBusiness';
+import { ACTIVE_BUSINESS_KEY } from '../lib/storage';
 
 function buildBusinessPath(
   businessId: string,

@@ -1,6 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom';
-
-const ACTIVE_BUSINESS_KEY = 'bon:activeBusiness';
+import { ACTIVE_BUSINESS_KEY } from '../lib/storage';
 
 export function LegacyRedirect() {
   const location = useLocation();
