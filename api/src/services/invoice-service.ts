@@ -21,12 +21,11 @@ import { findBusinessById } from '../repositories/business-repository.js';
 import type { CustomerRecord } from '../repositories/customer-repository.js';
 import { notFound, unprocessableEntity } from '../lib/app-error.js';
 import { assignInvoiceNumber, documentTypeToSequenceGroup } from '../lib/invoice-sequences.js';
+import { serializeInvoice, serializeInvoiceItem } from '../lib/invoice-serializers.js';
 import { toNumber } from '../lib/numeric.js';
 import { calculateLine, calculateInvoiceTotals, STANDARD_VAT_RATE_BP } from '@bon/types/vat';
 import { db } from '../db/client.js';
 import type {
-  Invoice,
-  LineItem,
   InvoiceResponse,
   InvoiceListItem,
   InvoiceListQuery,
@@ -34,68 +33,6 @@ import type {
   LineItemInput,
   DocumentType,
 } from '@bon/types/invoices';
-
-// ── serializers ──
-
-function coerceToDateString(value: unknown): string {
-  if (typeof value === 'string') return value;
-  return (value as Date).toISOString().split('T')[0]!;
-}
-
-function serializeInvoice(record: InvoiceRecord): Invoice {
-  return {
-    id: record.id,
-    businessId: record.businessId,
-    customerId: record.customerId ?? null,
-    customerName: record.customerName ?? null,
-    customerTaxId: record.customerTaxId ?? null,
-    customerAddress: record.customerAddress ?? null,
-    customerEmail: record.customerEmail ?? null,
-    documentType: record.documentType,
-    status: record.status,
-    isOverdue: record.isOverdue,
-    sequenceGroup: record.sequenceGroup ?? null,
-    sequenceNumber: record.sequenceNumber ?? null,
-    documentNumber: record.documentNumber ?? null,
-    creditedInvoiceId: record.creditedInvoiceId ?? null,
-    invoiceDate: coerceToDateString(record.invoiceDate),
-    issuedAt: record.issuedAt ? record.issuedAt.toISOString() : null,
-    dueDate: record.dueDate ? coerceToDateString(record.dueDate) : null,
-    notes: record.notes ?? null,
-    internalNotes: record.internalNotes ?? null,
-    currency: record.currency,
-    vatExemptionReason: record.vatExemptionReason ?? null,
-    subtotalMinorUnits: record.subtotalMinorUnits,
-    discountMinorUnits: record.discountMinorUnits,
-    totalExclVatMinorUnits: record.totalExclVatMinorUnits,
-    vatMinorUnits: record.vatMinorUnits,
-    totalInclVatMinorUnits: record.totalInclVatMinorUnits,
-    allocationStatus: record.allocationStatus ?? null,
-    allocationNumber: record.allocationNumber ?? null,
-    allocationError: record.allocationError ?? null,
-    sentAt: record.sentAt ? record.sentAt.toISOString() : null,
-    paidAt: record.paidAt ? record.paidAt.toISOString() : null,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString(),
-  };
-}
-
-function serializeInvoiceItem(record: InvoiceItemRecord): LineItem {
-  return {
-    id: record.id,
-    invoiceId: record.invoiceId,
-    position: record.position,
-    description: record.description,
-    catalogNumber: record.catalogNumber ?? null,
-    quantity: toNumber(record.quantity),
-    unitPriceMinorUnits: record.unitPriceMinorUnits,
-    discountPercent: toNumber(record.discountPercent),
-    vatRateBasisPoints: record.vatRateBasisPoints,
-    lineTotalMinorUnits: record.lineTotalMinorUnits,
-    vatAmountMinorUnits: record.vatAmountMinorUnits,
-    lineTotalInclVatMinorUnits: record.lineTotalInclVatMinorUnits,
-  };
-}
 
 function serializeInvoiceListItem(
   record: Pick<
@@ -126,8 +63,8 @@ function serializeInvoiceListItem(
     isOverdue: record.isOverdue,
     sequenceGroup: record.sequenceGroup ?? null,
     documentNumber: record.documentNumber ?? null,
-    invoiceDate: coerceToDateString(record.invoiceDate),
-    dueDate: record.dueDate ? coerceToDateString(record.dueDate) : null,
+    invoiceDate: record.invoiceDate,
+    dueDate: record.dueDate ?? null,
     totalInclVatMinorUnits: record.totalInclVatMinorUnits,
     currency: record.currency,
     createdAt: record.createdAt.toISOString(),
@@ -389,7 +326,7 @@ export async function finalize(
     }
 
     // Validate invoice date
-    const invoiceDate = body.invoiceDate ?? coerceToDateString(invoice.invoiceDate);
+    const invoiceDate = body.invoiceDate ?? invoice.invoiceDate;
     const maxDateStr = maxFutureDateString(7);
     if (invoiceDate > maxDateStr) {
       throw unprocessableEntity({ code: 'invalid_invoice_date' });
