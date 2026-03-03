@@ -11,13 +11,13 @@ not like a government compliance tool. The tax compliance is non-negotiable, but
 
 ---
 
-## Current SHAAM Allocation Thresholds
+## SHAAM Allocation Thresholds (Effective Dates)
 
 | Period | Threshold (excl. VAT) |
 |--------|----------------------|
-| Now (2025) | > ₪20,000 |
-| Jan 2026 | > ₪10,000 |
-| Jun 2026 | > ₪5,000 |
+| Until 2025-12-31 | > ₪20,000 |
+| 2026-01-01 to 2026-05-31 | > ₪10,000 |
+| From 2026-06-01 | > ₪5,000 |
 
 Allocation numbers can be requested voluntarily for any amount.
 
@@ -462,12 +462,12 @@ Cache finalized PDFs after first generation (local filesystem via `StorageServic
 Invalidate cache when invoice status changes via `invalidatePdfCache()`.
 For drafts: generate but don't cache (watermark "טיוטה - לא בתוקף" across the page).
 
-### 3.3 Email Delivery (T11 — separate ticket)
+### 3.3 Email Delivery (T11 — delivered)
 
-Email delivery is handled in T11 after T10 merges. It adds:
-- `POST /businesses/:businessId/invoices/:invoiceId/send`
-- Email sender (Resend or SES) with PDF attachment
-- `sentAt` timestamp tracking
+Email delivery is implemented alongside T10 in this PR:
+- `POST /businesses/:businessId/invoices/:invoiceId/send` — sends finalized invoice to customer
+- Email sender (Resend, with console fallback in dev) with PDF attachment
+- `sentAt` timestamp tracking and status update to `sent`
 
 ---
 
@@ -819,12 +819,10 @@ Abstract behind a `StorageService` interface from day one.
   T09-B: Invoice list aggregates (PR #43)
   T-ARCH-01 through T-ARCH-07: Architecture fixes (all merged)
 
-✓ Phase 3a: PDF Generation
+✓ Phase 3: PDF Generation + Email Delivery
   T10: PDF service + template + caching (PR #45)
   T10.5: Docker + Railway deployment (PRs #52-#54)
-
-→ Phase 3b: Email Delivery
-  T11: Email delivery (unblocked, ready to start)
+  T11: Email delivery (delivered with T10)
 
 → Phase 4: SHAAM Integration         (~3 weeks)
   4.1 SHAAM abstraction interface

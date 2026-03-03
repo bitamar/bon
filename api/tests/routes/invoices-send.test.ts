@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 import { injectAuthed } from '../utils/inject.js';
 import {
   createOwnerWithBusiness,
@@ -16,6 +17,25 @@ import {
 } from '../utils/invoices.js';
 import type { InvoiceResponse } from '@bon/types/invoices';
 
+async function sendInvoice(
+  app: FastifyInstance,
+  sessionId: string,
+  businessId: string,
+  invoiceId: string,
+  payload: object = {}
+) {
+  return injectAuthed(app, sessionId, {
+    method: 'POST',
+    url: `/businesses/${businessId}/invoices/${invoiceId}/send`,
+    payload,
+  });
+}
+
+async function prepareFinalizedInvoice(app: FastifyInstance, email?: string) {
+  mockPdfServiceFetch();
+  return setupFinalizedInvoice(app, email);
+}
+
 describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
   const ctx = setupIntegrationTest();
 
@@ -23,26 +43,10 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
     vi.resetAllMocks();
   });
 
-  // ── helpers ──
-
-  async function sendInvoice(
-    sessionId: string,
-    businessId: string,
-    invoiceId: string,
-    payload: object = {}
-  ) {
-    return injectAuthed(ctx.app, sessionId, {
-      method: 'POST',
-      url: `/businesses/${businessId}/invoices/${invoiceId}/send`,
-      payload,
-    });
-  }
-
   it('sends a finalized invoice and returns sentAt', async () => {
-    mockPdfServiceFetch();
-    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
+    const { sessionId, business, invoice } = await prepareFinalizedInvoice(ctx.app);
 
-    const res = await sendInvoice(sessionId, business.id, invoice.id);
+    const res = await sendInvoice(ctx.app, sessionId, business.id, invoice.id);
 
     expect(res.statusCode).toBe(200);
     const body = res.json() as { ok: true; sentAt: string };
@@ -60,10 +64,9 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
   });
 
   it('sends to custom email when recipientEmail is provided', async () => {
-    mockPdfServiceFetch();
-    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
+    const { sessionId, business, invoice } = await prepareFinalizedInvoice(ctx.app);
 
-    const res = await sendInvoice(sessionId, business.id, invoice.id, {
+    const res = await sendInvoice(ctx.app, sessionId, business.id, invoice.id, {
       recipientEmail: 'other@example.com',
     });
 
@@ -71,15 +74,14 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
   });
 
   it('allows re-sending an already sent invoice', async () => {
-    mockPdfServiceFetch();
-    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
+    const { sessionId, business, invoice } = await prepareFinalizedInvoice(ctx.app);
 
     // Send first time
-    const first = await sendInvoice(sessionId, business.id, invoice.id);
+    const first = await sendInvoice(ctx.app, sessionId, business.id, invoice.id);
     expect(first.statusCode).toBe(200);
 
     // Send again
-    const second = await sendInvoice(sessionId, business.id, invoice.id);
+    const second = await sendInvoice(ctx.app, sessionId, business.id, invoice.id);
     expect(second.statusCode).toBe(200);
   });
 
@@ -89,17 +91,16 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
     const customer = await createCustomer(ctx.app, sessionId, business.id);
     const { invoice } = await createDraftWithItems(ctx.app, sessionId, business.id, customer.id);
 
-    const res = await sendInvoice(sessionId, business.id, invoice.id);
+    const res = await sendInvoice(ctx.app, sessionId, business.id, invoice.id);
 
     expect(res.statusCode).toBe(422);
     expect((res.json() as { error: string }).error).toBe('not_sendable');
   });
 
   it('returns 422 when no email is available', async () => {
-    mockPdfServiceFetch();
-    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app, undefined);
+    const { sessionId, business, invoice } = await prepareFinalizedInvoice(ctx.app, undefined);
 
-    const res = await sendInvoice(sessionId, business.id, invoice.id);
+    const res = await sendInvoice(ctx.app, sessionId, business.id, invoice.id);
 
     expect(res.statusCode).toBe(422);
     expect((res.json() as { error: string }).error).toBe('missing_email');
@@ -109,7 +110,12 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
     mockPdfServiceFetch();
     const { sessionId, business } = await createOwnerWithBusiness();
 
-    const res = await sendInvoice(sessionId, business.id, '00000000-0000-4000-8000-000000000099');
+    const res = await sendInvoice(
+      ctx.app,
+      sessionId,
+      business.id,
+      '00000000-0000-4000-8000-000000000099'
+    );
 
     expect(res.statusCode).toBe(404);
   });
@@ -138,7 +144,7 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
     const otherUser = await createUser();
     await createTestBusiness(otherUser.id);
 
-    const res = await sendInvoice(otherSession, business.id, invoice.id);
+    const res = await sendInvoice(ctx.app, otherSession, business.id, invoice.id);
 
     expect(res.statusCode).toBe(404);
   });

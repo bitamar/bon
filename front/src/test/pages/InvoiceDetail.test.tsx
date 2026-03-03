@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { UserEvent } from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { InvoiceDetail } from '../../pages/InvoiceDetail';
 import { renderWithProviders } from '../utils/renderWithProviders';
@@ -33,6 +34,22 @@ function renderDetail() {
 function renderWithInvoice(overrides: Partial<Invoice> = {}) {
   vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice(overrides));
   return renderDetail();
+}
+
+async function openSendModal(user: UserEvent) {
+  await user.click(await screen.findByRole('button', { name: 'שלח במייל' }));
+  await screen.findByText('שליחת חשבונית במייל');
+}
+
+async function fillSendEmail(user: UserEvent, email: string) {
+  const emailInput = await screen.findByTestId('send-email-input');
+  await user.clear(emailInput);
+  await user.type(emailInput, email);
+}
+
+async function submitSendModal(user: UserEvent) {
+  const confirmButton = await screen.findByRole('button', { name: /^שלח$/ });
+  await user.click(confirmButton);
 }
 
 describe('InvoiceDetail page', () => {
@@ -151,10 +168,8 @@ describe('InvoiceDetail send email', () => {
     renderDetail();
     const user = userEvent.setup();
 
-    const sendButton = await screen.findByRole('button', { name: 'שלח במייל' });
-    await user.click(sendButton);
+    await openSendModal(user);
 
-    expect(await screen.findByText('שליחת חשבונית במייל')).toBeInTheDocument();
     const emailInput = await screen.findByTestId('send-email-input');
     expect(emailInput).toHaveValue('test@example.com');
   });
@@ -178,12 +193,8 @@ describe('InvoiceDetail send email', () => {
     renderDetail();
     const user = userEvent.setup();
 
-    // Open modal
-    await user.click(await screen.findByRole('button', { name: 'שלח במייל' }));
-
-    // Wait for modal to render and click send
-    const confirmButton = await screen.findByRole('button', { name: /^שלח$/ });
-    await user.click(confirmButton);
+    await openSendModal(user);
+    await submitSendModal(user);
 
     await waitFor(() => {
       expect(invoicesApi.sendInvoiceByEmail).toHaveBeenCalledWith('biz-1', 'inv-1', {
@@ -203,16 +214,9 @@ describe('InvoiceDetail send email', () => {
     renderDetail();
     const user = userEvent.setup();
 
-    // Open modal
-    await user.click(await screen.findByRole('button', { name: 'שלח במייל' }));
-
-    // Wait for modal content and clear and type new email
-    const emailInput = await screen.findByTestId('send-email-input');
-    await user.clear(emailInput);
-    await user.type(emailInput, 'new@example.com');
-
-    // Submit
-    await user.click(await screen.findByRole('button', { name: /^שלח$/ }));
+    await openSendModal(user);
+    await fillSendEmail(user, 'new@example.com');
+    await submitSendModal(user);
 
     await waitFor(() => {
       expect(invoicesApi.sendInvoiceByEmail).toHaveBeenCalledWith('biz-1', 'inv-1', {
@@ -228,7 +232,7 @@ describe('InvoiceDetail send email', () => {
     renderDetail();
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'שלח במייל' }));
+    await openSendModal(user);
 
     const confirmButton = await screen.findByRole('button', { name: /^שלח$/ });
     expect(confirmButton).toBeDisabled();

@@ -99,7 +99,7 @@ export function InvoiceDetail() {
   const sendMutation = useApiMutation({
     mutationFn: () =>
       sendInvoiceByEmail(businessId, invoiceId, {
-        recipientEmail: recipientEmail || undefined,
+        recipientEmail: recipientEmail?.trim() || undefined,
       }),
     successToast: { message: 'החשבונית נשלחה בהצלחה' },
     onSuccess: () => {
@@ -382,7 +382,7 @@ export function InvoiceDetail() {
             <Button
               onClick={() => sendMutation.mutate()}
               loading={sendMutation.isPending}
-              disabled={!recipientEmail}
+              disabled={!recipientEmail?.trim()}
             >
               שלח
             </Button>

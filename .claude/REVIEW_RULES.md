@@ -159,7 +159,7 @@ Errors thrown in the PDF rendering pipeline must include a `statusCode` property
 
 ### SSRF protection for Puppeteer rendering
 
-When loading HTML content in Puppeteer that may contain user-provided URLs (e.g., `logoUrl` in `<img>`), enable request interception and block requests to internal IP ranges (`10.*`, `172.16-31.*`, `192.168.*`, `127.*`, `169.254.*`, `localhost`), metadata endpoints, and non-HTTPS/HTTP protocols (`file://`, `data://`, `ftp://`).
+When loading HTML content in Puppeteer that may contain user-provided URLs (e.g., `logoUrl` in `<img>`), enable request interception and block requests to internal IP ranges (`10.*`, `172.16-31.*`, `192.168.*`, `127.*`, `169.254.*`, `localhost`), metadata endpoints, and non-HTTPS/HTTP protocols (`file://`, `data:`, `ftp://`).
 
 ### Extract repeated mock setup into named helpers
 

@@ -3,7 +3,7 @@
 **Status**: ✅ Merged to main (PR #45)
 **Phase**: 3 — PDF
 **Requires**: T08 merged ✅ (all 4 sub-tickets merged)
-**Blocks**: T11
+**Includes**: T11 (email delivery shipped in same PR)
 
 Note: T09 does NOT block T10. T09 backend (PR #28) is merged; T09 frontend is in progress but independent.
 

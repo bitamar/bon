@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { env } from '../env.js';
+import { AppError } from '../lib/app-error.js';
 import { DOCUMENT_TYPE_LABELS, type Invoice } from '@bon/types/invoices';
 import { formatMinorUnits } from '@bon/types/formatting';
 
@@ -39,16 +40,23 @@ class ResendEmailService implements EmailService {
         content: a.content,
       }));
     }
-    await this.client.emails.send(payload);
+    const result = await this.client.emails.send(payload);
+    if (result.error) {
+      throw new AppError({
+        statusCode: 502,
+        code: 'email_provider_error',
+        message: `Resend API error: ${result.error.message}`,
+      });
+    }
   }
 }
 
 class ConsoleEmailService implements EmailService {
   async send(options: SendEmailOptions): Promise<void> {
     console.log('[email] Would send:', {
-      to: options.to,
       subject: options.subject,
-      attachments: options.attachments?.map((a) => a.filename),
+      recipientsCount: 1,
+      attachmentsCount: options.attachments?.length ?? 0,
     });
   }
 }
@@ -57,11 +65,23 @@ export const emailService: EmailService = env.RESEND_API_KEY
   ? new ResendEmailService(env.RESEND_API_KEY)
   : new ConsoleEmailService();
 
+function escapeHtml(str: string): string {
+  return str
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 export function buildInvoiceEmailHtml(invoice: Invoice, businessName: string): string {
-  const docLabel = DOCUMENT_TYPE_LABELS[invoice.documentType] ?? invoice.documentType;
-  const total = formatMinorUnits(invoice.totalInclVatMinorUnits);
+  const docLabel = escapeHtml(DOCUMENT_TYPE_LABELS[invoice.documentType] ?? invoice.documentType);
+  const total = escapeHtml(formatMinorUnits(invoice.totalInclVatMinorUnits));
+  const escapedBusinessName = escapeHtml(businessName);
+  const escapedCustomerName = invoice.customerName ? escapeHtml(invoice.customerName) : '';
+  const escapedDocNumber = escapeHtml(invoice.documentNumber ?? '');
   const dueDateLine = invoice.dueDate
-    ? `<p style="margin:8px 0;color:#555;">תאריך תשלום: ${invoice.dueDate}</p>`
+    ? `<p style="margin:8px 0;color:#555;">תאריך תשלום: ${escapeHtml(invoice.dueDate)}</p>`
     : '';
 
   return `<!DOCTYPE html>
@@ -69,10 +89,10 @@ export function buildInvoiceEmailHtml(invoice: Invoice, businessName: string): s
 <head><meta charset="utf-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif;direction:rtl;text-align:right;max-width:600px;margin:0 auto;padding:20px;color:#333;">
   <div style="border-bottom:2px solid #228be6;padding-bottom:16px;margin-bottom:20px;">
-    <h2 style="margin:0;color:#228be6;">${businessName}</h2>
+    <h2 style="margin:0;color:#228be6;">${escapedBusinessName}</h2>
   </div>
-  <p style="margin:8px 0;">שלום${invoice.customerName ? ` ${invoice.customerName}` : ''},</p>
-  <p style="margin:8px 0;">מצורפת ${docLabel} מספר <strong>${invoice.documentNumber ?? ''}</strong>.</p>
+  <p style="margin:8px 0;">שלום${escapedCustomerName ? ` ${escapedCustomerName}` : ''},</p>
+  <p style="margin:8px 0;">מצורפת ${docLabel} מספר <strong>${escapedDocNumber}</strong>.</p>
   <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0;">
     <p style="margin:4px 0;"><strong>סכום לתשלום:</strong> ${total}</p>
     ${dueDateLine}

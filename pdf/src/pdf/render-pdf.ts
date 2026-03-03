@@ -1,4 +1,5 @@
 import { URL } from 'node:url';
+import dns from 'node:dns/promises';
 import net from 'node:net';
 import type { Browser, Page, HTTPRequest } from 'puppeteer-core';
 import puppeteer from 'puppeteer-core';
@@ -39,6 +40,16 @@ function isBlockedIpv6(addr: string): boolean {
   return BLOCKED_IPV6_PREFIXES.some((prefix) => lower.startsWith(prefix));
 }
 
+function isBlockedIp(addr: string): boolean {
+  if (net.isIPv4(addr)) {
+    return BLOCKED_IPV4_PREFIXES.some((prefix) => addr.startsWith(prefix));
+  }
+  if (net.isIPv6(addr)) {
+    return isBlockedIpv6(addr);
+  }
+  return false;
+}
+
 function isBlockedRequest(urlStr: string): boolean {
   try {
     const parsed = new URL(urlStr);
@@ -50,16 +61,27 @@ function isBlockedRequest(urlStr: string): boolean {
 
     if (BLOCKED_HOSTNAMES.has(hostname.toLowerCase())) return true;
 
-    if (net.isIPv4(hostname)) {
-      return BLOCKED_IPV4_PREFIXES.some((prefix) => hostname.startsWith(prefix));
-    }
-
-    if (net.isIPv6(hostname)) {
-      return isBlockedIpv6(hostname);
-    }
-
-    return false;
+    return isBlockedIp(hostname);
   } catch {
+    return true;
+  }
+}
+
+async function isBlockedAfterDns(urlStr: string): Promise<boolean> {
+  if (isBlockedRequest(urlStr)) return true;
+
+  try {
+    const parsed = new URL(urlStr);
+    const raw = parsed.hostname;
+    const hostname = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
+
+    // Skip DNS for literal IPs — already checked by isBlockedRequest
+    if (net.isIPv4(hostname) || net.isIPv6(hostname)) return false;
+
+    const addresses = await dns.lookup(hostname, { all: true });
+    return addresses.some((entry) => isBlockedIp(entry.address));
+  } catch {
+    // DNS resolution failure → block to be safe
     return true;
   }
 }
@@ -91,6 +113,8 @@ export async function closeBrowser(): Promise<void> {
   }
 }
 
+export { isBlockedRequest, isBlockedAfterDns };
+
 export async function renderPdf(input: PdfRenderInput): Promise<Buffer> {
   if (!browser) {
     throw Object.assign(new Error('Browser not launched. Call launchBrowser() first.'), {
@@ -112,9 +136,22 @@ export async function renderPdf(input: PdfRenderInput): Promise<Buffer> {
       if (isBlockedRequest(req.url())) {
         req.abort('blockedbyclient').catch(() => {});
       } else {
+        // Puppeteer request interception is synchronous — DNS check runs async
+        // so we continue the request but rely on the synchronous blocklist for
+        // immediate protection. For comprehensive DNS-based SSRF protection,
+        // logoUrl is pre-validated before rendering.
         req.continue().catch(() => {});
       }
     });
+
+    // Pre-validate logoUrl with DNS resolution before rendering
+    if (input.business.logoUrl) {
+      const blocked = await isBlockedAfterDns(input.business.logoUrl);
+      if (blocked) {
+        input = { ...input, business: { ...input.business, logoUrl: null } };
+      }
+    }
+
     const html = renderInvoiceHtml(input);
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 10_000 });
     const pdfBuffer = await page.pdf({

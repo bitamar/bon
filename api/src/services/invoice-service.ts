@@ -451,11 +451,12 @@ export async function sendInvoice(
   }
 
   const now = new Date();
-  await updateInvoice(invoiceId, businessId, {
+  const updated = await updateInvoice(invoiceId, businessId, {
     status: 'sent',
     sentAt: now,
     updatedAt: now,
   });
+  if (!updated) throw notFound();
 
   return { sentAt: now.toISOString() };
 }

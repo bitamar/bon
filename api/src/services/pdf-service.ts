@@ -55,6 +55,17 @@ async function callPdfService(input: PdfRenderInput): Promise<Buffer> {
     });
   }
 
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('pdf')) {
+    const body = await res.text();
+    throw new AppError({
+      statusCode: 502,
+      code: 'pdf_service_error',
+      message: `PDF service returned unexpected content-type: ${contentType}`,
+      cause: body,
+    });
+  }
+
   const arrayBuffer = await res.arrayBuffer();
   return Buffer.from(arrayBuffer);
 }
