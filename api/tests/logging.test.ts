@@ -29,10 +29,8 @@ describe('logging plugin', () => {
     if (!server) throw new Error('server not initialised');
 
     server.get('/test/request', async (request, reply) => {
-      const logger = request.log as typeof request.log & {
-        bindings?: () => Record<string, unknown>;
-      };
-      const bindings = typeof logger.bindings === 'function' ? (logger.bindings() ?? {}) : {};
+      const bindings =
+        typeof request.log.bindings === 'function' ? (request.log.bindings() ?? {}) : {};
       return reply.send(bindings);
     });
 
@@ -79,10 +77,8 @@ describe('logging plugin', () => {
       '/test/authenticated',
       { preHandler: server.authenticate },
       async (request, reply) => {
-        const logger = request.log as typeof request.log & {
-          bindings?: () => Record<string, unknown>;
-        };
-        const bindings = typeof logger.bindings === 'function' ? (logger.bindings() ?? {}) : {};
+        const bindings =
+          typeof request.log.bindings === 'function' ? (request.log.bindings() ?? {}) : {};
         return reply.send(bindings);
       }
     );

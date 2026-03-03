@@ -194,7 +194,7 @@ export function InvoiceList() {
   const customerId = searchParams.get('customerId') ?? undefined;
   const dateFrom = searchParams.get('dateFrom') ?? undefined;
   const dateTo = searchParams.get('dateTo') ?? undefined;
-  const rawPage = parseInt(searchParams.get('page') ?? '1', 10);
+  const rawPage = Number.parseInt(searchParams.get('page') ?? '1', 10);
   const page = Number.isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
 
   const statusParam = chipToStatusParam(chipValue);

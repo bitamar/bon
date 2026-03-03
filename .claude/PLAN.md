@@ -70,6 +70,47 @@ Allocation numbers can be requested voluntarily for any amount.
 - Soft-deleted customers don't block new customers with same taxId
 - Query limits capped at 200
 
+### Architecture Fixes (T-ARCH-01 through T-ARCH-07)
+- Backend type safety & data layer cleanup (T-ARCH-01)
+- TOCTOU race fix in invoice finalization (T-ARCH-02)
+- businessId added to frontend routes (T-ARCH-03)
+- Invoice form useForm + autosave (T-ARCH-04)
+- Role-based access control enforcement (T-ARCH-05)
+- pg-mem replaced with testcontainers (T-ARCH-06)
+- Address API error handling with fallback to manual entry (T-ARCH-07)
+
+### Invoice Data Model & VAT Engine (T06)
+- invoices, invoice_items, invoice_sequences tables
+- All amounts in minor units (integer, never floats)
+- Customer snapshot on finalization (immutable copy)
+- Status enum: draft, finalized, sent, paid, partially_paid, cancelled, credited
+- VAT calculation engine (pure functions in types/src/vat.ts)
+- Sequential numbering with SELECT FOR UPDATE (race-condition safe)
+
+### Invoice API & Create/Edit Backend (T07)
+- Draft invoice CRUD endpoints
+- Line items management
+- VAT recalculation on save
+
+### Invoice Create/Edit Frontend (T7.5)
+- Draft editor with autosave
+- Line items UX (tab through fields, add/remove rows)
+- Customer search combobox
+- Document type selector
+- Live VAT calculation preview
+
+### Invoice Finalization & Detail View (T08)
+- Shared invoice config (T08-A)
+- Finalize endpoint with VAT exemption reason validation (T08-B)
+- Frontend finalization flow with preview modal (T08-C)
+- Invoice detail view with status banner and actions (T08-D)
+
+### Invoice List & Search (T09)
+- Server-side filtered/paginated invoice list
+- Filter chips: all, drafts, awaiting payment, paid, cancelled
+- Customer, date range, and text search filters
+- Invoice list aggregates and summary row (T09-B)
+
 ---
 
 ## Phase 1: Customer Management
@@ -752,11 +793,16 @@ Abstract behind a `StorageService` interface from day one.
   T-API-01: API hardening (PR #8)
 
 ✓ Phase 2: Invoice Creation
-  T06: Invoice schema + VAT engine + sequential numbering (PRs #9-#14)
-  T07: Invoice create/edit UI + finalization flow (PRs #15-#18)
-  T08: Invoice detail page + status badges (PRs #19, #22)
-  T09-backend: Invoice list with filters + pagination (PR #28)
-  T09-frontend: Invoice list UI (in progress)
+  T06: Invoice schema + VAT engine (PR #10/#11)
+  T07: Invoice API + create/edit backend (PR #12)
+  T7.5: Invoice create/edit frontend (PR #13)
+  T08-A: Shared invoice config (PR #18)
+  T08-B: Finalize backend (PR #17)
+  T08-C: Finalization flow frontend (PR #22)
+  T08-D: Detail view + routing (PR #22)
+  T09: Invoice list + search (PR #41)
+  T09-B: Invoice list aggregates (PR #43)
+  T-ARCH-01 through T-ARCH-07: Architecture fixes (all merged)
 
 → Phase 3: PDF Generation            (~1 week)
   T10: PDF service + template + caching (ready to start)
