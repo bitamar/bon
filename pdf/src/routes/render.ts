@@ -1,7 +1,8 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { renderPdf } from '../pdf/render-pdf.js';
 import { renderInvoiceHtml } from '../pdf/render-html.js';
 import { pdfRenderInputSchema } from '@bon/types/pdf';
+import type { PdfRenderInput } from '@bon/types/pdf';
 
 function hasStatusCode(err: unknown): err is { statusCode: number } {
   return (
@@ -12,15 +13,22 @@ function hasStatusCode(err: unknown): err is { statusCode: number } {
   );
 }
 
+function parseRenderInput(req: FastifyRequest, reply: FastifyReply): PdfRenderInput | null {
+  const parsed = pdfRenderInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    reply.status(400).send({ error: 'invalid_input', details: parsed.error.issues });
+    return null;
+  }
+  return parsed.data;
+}
+
 export async function renderRoutes(app: FastifyInstance): Promise<void> {
   app.post('/render', async (req, reply) => {
-    const parsed = pdfRenderInputSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'invalid_input', details: parsed.error.issues });
-    }
+    const input = parseRenderInput(req, reply);
+    if (!input) return reply;
 
     try {
-      const pdfBuffer = await renderPdf(parsed.data);
+      const pdfBuffer = await renderPdf(input);
       return reply
         .type('application/pdf')
         .header('Content-Length', pdfBuffer.length)
@@ -35,11 +43,10 @@ export async function renderRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/render-html', async (req, reply) => {
-    const parsed = pdfRenderInputSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'invalid_input', details: parsed.error.issues });
-    }
-    const html = renderInvoiceHtml(parsed.data);
+    const input = parseRenderInput(req, reply);
+    if (!input) return reply;
+
+    const html = renderInvoiceHtml(input);
     return reply.type('text/html').send(html);
   });
 

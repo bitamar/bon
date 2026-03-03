@@ -9,9 +9,22 @@ await app.register(renderRoutes);
 
 await launchBrowser(env.CHROMIUM_PATH);
 
+let shuttingDown = false;
+
 const shutdown = async () => {
-  await app.close();
-  await closeBrowser();
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  try {
+    await app.close();
+  } catch {
+    // Best-effort close
+  }
+  try {
+    await closeBrowser();
+  } catch {
+    // Best-effort close
+  }
   process.exit(0);
 };
 

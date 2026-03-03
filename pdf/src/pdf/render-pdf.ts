@@ -8,6 +8,13 @@ let activePagesCount = 0;
 let browser: Browser | null = null;
 
 export async function launchBrowser(executablePath: string): Promise<void> {
+  if (browser?.connected) return;
+
+  if (browser) {
+    await browser.close().catch(() => {});
+    browser = null;
+  }
+
   browser = await puppeteer.launch({
     executablePath,
     headless: true,
@@ -19,6 +26,7 @@ export async function closeBrowser(): Promise<void> {
   if (browser) {
     await browser.close();
     browser = null;
+    activePagesCount = 0;
   }
 }
 

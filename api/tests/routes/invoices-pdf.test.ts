@@ -195,12 +195,19 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
     mockFetchForPdf();
     const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
+    // Re-fetch the invoice to get the finalized document number
+    const invoiceRes = await injectAuthed(ctx.app, sessionId, {
+      method: 'GET',
+      url: `/businesses/${business.id}/invoices/${invoice.id}`,
+    });
+    const { invoice: finalized } = invoiceRes.json() as InvoiceResponse;
+
     const res = await getPdf(sessionId, business.id, invoice.id);
 
     expect(res.statusCode).toBe(200);
     const disposition = res.headers['content-disposition'] as string;
-    // Finalized invoices have document numbers like "1" or with prefix
-    expect(disposition).toContain('.pdf"');
+    expect(finalized.documentNumber).toBeTruthy();
+    expect(disposition).toMatch(new RegExp(`${finalized.documentNumber}.*\\.pdf"`));
   });
 
   it('serves finalized PDF from cache on second request without calling PDF service again', async () => {

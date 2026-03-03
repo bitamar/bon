@@ -34,7 +34,7 @@ export function InvoiceTemplate(props: Readonly<PdfRenderInput>) {
     <html dir="rtl" lang="he">
       <head>
         <meta charSet="utf-8" />
-        <style dangerouslySetInnerHTML={{ __html: CSS }} />
+        <style>{CSS}</style>
       </head>
       <body>
         {isDraft && (
