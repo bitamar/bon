@@ -18,6 +18,7 @@ import { DatePickerInput, type DateValue } from '@mantine/dates';
 import { IconPlus } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { InvoiceSummaryRow } from '../components/InvoiceSummaryRow';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
 import { CustomerSelect } from '../components/CustomerSelect';
@@ -418,6 +419,11 @@ export function InvoiceList() {
             ) : null}
           </Stack>
         </Paper>
+
+        {/* Summary row */}
+        {invoicesQuery.data ? (
+          <InvoiceSummaryRow aggregates={invoicesQuery.data.aggregates} />
+        ) : null}
 
         {/* Content area */}
         {renderContent()}

@@ -9,6 +9,8 @@ import {
   findItemsByInvoiceId,
   findInvoices,
   countInvoices,
+  aggregateOutstanding,
+  aggregateFiltered,
   type InvoiceRecord,
   type InvoiceItemRecord,
   type InvoiceInsert,
@@ -481,10 +483,20 @@ export async function listInvoices(
   if (query.dateTo) filters.dateTo = query.dateTo;
   if (query.q) filters.q = query.q;
 
-  const [rows, total] = await Promise.all([findInvoices(filters), countInvoices(filters)]);
+  const [rows, total, outstanding, filteredTotal] = await Promise.all([
+    findInvoices(filters),
+    countInvoices(filters),
+    aggregateOutstanding(filters),
+    aggregateFiltered(filters),
+  ]);
 
   return {
     invoices: rows.map(serializeInvoiceListItem),
     total,
+    aggregates: {
+      totalOutstandingMinorUnits: outstanding.total,
+      countOutstanding: outstanding.count,
+      totalFilteredMinorUnits: filteredTotal,
+    },
   };
 }

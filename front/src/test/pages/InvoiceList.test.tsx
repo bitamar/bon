@@ -33,12 +33,19 @@ const mockInvoice = (overrides: Partial<InvoiceListItem> = {}): InvoiceListItem 
   ...overrides,
 });
 
+const DEFAULT_AGGREGATES = {
+  totalOutstandingMinorUnits: 11700,
+  countOutstanding: 1,
+  totalFilteredMinorUnits: 11700,
+};
+
 const mockListResponse = (
   invoices: InvoiceListItem[] = [mockInvoice()],
   total = invoices.length
 ) => ({
   invoices,
   total,
+  aggregates: DEFAULT_AGGREGATES,
 });
 
 // ── helpers ──
@@ -185,5 +192,13 @@ describe('InvoiceList page', () => {
     const headers = screen.getAllByRole('columnheader');
     const headerTexts = headers.map((h) => h.textContent);
     expect(headerTexts).toEqual(['מספר', 'סוג', 'לקוח', 'תאריך', 'סכום', 'סטטוס']);
+  });
+
+  it('renders summary row with aggregate data', async () => {
+    await renderWithInvoices();
+
+    expect(screen.getByText('ממתין לתשלום:')).toBeInTheDocument();
+    expect(screen.getByText('סה״כ בסינון:')).toBeInTheDocument();
+    expect(screen.getByText(/1 חשבונית\)/)).toBeInTheDocument();
   });
 });
