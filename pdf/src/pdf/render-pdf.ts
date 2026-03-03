@@ -31,11 +31,7 @@ const BLOCKED_IPV4_PREFIXES = [
 
 const BLOCKED_IPV6_PREFIXES = ['fc', 'fd', 'fe8', 'fe9', 'fea', 'feb', 'ff'];
 
-const BLOCKED_HOSTNAMES = new Set([
-  'localhost',
-  'metadata.google.internal',
-  'metadata.internal',
-]);
+const BLOCKED_HOSTNAMES = new Set(['localhost', 'metadata.google.internal', 'metadata.internal']);
 
 function isBlockedIpv6(addr: string): boolean {
   const lower = addr.toLowerCase();
