@@ -10,31 +10,15 @@ export const optionalNullableString = nullableString.optional();
 
 export const nullableEmail = z.union([z.string().trim().email(), z.literal(null)]);
 
-export const optionalNullableEmail = nullableEmail.optional();
-
-export const optionalNullableBoolean = z.union([z.boolean(), z.literal(null)]).optional();
-
 export const dateString = z.string().trim().date();
 export const nullableDateString = z.union([dateString, z.literal(null)]);
 
 export const nullableUuid = z.union([uuidSchema, z.literal(null)]);
 export const nullableInt = z.union([z.number().int(), z.literal(null)]);
 
-export const optionalNullableDateInput = z
-  .union([
-    z
-      .string()
-      .trim()
-      .refine((value) => !Number.isNaN(Date.parse(value)), { message: 'Invalid date format' }),
-    z.literal(null),
-  ])
-  .optional();
-
 export const okResponseSchema = z.object({ ok: z.literal(true) });
 
 export const nullableNumber = z.union([z.number().finite(), z.literal(null)]);
-
-export const optionalNullableNumber = nullableNumber.optional();
 
 export const isoDateTime = z
   .string()
@@ -42,5 +26,3 @@ export const isoDateTime = z
   .datetime({ offset: true });
 
 export const nullableIsoDateTime = z.union([isoDateTime, z.literal(null)]);
-
-export const optionalNullableIsoDateTime = nullableIsoDateTime.optional();

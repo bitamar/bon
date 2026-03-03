@@ -3,14 +3,14 @@ import { z } from 'zod';
 export const STANDARD_VAT_RATE_BP = 1700;
 export const DEFAULT_CURRENCY = 'ILS';
 
-export const lineCalcInputSchema = z.object({
+const lineCalcInputSchema = z.object({
   quantity: z.number().positive(),
   unitPriceMinorUnits: z.number().int().nonnegative(),
   discountPercent: z.number().min(0).max(100),
   vatRateBasisPoints: z.number().int().nonnegative(),
 });
 
-export const lineCalcResultSchema = z.object({
+const lineCalcResultSchema = z.object({
   grossMinorUnits: z.number().int(),
   discountMinorUnits: z.number().int(),
   lineTotalMinorUnits: z.number().int(),
@@ -18,7 +18,7 @@ export const lineCalcResultSchema = z.object({
   lineTotalInclVatMinorUnits: z.number().int(),
 });
 
-export const invoiceTotalsSchema = z.object({
+const invoiceTotalsSchema = z.object({
   subtotalMinorUnits: z.number().int(),
   discountMinorUnits: z.number().int(),
   totalExclVatMinorUnits: z.number().int(),
