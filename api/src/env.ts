@@ -11,6 +11,8 @@ const Env = z.object({
   URL: z.string().url(),
   PDF_SERVICE_URL: z.string().url(),
   PDF_STORAGE_DIR: z.string().default('.data/pdfs'),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().email().default('noreply@bon.co.il'),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_TIME_WINDOW: z
     .union([z.coerce.number().int().positive(), z.string()])

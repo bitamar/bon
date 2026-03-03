@@ -19,7 +19,7 @@ import {
 import { findCustomerById } from '../repositories/customer-repository.js';
 import { findBusinessById } from '../repositories/business-repository.js';
 import type { CustomerRecord } from '../repositories/customer-repository.js';
-import { notFound, unprocessableEntity } from '../lib/app-error.js';
+import { AppError, notFound, unprocessableEntity } from '../lib/app-error.js';
 import { assignInvoiceNumber, documentTypeToSequenceGroup } from '../lib/invoice-sequences.js';
 import { serializeInvoice, serializeInvoiceItem } from '../lib/invoice-serializers.js';
 import { toNumber } from '../lib/numeric.js';
@@ -401,6 +401,63 @@ export async function finalize(
 
     return buildResponse(updated, updatedItems);
   });
+}
+
+const SENDABLE_STATUSES = new Set(['finalized', 'sent']);
+
+export async function sendInvoice(
+  businessId: string,
+  invoiceId: string,
+  body: { recipientEmail?: string | undefined }
+): Promise<{ sentAt: string }> {
+  const invoice = await findInvoiceById(invoiceId, businessId);
+  if (!invoice) throw notFound();
+
+  if (!SENDABLE_STATUSES.has(invoice.status)) {
+    throw unprocessableEntity({ code: 'not_sendable' });
+  }
+
+  const recipientEmail = body.recipientEmail ?? invoice.customerEmail;
+  if (!recipientEmail) {
+    throw unprocessableEntity({ code: 'missing_email' });
+  }
+
+  const business = await findBusinessById(businessId);
+  if (!business) throw notFound();
+
+  const { generateInvoicePdf } = await import('./pdf-service.js');
+  const { pdf, filename } = await generateInvoicePdf(businessId, invoiceId);
+
+  const { emailService, buildInvoiceEmailSubject, buildInvoiceEmailHtml } =
+    await import('./email-service.js');
+
+  const serializedInvoice = serializeInvoice(invoice);
+
+  try {
+    await emailService.send({
+      to: recipientEmail,
+      subject: buildInvoiceEmailSubject(serializedInvoice, business.name),
+      html: buildInvoiceEmailHtml(serializedInvoice, business.name),
+      attachments: [{ filename, content: pdf }],
+    });
+  } catch (err: unknown) {
+    if (err instanceof AppError) throw err;
+    throw new AppError({
+      statusCode: 502,
+      code: 'email_delivery_failed',
+      message: 'Failed to send email',
+      cause: err,
+    });
+  }
+
+  const now = new Date();
+  await updateInvoice(invoiceId, businessId, {
+    status: 'sent',
+    sentAt: now,
+    updatedAt: now,
+  });
+
+  return { sentAt: now.toISOString() };
 }
 
 export async function listInvoices(

@@ -1,24 +1,28 @@
+import { useState } from 'react';
 import {
   Badge,
   Button,
   Container,
   Divider,
   Group,
+  Modal,
   Paper,
   Skeleton,
   Stack,
   Table,
   Text,
+  TextInput,
 } from '@mantine/core';
 import { IconFileDownload, IconMail, IconCash, IconReceiptRefund } from '@tabler/icons-react';
 import { Navigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
 import { InvoiceTotalsSummary } from '../components/InvoiceTotalsSummary';
 import { InvoiceAnnotation } from '../components/InvoiceAnnotation';
-import { fetchInvoice } from '../api/invoices';
+import { fetchInvoice, sendInvoiceByEmail } from '../api/invoices';
 import { queryKeys } from '../lib/queryKeys';
+import { useApiMutation } from '../lib/useApiMutation';
 import { useBusiness } from '../contexts/BusinessContext';
 import { formatDate, formatMinorUnits } from '@bon/types/formatting';
 import { DOCUMENT_TYPE_LABELS, type InvoiceStatus } from '@bon/types/invoices';
@@ -41,6 +45,8 @@ const CREDIT_NOTE_ELIGIBLE: readonly InvoiceStatus[] = [
   'paid',
   'partially_paid',
 ] as const;
+
+const SENDABLE_STATUSES: readonly InvoiceStatus[] = ['finalized', 'sent'] as const;
 
 function DetailSkeleton() {
   return (
@@ -79,11 +85,28 @@ export function InvoiceDetail() {
     invoiceId: string;
   }>();
   const { activeBusiness } = useBusiness();
+  const queryClient = useQueryClient();
+
+  const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
 
   const invoiceQuery = useQuery({
     queryKey: queryKeys.invoice(businessId, invoiceId),
     queryFn: () => fetchInvoice(businessId, invoiceId),
     enabled: !!businessId && !!invoiceId,
+  });
+
+  const sendMutation = useApiMutation({
+    mutationFn: () =>
+      sendInvoiceByEmail(businessId, invoiceId, {
+        recipientEmail: recipientEmail || undefined,
+      }),
+    successToast: { message: 'החשבונית נשלחה בהצלחה' },
+    onSuccess: () => {
+      setSendModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.invoice(businessId, invoiceId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.invoices(businessId) });
+    },
   });
 
   // ── Guards ──
@@ -126,7 +149,13 @@ export function InvoiceDetail() {
   const statusConfig = INVOICE_STATUS_CONFIG[invoice.status];
   const documentTypeLabel = DOCUMENT_TYPE_LABELS[invoice.documentType] ?? invoice.documentType;
   const showCreditNote = CREDIT_NOTE_ELIGIBLE.includes(invoice.status);
+  const canSend = SENDABLE_STATUSES.includes(invoice.status);
   const vatLabel = computeVatLabel(items.map((i) => i.vatRateBasisPoints));
+
+  function openSendModal() {
+    setRecipientEmail(invoice.customerEmail ?? '');
+    setSendModalOpen(true);
+  }
 
   return (
     <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
@@ -176,8 +205,9 @@ export function InvoiceDetail() {
             <Button
               variant="light"
               leftSection={<IconMail size={16} />}
-              disabled
-              title="יהיה זמין בקרוב"
+              disabled={!canSend}
+              title={canSend ? 'שלח חשבונית במייל' : 'יהיה זמין בקרוב'}
+              onClick={openSendModal}
             >
               שלח במייל
             </Button>
@@ -324,6 +354,41 @@ export function InvoiceDetail() {
           </Stack>
         </Paper>
       </Stack>
+
+      {/* Send email modal */}
+      <Modal
+        opened={sendModalOpen}
+        onClose={() => setSendModalOpen(false)}
+        title="שליחת חשבונית במייל"
+        centered
+      >
+        <Stack gap="md">
+          <TextInput
+            label="כתובת מייל"
+            placeholder="email@example.com"
+            value={recipientEmail}
+            onChange={(e) => setRecipientEmail(e.currentTarget.value)}
+            type="email"
+            dir="ltr"
+            data-testid="send-email-input"
+          />
+          <Text size="sm" c="dimmed">
+            החשבונית תישלח כקובץ PDF מצורף.
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={() => setSendModalOpen(false)}>
+              ביטול
+            </Button>
+            <Button
+              onClick={() => sendMutation.mutate()}
+              loading={sendMutation.isPending}
+              disabled={!recipientEmail}
+            >
+              שלח
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Container>
   );
 }
