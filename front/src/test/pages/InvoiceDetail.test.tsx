@@ -37,6 +37,7 @@ describe('InvoiceDetail page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockActiveBusiness(useBusiness);
+    vi.mocked(invoicesApi.fetchInvoice).mockReturnValue(new Promise(() => {}));
   });
 
   it('shows error when no active business', () => {

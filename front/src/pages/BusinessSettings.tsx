@@ -73,13 +73,13 @@ export function BusinessSettings() {
   const form = useForm<UpdateBusinessBody & { registrationNumber: string }>({
     initialValues: {
       name: '',
-      vatNumber: undefined,
+      vatNumber: '',
       streetAddress: '',
       city: '',
       postalCode: undefined,
-      phone: undefined,
-      email: undefined,
-      invoiceNumberPrefix: undefined,
+      phone: '',
+      email: '',
+      invoiceNumberPrefix: '',
       defaultVatRate: 1700,
       registrationNumber: '',
     },
@@ -113,13 +113,13 @@ export function BusinessSettings() {
       const { business } = businessQuery.data;
       form.setValues({
         name: business.name ?? '',
-        vatNumber: business.vatNumber ?? undefined,
+        vatNumber: business.vatNumber ?? '',
         streetAddress: business.streetAddress ?? '',
         city: business.city ?? '',
         postalCode: business.postalCode ?? undefined,
-        phone: business.phone ?? undefined,
-        email: business.email ?? undefined,
-        invoiceNumberPrefix: business.invoiceNumberPrefix ?? undefined,
+        phone: business.phone ?? '',
+        email: business.email ?? '',
+        invoiceNumberPrefix: business.invoiceNumberPrefix ?? '',
         defaultVatRate: business.defaultVatRate,
         registrationNumber: business.registrationNumber,
       });
@@ -172,8 +172,17 @@ export function BusinessSettings() {
   }
 
   const onSubmit = form.onSubmit((values) => {
-    const { registrationNumber: _, ...updateData } = values;
-    updateMutation.mutate({ id: businessId, data: updateData });
+    const { registrationNumber: _, ...rest } = values;
+    updateMutation.mutate({
+      id: businessId,
+      data: {
+        ...rest,
+        vatNumber: rest.vatNumber || undefined,
+        phone: rest.phone || undefined,
+        email: rest.email || undefined,
+        invoiceNumberPrefix: rest.invoiceNumberPrefix || undefined,
+      },
+    });
   });
 
   const initialCity = businessQuery.data?.business.city ?? '';

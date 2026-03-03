@@ -65,6 +65,7 @@ describe('CustomerList page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockActiveBusiness(useBusiness);
+    vi.mocked(customersApi.fetchCustomers).mockReturnValue(new Promise(() => {}));
   });
 
   it('shows error when no active business', () => {
