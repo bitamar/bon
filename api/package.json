@@ -17,7 +17,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "NODE_PATH=./node_modules drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "@bon/types": "file:../types",
