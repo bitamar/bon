@@ -706,6 +706,8 @@ describe('routes/invoices', () => {
       // But outstanding aggregate ignores the status chip
       expect(body.aggregates.countOutstanding).toBe(1);
       expect(body.aggregates.totalOutstandingMinorUnits).toBeGreaterThan(0);
+      // Filtered aggregate does respect the status chip — no drafts match
+      expect(body.aggregates.totalFilteredMinorUnits).toBe(0);
     });
 
     it('returns 404 for a non-member business', async () => {

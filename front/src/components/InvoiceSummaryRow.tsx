@@ -14,7 +14,8 @@ export function InvoiceSummaryRow({ aggregates }: Readonly<{ aggregates: Invoice
             {formatMinorUnits(aggregates.totalOutstandingMinorUnits)}
           </Text>
           <Text size="sm" c="dimmed">
-            ({aggregates.countOutstanding} חשבוניות)
+            ({aggregates.countOutstanding}{' '}
+            {aggregates.countOutstanding === 1 ? 'חשבונית' : 'חשבוניות'})
           </Text>
         </Group>
         <Group gap="xs">

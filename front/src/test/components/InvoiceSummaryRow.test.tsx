@@ -26,7 +26,7 @@ describe('InvoiceSummaryRow', () => {
 
     expect(screen.getByText('ממתין לתשלום:')).toBeInTheDocument();
     expect(screen.getByText(/1,500/)).toBeInTheDocument();
-    expect(screen.getByText('(3 חשבוניות)')).toBeInTheDocument();
+    expect(screen.getByText(/3 חשבוניות/)).toBeInTheDocument();
   });
 
   it('renders filtered total', () => {
@@ -42,11 +42,18 @@ describe('InvoiceSummaryRow', () => {
     expect(screen.getByText(/2,500/)).toBeInTheDocument();
   });
 
+  it('uses singular form for count of 1', () => {
+    renderWithProviders(<InvoiceSummaryRow aggregates={makeAggregates({ countOutstanding: 1 })} />);
+
+    expect(screen.getByText(/חשבונית\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/חשבוניות/)).not.toBeInTheDocument();
+  });
+
   it('renders zero amounts correctly', () => {
     renderWithProviders(<InvoiceSummaryRow aggregates={makeAggregates()} />);
 
     expect(screen.getByText('ממתין לתשלום:')).toBeInTheDocument();
     expect(screen.getByText('סה״כ בסינון:')).toBeInTheDocument();
-    expect(screen.getByText('(0 חשבוניות)')).toBeInTheDocument();
+    expect(screen.getByText(/0 חשבוניות/)).toBeInTheDocument();
   });
 });
