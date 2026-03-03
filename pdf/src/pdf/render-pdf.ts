@@ -1,10 +1,11 @@
 import { URL } from 'node:url';
+import net from 'node:net';
 import type { Browser, Page, HTTPRequest } from 'puppeteer-core';
 import puppeteer from 'puppeteer-core';
 import { renderInvoiceHtml } from './render-html.js';
 import type { PdfRenderInput } from '@bon/types/pdf';
 
-const BLOCKED_IP_PREFIXES = [
+const BLOCKED_IPV4_PREFIXES = [
   '10.',
   '172.16.',
   '172.17.',
@@ -28,21 +29,43 @@ const BLOCKED_IP_PREFIXES = [
   '169.254.',
 ];
 
+const BLOCKED_IPV6_PREFIXES = ['fc', 'fd', 'fe8', 'fe9', 'fea', 'feb', 'ff'];
+
+const BLOCKED_HOSTNAMES = new Set([
+  'localhost',
+  'metadata.google.internal',
+  'metadata.internal',
+]);
+
+function isBlockedIpv6(addr: string): boolean {
+  const lower = addr.toLowerCase();
+  if (lower === '::1' || lower === '::') return true;
+  return BLOCKED_IPV6_PREFIXES.some((prefix) => lower.startsWith(prefix));
+}
+
 function isBlockedRequest(urlStr: string): boolean {
-  // Block non-HTTPS schemes (file://, data://, ftp://, etc.)
-  // Allow about: and data: for initial page content only when the page is navigated via setContent
   try {
     const parsed = new URL(urlStr);
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return true;
-    const hostname = parsed.hostname;
-    if (hostname === 'localhost' || hostname === '[::1]') return true;
-    if (BLOCKED_IP_PREFIXES.some((prefix) => hostname.startsWith(prefix))) return true;
-    // Block metadata endpoints
-    if (hostname === '169.254.169.254') return true;
+
+    // Strip brackets from IPv6 hostnames (e.g. [::1] -> ::1)
+    const raw = parsed.hostname;
+    const hostname = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
+
+    if (BLOCKED_HOSTNAMES.has(hostname.toLowerCase())) return true;
+
+    if (net.isIPv4(hostname)) {
+      return BLOCKED_IPV4_PREFIXES.some((prefix) => hostname.startsWith(prefix));
+    }
+
+    if (net.isIPv6(hostname)) {
+      return isBlockedIpv6(hostname);
+    }
+
+    return false;
   } catch {
     return true;
   }
-  return false;
 }
 
 const MAX_CONCURRENT_PAGES = 3;
