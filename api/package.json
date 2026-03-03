@@ -17,7 +17,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "tsx src/db/migrate.ts"
   },
   "dependencies": {
     "@bon/types": "file:../types",
@@ -36,6 +36,7 @@
     "openid-client": "^6.8.2",
     "pg": "^8.19.0",
     "pino": "^10.3.1",
+    "tsx": "^4.21.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -49,7 +50,6 @@
     "eslint": "^10.0.2",
     "globals": "^17.3.0",
     "testcontainers": "^11.12.0",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   }
