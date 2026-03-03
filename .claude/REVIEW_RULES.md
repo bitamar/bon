@@ -53,6 +53,30 @@ import { Route, Routes } from 'react-router-dom';
 import { useLocation, Route, Routes } from 'react-router-dom';
 ```
 
+## CodeRabbit Rules
+
+### Prefer optional chaining over `&&` property access
+
+When accessing a property that is guarded by a null check on the same object, use optional chaining (`?.`) instead of `&&`.
+
+**Wrong:**
+```ts
+if (foo && foo.bar.length === 0) { ... }
+const x = obj && obj.prop;
+```
+
+**Right:**
+```ts
+if (foo?.bar.length === 0) { ... }
+const x = obj?.prop;
+```
+
+Note: when the falsy case needs a different value (not `undefined`), a ternary is still correct:
+```ts
+// ✅ ternary needed — we want 0, not undefined
+const total = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
+```
+
 ## Test Quality Rules (from reviews)
 
 ### Assertions must verify behavior, not just render

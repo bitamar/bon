@@ -9,6 +9,8 @@ export const queryKeys = {
   customer: (businessId: string, customerId: string) =>
     ['businesses', businessId, 'customers', customerId] as const,
   invoices: (businessId: string) => ['businesses', businessId, 'invoices'] as const,
+  invoiceList: (businessId: string, params: Record<string, string>) =>
+    ['businesses', businessId, 'invoices', 'list', params] as const,
   invoice: (businessId: string, invoiceId: string) =>
     ['businesses', businessId, 'invoices', invoiceId] as const,
 };

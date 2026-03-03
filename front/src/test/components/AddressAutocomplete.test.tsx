@@ -38,6 +38,22 @@ function TestForm() {
 
 type User = ReturnType<typeof userEvent.setup>;
 
+function mockCitiesSuccess(cities: addressApi.CityOption[]) {
+  vi.mocked(addressApi.fetchAllCities).mockResolvedValue(cities);
+}
+
+function mockCitiesError() {
+  vi.mocked(addressApi.fetchAllCities).mockRejectedValue(new Error('API unavailable'));
+}
+
+function mockStreetsSuccess(streets: addressApi.StreetOption[]) {
+  vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue(streets);
+}
+
+function mockStreetsError() {
+  vi.mocked(addressApi.fetchAllStreetsForCity).mockRejectedValue(new Error('API unavailable'));
+}
+
 async function selectCity(user: User, cityName: string) {
   await user.type(screen.getByRole('textbox', { name: /^עיר/ }), cityName);
   await waitFor(() => expect(screen.getByText(cityName)).toBeInTheDocument());
@@ -52,9 +68,7 @@ async function selectStreet(user: User, streetName: string) {
 }
 
 async function renderAndSelectTelAviv(user: User) {
-  vi.mocked(addressApi.fetchAllCities).mockResolvedValue([
-    { name: 'תל אביב - יפו', code: '5000 ' },
-  ]);
+  mockCitiesSuccess([{ name: 'תל אביב - יפו', code: '5000 ' }]);
   renderWithProviders(<TestForm />);
   await selectCity(user, 'תל אביב - יפו');
 }
@@ -64,8 +78,8 @@ async function renderAndSelectTelAviv(user: User) {
 describe('AddressAutocomplete', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([]);
-    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
+    mockCitiesSuccess([]);
+    mockStreetsSuccess([]);
     vi.mocked(addressApi.filterOptions).mockImplementation(
       <T extends { name: string }>(options: T[], query: string): T[] => {
         const q = query.trim();
@@ -95,7 +109,7 @@ describe('AddressAutocomplete', () => {
 
   it('shows city dropdown options when typing', async () => {
     const user = userEvent.setup();
-    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([
+    mockCitiesSuccess([
       { name: 'תל אביב - יפו', code: '5000 ' },
       { name: 'ירושלים', code: '3000 ' },
     ]);
@@ -122,11 +136,7 @@ describe('AddressAutocomplete', () => {
 
   it('shows street dropdown and selecting a street populates the street field', async () => {
     const user = userEvent.setup();
-    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([
-      { name: 'דיזנגוף' },
-      { name: 'ככר דיזנגוף' },
-      { name: 'רוטשילד' },
-    ]);
+    mockStreetsSuccess([{ name: 'דיזנגוף' }, { name: 'ככר דיזנגוף' }, { name: 'רוטשילד' }]);
     await renderAndSelectTelAviv(user);
     await selectStreet(user, 'דיזנגוף');
 
@@ -137,7 +147,7 @@ describe('AddressAutocomplete', () => {
 
   it('typing in house number field does not reopen the street dropdown', async () => {
     const user = userEvent.setup();
-    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([{ name: 'דיזנגוף' }]);
+    mockStreetsSuccess([{ name: 'דיזנגוף' }]);
     await renderAndSelectTelAviv(user);
     await selectStreet(user, 'דיזנגוף');
 
@@ -161,6 +171,56 @@ describe('AddressAutocomplete', () => {
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /^רחוב/ })).toBeDisabled();
       expect(screen.getByRole('textbox', { name: /מספר בית/ })).toBeDisabled();
+    });
+  });
+
+  describe('API error handling', () => {
+    it('shows a warning when city API returns an error', async () => {
+      mockCitiesError();
+      renderWithProviders(<TestForm />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('address-api-warning')).toBeInTheDocument();
+        expect(screen.getByText(/שירות הכתובות אינו זמין/)).toBeInTheDocument();
+      });
+    });
+
+    it('enables street fields for free-text entry when city API is down', async () => {
+      const user = userEvent.setup();
+      mockCitiesError();
+      renderWithProviders(<TestForm />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('address-api-warning')).toBeInTheDocument();
+      });
+
+      // City field should be enabled for manual input
+      const cityInput = screen.getByRole('textbox', { name: /^עיר/ });
+      expect(cityInput).not.toBeDisabled();
+
+      // Type a city manually
+      await user.type(cityInput, 'חיפה');
+      expect(cityInput).toHaveValue('חיפה');
+
+      // Street fields should be enabled for manual input when API is down
+      const streetInput = screen.getByRole('textbox', { name: /^רחוב/ });
+      expect(streetInput).not.toBeDisabled();
+
+      await user.type(streetInput, 'הרצל');
+      expect(streetInput).toHaveValue('הרצל');
+    });
+
+    it('shows a warning when street API returns an error', async () => {
+      const user = userEvent.setup();
+      mockCitiesSuccess([{ name: 'תל אביב - יפו', code: '5000 ' }]);
+      mockStreetsError();
+      renderWithProviders(<TestForm />);
+
+      await selectCity(user, 'תל אביב - יפו');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('address-api-warning')).toBeInTheDocument();
+      });
     });
   });
 });

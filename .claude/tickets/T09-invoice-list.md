@@ -1,8 +1,8 @@
 # T09 — Invoice List & Search
 
-**Status**: 🔒 Blocked (T08 must merge first)
+**Status**: ✅ Merged to main
 **Phase**: 2 — Invoices
-**Requires**: T08 merged
+**Requires**: T08 merged (done)
 
 ---
 
@@ -347,6 +347,6 @@ T08-C/D are frontend-only (modals, detail page). T09 backend PR touches `api/src
 
 ## Links
 
-- Branch: —
-- PR: —
+- Branch (PR1 backend): merged as PR #28
+- Branch (PR2 frontend): merged as claude/review-t09-plan-VsIQa
 - Deployed: ⬜

@@ -22,7 +22,6 @@ import { useBusiness } from './contexts/BusinessContext';
 import classes from './Navbar.module.css';
 
 const navLinkClass = classes['navLink'] ?? '';
-const disabledClass = `${navLinkClass} ${classes['disabledLink'] ?? ''}`;
 
 export default function Navbar() {
   const { pathname } = useLocation();
@@ -71,10 +70,12 @@ export default function Navbar() {
           className={navLinkClass}
         />
         <NavLink
+          component={Link}
+          to={activeBusiness ? `${bizPrefix}/invoices` : '/'}
           label="חשבוניות"
           leftSection={<IconFileInvoice size={18} />}
-          disabled
-          className={disabledClass}
+          active={pathname.includes('/invoices')}
+          className={navLinkClass}
         />
         {activeBusiness?.role === 'owner' && (
           <NavLink

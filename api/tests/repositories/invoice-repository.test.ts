@@ -13,6 +13,8 @@ import {
   findItemsByInvoiceId,
   findInvoices,
   countInvoices,
+  aggregateOutstanding,
+  aggregateFiltered,
 } from '../../src/repositories/invoice-repository.js';
 import { resetDb } from '../utils/db.js';
 
@@ -267,17 +269,6 @@ function toDateStr(value: string | Date | null | undefined): string | null {
 describe('findInvoices / countInvoices', () => {
   let businessId: string;
 
-  // ── helpers ──
-
-  function baseFilters() {
-    return {
-      businessId,
-      sort: 'createdAt:desc',
-      offset: 0,
-      limit: 50,
-    };
-  }
-
   beforeEach(async () => {
     await resetDb();
     const biz = await seedBusinessWithOwner();
@@ -289,8 +280,8 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId);
     await createTestInvoice(businessId);
 
-    const rows = await findInvoices(baseFilters());
-    const total = await countInvoices(baseFilters());
+    const rows = await findInvoices(baseAggregateFilters(businessId));
+    const total = await countInvoices(baseAggregateFilters(businessId));
 
     expect(rows).toHaveLength(3);
     expect(total).toBe(3);
@@ -300,8 +291,8 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId, { status: 'draft' });
     await createTestInvoice(businessId, { status: 'finalized' });
 
-    const rows = await findInvoices({ ...baseFilters(), status: ['draft'] });
-    const total = await countInvoices({ ...baseFilters(), status: ['draft'] });
+    const rows = await findInvoices({ ...baseAggregateFilters(businessId), status: ['draft'] });
+    const total = await countInvoices({ ...baseAggregateFilters(businessId), status: ['draft'] });
 
     expect(rows).toHaveLength(1);
     expect(rows[0]!.status).toBe('draft');
@@ -313,8 +304,14 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId, { status: 'finalized' });
     await createTestInvoice(businessId, { status: 'paid' });
 
-    const rows = await findInvoices({ ...baseFilters(), status: ['draft', 'finalized'] });
-    const total = await countInvoices({ ...baseFilters(), status: ['draft', 'finalized'] });
+    const rows = await findInvoices({
+      ...baseAggregateFilters(businessId),
+      status: ['draft', 'finalized'],
+    });
+    const total = await countInvoices({
+      ...baseAggregateFilters(businessId),
+      status: ['draft', 'finalized'],
+    });
 
     expect(rows).toHaveLength(2);
     expect(total).toBe(2);
@@ -331,8 +328,14 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId, { customerId: customerA.id });
     await createTestInvoice(businessId, { customerId: customerB.id });
 
-    const rows = await findInvoices({ ...baseFilters(), customerId: customerA.id });
-    const total = await countInvoices({ ...baseFilters(), customerId: customerA.id });
+    const rows = await findInvoices({
+      ...baseAggregateFilters(businessId),
+      customerId: customerA.id,
+    });
+    const total = await countInvoices({
+      ...baseAggregateFilters(businessId),
+      customerId: customerA.id,
+    });
 
     expect(rows).toHaveLength(2);
     expect(total).toBe(2);
@@ -345,12 +348,12 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId, { invoiceDate: '2026-03-31' });
 
     const rows = await findInvoices({
-      ...baseFilters(),
+      ...baseAggregateFilters(businessId),
       dateFrom: '2026-01-15',
       dateTo: '2026-03-01',
     });
     const total = await countInvoices({
-      ...baseFilters(),
+      ...baseAggregateFilters(businessId),
       dateFrom: '2026-01-15',
       dateTo: '2026-03-01',
     });
@@ -365,8 +368,8 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId, { status: 'finalized', documentNumber: 'INV-0099' });
     await createTestInvoice(businessId, { status: 'finalized', documentNumber: 'REC-0001' });
 
-    const rows = await findInvoices({ ...baseFilters(), q: 'INV' });
-    const total = await countInvoices({ ...baseFilters(), q: 'INV' });
+    const rows = await findInvoices({ ...baseAggregateFilters(businessId), q: 'INV' });
+    const total = await countInvoices({ ...baseAggregateFilters(businessId), q: 'INV' });
 
     expect(rows).toHaveLength(2);
     expect(total).toBe(2);
@@ -378,8 +381,8 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId, { customerName: 'Beta Ltd' });
     await createTestInvoice(businessId, { customerName: 'Acme Holdings' });
 
-    const rows = await findInvoices({ ...baseFilters(), q: 'Acme' });
-    const total = await countInvoices({ ...baseFilters(), q: 'Acme' });
+    const rows = await findInvoices({ ...baseAggregateFilters(businessId), q: 'Acme' });
+    const total = await countInvoices({ ...baseAggregateFilters(businessId), q: 'Acme' });
 
     expect(rows).toHaveLength(2);
     expect(total).toBe(2);
@@ -393,9 +396,9 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId);
     await createTestInvoice(businessId);
 
-    const page1 = await findInvoices({ ...baseFilters(), offset: 0, limit: 2 });
-    const page3 = await findInvoices({ ...baseFilters(), offset: 4, limit: 2 });
-    const total = await countInvoices(baseFilters());
+    const page1 = await findInvoices({ ...baseAggregateFilters(businessId), offset: 0, limit: 2 });
+    const page3 = await findInvoices({ ...baseAggregateFilters(businessId), offset: 4, limit: 2 });
+    const total = await countInvoices(baseAggregateFilters(businessId));
 
     expect(page1).toHaveLength(2);
     expect(page3).toHaveLength(1);
@@ -407,7 +410,10 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId, { invoiceDate: '2026-03-20' });
     await createTestInvoice(businessId, { invoiceDate: '2026-02-05' });
 
-    const rows = await findInvoices({ ...baseFilters(), sort: 'invoiceDate:desc' });
+    const rows = await findInvoices({
+      ...baseAggregateFilters(businessId),
+      sort: 'invoiceDate:desc',
+    });
 
     expect(toDateStr(rows[0]!.invoiceDate)).toBe('2026-03-20');
     expect(toDateStr(rows[1]!.invoiceDate)).toBe('2026-02-05');
@@ -419,7 +425,7 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId, { dueDate: null });
     await createTestInvoice(businessId, { dueDate: '2026-01-01' });
 
-    const rows = await findInvoices({ ...baseFilters(), sort: 'dueDate:asc' });
+    const rows = await findInvoices({ ...baseAggregateFilters(businessId), sort: 'dueDate:asc' });
 
     expect(toDateStr(rows[0]!.dueDate)).toBe('2026-01-01');
     expect(toDateStr(rows[1]!.dueDate)).toBe('2026-03-01');
@@ -433,10 +439,16 @@ describe('findInvoices / countInvoices', () => {
     await createTestInvoice(businessId);
     await createTestInvoice(otherBiz.id);
 
-    const rowsForBiz = await findInvoices(baseFilters());
-    const rowsForOther = await findInvoices({ ...baseFilters(), businessId: otherBiz.id });
-    const totalForBiz = await countInvoices(baseFilters());
-    const totalForOther = await countInvoices({ ...baseFilters(), businessId: otherBiz.id });
+    const rowsForBiz = await findInvoices(baseAggregateFilters(businessId));
+    const rowsForOther = await findInvoices({
+      ...baseAggregateFilters(businessId),
+      businessId: otherBiz.id,
+    });
+    const totalForBiz = await countInvoices(baseAggregateFilters(businessId));
+    const totalForOther = await countInvoices({
+      ...baseAggregateFilters(businessId),
+      businessId: otherBiz.id,
+    });
 
     expect(rowsForBiz).toHaveLength(2);
     expect(totalForBiz).toBe(2);
@@ -444,5 +456,131 @@ describe('findInvoices / countInvoices', () => {
     expect(totalForOther).toBe(1);
     expect(rowsForBiz.every((r) => r.businessId === businessId)).toBe(true);
     expect(rowsForOther.every((r) => r.businessId === otherBiz.id)).toBe(true);
+  });
+});
+
+// ── aggregateOutstanding / aggregateFiltered ──
+
+function baseAggregateFilters(businessId: string) {
+  return {
+    businessId,
+    sort: 'createdAt:desc',
+    offset: 0,
+    limit: 50,
+  };
+}
+
+describe('aggregateOutstanding', () => {
+  let businessId: string;
+
+  beforeEach(async () => {
+    await resetDb();
+    const biz = await seedBusinessWithOwner();
+    businessId = biz.id;
+  });
+
+  it('sums only finalized, sent, and partially_paid invoices', async () => {
+    await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
+    await createTestInvoice(businessId, { status: 'finalized', totalInclVatMinorUnits: 2000 });
+    await createTestInvoice(businessId, { status: 'sent', totalInclVatMinorUnits: 3000 });
+    await createTestInvoice(businessId, { status: 'partially_paid', totalInclVatMinorUnits: 4000 });
+    await createTestInvoice(businessId, { status: 'paid', totalInclVatMinorUnits: 5000 });
+    await createTestInvoice(businessId, { status: 'cancelled', totalInclVatMinorUnits: 6000 });
+
+    const result = await aggregateOutstanding(baseAggregateFilters(businessId));
+
+    expect(result.total).toBe(9000); // 2000 + 3000 + 4000
+    expect(result.count).toBe(3);
+  });
+
+  it('ignores status filter chip but respects customer filter', async () => {
+    const customer = await seedCustomer(businessId);
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 1000,
+      customerId: customer.id,
+    });
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 2000,
+    });
+
+    const result = await aggregateOutstanding({
+      ...baseAggregateFilters(businessId),
+      status: ['draft'], // status chip set to draft — should be ignored
+      customerId: customer.id,
+    });
+
+    expect(result.total).toBe(1000);
+    expect(result.count).toBe(1);
+  });
+
+  it('respects date range filters', async () => {
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 1000,
+      invoiceDate: '2026-01-15',
+    });
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 2000,
+      invoiceDate: '2026-03-15',
+    });
+
+    const result = await aggregateOutstanding({
+      ...baseAggregateFilters(businessId),
+      dateFrom: '2026-01-01',
+      dateTo: '2026-01-31',
+    });
+
+    expect(result.total).toBe(1000);
+    expect(result.count).toBe(1);
+  });
+
+  it('returns zero when no outstanding invoices', async () => {
+    await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
+    await createTestInvoice(businessId, { status: 'paid', totalInclVatMinorUnits: 2000 });
+
+    const result = await aggregateOutstanding(baseAggregateFilters(businessId));
+
+    expect(result.total).toBe(0);
+    expect(result.count).toBe(0);
+  });
+});
+
+describe('aggregateFiltered', () => {
+  let businessId: string;
+
+  beforeEach(async () => {
+    await resetDb();
+    const biz = await seedBusinessWithOwner();
+    businessId = biz.id;
+  });
+
+  it('sums all invoices matching the current filters', async () => {
+    await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
+    await createTestInvoice(businessId, { status: 'finalized', totalInclVatMinorUnits: 2000 });
+    await createTestInvoice(businessId, { status: 'paid', totalInclVatMinorUnits: 3000 });
+
+    const result = await aggregateFiltered(baseAggregateFilters(businessId));
+
+    expect(result).toBe(6000);
+  });
+
+  it('respects status filter', async () => {
+    await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
+    await createTestInvoice(businessId, { status: 'finalized', totalInclVatMinorUnits: 2000 });
+
+    const result = await aggregateFiltered({
+      ...baseAggregateFilters(businessId),
+      status: ['draft'],
+    });
+
+    expect(result).toBe(1000);
+  });
+
+  it('returns zero when no invoices match', async () => {
+    const result = await aggregateFiltered(baseAggregateFilters(businessId));
+    expect(result).toBe(0);
   });
 });

@@ -52,10 +52,10 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T-ARCH-01](./T-ARCH-01-backend-type-safety.md) | Backend Type Safety & Data Layer Cleanup | ✅ | main |
 | [T-ARCH-02](./T-ARCH-02-toctou-finalization.md) | Fix TOCTOU Race in Invoice Finalization | ✅ | main |
 | [T-ARCH-03](./T-ARCH-03-frontend-routing.md) | Add businessId to Frontend Routes | ✅ | main |
-| [T-ARCH-04](./T-ARCH-04-invoice-form-state.md) | Invoice Form: useForm + Autosave | ✅ | main (PR #33) |
-| [T-ARCH-05](./T-ARCH-05-rbac-enforcement.md) | Enforce Role-Based Access Control | ✅ | main (PR #35) |
-| [T-ARCH-06](./T-ARCH-06-test-infra.md) | Replace pg-mem with real PostgreSQL | ✅ | main (PR #36) |
-| [T-ARCH-07](./T-ARCH-07-address-error-handling.md) | Address API Error Handling (post-MVP) | 🔒 | — |
+| [T-ARCH-04](./T-ARCH-04-invoice-form-state.md) | Invoice Form: useForm + Autosave | ✅ | main |
+| [T-ARCH-05](./T-ARCH-05-rbac-enforcement.md) | Enforce Role-Based Access Control | ✅ | main |
+| [T-ARCH-06](./T-ARCH-06-test-infra.md) | Replace pg-mem with testcontainers (post-MVP) |✅ | main |
+| [T-ARCH-07](./T-ARCH-07-address-error-handling.md) | Address API Error Handling (post-MVP) | ✅ | main |
 
 ### Phase 1 — Customers
 
@@ -76,7 +76,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | — [T08-B](./T08-B-finalize-backend.md) | Backend: Finalize Endpoint Extension | ✅ | main (PR #17) |
 | — [T08-C](./T08-C-finalization-flow.md) | Frontend: Finalization Flow | ✅ | main (PR #22) |
 | — [T08-D](./T08-D-detail-view.md) | Frontend: Detail View + Routing | ✅ | main (PR #22) |
-| [T09](./T09-invoice-list.md) | Invoice List & Search | 🔄 | claude/continue-t8-next-steps-NZgfx |
+| [T09](./T09-invoice-list.md) | Invoice List & Search | ✅ | main |
 | — [T09-B](./T09-B-invoice-aggregates.md) | Invoice List Aggregates & Summary Row | 🔒 | — |
 
 ### Phase 3 — PDF

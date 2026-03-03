@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql, sum } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { invoiceItems, invoices } from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
@@ -85,10 +85,10 @@ export interface InvoiceListFilters {
   limit: number;
 }
 
-function buildListConditions(filters: InvoiceListFilters) {
+function buildListConditions(filters: InvoiceListFilters, { skipStatus = false } = {}) {
   const conditions = [eq(invoices.businessId, filters.businessId)];
 
-  if (filters.status && filters.status.length > 0) {
+  if (!skipStatus && filters.status && filters.status.length > 0) {
     conditions.push(inArray(invoices.status, filters.status));
   }
   if (filters.customerId) {
@@ -170,4 +170,56 @@ export async function countInvoices(filters: InvoiceListFilters, txOrDb: DbOrTx 
     .from(invoices)
     .where(and(...conditions));
   return rows[0]?.value ?? 0;
+}
+
+// ── aggregates ──
+
+export interface AggregateResult {
+  total: number;
+  count: number;
+}
+
+const OUTSTANDING_STATUSES: InvoiceRecord['status'][] = ['finalized', 'sent', 'partially_paid'];
+
+/**
+ * Sum + count for outstanding invoices (finalized, sent, partially_paid).
+ * Ignores the status filter chip but respects all other filters.
+ */
+export async function aggregateOutstanding(
+  filters: InvoiceListFilters,
+  txOrDb: DbOrTx = db
+): Promise<AggregateResult> {
+  const conditions = buildListConditions(filters, { skipStatus: true });
+  conditions.push(inArray(invoices.status, OUTSTANDING_STATUSES));
+
+  const rows = await txOrDb
+    .select({
+      total: sum(invoices.totalInclVatMinorUnits),
+      count: count(),
+    })
+    .from(invoices)
+    .where(and(...conditions));
+
+  return {
+    total: Number(rows[0]?.total ?? 0),
+    count: rows[0]?.count ?? 0,
+  };
+}
+
+/**
+ * Sum of totalInclVatMinorUnits for the entire filtered set (respects all filters including status).
+ */
+export async function aggregateFiltered(
+  filters: InvoiceListFilters,
+  txOrDb: DbOrTx = db
+): Promise<number> {
+  const conditions = buildListConditions(filters);
+  const rows = await txOrDb
+    .select({
+      total: sum(invoices.totalInclVatMinorUnits),
+    })
+    .from(invoices)
+    .where(and(...conditions));
+
+  return Number(rows[0]?.total ?? 0);
 }
