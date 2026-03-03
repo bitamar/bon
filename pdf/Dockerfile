@@ -20,16 +20,14 @@ RUN npm run build --workspace=types && npm run build --workspace=pdf
 # ── Production stage ─────────────────────────────────────────────
 FROM node:22-slim
 
-# Install Chromium and fonts for Hebrew PDF rendering
+# Install Chromium and fonts for Hebrew PDF rendering, create non-root user
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        chromium \
        fonts-liberation \
        fonts-noto \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN groupadd -r pdf && useradd -r -g pdf -G audio,video pdf \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r pdf && useradd -r -g pdf -G audio,video pdf \
     && mkdir -p /home/pdf && chown -R pdf:pdf /home/pdf
 
 WORKDIR /app
