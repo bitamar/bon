@@ -199,6 +199,6 @@ describe('InvoiceList page', () => {
 
     expect(screen.getByText('ממתין לתשלום:')).toBeInTheDocument();
     expect(screen.getByText('סה״כ בסינון:')).toBeInTheDocument();
-    expect(screen.getByText(/חשבונית\)/)).toBeInTheDocument();
+    expect(screen.getByText(/1 חשבונית\)/)).toBeInTheDocument();
   });
 });

@@ -557,10 +557,10 @@ describe('routes/invoices', () => {
       expect(item?.currency).toBe('ILS');
       expect(item?.createdAt).toBeTruthy();
 
-      // Aggregates shape check: drafts are not outstanding
+      // Aggregates: drafts are not outstanding; filtered total = 2 × 11700
       expect(body.aggregates.countOutstanding).toBe(0);
       expect(body.aggregates.totalOutstandingMinorUnits).toBe(0);
-      expect(body.aggregates.totalFilteredMinorUnits).toBeGreaterThanOrEqual(0);
+      expect(body.aggregates.totalFilteredMinorUnits).toBe(23400);
     });
 
     it('filters by a single status', async () => {
@@ -705,7 +705,7 @@ describe('routes/invoices', () => {
       expect(body.total).toBe(0);
       // But outstanding aggregate ignores the status chip
       expect(body.aggregates.countOutstanding).toBe(1);
-      expect(body.aggregates.totalOutstandingMinorUnits).toBeGreaterThan(0);
+      expect(body.aggregates.totalOutstandingMinorUnits).toBe(11700);
       // Filtered aggregate does respect the status chip — no drafts match
       expect(body.aggregates.totalFilteredMinorUnits).toBe(0);
     });

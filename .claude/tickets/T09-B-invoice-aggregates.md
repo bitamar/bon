@@ -34,7 +34,7 @@ The invoice list's summary row shows aggregate totals: "סה"כ לגבייה" (t
 ### Frontend
 
 - [x] `InvoiceSummaryRow` component inserted between filters and content in the list page
-- [x] Shows: "ממתין לתשלום: ₪X,XXX (N חשבוניות)" + "סה"כ בסינון: ₪X,XXX"
+- [x] Shows: "ממתין לתשלום: ₪X,XXX (N חשבוניות)" (plural) / "(חשבונית 1)" (singular) + "סה"כ בסינון: ₪X,XXX"
 - [x] Updates when filters change (from query response)
 - [x] Test for InvoiceSummaryRow component
 
