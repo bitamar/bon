@@ -177,10 +177,10 @@ export function BusinessSettings() {
       id: businessId,
       data: {
         ...rest,
-        vatNumber: rest.vatNumber || undefined,
-        phone: rest.phone || undefined,
-        email: rest.email || undefined,
-        invoiceNumberPrefix: rest.invoiceNumberPrefix || undefined,
+        vatNumber: rest.vatNumber === '' ? null : rest.vatNumber,
+        phone: rest.phone === '' ? null : rest.phone,
+        email: rest.email === '' ? null : rest.email,
+        invoiceNumberPrefix: rest.invoiceNumberPrefix === '' ? null : rest.invoiceNumberPrefix,
       },
     });
   });
