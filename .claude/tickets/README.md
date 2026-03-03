@@ -83,7 +83,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T10](./T10-pdf-generation.md) | Invoice PDF Generation | 🔒 | — |
+| [T10](./T10-pdf-generation.md) | Invoice PDF Generation | 🔄 | claude/review-t10-plan-13XoZ (PR #45) |
 | [T11](./T11-email-delivery.md) | Email Delivery | 🔒 | — |
 
 ### Phase 4 — SHAAM Integration

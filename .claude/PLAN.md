@@ -338,20 +338,16 @@ A bad-looking invoice reflects badly on the business. A well-designed invoice te
 builds trust. Many Israeli businesses use these invoices as their only professional document.
 
 **Technical constraint**: RTL Hebrew PDFs are hard. Most PDF libraries have poor RTL support.
-Options ranked:
-1. **Puppeteer/headless Chrome** (recommended): Generate HTML with Tailwind/CSS → print to PDF.
-   RTL is handled by the browser. Logo, fonts, complex layout = trivial. Works in Node.js.
-   Downside: ~200MB Docker image. Acceptable.
-2. **PDFKit**: Node.js PDF library. RTL possible but requires careful font embedding.
-   Less flexible for complex layouts.
-3. **React → html-to-pdf (client-side)**: Avoid. Inconsistent across browsers.
 
-**Chosen approach: Puppeteer with an HTML template.**
-The template is a React component rendered server-side to HTML string, then printed by Puppeteer.
+**Chosen approach: Puppeteer in a separate Railway service.**
+The template is a React component rendered server-side to HTML string via `renderToStaticMarkup`,
+then printed to PDF by Puppeteer (headless Chrome). The PDF service (`pdf/` workspace) runs as a
+separate Railway service to keep Chromium (~400MB) out of the main API container. The API proxies
+requests via `PDF_SERVICE_URL`.
 
 ### 3.1 Invoice HTML Template
 
-A React component (`api/src/pdf/InvoiceTemplate.tsx`) that receives all invoice data and
+A React component (`pdf/src/pdf/InvoiceTemplate.tsx`) that receives all invoice data and
 renders the complete invoice layout. It is NOT a client-side React component — it runs on the server.
 
 **Required layout elements** (per ITA regulations):
@@ -402,25 +398,20 @@ Footer:
 ```
 GET /businesses/:businessId/invoices/:invoiceId/pdf
 Response: Content-Type: application/pdf
-          Content-Disposition: attachment; filename="INV-0042.pdf"
+          Content-Disposition: inline; filename="INV-0042.pdf"
 ```
 
-Cache the PDF after first generation (S3 or local filesystem).
-Invalidate cache when invoice status changes.
+The API route fetches invoice data, calls the PDF service (`POST /render`), and returns the result.
+Cache finalized PDFs after first generation (local filesystem via `StorageService` for MVP).
+Invalidate cache when invoice status changes via `invalidatePdfCache()`.
 For drafts: generate but don't cache (watermark "טיוטה - לא בתוקף" across the page).
 
-### 3.3 Email Delivery
+### 3.3 Email Delivery (T11 — separate ticket)
 
-```
-POST /businesses/:businessId/invoices/:invoiceId/send
-Body: { recipientEmail?: string }  // defaults to customer.email
-```
-
-Email sender (Resend or SES):
-- Subject: `חשבונית מס INV-0042 מ-{businessName}`
-- Body: clean Hebrew email with basic invoice summary + download link
-- Attachment: the PDF
-- Track: set `sentAt` timestamp on invoice
+Email delivery is handled in T11 after T10 merges. It adds:
+- `POST /businesses/:businessId/invoices/:invoiceId/send`
+- Email sender (Resend or SES) with PDF attachment
+- `sentAt` timestamp tracking
 
 ---
 
@@ -717,10 +708,11 @@ Administrative process, can be done in parallel with Phase 6.
 ## Architecture Decisions for Next Phases
 
 ### PDF Generation
-- **Puppeteer** server-side. Run in a separate worker process to avoid blocking the Fastify event loop.
-  Consider a queue (BullMQ or pg-boss) for PDF generation jobs — avoids timeout on large invoices.
-- Store PDFs in **object storage** (S3-compatible). Never regenerate if cached.
-- **Draft PDFs**: watermarked, not cached.
+- **Puppeteer** in a **separate Railway service** (`pdf/` workspace). Keeps Chromium (~400MB) out of the main API container. The API proxies via `PDF_SERVICE_URL`.
+- PDF service uses `puppeteer-core` + system Chromium (installed in Dockerfile). Max 3 concurrent pages; 503 if exceeded.
+- Template: React `renderToStaticMarkup` → HTML → Puppeteer → PDF. Fonts (Heebo) embedded as base64 data URIs.
+- Store PDFs on **local filesystem** via `StorageService` interface for MVP (`.data/pdfs/`). Upgrade to S3 (Cloudflare R2) without interface change when needed.
+- **Draft PDFs**: watermarked "טיוטה - לא בתוקף", never cached.
 
 ### Background Jobs
 Use **pg-boss** (PostgreSQL-backed job queue) — already have Postgres, no new infrastructure.
@@ -759,20 +751,16 @@ Abstract behind a `StorageService` interface from day one.
   T05: Customer frontend (PR #7)
   T-API-01: API hardening (PR #8)
 
-→ Phase 2: Invoice Creation          (~3 weeks)
-  2.1 DB schema: invoices, invoice_items, sequences
-  2.2 Sequential numbering (race-safe)
-  2.3 VAT calculation engine (tested pure functions)
-  2.4 Draft invoice create/edit UI
-  2.5 Finalization flow with preview
-  2.6 Invoice detail view
-  2.7 Invoice list with filters
+✓ Phase 2: Invoice Creation
+  T06: Invoice schema + VAT engine + sequential numbering (PRs #9-#14)
+  T07: Invoice create/edit UI + finalization flow (PRs #15-#18)
+  T08: Invoice detail page + status badges (PRs #19, #22)
+  T09-backend: Invoice list with filters + pagination (PR #28)
+  T09-frontend: Invoice list UI (in progress)
 
 → Phase 3: PDF Generation            (~1 week)
-  3.1 HTML invoice template
-  3.2 Puppeteer PDF generation
-  3.3 PDF caching + storage
-  3.4 Email delivery
+  T10: PDF service + template + caching (ready to start)
+  T11: Email delivery (blocked on T10)
 
 → Phase 4: SHAAM Integration         (~3 weeks)
   4.1 SHAAM abstraction interface
@@ -823,7 +811,7 @@ Abstract behind a `StorageService` interface from day one.
 | ITA sandbox access | High | Apply early; may require pre-registration as software house |
 | SHAAM API changes | Medium | Abstract behind interface; monitor ITA developer portal |
 | Uniform file spec | Medium | Request official spec document from ITA; test against simulator early |
-| Hebrew PDF rendering | Medium | Validate Puppeteer approach with sample invoice before committing |
-| Concurrent numbering | High | Test with 50 concurrent requests before shipping to production |
+| Hebrew PDF rendering | Medium | Approach decided (Puppeteer + React SSR). Validate with sample invoice during T10 visual QA. |
+| Concurrent numbering | High | SELECT FOR UPDATE pattern implemented; 50-concurrent test passes with real PostgreSQL (T-ARCH-06). |
 | Legal review cost | Low | Budget ₪2,000-5,000 for יועץ מס review before ITA submission |
 | Emergency number pool depletion | Medium | Alert at < 5 remaining; auto-notify business owner to replenish |

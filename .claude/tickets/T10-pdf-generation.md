@@ -1,11 +1,11 @@
 # T10 — Invoice PDF Generation
 
-**Status**: 🔒 Blocked (T08 must merge first)
+**Status**: ⬜ Ready to start
 **Phase**: 3 — PDF
-**Requires**: T08 merged
+**Requires**: T08 merged ✅ (all 4 sub-tickets merged)
 **Blocks**: T11
 
-Note: T09 does NOT block T10. They can be built in parallel after T08 merges.
+Note: T09 does NOT block T10. T09 backend (PR #28) is merged; T09 frontend is in progress but independent.
 
 ---
 
@@ -128,7 +128,7 @@ PR 2 cannot start until PR 1 is merged.
 ### Frontend: PdfDownloadButton
 
 - [ ] `PdfDownloadButton` component in `front/src/components/PdfDownloadButton.tsx`
-  - Replaces the disabled "הורד PDF" placeholder in T08's `InvoiceActionBar`
+  - Replaces the disabled "הורד PDF" button in `front/src/pages/InvoiceDetail.tsx` (lines 168-175)
   - `fetchInvoicePdf(businessId, invoiceId)` API function in `front/src/api/invoices.ts` (blob response)
   - On click: loading state → fetch blob → programmatic download via hidden `<a>` element → idle
   - On error: button shows error state (red, 3 seconds), toast notification
@@ -230,7 +230,7 @@ In-memory `Map<string, Promise<Buffer>>` keyed by `invoiceId` deduplicates concu
 
 ### Font Embedding
 
-Download Heebo font files (woff2) at build time, store in `api/src/pdf/fonts/`. Read once on first use, base64-encode, cache in memory. Inlined in `<style>` block as `@font-face` data URIs.
+Download Heebo font files (woff2) at build time, store in `pdf/src/pdf/fonts/`. Read once on first use, base64-encode, cache in memory. Inlined in `<style>` block as `@font-face` data URIs.
 
 ### customerTaxId Label Gap
 
@@ -270,8 +270,10 @@ api/src/services/
 
 ### Testing Strategy
 
-- **Template tests**: Assert HTML output contains required fields. No Puppeteer needed.
-- **Route tests**: Mock Puppeteer (fake browser/page returning fixed Buffer). Verify 200, 404, Content-Type, Content-Disposition.
+- **Template tests** (pdf workspace): Assert HTML output contains required fields. No Puppeteer needed. Uses `renderToStaticMarkup` directly.
+- **PDF service route tests** (pdf workspace): Mock Puppeteer (fake browser/page returning fixed Buffer). Verify POST /render returns PDF bytes, error handling.
+- **API route tests** (api workspace): Mock the HTTP call to the PDF service (do NOT start real PDF service in tests). Verify 200 + Content-Type + Content-Disposition, 404 for wrong business, caching behavior. API tests now use real PostgreSQL via testcontainers (T-ARCH-06 merged, PR #36) — no pg-mem workarounds needed.
+- **Frontend tests**: `PdfDownloadButton` — mock `fetchInvoicePdf`, test loading/success/error state transitions.
 - **Visual QA**: Manual — generate sample PDF and inspect. Not automated in CI.
 
 ### Environment
@@ -295,9 +297,9 @@ This section captures findings from a design review against the current codebase
 
 ### Codebase compatibility confirmed
 
-- `formatMinorUnits(number, string?)` exists in `types/src/formatting.ts` line 5, uses `Intl.NumberFormat('he-IL', ...)`
-- `formatDate(isoDate)` exists in `types/src/formatting.ts` line 9, returns `DD/MM/YYYY`
-- `DOCUMENT_TYPE_LABELS` exists in `types/src/invoices.ts` line 170
+- `formatMinorUnits(number, string?)` exists in `types/src/formatting.ts` line 9, uses `Intl.NumberFormat('he-IL', ...)`
+- `formatDate(isoDate)` exists in `types/src/formatting.ts` line 13, returns `DD/MM/YYYY`
+- `DOCUMENT_TYPE_LABELS` exists in `types/src/invoices.ts` line 220 (includes `credit_note`)
 - `@bon/types` uses wildcard exports (`"./*"`) — `@bon/types/formatting`, `@bon/types/invoices` etc. resolve correctly
 - Auth pattern (`app.authenticate` + `app.requireBusinessAccess` + `ensureBusinessContext(req)`) is established
 - `getInvoice(businessId, invoiceId)` returns `InvoiceResponse` (invoice + items), enforces tenant isolation
@@ -322,6 +324,10 @@ export function formatDateTime(isoDateTime: string): string {
 }
 ```
 
+### REQUIRED: Replace local `formatDateTime` in `InvoiceDetail.tsx`
+
+`front/src/pages/InvoiceDetail.tsx` lines 28-36 has a local `formatDateTime()` function identical to the one being added to `types/src/formatting.ts`. In PR 1 (when adding the shared function), also update `InvoiceDetail.tsx` to import from `@bon/types/formatting` and delete the local copy. This avoids duplicate code.
+
 ### REQUIRED: Make `PDF_SERVICE_URL` optional in `env.ts`
 
 The current `api/src/env.ts` is strict (`z.object` with no passthrough). Making `PDF_SERVICE_URL` required would break all existing test suites and local dev setups that don't run the PDF service.
@@ -338,9 +344,17 @@ Also update the `format`, `format:check`, and `check` scripts to include `pdf/` 
 
 Currently absent. Add it in PR 1 since `LocalFileStorage` creates `.data/pdfs/`.
 
-### No `InvoiceActionBar` exists yet — PdfDownloadButton is standalone
+### InvoiceDetail page exists — replace the disabled PDF button
 
-The ticket says `PdfDownloadButton` "replaces the disabled PDF placeholder in T08's InvoiceActionBar." No `InvoiceActionBar` or invoice detail page currently exists in the frontend. Design `PdfDownloadButton` as a standalone component that can be integrated into the detail page when it ships (T08-D). Create the component, export it, add `fetchInvoicePdf` API function, and write tests. Integration into a page layout is a separate concern.
+~~The previous delta said "No InvoiceActionBar exists yet." This is now outdated.~~ T08-D shipped (PR #22), and `front/src/pages/InvoiceDetail.tsx` has a disabled "הורד PDF" button at lines 168-175:
+
+```tsx
+<Button variant="light" leftSection={<IconFileDownload size={16} />} disabled title="יהיה זמין בקרוב">
+  הורד PDF
+</Button>
+```
+
+In PR 2, `PdfDownloadButton` must **replace** this disabled button in `InvoiceDetail.tsx`. The component should accept `businessId`, `invoiceId`, `documentNumber`, and `isDraft` props so it can be dropped in directly.
 
 ### Frontend needs `fetchBlob` — `fetchJson` won't work for PDF
 
@@ -350,12 +364,14 @@ The ticket says `PdfDownloadButton` "replaces the disabled PDF placeholder in T0
 
 The "Font Embedding" narrative section incorrectly references `api/src/pdf/fonts/`. The file structure section correctly places fonts in `pdf/src/pdf/fonts/`. Fonts live in the `pdf/` workspace.
 
-### Mixed VAT rate display in totals
+### Mixed VAT rate display — reuse `computeVatLabel`
 
-The ticket says "מע"מ {rate}%: ₪X (derive rate from line items)." Specify behavior for mixed rates:
+The ticket says "מע"מ {rate}%: ₪X (derive rate from line items)." Specified behavior for mixed rates:
 - All non-zero-rate items share the same rate → show "מע"מ {rate}%"
 - Mixed rates → show "מע"מ" without a rate percentage
-- All items 0% → show "מע"מ 0%"
+- All items 0% → show "פטור ממע״מ"
+
+This exact logic already exists in `front/src/lib/vatLabel.ts` as `computeVatLabel()`. Since the PDF template runs in the `pdf/` workspace (not the frontend), **move `computeVatLabel` to `types/src/vat.ts`** in PR 1 so both frontend and PDF service can import it from `@bon/types/vat`. Update `front/src/lib/vatLabel.ts` to re-export from `@bon/types/vat` or replace all imports. Also update `front/src/pages/InvoiceDetail.tsx` which imports from `../lib/vatLabel`.
 
 ### Add `REGISTRATION_NUMBER_LABELS` mapping
 
@@ -394,6 +410,34 @@ Ensure template tests (`renderInvoiceHtml()` → assert HTML contains required f
 ### Content-Disposition: `inline` is correct
 
 PLAN.md says `attachment`, ticket says `inline`. Use `inline` — it opens in the browser's PDF viewer for direct URL access, which is better UX. The `PdfDownloadButton` fetches as a blob and triggers a programmatic download regardless.
+
+### Post-T08 codebase changes affecting T10 (updated 2026-03-02)
+
+Several ARCH tickets and features merged since the original delta was written:
+
+- **T-ARCH-01 (Backend Type Safety)** — merged. Enum definitions refactored, repositories now use proper types. No impact on T10 design.
+- **T-ARCH-02 (TOCTOU Finalization)** — merged. `findInvoiceByIdForUpdate` exists. No impact on T10.
+- **T-ARCH-03 (Frontend Routes)** — merged. Routes now include `businessId` in URL path. `PdfDownloadButton` can get `businessId` from route params or props.
+- **T-ARCH-04 (Invoice Form Autosave)** — merged. `InvoiceEdit` uses `useForm` + autosave. No impact on T10.
+- **T-ARCH-05 (RBAC Enforcement)** — merged. The PDF endpoint's `app.requireBusinessAccess` hook already respects role checks. No extra work needed.
+- **T-ARCH-06 (Replace pg-mem with testcontainers)** — merged (PR #36). API tests now use real PostgreSQL. T10's API route tests benefit from this — no pg-mem limitation workarounds needed.
+- **T09 Backend** — merged (PR #28). `listInvoices` service + `findInvoices`/`countInvoices` repository methods exist. No conflict with T10 routes (T10 adds `GET .../pdf`, T09 added `GET .../`).
+
+### PR 1 scope clarification
+
+PR 1 includes infrastructure AND shared type additions. Full scope:
+1. `pdf/` workspace (Fastify micro-service, Dockerfile, puppeteer manager, POST /render stub)
+2. `types/src/formatting.ts` — add `formatDateTime`, replace local copy in `InvoiceDetail.tsx`
+3. `types/src/businesses.ts` — add `REGISTRATION_NUMBER_LABELS`
+4. `types/src/vat.ts` — move `computeVatLabel` from `front/src/lib/vatLabel.ts`
+5. `types/src/pdf.ts` — add `pdfRenderRequestSchema`
+6. `api/src/lib/storage.ts` + `local-storage.ts` — `StorageService` interface + `LocalFileStorage`
+7. `api/src/services/pdf-service.ts` — `generateInvoicePdf` + `invalidatePdfCache`
+8. `api/src/routes/invoices.ts` — add `GET .../pdf` endpoint
+9. `api/src/env.ts` — add `PDF_SERVICE_URL` (optional) + `PDF_STORAGE_DIR` (optional)
+10. Root `package.json` — add `pdf` workspace, update format/check scripts
+11. `.gitignore` — add `.data/`
+12. Tests for all of the above
 
 ---
 

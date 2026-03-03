@@ -11,6 +11,7 @@ process.env.JWT_SECRET = 'x'.repeat(32);
 process.env.GOOGLE_CLIENT_ID = 'client-id';
 process.env.GOOGLE_CLIENT_SECRET = 'client-secret';
 process.env.URL = 'http://localhost:3000';
+process.env.PDF_SERVICE_URL = 'http://localhost:3001';
 process.env.RATE_LIMIT_MAX = '100';
 process.env.RATE_LIMIT_TIME_WINDOW = '1000';
 
