@@ -123,6 +123,10 @@ describe('InvoiceEdit page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockActiveBusiness(useBusiness);
+    // Default to never-resolving so tests without explicit setup don't get
+    // "Query data cannot be undefined" warnings from queries firing on mount.
+    vi.mocked(invoicesApi.fetchInvoice).mockReturnValue(new Promise(() => {}));
+    vi.mocked(businessApi.fetchBusiness).mockReturnValue(new Promise(() => {}));
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
     vi.mocked(customersApi.fetchCustomer).mockResolvedValue(mockCustomerResponse);
   });

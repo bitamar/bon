@@ -26,6 +26,7 @@ vi.mock('../../lib/notifications', () => ({
 
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as customersApi from '../../api/customers';
+import * as addressApi from '../../api/address';
 import { showErrorNotification } from '../../lib/notifications';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 
@@ -111,6 +112,8 @@ describe('CustomerCreate page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockActiveBusiness(useBusiness);
+    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([]);
+    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
   });
 
   it('shows error when no active business', () => {

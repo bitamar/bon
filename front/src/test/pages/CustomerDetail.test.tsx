@@ -20,6 +20,7 @@ vi.mock('../../api/address', () => ({
 
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as customersApi from '../../api/customers';
+import * as addressApi from '../../api/address';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 
 const mockCustomer = {
@@ -55,6 +56,9 @@ describe('CustomerDetail page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockActiveBusiness(useBusiness);
+    vi.mocked(customersApi.fetchCustomer).mockReturnValue(new Promise(() => {}));
+    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([]);
+    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
   });
 
   it('shows error when no active business', () => {

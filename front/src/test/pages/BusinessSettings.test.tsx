@@ -22,6 +22,7 @@ vi.mock('../../api/address', () => ({
 
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as businessesApi from '../../api/businesses';
+import * as addressApi from '../../api/address';
 import { activeBusinessStub } from '../utils/businessStubs';
 
 // ── helpers ──
@@ -65,6 +66,12 @@ describe('BusinessSettings page', () => {
       switchBusiness: vi.fn(),
       isLoading: false,
     });
+    // fetchBusiness returns a never-resolving promise by default so tests that don't
+    // care about business data don't get "Query data cannot be undefined" warnings.
+    vi.mocked(businessesApi.fetchBusiness).mockReturnValue(new Promise(() => {}));
+    // resetAllMocks clears the mockResolvedValue([]) set in the vi.mock() factory.
+    vi.mocked(addressApi.fetchAllCities).mockResolvedValue([]);
+    vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
   });
 
   it('shows "לא נבחר עסק" when activeBusiness is null', () => {
