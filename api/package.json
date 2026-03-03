@@ -17,7 +17,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node dist/db/migrate.js"
+    "db:migrate": "NODE_PATH=./node_modules drizzle-kit migrate"
   },
   "dependencies": {
     "@bon/types": "file:../types",
@@ -28,6 +28,7 @@
     "@fastify/swagger": "^9.7.0",
     "@scalar/fastify-api-reference": "^1.46.0",
     "dotenv": "^17.3.1",
+    "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
     "fastify": "^5.7.4",
     "fastify-type-provider-zod": "^6.1.0",
@@ -45,7 +46,6 @@
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
     "@vitest/coverage-v8": "^4.0.18",
-    "drizzle-kit": "^0.31.9",
     "eslint": "^10.0.2",
     "globals": "^17.3.0",
     "testcontainers": "^11.12.0",
