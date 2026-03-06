@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 COPY types/package.json types/
 COPY pdf/package.json pdf/
 
-RUN npm ci --workspace=types --workspace=pdf
+RUN npm ci --workspace=types --workspace=pdf --ignore-scripts
 
 # Copy source code
 COPY types/ types/
@@ -38,7 +38,7 @@ COPY types/package.json types/
 COPY pdf/package.json pdf/
 
 # Install production dependencies only
-RUN npm ci --workspace=types --workspace=pdf --omit=dev
+RUN npm ci --workspace=types --workspace=pdf --omit=dev --ignore-scripts
 
 # Copy compiled output from builder
 COPY --from=builder /app/types/dist types/dist
