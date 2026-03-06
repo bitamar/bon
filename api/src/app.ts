@@ -99,8 +99,8 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(authPlugin);
   await app.register(businessContextPlugin);
   await app.register(errorPlugin);
-  await app.register(shaamPlugin);
   await app.register(jobsPlugin);
+  await app.register(shaamPlugin);
 
   await app.register(authRoutes);
   await app.register(userRoutes);
