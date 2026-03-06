@@ -50,8 +50,12 @@ api/src/
 // api/src/jobs/boss.ts
 import PgBoss from 'pg-boss';
 
-// Every job must be registered here with its payload type.
-// Adding a handler without updating this map is a type error.
+// Job registry — the single source of truth for all background jobs.
+// To add a new job:
+//   1. Add the job name + payload type here
+//   2. Create a handler in api/src/jobs/handlers/<job-name>.ts
+//   3. Register the handler in the owning feature's plugin (e.g. boss.work('name', handler))
+//   4. Enqueue with boss.send('name', payload, { singletonKey, retryLimit, ... })
 export interface JobPayloads {
   // On-demand jobs (enqueued by features)
   'send-invoice-email': { invoiceId: string };

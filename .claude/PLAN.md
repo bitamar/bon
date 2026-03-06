@@ -805,12 +805,12 @@ pg-boss stores jobs in PostgreSQL, so `boss.send()` inside a Drizzle transaction
 
 **Build order for jobs:**
 ```text
-T-CRON-01 (pg-boss infra)     ← ~150 lines, unblocks everything
-    ├── T-ARCH-08 (async email)  ← first on-demand job, proves the outbox pattern
-    ├── T-CRON-02 (cron jobs)    ← draft + session + overdue cleanup
-    └── T12 (SHAAM abstraction + token refresh cron handler)
-            └── T13 (allocation requests via job queue)
-                    └── T14 (emergency numbers + recovery reporting job)
+T-CRON-01 (pg-boss infra)           ← ~150 lines, small
+    ├── T-ARCH-08 (async email)      ← ~300 lines, medium (first on-demand job, proves outbox pattern)
+    ├── T-CRON-02 (cron jobs)        ← ~200 lines, small (3 simple handlers)
+    └── T12 (SHAAM abstraction)      ← ~800 lines, large (interface + encryption + token refresh + trigger logic)
+            └── T13 (allocation)     ← ~600 lines, large (ITA payload mapping + audit log + job handler)
+                    └── T14 (emergency) ← ~500 lines, medium (pool mgmt + recovery reporting)
 ```
 
 ### Email

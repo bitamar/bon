@@ -125,7 +125,7 @@ This ticket also registers the `shaam-token-refresh` cron job handler using the 
 - [ ] Token refresh cron job registered via pg-boss (from T-CRON-01):
   - Schedule: `*/15 * * * *` (every 15 min), `tz: 'Asia/Jerusalem'`
   - Handler: `api/src/jobs/handlers/shaam-token-refresh.ts`
-  - Finds credentials where `tokenExpiresAt < NOW() + INTERVAL '5 minutes'`
+  - Finds credentials where `tokenExpiresAt < NOW() + INTERVAL '20 minutes'` (buffer exceeds the 15-min cron interval so no token is missed between runs)
   - On success: update tokens + expiry
   - On failure: set `needsReauth = true` on credentials row, log error
   - Each business refreshed independently (one failure doesn't block others)
@@ -215,12 +215,12 @@ types/src/
 
 ### Token Refresh as a Cron Job
 
-Uses the pg-boss infrastructure from T-CRON-01:
+Uses the pg-boss infrastructure from T-CRON-01. Registration happens in the SHAAM plugin (`api/src/plugins/shaam.ts`) during app startup:
 
 ```typescript
-// Registered during app startup (in shaam plugin or jobs plugin)
-await boss.schedule('shaam-token-refresh', '*/15 * * * *', null, { tz: 'Asia/Jerusalem' });
-await boss.work('shaam-token-refresh', handleShaamTokenRefresh);
+// api/src/plugins/shaam.ts — inside plugin init, after boss is available
+await app.boss.schedule('shaam-token-refresh', '*/15 * * * *', null, { tz: 'Asia/Jerusalem' });
+await app.boss.work('shaam-token-refresh', handleShaamTokenRefresh);
 ```
 
 The handler iterates over all businesses with expiring tokens. Each refresh is independent — one failure doesn't prevent other businesses from refreshing.
