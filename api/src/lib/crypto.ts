@@ -3,6 +3,14 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96-bit IV recommended for GCM
 const AUTH_TAG_LENGTH = 16; // 128-bit auth tag
+const HEX_KEY_LENGTH = 64; // 32 bytes = 64 hex chars
+
+function parseKey(hexKey: string): Buffer {
+  if (hexKey.length !== HEX_KEY_LENGTH) {
+    throw new Error(`Expected ${HEX_KEY_LENGTH}-char hex key, got ${hexKey.length} chars`);
+  }
+  return Buffer.from(hexKey, 'hex');
+}
 
 /**
  * Encrypt plaintext using AES-256-GCM.
@@ -12,7 +20,7 @@ const AUTH_TAG_LENGTH = 16; // 128-bit auth tag
  * @returns base64(iv + authTag + ciphertext)
  */
 export function encrypt(plaintext: string, hexKey: string): string {
-  const key = Buffer.from(hexKey, 'hex');
+  const key = parseKey(hexKey);
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
 
@@ -31,7 +39,7 @@ export function encrypt(plaintext: string, hexKey: string): string {
  * @returns The original plaintext
  */
 export function decrypt(ciphertext: string, hexKey: string): string {
-  const key = Buffer.from(hexKey, 'hex');
+  const key = parseKey(hexKey);
   const packed = Buffer.from(ciphertext, 'base64');
 
   const iv = packed.subarray(0, IV_LENGTH);

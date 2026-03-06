@@ -138,6 +138,10 @@ export const businessesRelations = relations(businesses, ({ one, many }) => ({
   customers: many(customers),
   invoices: many(invoices),
   invoiceSequences: many(invoiceSequences),
+  shaamCredentials: one(businessShaamCredentials, {
+    fields: [businesses.id],
+    references: [businessShaamCredentials.businessId],
+  }),
 }));
 
 export const userBusinessesRelations = relations(userBusinesses, ({ one }) => ({
