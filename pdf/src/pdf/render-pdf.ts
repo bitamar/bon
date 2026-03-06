@@ -37,6 +37,14 @@ const BLOCKED_HOSTNAMES = new Set(['localhost', 'metadata.google.internal', 'met
 function isBlockedIpv6(addr: string): boolean {
   const lower = addr.toLowerCase();
   if (lower === '::1' || lower === '::') return true;
+
+  // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
+  const mappedPrefix = '::ffff:';
+  if (lower.startsWith(mappedPrefix)) {
+    const embedded = lower.slice(mappedPrefix.length);
+    if (BLOCKED_IPV4_PREFIXES.some((prefix) => embedded.startsWith(prefix))) return true;
+  }
+
   return BLOCKED_IPV6_PREFIXES.some((prefix) => lower.startsWith(prefix));
 }
 
@@ -55,13 +63,14 @@ function isBlockedRequest(urlStr: string): boolean {
     const parsed = new URL(urlStr);
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return true;
 
-    // Strip brackets from IPv6 hostnames (e.g. [::1] -> ::1)
+    // Strip brackets from IPv6 hostnames (e.g. [::1] -> ::1) and trailing dots
     const raw = parsed.hostname;
-    const hostname = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
+    const stripped = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
+    const hostname = stripped.replace(/\.+$/, '').toLowerCase();
 
-    if (BLOCKED_HOSTNAMES.has(hostname.toLowerCase())) return true;
+    if (BLOCKED_HOSTNAMES.has(hostname)) return true;
 
-    return isBlockedIp(hostname);
+    return isBlockedIp(stripped);
   } catch {
     return true;
   }
@@ -73,7 +82,10 @@ async function isBlockedAfterDns(urlStr: string): Promise<boolean> {
   try {
     const parsed = new URL(urlStr);
     const raw = parsed.hostname;
-    const hostname = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
+    const stripped = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
+    const hostname = stripped.replace(/\.+$/, '').toLowerCase();
+
+    if (BLOCKED_HOSTNAMES.has(hostname)) return true;
 
     // Skip DNS for literal IPs — already checked by isBlockedRequest
     if (net.isIPv4(hostname) || net.isIPv6(hostname)) return false;

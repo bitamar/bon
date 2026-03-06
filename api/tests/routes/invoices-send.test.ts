@@ -145,8 +145,6 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
     await finalizeInvoice(ctx.app, ownerSession, business.id, invoice.id);
 
     const { sessionId: otherSession } = await createAuthedUser();
-    const otherUser = await createUser();
-    await createTestBusiness(otherUser.id);
 
     const res = await sendInvoice(ctx.app, otherSession, business.id, invoice.id);
 

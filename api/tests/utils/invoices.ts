@@ -88,7 +88,13 @@ export async function setupFinalizedInvoice(
 ) {
   const { sessionId, business } = await createOwnerWithBusiness();
   const customer = await createCustomer(app, sessionId, business.id, customerEmail);
-  const { invoice } = await createDraftWithItems(app, sessionId, business.id, customer.id);
-  await finalizeInvoice(app, sessionId, business.id, invoice.id);
+  const { invoice: draft } = await createDraftWithItems(app, sessionId, business.id, customer.id);
+  await finalizeInvoice(app, sessionId, business.id, draft.id);
+
+  const detailRes = await injectAuthed(app, sessionId, {
+    method: 'GET',
+    url: `/businesses/${business.id}/invoices/${draft.id}`,
+  });
+  const { invoice } = detailRes.json() as InvoiceResponse;
   return { sessionId, business, invoice };
 }

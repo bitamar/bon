@@ -46,7 +46,7 @@ const CREDIT_NOTE_ELIGIBLE: readonly InvoiceStatus[] = [
   'partially_paid',
 ] as const;
 
-const SENDABLE_STATUSES: readonly InvoiceStatus[] = ['finalized', 'sent'] as const;
+const SENDABLE_STATUSES = new Set<InvoiceStatus>(['finalized', 'sent']);
 
 function DetailSkeleton() {
   return (
@@ -149,7 +149,7 @@ export function InvoiceDetail() {
   const statusConfig = INVOICE_STATUS_CONFIG[invoice.status];
   const documentTypeLabel = DOCUMENT_TYPE_LABELS[invoice.documentType] ?? invoice.documentType;
   const showCreditNote = CREDIT_NOTE_ELIGIBLE.includes(invoice.status);
-  const canSend = SENDABLE_STATUSES.includes(invoice.status);
+  const canSend = SENDABLE_STATUSES.has(invoice.status);
   const vatLabel = computeVatLabel(items.map((i) => i.vatRateBasisPoints));
 
   function openSendModal() {
