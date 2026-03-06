@@ -8,7 +8,10 @@ COPY package.json package-lock.json ./
 COPY types/ types/
 COPY pdf/package.json pdf/
 
-RUN npm ci --workspace=types --workspace=pdf --ignore-scripts
+# Disable all lifecycle scripts via .npmrc (more reliable than --ignore-scripts)
+RUN echo "ignore-scripts=true" > .npmrc \
+    && npm ci --workspace=types --workspace=pdf \
+    && rm .npmrc
 
 # Copy pdf source code
 COPY pdf/ pdf/
@@ -36,8 +39,10 @@ COPY package.json package-lock.json ./
 COPY types/package.json types/
 COPY pdf/package.json pdf/
 
-# Install production dependencies only (ignore-scripts: no source available)
-RUN npm ci --workspace=types --workspace=pdf --omit=dev --ignore-scripts
+# Install production dependencies only, no lifecycle scripts
+RUN echo "ignore-scripts=true" > .npmrc \
+    && npm ci --workspace=types --workspace=pdf --omit=dev \
+    && rm .npmrc
 
 # Copy compiled output from builder
 COPY --from=builder /app/types/dist types/dist
