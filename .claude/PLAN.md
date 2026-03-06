@@ -111,6 +111,21 @@ Allocation numbers can be requested voluntarily for any amount.
 - Customer, date range, and text search filters
 - Invoice list aggregates and summary row (T09-B)
 
+### Invoice PDF Generation (T10)
+- Separate PDF microservice (`pdf/` workspace) deployed on Railway
+- Puppeteer-based HTML→PDF with React SSR templates
+- Heebo font embedded as base64 data URIs (no CDN fetch)
+- Full ITA-compliant invoice template (business info, customer, line items, totals, footer)
+- Draft watermark ("טיוטה - לא בתוקף"), finalized PDF caching via StorageService
+- PdfDownloadButton component on invoice detail page
+- SSRF guard on logo URL fetch (blocks internal IPs, metadata endpoints, non-HTTPS)
+- `computeVatLabel` and `formatDateTime` moved to shared `types/` package
+
+### Deployment & Infrastructure (T10.5)
+- Docker containerization for API and PDF services (Dockerfile + railway.json)
+- PDF service deployed as separate Railway service with Chromium
+- `PDF_SERVICE_URL` configured for internal Railway networking
+
 ---
 
 ## Phase 1: Customer Management
@@ -804,9 +819,12 @@ Abstract behind a `StorageService` interface from day one.
   T09-B: Invoice list aggregates (PR #43)
   T-ARCH-01 through T-ARCH-07: Architecture fixes (all merged)
 
-→ Phase 3: PDF Generation            (~1 week)
-  T10: PDF service + template + caching (ready to start)
-  T11: Email delivery (blocked on T10)
+✓ Phase 3a: PDF Generation
+  T10: PDF service + template + caching (PR #45)
+  T10.5: Docker + Railway deployment (PRs #52-#54)
+
+→ Phase 3b: Email Delivery
+  T11: Email delivery (unblocked, ready to start)
 
 → Phase 4: SHAAM Integration         (~3 weeks)
   4.1 SHAAM abstraction interface
@@ -857,7 +875,7 @@ Abstract behind a `StorageService` interface from day one.
 | ITA sandbox access | High | Apply early; may require pre-registration as software house |
 | SHAAM API changes | Medium | Abstract behind interface; monitor ITA developer portal |
 | Uniform file spec | Medium | Request official spec document from ITA; test against simulator early |
-| Hebrew PDF rendering | Medium | Approach decided (Puppeteer + React SSR). Validate with sample invoice during T10 visual QA. |
+| Hebrew PDF rendering | ~~Medium~~ Resolved | Puppeteer + React SSR working in production (T10 merged). |
 | Concurrent numbering | High | SELECT FOR UPDATE pattern implemented; 50-concurrent test passes with real PostgreSQL (T-ARCH-06). |
 | Legal review cost | Low | Budget ₪2,000-5,000 for יועץ מס review before ITA submission |
 | Emergency number pool depletion | Medium | Alert at < 5 remaining; auto-notify business owner to replenish |
