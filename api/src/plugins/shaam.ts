@@ -35,9 +35,7 @@ const shaamPluginFn: FastifyPluginAsync = async (app) => {
   app.log.info({ shaamMode: env.SHAAM_MODE }, 'SHAAM service initialized');
 
   // Register token refresh cron job (pg-boss must be available)
-  if (!app.boss) {
-    app.log.warn('shaam-token-refresh: pg-boss unavailable, cron job not registered');
-  } else {
+  if (app.boss) {
     await app.boss.createQueue('shaam-token-refresh');
     await app.boss.schedule('shaam-token-refresh', '*/15 * * * *', null, {
       tz: 'Asia/Jerusalem',
@@ -47,6 +45,8 @@ const shaamPluginFn: FastifyPluginAsync = async (app) => {
       runJob('shaam-token-refresh', createShaamTokenRefreshHandler(app.log), app.log)
     );
     app.log.info('shaam-token-refresh cron job registered');
+  } else {
+    app.log.warn('shaam-token-refresh: pg-boss unavailable, cron job not registered');
   }
 };
 
