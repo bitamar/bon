@@ -23,6 +23,7 @@ import { businessContextPlugin } from './plugins/business-context.js';
 import { errorPlugin } from './plugins/errors.js';
 import { loggingPlugin } from './plugins/logging.js';
 import { shaamPlugin } from './plugins/shaam.js';
+import { jobsPlugin } from './plugins/jobs.js';
 import { createLogger } from './lib/logger.js';
 import { isHostAllowed, parseOriginHeader } from './lib/origin.js';
 
@@ -99,6 +100,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(businessContextPlugin);
   await app.register(errorPlugin);
   await app.register(shaamPlugin);
+  await app.register(jobsPlugin);
 
   await app.register(authRoutes);
   await app.register(userRoutes);
