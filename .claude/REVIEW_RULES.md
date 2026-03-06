@@ -167,36 +167,31 @@ When the same `vi.spyOn(...)` mock setup appears in multiple tests, extract it i
 
 ## Docker / Dockerfile Rules
 
-### Never suppress npm lifecycle scripts with --ignore-scripts
+### Make prepare scripts Docker-safe with guards
 
-npm's `--ignore-scripts` flag does not reliably prevent workspace `prepare` scripts from running (npm 10.x bug). Instead of fighting it:
+`prepare` scripts run during `npm ci`. In Docker production stages, devDeps and source files aren't available, so unguarded prepare scripts fail. Guard them with a file-existence check instead of suppressing scripts.
 
-- **Builder stage**: Structure the Dockerfile so that all source files needed by `prepare` are copied BEFORE `npm ci`. Let `prepare` run naturally.
-- **Production stage**: When source/devDeps are unavailable, create a temporary `.npmrc` with `ignore-scripts=true` before `npm ci`, then remove it after. This is enforced at a lower level than the CLI flag and actually works.
-
-**Wrong:**
+**Wrong — suppressing scripts:**
 ```dockerfile
-COPY types/package.json types/
-RUN npm ci --workspace=types --ignore-scripts  # ❌ prepare may still run
+RUN npm ci --ignore-scripts                     # ❌ flag unreliable
+RUN echo "ignore-scripts=true" > .npmrc && ...  # ❌ hack
+RUN node -e "delete scripts.prepare; ..."       # ❌ hack
 ```
 
-**Right (builder):**
-```dockerfile
-COPY types/ types/                              # ✅ full source before npm ci
-RUN npm ci --workspace=types                    # prepare runs and succeeds
+**Right — guard the script itself:**
+```json
+{
+  "prepare": "if [ -d types/src ]; then npm run build -w @bon/types; fi"
+}
 ```
 
-**Right (production):**
-```dockerfile
-COPY types/package.json types/
-RUN echo "ignore-scripts=true" > .npmrc \       # ✅ .npmrc is reliable
-    && npm ci --workspace=types --omit=dev \
-    && rm .npmrc
-```
+Then the Dockerfile needs no workarounds:
+- **Builder**: copy full source before `npm ci` → prepare runs and builds
+- **Production**: copy only `package.json` → prepare skips (no `types/src`)
 
 ### No hacks — find the root cause
 
-Never work around a build failure with flags, env vars, or restructuring that doesn't address WHY the failure happens. If a lifecycle script runs unexpectedly, understand the npm behavior and design the Dockerfile to accommodate it, not suppress it.
+Never work around a build failure with flags, env vars, or restructuring that doesn't address WHY the failure happens. Suppress-and-clean patterns (`.npmrc`, `--ignore-scripts`, inline `node -e` to edit package.json) are hacks. Fix the script or the Dockerfile structure instead.
 
 ## Coverage Requirements
 

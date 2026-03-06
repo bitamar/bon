@@ -32,15 +32,13 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# Copy workspace config and package files.
-# Remove the root prepare script — tsc and types source aren't
-# available in this stage; only pre-built dist is copied below.
+# Copy workspace config and package files
 COPY package.json package-lock.json ./
-RUN node -e "const p=JSON.parse(require('fs').readFileSync('package.json','utf8'));delete p.scripts.prepare;require('fs').writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
 COPY types/package.json types/
 COPY pdf/package.json pdf/
 
-# Install production dependencies only
+# Install production dependencies only (prepare skips because types/src
+# doesn't exist in this stage — only pre-built dist is copied below)
 RUN npm ci --workspace=types --workspace=pdf --omit=dev
 
 # Copy compiled output from builder
