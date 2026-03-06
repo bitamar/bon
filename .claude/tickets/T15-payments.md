@@ -1,8 +1,8 @@
 # T15 — Payment Recording
 
-**Status**: 🔒 Blocked (T14 must merge first)
+**Status**: 🔒 Blocked (Phase 4 must complete first per build order)
 **Phase**: 5 — Invoice Lifecycle
-**Requires**: T14 merged
+**Requires**: Phase 4 complete (build order), T08-D merged ✓ (invoice detail view)
 **Blocks**: T16
 
 ---
