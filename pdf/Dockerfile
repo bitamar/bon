@@ -3,17 +3,12 @@ FROM node:22-slim AS builder
 
 WORKDIR /app
 
-# Copy workspace config and lockfile
+# Install dependencies (package files only for layer caching)
 COPY package.json package-lock.json ./
 COPY types/package.json types/
 COPY pdf/package.json pdf/
 
-# Install all deps with scripts disabled — the types workspace has a
-# prepare script that runs tsc, but binaries aren't on PATH yet during
-# npm's lifecycle phase.  We build explicitly in the next step.
-RUN echo "ignore-scripts=true" > .npmrc \
-    && npm ci --workspace=types --workspace=pdf \
-    && rm .npmrc
+RUN npm ci --workspace=types --workspace=pdf
 
 # Copy source and build
 COPY types/ types/
@@ -41,12 +36,8 @@ COPY package.json package-lock.json ./
 COPY types/package.json types/
 COPY pdf/package.json pdf/
 
-# Install production dependencies only.
-# .npmrc disables lifecycle scripts because types source and tsc
-# are not available in this stage — only pre-built dist is copied.
-RUN echo "ignore-scripts=true" > .npmrc \
-    && npm ci --workspace=types --workspace=pdf --omit=dev \
-    && rm .npmrc
+# Install production dependencies only
+RUN npm ci --workspace=types --workspace=pdf --omit=dev
 
 # Copy compiled output from builder
 COPY --from=builder /app/types/dist types/dist

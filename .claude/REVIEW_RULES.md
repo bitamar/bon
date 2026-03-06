@@ -167,36 +167,34 @@ When the same `vi.spyOn(...)` mock setup appears in multiple tests, extract it i
 
 ## Docker / Dockerfile Rules
 
-### Never suppress npm lifecycle scripts with --ignore-scripts
+### No `prepare` scripts on private workspace packages
 
-npm workspace `prepare` scripts run during `npm ci` but binaries (e.g. `tsc`) may not be on PATH yet during the lifecycle phase. The `--ignore-scripts` CLI flag is also unreliable (npm 10.x bug). Use `.npmrc` to suppress scripts, then build explicitly:
+Private workspace packages (e.g. `@bon/types`) must NOT have a `prepare` script. `prepare` runs during `npm ci` and causes problems in Docker (binaries not on PATH, devDeps not available in production stages). Since these packages are never published to npm, `prepare` serves no purpose.
 
-- **Both stages**: Create a temporary `.npmrc` with `ignore-scripts=true` before `npm ci`, remove it after. Then run builds explicitly.
-- The `--ignore-scripts` CLI flag does NOT work reliably — always use `.npmrc`.
+Instead, build workspace packages explicitly where needed (Dockerfile, CI). For local dev, `typesVersions` resolves to source files directly.
 
 **Wrong:**
-```dockerfile
-COPY types/ types/
-RUN npm ci --workspace=types                    # ❌ prepare runs tsc, tsc not on PATH
-```
-
-**Also wrong:**
-```dockerfile
-RUN npm ci --workspace=types --ignore-scripts   # ❌ flag unreliable, prepare may still run
+```json
+{
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build"           // ❌ breaks Docker, unnecessary for private pkg
+  }
+}
 ```
 
 **Right:**
-```dockerfile
-RUN echo "ignore-scripts=true" > .npmrc \       # ✅ .npmrc is reliable
-    && npm ci --workspace=types \
-    && rm .npmrc
-COPY types/ types/
-RUN npm run build --workspace=types             # ✅ explicit build after deps installed
+```json
+{
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json" // ✅ call explicitly in Dockerfile/CI
+  }
+}
 ```
 
 ### No hacks — find the root cause
 
-Never work around a build failure with flags, env vars, or restructuring that doesn't address WHY the failure happens. If a lifecycle script runs unexpectedly, understand the npm behavior and design the Dockerfile to accommodate it, not suppress it.
+Never work around a build failure with flags, env vars, or restructuring that doesn't address WHY the failure happens. Suppress-and-clean patterns (e.g. creating a temporary `.npmrc` then deleting it) are hacks. Find and fix the actual cause.
 
 ## Coverage Requirements
 
