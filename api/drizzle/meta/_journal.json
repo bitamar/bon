@@ -15,6 +15,13 @@
       "when": 1772262535628,
       "tag": "0001_curvy_spiral",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772558485851,
+      "tag": "0002_demonic_kitty_pryde",
+      "breakpoints": true
     }
   ]
 }

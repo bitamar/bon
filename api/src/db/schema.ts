@@ -138,6 +138,10 @@ export const businessesRelations = relations(businesses, ({ one, many }) => ({
   customers: many(customers),
   invoices: many(invoices),
   invoiceSequences: many(invoiceSequences),
+  shaamCredentials: one(businessShaamCredentials, {
+    fields: [businesses.id],
+    references: [businessShaamCredentials.businessId],
+  }),
 }));
 
 export const userBusinessesRelations = relations(userBusinesses, ({ one }) => ({
@@ -315,6 +319,30 @@ export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
 export const invoiceSequencesRelations = relations(invoiceSequences, ({ one }) => ({
   business: one(businesses, {
     fields: [invoiceSequences.businessId],
+    references: [businesses.id],
+  }),
+}));
+
+// ── SHAAM credentials ──
+
+export const businessShaamCredentials = pgTable('business_shaam_credentials', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' })
+    .unique(),
+  encryptedAccessToken: text('encrypted_access_token').notNull(),
+  encryptedRefreshToken: text('encrypted_refresh_token').notNull(),
+  tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }).notNull(),
+  scope: text('scope'),
+  needsReauth: boolean('needs_reauth').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const businessShaamCredentialsRelations = relations(businessShaamCredentials, ({ one }) => ({
+  business: one(businesses, {
+    fields: [businessShaamCredentials.businessId],
     references: [businesses.id],
   }),
 }));
