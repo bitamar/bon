@@ -24,9 +24,9 @@ pg-boss was chosen because it uses PostgreSQL (already have it) — no new infra
 - [ ] Graceful shutdown: `boss.stop()` on Fastify `onClose` hook
 - [ ] Job type safety: `JobPayloads` interface maps job names → payload types
 - [ ] Typed helper: `sendJob(boss, name, payload, options)` wrapper with `JobPayloads` type checking
-- [ ] Error handling: jobs log errors but never crash the server
-- [ ] Each job logs start/end/duration for observability
-- [ ] Integration test: start boss, enqueue a test job, verify it runs and completes
+- [ ] Job runner wrapper: `runJob(handler)` catches uncaught exceptions from any handler, logs the error, and prevents boss worker crash — handlers don't implement their own try/catch
+- [ ] Job timing middleware: the runner automatically logs job name, start time, duration, and outcome (success/error) — handlers don't implement their own timing
+- [ ] Integration test: start boss, enqueue a test job, verify it runs and completes via the runner
 - [ ] `npm run check` passes
 
 ---

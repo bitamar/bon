@@ -479,30 +479,16 @@ Email delivery is implemented alongside T10 in this PR:
 Do it incrementally — start with sandbox, build the abstraction layer first,
 wire real credentials last.
 
-### 4.1 Design First: The SHAAM Abstraction Layer
+All SHAAM work depends on pg-boss infrastructure (T-CRON-01). Token refresh runs as a cron job. Allocation requests and emergency reporting run as on-demand jobs using the outbox pattern (transaction → enqueue → worker → status update), the same pattern proven by T-ARCH-08 (async email).
 
-Before writing any HTTP code, define the interface:
+### 4.1 SHAAM Abstraction Layer (T12)
+
+Define the interface first, then implement:
 
 ```typescript
 interface ShaamService {
-  // Request an allocation number for an invoice
-  requestAllocationNumber(
-    businessId: string,
-    invoice: FinalizedInvoice,
-    lineItems: InvoiceItem[]
-  ): Promise<AllocationResult>;
-
-  // Pre-acquire emergency allocation numbers
-  acquireEmergencyNumbers(
-    businessId: string,
-    count: number
-  ): Promise<EmergencyNumber[]>;
-
-  // Report usage of emergency numbers (when SHAAM recovers)
-  reportEmergencyUsage(
-    businessId: string,
-    usedNumbers: string[]
-  ): Promise<void>;
+  requestAllocationNumber(request: AllocationRequest): Promise<AllocationResult>;
+  // Emergency methods added in T14 when the interface is extended
 }
 
 type AllocationResult =
@@ -512,97 +498,81 @@ type AllocationResult =
   | { status: 'deferred'; reason: string };
 ```
 
-This interface is implemented by:
-- `ShaamApiClient` (real) — calls ITA's OAuth2 + allocation API
-- `ShaamSandboxClient` (test) — calls ITA sandbox
-- `ShaamMockClient` (development) — returns fake numbers instantly
+Two implementations (not three — sandbox and production are the same HTTP client with different base URLs):
+- `ShaamHttpClient` — single class, configurable `baseUrl` (sandbox vs production)
+- `ShaamMockClient` — returns fake numbers for dev/test
 
 Toggle via environment variable: `SHAAM_MODE=mock|sandbox|production`
 
-### 4.2 OAuth2 Token Management
+### 4.2 OAuth2 Token Management (T12)
 
 Each business authorizes BON to submit on their behalf. Store per-business:
 
-```
+```text
 business_shaam_credentials table:
-  businessId      uuid FK → businesses (unique)
-  accessToken     text (encrypted at rest)
-  refreshToken    text (encrypted at rest)
-  tokenExpiresAt  timestamp with tz
-  scope           text
-  createdAt       timestamp with tz
-  updatedAt       timestamp with tz
+  businessId              uuid FK → businesses (unique, cascade)
+  encryptedAccessToken    text NOT NULL  — AES-256-GCM encrypted
+  encryptedRefreshToken   text NOT NULL  — AES-256-GCM encrypted
+  tokenExpiresAt          timestamp with tz NOT NULL
+  scope                   text
+  needsReauth             boolean default false
 ```
 
-Token refresh logic: refresh 5 minutes before expiry. On refresh failure: mark business as
-needing re-authorization, send email to owner, fall back to emergency numbers.
+Token refresh runs as a **pg-boss cron job** (`shaam-token-refresh`, every 15 min, registered in `api/src/plugins/shaam.ts`). Finds credentials expiring within 20 minutes (buffer exceeds the 15-min interval). On refresh failure: set `needsReauth = true`.
 
-### 4.3 Allocation Number Request
+### 4.3 Allocation Number Request (T13 — via pg-boss)
 
-The SHAAM API expects a JSON payload with ~26 fields. Map from invoice:
+Allocation requests run as **background jobs** using the outbox pattern:
 
-```
-// Table 2.1 fields (from ITA spec):
-{
-  "AccountingDocType": documentTypeCode,     // 305 = חשבונית מס
-  "AccountingSoftwareNumber": REGISTRATION_NUMBER,  // BON's ITA certificate
-  "VatNumber": business.vatNumber,
-  "DocumentNumber": invoice.documentNumber,
-  "DocumentDate": invoice.invoiceDate,       // YYYY-MM-DD
-  "DealAmount": invoice.totalExclVatMinorUnits / 100,  // in major currency units (decimal)
-  "VatAmount": invoice.vatMinorUnits / 100,
-  "TotalAmount": invoice.totalInclVatMinorUnits / 100,
-  "ClientVatNumber": customer.taxId,        // required if isLicensedDealer
-  // ...all other required fields
-  "LineItems": lineItems.map(item => ({     // Table 2.2
-    "Description": item.description,
-    "Quantity": item.quantity,
-    "UnitPrice": item.unitPriceMinorUnits / 100,
-    "LineTotal": item.lineTotalMinorUnits / 100,
-    // ...
-  }))
-}
-```
+1. Invoice finalized → inside the finalization transaction:
+   - Evaluate `shouldRequestAllocation()` (threshold + isLicensedDealer + VAT check)
+   - If true: set `allocationStatus = 'pending'`, enqueue `shaam-allocation-request` job via `boss.send()` with `singletonKey: invoiceId`
+2. pg-boss worker picks up job → calls `ShaamService.requestAllocationNumber()` with ~26 ITA fields
+3. Full request + response stored in `shaam_audit_log` table
+4. On approved: store `allocationNumber`, set `allocationStatus = 'approved'`
+5. On deferred/transient error: pg-boss retries with exponential backoff
+6. On E099 (SHAAM unavailable): use emergency number (T14)
 
-Store the full request and response JSON in a `shaam_audit_log` table for debugging and ITA audits.
+The invoice is legally valid the moment it's finalized — the allocation number is an async compliance step that must not block the user.
 
-### 4.4 SHAAM Trigger Logic
+### 4.4 SHAAM Trigger Logic (T12 — pure functions)
 
-An invoice requires an allocation number when:
 ```typescript
-function requiresAllocationNumber(invoice: Invoice, customer: Customer, business: Business): boolean {
+function requiresAllocationNumber(
+  invoice: { totalExclVatMinorUnits: number; vatMinorUnits: number },
+  customer: { isLicensedDealer: boolean },
+  asOfDate?: Date
+): boolean {
   if (invoice.vatMinorUnits === 0) return false;          // no VAT = no SHAAM
-  if (!customer.isLicensedDealer) return false;      // B2C = no SHAAM
-  if (invoice.totalExclVatMinorUnits < currentThreshold()) return false;  // below threshold
+  if (!customer.isLicensedDealer) return false;            // B2C = no SHAAM
+  if (invoice.totalExclVatMinorUnits <= currentThreshold(asOfDate) * 100) return false;
   return true;
 }
-
-// OR: business has opted in to voluntary allocation for all invoices
-function shouldRequestAllocation(invoice, customer, business): boolean {
-  return requiresAllocationNumber(invoice, customer, business)
-    || business.alwaysRequestAllocation;
-}
 ```
 
-### 4.5 Emergency Numbers
+### 4.5 Emergency Numbers (T14)
 
-Pre-acquire a pool (business owner requests from ITA directly, enters codes in our system):
+Pre-acquire a pool (business owner requests from ITA directly, enters codes in BON):
 
-```
+```text
 emergency_allocation_numbers table:
   id          uuid PK
   businessId  uuid FK → businesses
-  number      text UNIQUE            — the pre-acquired number
+  number      text UNIQUE
   used        boolean default false
   usedForInvoiceId  uuid FK → invoices nullable
   usedAt      timestamp with tz nullable
+  reported    boolean default false
+  reportedAt  timestamp with tz nullable
   acquiredAt  timestamp with tz
 ```
+
+When SHAAM recovers after an outage, BON enqueues a `shaam-emergency-report` job (via `boss.send()` with `singletonKey: businessId`) to batch-report used emergency numbers back to ITA.
 
 UI: settings page for owner to enter their emergency number pool.
 Alert when pool < 5 numbers remaining.
 
-### 4.6 Error Taxonomy
+### 4.6 Error Taxonomy (T14)
 
 ITA returns specific error codes. Each must be handled distinctly:
 
@@ -611,10 +581,10 @@ ITA returns specific error codes. Each must be handled distinctly:
 | E001 | Invalid VAT number | Show to user: "מספר מע״מ לא תקין" |
 | E002 | Invoice already allocated | Idempotent — store the returned number |
 | E003 | Below threshold | Don't request (shouldn't happen — check before calling) |
-| E010 | Authentication failure | Trigger re-auth flow for business |
-| E099 | System unavailable | Use emergency number |
+| E010 | Authentication failure | Set `needsReauth = true`, show re-auth prompt |
+| E099 | System unavailable | Use emergency number via pg-boss job |
 
-These must be defined as constants, not magic strings, with Hebrew user-facing messages.
+These must be defined as constants in `types/src/shaam.ts`, not magic strings, with Hebrew user-facing messages.
 
 ---
 

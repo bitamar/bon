@@ -13,8 +13,6 @@ T12 has **zero functional dependency** on T11 (Email Delivery) or T10 (PDF Gener
 
 The one AC that referenced email — "on refresh failure: notify owner" — cannot be implemented at T12 time regardless (email infrastructure doesn't exist yet). Instead, T12 sets a `needsReauth` flag on the credentials row; email notification is deferred to post-T11.
 
-T12 depends on T-CRON-01 because it registers the `shaam-token-refresh` cron job handler.
-
 ---
 
 ## What & Why
