@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { renderInvoiceHtml } from '../../src/pdf/render-html.js';
 import { makeInput, makeInvoice, makeItem } from '../fixtures.js';
 
+// ── helpers ──
+
+function renderDefault(overrides?: Parameters<typeof makeInput>[0]) {
+  return renderInvoiceHtml(makeInput(overrides));
+}
+
 describe('renderInvoiceHtml', () => {
-  // ── helpers ──
-
-  function renderDefault(overrides?: Parameters<typeof makeInput>[0]) {
-    return renderInvoiceHtml(makeInput(overrides));
-  }
-
   it('renders valid HTML with DOCTYPE', () => {
     const html = renderDefault();
     expect(html).toMatch(/^<!DOCTYPE html>/);
