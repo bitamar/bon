@@ -34,6 +34,12 @@ const BLOCKED_IPV6_PREFIXES = ['fc', 'fd', 'fe8', 'fe9', 'fea', 'feb', 'ff'];
 
 const BLOCKED_HOSTNAMES = new Set(['localhost', 'metadata.google.internal', 'metadata.internal']);
 
+function stripTrailingDots(s: string): string {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === '.') end--;
+  return s.slice(0, end);
+}
+
 function isBlockedIpv6(addr: string): boolean {
   const lower = addr.toLowerCase();
   if (lower === '::1' || lower === '::') return true;
@@ -66,7 +72,7 @@ function isBlockedRequest(urlStr: string): boolean {
     // Strip brackets from IPv6 hostnames (e.g. [::1] -> ::1) and trailing dots
     const raw = parsed.hostname;
     const stripped = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
-    const hostname = stripped.replace(/\.+$/, '').toLowerCase();
+    const hostname = stripTrailingDots(stripped).toLowerCase();
 
     if (BLOCKED_HOSTNAMES.has(hostname)) return true;
 
@@ -83,7 +89,7 @@ async function isBlockedAfterDns(urlStr: string): Promise<boolean> {
     const parsed = new URL(urlStr);
     const raw = parsed.hostname;
     const stripped = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
-    const hostname = stripped.replace(/\.+$/, '').toLowerCase();
+    const hostname = stripTrailingDots(stripped).toLowerCase();
 
     if (BLOCKED_HOSTNAMES.has(hostname)) return true;
 

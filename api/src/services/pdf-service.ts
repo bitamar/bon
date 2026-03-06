@@ -55,8 +55,8 @@ async function callPdfService(input: PdfRenderInput): Promise<Buffer> {
     });
   }
 
-  const contentType = res.headers.get('content-type') ?? '';
-  if (!contentType.includes('pdf')) {
+  const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
+  if (!contentType.startsWith('application/pdf')) {
     const body = await res.text();
     throw new AppError({
       statusCode: 502,
