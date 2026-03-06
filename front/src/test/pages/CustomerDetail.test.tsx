@@ -70,7 +70,7 @@ describe('CustomerDetail page', () => {
   it('shows loading skeleton while fetching', () => {
     vi.mocked(customersApi.fetchCustomer).mockReturnValue(new Promise(() => {}));
     renderDetail();
-    expect(document.querySelector('.mantine-Skeleton-root')).toBeInTheDocument();
+    expect(screen.getByTestId('form-skeleton')).toBeInTheDocument();
   });
 
   it('shows error state with retry button', async () => {

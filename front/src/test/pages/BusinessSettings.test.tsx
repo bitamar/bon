@@ -92,7 +92,7 @@ describe('BusinessSettings page', () => {
 
     renderSettings();
 
-    expect(document.querySelector('.mantine-Skeleton-root')).toBeInTheDocument();
+    expect(screen.getByTestId('form-skeleton')).toBeInTheDocument();
   });
 
   it('shows form with business name when loaded', async () => {

@@ -141,7 +141,7 @@ describe('InvoiceEdit page', () => {
     vi.mocked(invoicesApi.fetchInvoice).mockReturnValue(new Promise(() => {}));
     vi.mocked(businessApi.fetchBusiness).mockReturnValue(new Promise(() => {}));
     renderEdit();
-    expect(document.querySelector('.mantine-Skeleton-root')).toBeInTheDocument();
+    expect(screen.getByTestId('form-skeleton')).toBeInTheDocument();
   });
 
   it('loads draft and displays form fields', async () => {

@@ -62,21 +62,23 @@ export function Settings() {
   if (settingsQuery.error) {
     const message = extractErrorMessage(settingsQuery.error, 'לא הצלחנו לטעון את ההגדרות');
     return (
-      <Stack gap="md">
-        <StatusCard
-          status="error"
-          title="לא הצלחנו לטעון את ההגדרות"
-          description={message}
-          align="start"
-          primaryAction={{
-            label: 'נסה שוב',
-            onClick: () => {
-              settingsQuery.refetch();
-            },
-            loading: settingsQuery.isFetching,
-          }}
-        />
-      </Stack>
+      <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
+        <Stack gap="md">
+          <StatusCard
+            status="error"
+            title="לא הצלחנו לטעון את ההגדרות"
+            description={message}
+            align="start"
+            primaryAction={{
+              label: 'נסה שוב',
+              onClick: () => {
+                settingsQuery.refetch();
+              },
+              loading: settingsQuery.isFetching,
+            }}
+          />
+        </Stack>
+      </Container>
     );
   }
 

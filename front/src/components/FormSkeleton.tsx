@@ -6,7 +6,7 @@ import { Card, Group, Skeleton, Stack } from '@mantine/core';
  */
 export function FormSkeleton({ rows = 4 }: Readonly<{ rows?: number }>) {
   return (
-    <Card withBorder padding="xl">
+    <Card withBorder padding="xl" data-testid="form-skeleton">
       <Stack gap="md">
         {Array.from({ length: rows }, (_, i) => (
           <Stack key={i} gap={6}>
