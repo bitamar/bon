@@ -5,9 +5,14 @@ const IV_LENGTH = 12; // 96-bit IV recommended for GCM
 const AUTH_TAG_LENGTH = 16; // 128-bit auth tag
 const HEX_KEY_LENGTH = 64; // 32 bytes = 64 hex chars
 
+const HEX_PATTERN = /^[0-9a-fA-F]+$/;
+
 function parseKey(hexKey: string): Buffer {
   if (hexKey.length !== HEX_KEY_LENGTH) {
     throw new Error(`Expected ${HEX_KEY_LENGTH}-char hex key, got ${hexKey.length} chars`);
+  }
+  if (!HEX_PATTERN.test(hexKey)) {
+    throw new Error('Encryption key contains non-hex characters');
   }
   return Buffer.from(hexKey, 'hex');
 }

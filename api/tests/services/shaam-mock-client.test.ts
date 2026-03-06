@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { ShaamMockClient } from '../../src/services/shaam/mock-client.js';
 import type { AllocationRequest } from '../../src/services/shaam/types.js';
 
@@ -27,8 +27,13 @@ function makeRequest(): AllocationRequest {
 }
 
 describe('ShaamMockClient', () => {
+  let client: ShaamMockClient;
+
+  beforeEach(() => {
+    client = new ShaamMockClient(0);
+  });
+
   it('returns an approved allocation result', async () => {
-    const client = new ShaamMockClient(0);
     const result = await client.requestAllocationNumber(makeRequest());
 
     expect(result.status).toBe('approved');
@@ -38,7 +43,6 @@ describe('ShaamMockClient', () => {
   });
 
   it('returns unique allocation numbers per call', async () => {
-    const client = new ShaamMockClient(0);
     const r1 = await client.requestAllocationNumber(makeRequest());
     const r2 = await client.requestAllocationNumber(makeRequest());
 
@@ -50,7 +54,6 @@ describe('ShaamMockClient', () => {
   });
 
   it('resolves without delay when delayMs is 0', async () => {
-    const client = new ShaamMockClient(0);
     const start = Date.now();
     await client.requestAllocationNumber(makeRequest());
     const elapsed = Date.now() - start;

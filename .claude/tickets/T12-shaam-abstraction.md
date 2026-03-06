@@ -143,13 +143,13 @@ This ticket builds the abstraction layer + OAuth2 token management. No real SHAA
 - [ ] Threshold constants exported from `types/src/shaam.ts`:
   ```typescript
   const ALLOCATION_THRESHOLDS = [
-    { from: new Date('2024-01-01'), thresholdILS: 25_000 },
-    { from: new Date('2025-01-01'), thresholdILS: 20_000 },
-    { from: new Date('2026-01-01'), thresholdILS: 10_000 },
     { from: new Date('2026-06-01'), thresholdILS: 5_000 },
+    { from: new Date('2026-01-01'), thresholdILS: 10_000 },
+    { from: new Date('2025-01-01'), thresholdILS: 20_000 },
+    { from: new Date('2024-01-01'), thresholdILS: 25_000 },
   ];
   ```
-  (Sorted descending by date; `currentThreshold(date)` returns the first entry where `date >= entry.from`)
+  (Sorted newest-first / descending by date; `currentThreshold(date)` returns the first entry where `date >= entry.from`)
 
 ### Fastify Plugin
 
@@ -187,7 +187,7 @@ This ticket builds the abstraction layer + OAuth2 token management. No real SHAA
 
 ### File Layout
 
-```
+```text
 api/src/
   services/shaam/
     types.ts           # ShaamService interface, AllocationResult type

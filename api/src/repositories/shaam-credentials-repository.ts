@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { businessShaamCredentials } from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
@@ -32,7 +32,7 @@ export async function upsertShaamCredentials(
         tokenExpiresAt: data.tokenExpiresAt,
         scope: data.scope,
         needsReauth: false,
-        updatedAt: new Date(),
+        updatedAt: sql`now()`,
       },
     })
     .returning();
@@ -42,6 +42,6 @@ export async function upsertShaamCredentials(
 export async function markNeedsReauth(businessId: string, txOrDb: DbOrTx = db): Promise<void> {
   await txOrDb
     .update(businessShaamCredentials)
-    .set({ needsReauth: true, updatedAt: new Date() })
+    .set({ needsReauth: true, updatedAt: sql`now()` })
     .where(eq(businessShaamCredentials.businessId, businessId));
 }

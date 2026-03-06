@@ -30,7 +30,11 @@ const Env = z
       z.enum(['development', 'test', 'production']).default('production')
     ),
     SHAAM_MODE: z.enum(SHAAM_MODES).default('mock'),
-    SHAAM_ENCRYPTION_KEY: z.string().length(64).optional(),
+    SHAAM_ENCRYPTION_KEY: z
+      .string()
+      .length(64)
+      .regex(/^[0-9a-fA-F]+$/, 'Must be a hex string')
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (data.SHAAM_MODE !== 'mock' && !data.SHAAM_ENCRYPTION_KEY) {
