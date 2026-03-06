@@ -77,19 +77,29 @@ describe('shaam-token-refresh handler', () => {
     vi.stubEnv('SHAAM_ENCRYPTION_KEY', TEST_KEY);
   });
 
-  it('does nothing when no credentials are expiring', async () => {
+  // ── helpers ──
+
+  async function runHandler() {
     const handler = createShaamTokenRefreshHandler(logger);
     await handler(makeJob());
+  }
+
+  async function seedExpiringBusiness(minutesUntilExpiry: number) {
+    const biz = await seedBusiness();
+    await seedExpiringCredentials(biz.id, minutesUntilExpiry);
+    return biz;
+  }
+
+  it('does nothing when no credentials are expiring', async () => {
+    await runHandler();
 
     expect(logger.debug).toHaveBeenCalledWith('shaam-token-refresh: no expiring credentials');
   });
 
   it('marks credentials as needsReauth when refresh fails (T13 not implemented)', async () => {
-    const biz = await seedBusiness();
-    await seedExpiringCredentials(biz.id, 10); // Expires in 10 min (within 20 min buffer)
+    const biz = await seedExpiringBusiness(10); // Expires in 10 min (within 20 min buffer)
 
-    const handler = createShaamTokenRefreshHandler(logger);
-    await handler(makeJob());
+    await runHandler();
 
     const cred = await findShaamCredentialsByBusinessId(biz.id);
     expect(cred!.needsReauth).toBe(true);
@@ -100,13 +110,10 @@ describe('shaam-token-refresh handler', () => {
   });
 
   it('processes multiple businesses independently', async () => {
-    const biz1 = await seedBusiness();
-    const biz2 = await seedBusiness();
-    await seedExpiringCredentials(biz1.id, 5);
-    await seedExpiringCredentials(biz2.id, 15);
+    const biz1 = await seedExpiringBusiness(5);
+    const biz2 = await seedExpiringBusiness(15);
 
-    const handler = createShaamTokenRefreshHandler(logger);
-    await handler(makeJob());
+    await runHandler();
 
     // Both should be marked needsReauth (since T13 refresh is not implemented)
     const cred1 = await findShaamCredentialsByBusinessId(biz1.id);
@@ -121,11 +128,9 @@ describe('shaam-token-refresh handler', () => {
   });
 
   it('skips credentials that are not expiring soon', async () => {
-    const biz = await seedBusiness();
-    await seedExpiringCredentials(biz.id, 120); // Expires in 2 hours
+    const biz = await seedExpiringBusiness(120); // Expires in 2 hours
 
-    const handler = createShaamTokenRefreshHandler(logger);
-    await handler(makeJob());
+    await runHandler();
 
     const cred = await findShaamCredentialsByBusinessId(biz.id);
     expect(cred!.needsReauth).toBe(false);
