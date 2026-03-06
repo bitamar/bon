@@ -1,6 +1,6 @@
 # T10 — Invoice PDF Generation
 
-**Status**: ⬜ Ready to start
+**Status**: ✅ Merged to main (PR #45)
 **Phase**: 3 — PDF
 **Requires**: T08 merged ✅ (all 4 sub-tickets merged)
 **Blocks**: T11
@@ -443,6 +443,6 @@ PR 1 includes infrastructure AND shared type additions. Full scope:
 
 ## Links
 
-- Branch: —
-- PR: —
-- Deployed: ⬜
+- Branch: main
+- PR: #45
+- Deployed: ✅ (PDF service on Railway, PRs #52-#54)
