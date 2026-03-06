@@ -22,7 +22,7 @@ pg-boss IS the outbox. The job payload is stored in PostgreSQL, so enqueuing ins
 
 ### Flow
 
-```
+```text
 User clicks "Send"
      │
      ▼
@@ -79,7 +79,7 @@ ALTER TYPE invoice_status ADD VALUE 'sending' AFTER 'finalized';
 ```
 
 Status machine becomes:
-```
+```text
 draft → finalized → sending → sent → paid
                   ↘ (retry exhausted) → finalized (reverted)
 ```

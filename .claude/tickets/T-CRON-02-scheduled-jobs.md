@@ -13,8 +13,6 @@ Three simple housekeeping cron jobs that keep the database clean. These have no 
 
 SHAAM token refresh is NOT here — it belongs to T12 (SHAAM abstraction) because it depends on the `business_shaam_credentials` table and the SHAAM OAuth2 flow.
 
-Overdue detection is NOT here — it belongs to T15 (payments) because overdue logic depends on `dueDate` and payment tracking being complete.
-
 ---
 
 ## Jobs

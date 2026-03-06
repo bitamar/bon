@@ -19,11 +19,11 @@ pg-boss was chosen because it uses PostgreSQL (already have it) — no new infra
 
 - [ ] `pg-boss` installed as dependency
 - [ ] `api/src/jobs/boss.ts` — typed boss factory + job name/payload type map
-- [ ] `api/src/plugins/jobs.ts` — Fastify plugin: start boss, register handlers, graceful shutdown
+- [ ] `api/src/plugins/jobs.ts` — Fastify plugin: start boss, decorate app, graceful shutdown
 - [ ] Boss instance decorated on app (`app.boss`) for on-demand job enqueue from routes/services
 - [ ] Graceful shutdown: `boss.stop()` on Fastify `onClose` hook
 - [ ] Job type safety: `JobPayloads` interface maps job names → payload types
-- [ ] Handler registration pattern: `registerHandler(boss, name, handler)` with typed payloads
+- [ ] Typed helper: `sendJob(boss, name, payload, options)` wrapper with `JobPayloads` type checking
 - [ ] Error handling: jobs log errors but never crash the server
 - [ ] Each job logs start/end/duration for observability
 - [ ] Integration test: start boss, enqueue a test job, verify it runs and completes
@@ -35,11 +35,13 @@ pg-boss was chosen because it uses PostgreSQL (already have it) — no new infra
 
 ### File Structure
 
-```
-api/src/jobs/
-├── boss.ts              # createBoss(), JobPayloads type map, typed send/work wrappers
-├── plugin.ts            # Fastify plugin lifecycle
-└── handlers/            # Empty dir — handlers added by subsequent tickets
+```text
+api/src/
+├── jobs/
+│   ├── boss.ts          # createBoss(), JobPayloads type map, typed send/work wrappers
+│   └── handlers/        # Empty dir — handlers added by subsequent tickets
+└── plugins/
+    └── jobs.ts          # Fastify plugin: start boss, decorate app, graceful shutdown
 ```
 
 ### Type-Safe Job Registry
@@ -81,8 +83,9 @@ export const jobsPlugin: FastifyPluginAsync = async (app) => {
   const boss = createBoss(app.config.DATABASE_URL);
   await boss.start();
 
-  // No cron schedules or handlers registered here.
-  // Each feature ticket registers its own handlers after this plugin loads.
+  // Only starts the boss and decorates app.
+  // Cron schedules and handlers are registered by their owning tickets
+  // (T-CRON-02, T-ARCH-08, T12, T13, T14) — not here.
 
   app.decorate('boss', boss);
   app.addHook('onClose', async () => { await boss.stop(); });
@@ -93,7 +96,7 @@ export const jobsPlugin: FastifyPluginAsync = async (app) => {
 
 The pattern for async external calls (email, SHAAM) is always:
 
-```
+```text
 1. BEGIN transaction
 2. Update entity status to transitional state (e.g. 'sending')
 3. boss.send(jobName, payload, { singletonKey })   ← inside transaction

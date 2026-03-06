@@ -804,7 +804,7 @@ pg-boss stores jobs in PostgreSQL, so `boss.send()` inside a Drizzle transaction
 | `shaam-token-refresh` | T12 | `*/15 * * * *` (every 15min) | Asia/Jerusalem |
 
 **Build order for jobs:**
-```
+```text
 T-CRON-01 (pg-boss infra)     ← ~150 lines, unblocks everything
     ├── T-ARCH-08 (async email)  ← first on-demand job, proves the outbox pattern
     ├── T-CRON-02 (cron jobs)    ← draft + session + overdue cleanup
