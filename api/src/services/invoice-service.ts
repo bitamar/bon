@@ -417,7 +417,7 @@ export async function sendInvoice(
     throw unprocessableEntity({ code: 'not_sendable' });
   }
 
-  const recipientEmail = body.recipientEmail ?? invoice.customerEmail;
+  const recipientEmail = (body.recipientEmail ?? invoice.customerEmail)?.trim();
   if (!recipientEmail) {
     throw unprocessableEntity({ code: 'missing_email' });
   }
