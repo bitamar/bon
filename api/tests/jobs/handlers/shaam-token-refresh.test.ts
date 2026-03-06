@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { randomUUID, randomInt } from 'node:crypto';
 import type { Job } from 'pg-boss';
 import type { JobPayloads } from '../../../src/jobs/boss.js';
@@ -75,6 +75,10 @@ describe('shaam-token-refresh handler', () => {
     await resetDb();
     logger = makeLogger();
     vi.stubEnv('SHAAM_ENCRYPTION_KEY', TEST_KEY);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   // ── helpers ──

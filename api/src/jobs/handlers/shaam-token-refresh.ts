@@ -39,7 +39,14 @@ export function createShaamTokenRefreshHandler(
           { businessId: cred.businessId, err },
           'shaam-token-refresh: refresh failed, marking needsReauth'
         );
-        await markNeedsReauth(cred.businessId);
+        try {
+          await markNeedsReauth(cred.businessId);
+        } catch (markErr: unknown) {
+          logger.error(
+            { businessId: cred.businessId, err: markErr },
+            'shaam-token-refresh: failed to mark needsReauth'
+          );
+        }
       }
     }
   };
