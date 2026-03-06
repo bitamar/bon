@@ -1,8 +1,8 @@
 # T12 — SHAAM Abstraction & Token Management
 
-**Status**: 🔒 Blocked (T10 must merge first — see note below)
+**Status**: 🔒 Blocked (T-CRON-01 must merge first)
 **Phase**: 4 — SHAAM Integration
-**Requires**: T09 merged (actual functional dependency — see Dependency Note)
+**Requires**: T-CRON-01 merged (pg-boss infrastructure for token refresh cron job)
 **Blocks**: T13
 
 ---
@@ -11,11 +11,9 @@
 
 T12 has **zero functional dependency** on T11 (Email Delivery) or T10 (PDF Generation). The ShaamService interface, token management, and `requiresAllocationNumber()` pure function do not use email or PDF features.
 
-The original "Blocked by T11" was based on sequential build order, not a technical dependency. T12 can start as soon as T09 is merged (the last shipped ticket).
-
 The one AC that referenced email — "on refresh failure: notify owner" — cannot be implemented at T12 time regardless (email infrastructure doesn't exist yet). Instead, T12 sets a `needsReauth` flag on the credentials row; email notification is deferred to post-T11.
 
-**Recommendation**: Unblock T12 from T11. It can be built in parallel with T10/T11.
+T12 depends on T-CRON-01 because it registers the `shaam-token-refresh` cron job handler.
 
 ---
 
@@ -24,6 +22,8 @@ The one AC that referenced email — "on refresh failure: notify owner" — cann
 SHAAM is Israel's Tax Authority system for electronic invoice allocation numbers. Invoices above a threshold (currently ₪10,000 excl. VAT as of Jan 2026, dropping to ₪5,000 in June 2026) issued to licensed dealers must have an allocation number before they are legally valid.
 
 This ticket builds the abstraction layer + OAuth2 token management. No real SHAAM calls yet — that's T13. The point is to define the interface cleanly so the real HTTP client and mock client are swappable.
+
+This ticket also registers the `shaam-token-refresh` cron job handler using the pg-boss infrastructure from T-CRON-01.
 
 ---
 
@@ -115,14 +115,20 @@ This ticket builds the abstraction layer + OAuth2 token management. No real SHAA
 
 ### Credentials Repository
 
-- [ ] T12 builds the **data layer only**: table + repository + encrypt/decrypt
-- [ ] The actual token refresh mechanism (cron job, middleware check, or pg-boss task that calls refresh 5 min before `tokenExpiresAt`) is **deferred to T13** — T12 just provides the `markNeedsReauth()` method
-- [ ] On refresh failure (when implemented in T13): set `needsReauth = true` on the credentials row
-- [ ] Email notification on re-auth needed is **deferred** to post-T11 (no email infrastructure yet)
 - [ ] Repository: `ShaamCredentialsRepository` with methods:
   - `findByBusinessId(businessId): Promise<ShaamCredentials | null>`
   - `upsert(businessId, tokens): Promise<ShaamCredentials>`
   - `markNeedsReauth(businessId): Promise<void>`
+
+### Token Refresh Cron Job
+
+- [ ] Token refresh cron job registered via pg-boss (from T-CRON-01):
+  - Schedule: `*/15 * * * *` (every 15 min), `tz: 'Asia/Jerusalem'`
+  - Handler: `api/src/jobs/handlers/shaam-token-refresh.ts`
+  - Finds credentials where `tokenExpiresAt < NOW() + INTERVAL '5 minutes'`
+  - On success: update tokens + expiry
+  - On failure: set `needsReauth = true` on credentials row, log error
+  - Each business refreshed independently (one failure doesn't block others)
 
 ### Trigger Logic (Pure Functions)
 
@@ -189,6 +195,8 @@ This ticket builds the abstraction layer + OAuth2 token management. No real SHAA
 
 ```text
 api/src/
+  jobs/handlers/
+    shaam-token-refresh.ts # pg-boss cron handler (every 15 min)
   services/shaam/
     types.ts           # ShaamService interface, AllocationResult type
     mock-client.ts     # ShaamMockClient implementation
@@ -204,6 +212,18 @@ types/src/
   shaam.ts             # requiresAllocationNumber(), shouldRequestAllocation(),
                        # threshold constants, shared types
 ```
+
+### Token Refresh as a Cron Job
+
+Uses the pg-boss infrastructure from T-CRON-01:
+
+```typescript
+// Registered during app startup (in shaam plugin or jobs plugin)
+await boss.schedule('shaam-token-refresh', '*/15 * * * *', null, { tz: 'Asia/Jerusalem' });
+await boss.work('shaam-token-refresh', handleShaamTokenRefresh);
+```
+
+The handler iterates over all businesses with expiring tokens. Each refresh is independent — one failure doesn't prevent other businesses from refreshing.
 
 ### Mock Behavior
 
@@ -238,6 +258,7 @@ T13 (SHAAM Allocation Requests) depends on the following being in place:
 5. `business_shaam_credentials` table + repository — for token storage
 6. Fastify plugin wiring `app.shaamService`
 7. `encrypt`/`decrypt` helpers — for reading tokens before API calls
+8. pg-boss `shaam-token-refresh` cron job — keeping tokens fresh
 
 ---
 
@@ -258,7 +279,6 @@ T13 (SHAAM Allocation Requests) depends on the following being in place:
 |------|-------------|
 | Emergency number methods on interface | T14 |
 | OAuth2 consent flow (redirect + callback endpoints) | T13 architecture |
-| Token refresh mechanism (cron/pg-boss job, 5-min-before-expiry check) | T13 |
 | `business.alwaysRequestAllocation` field | Business settings ticket |
 | Email notification on re-auth needed | Post-T11 |
 | Encryption key rotation | Post-MVP |

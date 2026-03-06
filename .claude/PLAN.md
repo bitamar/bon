@@ -462,12 +462,14 @@ Cache finalized PDFs after first generation (local filesystem via `StorageServic
 Invalidate cache when invoice status changes via `invalidatePdfCache()`.
 For drafts: generate but don't cache (watermark "טיוטה - לא בתוקף" across the page).
 
-### 3.3 Email Delivery (T11 — delivered)
+### 3.3 Email Delivery (T11 — delivered, T-ARCH-08 — async upgrade pending)
 
 Email delivery is implemented alongside T10 in this PR:
 - `POST /businesses/:businessId/invoices/:invoiceId/send` — sends finalized invoice to customer
 - Email sender (Resend, with console fallback in dev) with PDF attachment
 - `sentAt` timestamp tracking and status update to `sent`
+
+**Async upgrade (T-ARCH-08)**: Currently synchronous — email is sent inline during the HTTP request. T-ARCH-08 moves this to a pg-boss background job using the outbox pattern (transaction → enqueue → worker → status update). Adds `'sending'` transitional status for UI feedback. This is the first on-demand job and proves the pattern reused by SHAAM (T13, T14).
 
 ---
 
@@ -655,13 +657,11 @@ Flow:
 5. Original invoice status → `credited`
 6. SHAAM: credit note may also need allocation number if above threshold
 
-### 5.3 Overdue Detection
+### 5.3 Overdue Detection (moved to T-CRON-02)
 
-Background job (cron, daily at 6am):
-- Find all invoices with `status = finalized` or `partially_paid`
-  where `dueDate < NOW()` and `dueDate IS NOT NULL`
-- Mark as `overdue` (add to status or a flag column)
-- Send email notification to business owner (configurable frequency: daily digest or per-invoice)
+Implemented as a pg-boss cron job in T-CRON-02 (daily at 6am Israel time).
+Batch-marks invoices as overdue (`isOverdue` flag), resets flag when paid.
+Future: sends digest email to business owners.
 
 ### 5.4 Invoice Search & Filtering
 
@@ -770,14 +770,48 @@ Administrative process, can be done in parallel with Phase 6.
 - Store PDFs on **local filesystem** via `StorageService` interface for MVP (`.data/pdfs/`). Upgrade to S3 (Cloudflare R2) without interface change when needed.
 - **Draft PDFs**: watermarked "טיוטה - לא בתוקף", never cached.
 
-### Background Jobs
+### Background Jobs — pg-boss Architecture
+
 Use **pg-boss** (PostgreSQL-backed job queue) — already have Postgres, no new infrastructure.
-Jobs needed:
-- PDF generation
-- SHAAM allocation number requests (async, non-blocking to invoice finalization)
-- Overdue invoice detection (daily cron)
-- SHAAM token refresh
-- Email delivery
+
+**Infrastructure** (T-CRON-01): Fastify plugin that starts pg-boss, decorates `app.boss`, handles graceful shutdown. Type-safe `JobPayloads` map ensures every job name has a typed payload. No handlers in the infra ticket — each feature registers its own.
+
+**On-demand jobs** (enqueued by features, outbox pattern):
+
+| Job | Ticket | Trigger | External Call | Idempotency |
+|-----|--------|---------|---------------|-------------|
+| `send-invoice-email` | T-ARCH-08 | User clicks "Send" | Resend API | `singletonKey: invoiceId` |
+| `shaam-allocation-request` | T13 | Invoice finalized + threshold met | ITA SHAAM API | `singletonKey: invoiceId` |
+| `shaam-emergency-report` | T14 | SHAAM recovers after outage | ITA SHAAM API | `singletonKey: businessId` |
+
+All on-demand jobs follow the same **outbox pattern**:
+1. BEGIN transaction
+2. Update entity to transitional status (`'sending'`, `allocationStatus: 'pending'`)
+3. `boss.send(jobName, payload, { singletonKey })` — inside transaction
+4. COMMIT → return 202 Accepted
+5. Worker picks up job, calls external service, updates final status
+6. On exhaustion: revert to safe state, log error
+
+pg-boss stores jobs in PostgreSQL, so `boss.send()` inside a Drizzle transaction participates in that transaction. If the transaction rolls back, the job is never enqueued. This IS the outbox — no separate outbox table needed.
+
+**Cron jobs** (scheduled maintenance):
+
+| Job | Ticket | Schedule | Timezone |
+|-----|--------|----------|----------|
+| `draft-cleanup` | T-CRON-02 | `0 3 * * *` (3am daily) | Asia/Jerusalem |
+| `session-cleanup` | T-CRON-02 | `0 4 * * *` (4am daily) | Asia/Jerusalem |
+| `overdue-detection` | T-CRON-02 | `0 6 * * *` (6am daily) | Asia/Jerusalem |
+| `shaam-token-refresh` | T12 | `*/15 * * * *` (every 15min) | Asia/Jerusalem |
+
+**Build order for jobs:**
+```
+T-CRON-01 (pg-boss infra)     ← ~150 lines, unblocks everything
+    ├── T-ARCH-08 (async email)  ← first on-demand job, proves the outbox pattern
+    ├── T-CRON-02 (cron jobs)    ← draft + session + overdue cleanup
+    └── T12 (SHAAM abstraction + token refresh cron handler)
+            └── T13 (allocation requests via job queue)
+                    └── T14 (emergency numbers + recovery reporting job)
+```
 
 ### Email
 Use **Resend** (developer-friendly, good Hebrew support, reliable deliverability).
@@ -824,27 +858,27 @@ Abstract behind a `StorageService` interface from day one.
   T10.5: Docker + Railway deployment (PRs #52-#54)
   T11: Email delivery (delivered with T10)
 
-→ Phase 4: SHAAM Integration         (~3 weeks)
-  4.1 SHAAM abstraction interface
-  4.2 OAuth2 per-business token management
-  4.3 Allocation number request (sandbox)
-  4.4 Emergency number pool
-  4.5 Error handling + audit log
-  4.6 Production SHAAM credentials
+→ Phase 3.5: Job Queue Infrastructure
+  T-CRON-01: pg-boss infrastructure (plugin, typed job registry, graceful shutdown)
+  T-ARCH-08: Async email delivery (first on-demand job, proves outbox pattern)
+  T-CRON-02: Scheduled maintenance jobs (draft cleanup, session cleanup, overdue detection)
 
-→ Phase 5: Invoice Lifecycle         (~1.5 weeks)
-  5.1 Payment recording
-  5.2 Credit notes
-  5.3 Overdue detection (cron)
-  5.4 Invoice search + pagination
+→ Phase 4: SHAAM Integration
+  T12: SHAAM abstraction + token management + token refresh cron job
+  T13: Allocation requests via pg-boss job queue (outbox pattern)
+  T14: Emergency numbers + recovery reporting job
 
-→ Phase 6: Reporting                 (~2 weeks)
-  6.1 PCN874 VAT report export
-  6.2 Business dashboard
-  6.3 Uniform file export
+→ Phase 5: Invoice Lifecycle
+  T15: Payment recording
+  T16: Credit notes
+
+→ Phase 6: Reporting
+  T18: Business dashboard
+  T19: PCN874 VAT report export
+  T20: Uniform file export (קובץ במבנה אחיד)
 
 → Phase 7: ITA Registration          (parallel with 6)
-  Administrative + legal review
+  T21: Administrative + legal review
 ```
 
 ---
