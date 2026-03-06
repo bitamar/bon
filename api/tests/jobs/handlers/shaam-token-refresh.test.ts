@@ -68,9 +68,20 @@ function makeLogger() {
   } as unknown as import('fastify').FastifyBaseLogger;
 }
 
-describe('shaam-token-refresh handler', () => {
-  let logger: ReturnType<typeof makeLogger>;
+let logger: ReturnType<typeof makeLogger>;
 
+async function runHandler() {
+  const handler = createShaamTokenRefreshHandler(logger);
+  await handler(makeJob());
+}
+
+async function seedExpiringBusiness(minutesUntilExpiry: number) {
+  const biz = await seedBusiness();
+  await seedExpiringCredentials(biz.id, minutesUntilExpiry);
+  return biz;
+}
+
+describe('shaam-token-refresh handler', () => {
   beforeEach(async () => {
     await resetDb();
     logger = makeLogger();
@@ -80,19 +91,6 @@ describe('shaam-token-refresh handler', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
-
-  // ── helpers ──
-
-  async function runHandler() {
-    const handler = createShaamTokenRefreshHandler(logger);
-    await handler(makeJob());
-  }
-
-  async function seedExpiringBusiness(minutesUntilExpiry: number) {
-    const biz = await seedBusiness();
-    await seedExpiringCredentials(biz.id, minutesUntilExpiry);
-    return biz;
-  }
 
   it('does nothing when no credentials are expiring', async () => {
     await runHandler();
