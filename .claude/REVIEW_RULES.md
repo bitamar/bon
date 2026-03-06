@@ -218,3 +218,15 @@ All shared test helpers **must** be defined at module scope (not inside `describ
 - Variables used by helpers (e.g., `const switchBusiness = vi.fn()`)
 
 Use `beforeEach(() => { vi.resetAllMocks(); })` inside `describe` to reset module-scoped mocks between tests.
+
+## Reviewer Workflow Rules
+
+### Large fixes must become tickets
+
+When a review finding requires changes too large for an inline fix (e.g., new DB tables, schema migrations, new status values, architectural changes), the Reviewer must **not** silently skip the finding. Instead:
+
+1. Create a GitHub issue describing the problem, the proposed solution, and why it's too large for the current PR.
+2. Reference the issue number in the review comment so it's tracked.
+3. Use: `gh issue create --title "..." --body "..."` to create the ticket.
+
+"Too large for this PR" is never a reason to drop a finding — it's a reason to create a ticket.
