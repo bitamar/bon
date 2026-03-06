@@ -3,19 +3,19 @@ FROM node:22-slim AS builder
 
 WORKDIR /app
 
-# Copy workspace config and package files for dependency install
+# Copy workspace config, lockfile, and full types source.
+# types/ must be present before npm ci because the root prepare
+# script builds @bon/types during install.
 COPY package.json package-lock.json ./
-COPY types/package.json types/
+COPY types/ types/
 COPY pdf/package.json pdf/
 
 RUN npm ci --workspace=types --workspace=pdf
 
-# Copy source code
-COPY types/ types/
+# Copy pdf source and build (types already built by prepare)
 COPY pdf/ pdf/
 
-# Build types first (shared dependency), then pdf
-RUN npm run build --workspace=types && npm run build --workspace=pdf
+RUN npm run build --workspace=pdf
 
 # ── Production stage ─────────────────────────────────────────────
 FROM node:22-slim
@@ -37,7 +37,8 @@ COPY package.json package-lock.json ./
 COPY types/package.json types/
 COPY pdf/package.json pdf/
 
-# Install production dependencies only
+# Install production dependencies only (prepare skips because types/src
+# doesn't exist in this stage — only pre-built dist is copied below)
 RUN npm ci --workspace=types --workspace=pdf --omit=dev
 
 # Copy compiled output from builder
