@@ -6,7 +6,7 @@ import { createBoss } from '../jobs/boss.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
-    boss: PgBoss;
+    boss: PgBoss | undefined;
   }
 }
 
@@ -14,6 +14,7 @@ const jobsPluginFn: FastifyPluginAsync = async (app) => {
   // Skip in test mode unless explicitly enabled — pg-boss start() runs
   // schema migrations and a maintenance loop that slows down unrelated tests.
   if (env.NODE_ENV === 'test' && !process.env['ENABLE_PGBOSS']) {
+    app.decorate('boss', undefined);
     return;
   }
 
