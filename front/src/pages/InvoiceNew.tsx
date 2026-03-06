@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Container } from '@mantine/core';
+import { Center, Container, Loader, Stack, Text } from '@mantine/core';
 import { useNavigate, useParams } from 'react-router-dom';
 import { StatusCard } from '../components/StatusCard';
 import { useApiMutation } from '../lib/useApiMutation';
@@ -59,7 +59,14 @@ export function InvoiceNew() {
 
   return (
     <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-      <StatusCard status="loading" title="יוצר טיוטה..." />
+      <Center py="xl">
+        <Stack align="center" gap="xs">
+          <Loader size="sm" />
+          <Text c="dimmed" size="sm">
+            יוצר טיוטה...
+          </Text>
+        </Stack>
+      </Center>
     </Container>
   );
 }

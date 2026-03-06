@@ -21,6 +21,7 @@ import { IconAlertTriangle } from '@tabler/icons-react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
+import { FormSkeleton } from '../components/FormSkeleton';
 import { StatusCard } from '../components/StatusCard';
 import { CustomerSelect } from '../components/CustomerSelect';
 import { InvoiceLineItems, type LineItemFormRow } from '../components/InvoiceLineItems';
@@ -331,7 +332,7 @@ export function InvoiceEdit() {
   if (invoiceQuery.isPending || businessQuery.isPending) {
     return (
       <Container size="md" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-        <StatusCard status="loading" title="טוען חשבונית..." />
+        <FormSkeleton rows={6} />
       </Container>
     );
   }
@@ -363,7 +364,7 @@ export function InvoiceEdit() {
   if (!hasHydrated.current) {
     return (
       <Container size="md" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-        <StatusCard status="loading" title="טוען חשבונית..." />
+        <FormSkeleton rows={6} />
       </Container>
     );
   }

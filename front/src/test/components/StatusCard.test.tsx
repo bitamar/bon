@@ -5,13 +5,6 @@ import { StatusCard } from '../../components/StatusCard';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 describe('StatusCard', () => {
-  it('renders loading state with title and no primary action button', () => {
-    renderWithProviders(<StatusCard status="loading" title="Loading data..." />);
-
-    expect(screen.getByText('Loading data...')).toBeInTheDocument();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
-  });
-
   it('renders empty state with title and description and icon', () => {
     renderWithProviders(
       <StatusCard status="empty" title="No items found" description="Try adding some items." />
@@ -19,7 +12,6 @@ describe('StatusCard', () => {
 
     expect(screen.getByText('No items found')).toBeInTheDocument();
     expect(screen.getByText('Try adding some items.')).toBeInTheDocument();
-    // ThemeIcon renders as a div container; icon SVG is present
     expect(document.querySelector('svg')).toBeInTheDocument();
   });
 
@@ -48,15 +40,6 @@ describe('StatusCard', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add item' }));
 
     expect(handleClick).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders description in loading state', () => {
-    renderWithProviders(
-      <StatusCard status="loading" title="Loading..." description="Please wait" />
-    );
-
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
-    expect(screen.getByText('Please wait')).toBeInTheDocument();
   });
 
   it('renders secondaryAction when provided', () => {

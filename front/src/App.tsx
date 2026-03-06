@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react';
-import { AppShell, Center, Loader } from '@mantine/core';
+import { AppShell } from '@mantine/core';
 import Header from './Header';
 import Navbar from './Navbar';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
@@ -21,6 +21,7 @@ import { InvoiceEdit } from './pages/InvoiceEdit';
 import { InvoiceDetail } from './pages/InvoiceDetail';
 import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
+import { AppSplash } from './components/AppSplash';
 import { BusinessRoute } from './components/BusinessRoute';
 import { LegacyRedirect } from './components/LegacyRedirect';
 
@@ -33,11 +34,7 @@ function HomeRedirect() {
 function ProtectedRoute({ children }: Readonly<{ children: ReactNode }>) {
   const { user, isHydrated } = useAuth();
   if (!isHydrated) {
-    return (
-      <Center h="100%">
-        <Loader size="sm" aria-label="Loading user" role="status" />
-      </Center>
-    );
+    return <AppSplash label="Loading user" />;
   }
   if (!user) return <Navigate to="/welcome" replace />;
   return children;
@@ -56,11 +53,7 @@ function OnboardingGuard({ children }: Readonly<{ children: ReactNode }>) {
   const location = useLocation();
 
   if (isLoading) {
-    return (
-      <Center h="100%">
-        <Loader size="sm" aria-label="Loading businesses" role="status" />
-      </Center>
-    );
+    return <AppSplash label="Loading businesses" />;
   }
 
   if (businesses.length === 0 && location.pathname !== '/onboarding') {

@@ -137,11 +137,11 @@ describe('InvoiceEdit page', () => {
     expect(screen.getByText('לא נבחר עסק')).toBeInTheDocument();
   });
 
-  it('shows loading state', () => {
+  it('shows loading skeleton while fetching', () => {
     vi.mocked(invoicesApi.fetchInvoice).mockReturnValue(new Promise(() => {}));
     vi.mocked(businessApi.fetchBusiness).mockReturnValue(new Promise(() => {}));
     renderEdit();
-    expect(screen.getByText('טוען חשבונית...')).toBeInTheDocument();
+    expect(screen.getByTestId('form-skeleton')).toBeInTheDocument();
   });
 
   it('loads draft and displays form fields', async () => {
