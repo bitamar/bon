@@ -249,6 +249,14 @@ export function InvoiceDetail() {
             </Group>
           </Paper>
         )}
+        {invoice.allocationStatus === 'emergency' && invoice.allocationNumber && (
+          <Paper withBorder p="md" radius="md" bg="orange.0" data-testid="allocation-emergency">
+            <Group gap="sm">
+              <Text fw={600}>מספר הקצאת חירום:</Text>
+              <Text dir="ltr">{invoice.allocationNumber}</Text>
+            </Group>
+          </Paper>
+        )}
         {invoice.allocationStatus === 'rejected' && (
           <Paper withBorder p="md" radius="md" bg="red.0" data-testid="allocation-rejected">
             <Stack gap={4}>

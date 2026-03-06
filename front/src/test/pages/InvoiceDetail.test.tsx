@@ -166,6 +166,14 @@ describe('InvoiceDetail page', () => {
     expect(screen.getByTestId('allocation-rejected')).toBeInTheDocument();
   });
 
+  it('shows emergency allocation number', async () => {
+    renderWithInvoice({ allocationStatus: 'emergency', allocationNumber: 'EMR-99999' });
+
+    expect(await screen.findByText('EMR-99999')).toBeInTheDocument();
+    expect(screen.getByText('מספר הקצאת חירום:')).toBeInTheDocument();
+    expect(screen.getByTestId('allocation-emergency')).toBeInTheDocument();
+  });
+
   it('does not show allocation section when status is null', async () => {
     renderWithInvoice({ allocationStatus: null, allocationNumber: null });
 
@@ -173,6 +181,7 @@ describe('InvoiceDetail page', () => {
     expect(screen.queryByTestId('allocation-approved')).not.toBeInTheDocument();
     expect(screen.queryByTestId('allocation-pending')).not.toBeInTheDocument();
     expect(screen.queryByTestId('allocation-rejected')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('allocation-emergency')).not.toBeInTheDocument();
   });
 
   it('shows vat exemption reason when present', async () => {

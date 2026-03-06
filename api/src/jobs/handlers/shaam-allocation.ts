@@ -121,7 +121,7 @@ async function processAllocationJob(
       allocationNumber: null,
       errorCode: null,
       result: 'error',
-      attemptNumber: 1,
+      // attemptNumber defaults to 1 via schema; per-retry tracking requires JobWithMetadata
     });
 
     await updateInvoice(invoiceId, businessId, {
