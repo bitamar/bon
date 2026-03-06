@@ -50,8 +50,8 @@ When SHAAM recovers after an outage, BON must batch-report all emergency numbers
 SHAAM allocation request succeeds (first success after E099 streak)
      │
      ▼
-Enqueue 'shaam-emergency-report' job
-  boss.send('shaam-emergency-report', { businessId }, {
+Enqueue via typed wrapper (fire-and-forget — no withTransactionalJob needed):
+  sendJob(boss, 'shaam-emergency-report', { businessId }, {
     singletonKey: businessId,     ← one report job per business at a time
     retryLimit: 3,
     retryDelay: 300,              ← 5 min between retries
@@ -59,14 +59,14 @@ Enqueue 'shaam-emergency-report' job
   })
      │
      ▼
-pg-boss worker
+pg-boss worker (registered in api/src/plugins/shaam.ts via runJob wrapper)
   1. SELECT all emergency numbers WHERE used = true AND reported = false
   2. Call ShaamService.reportEmergencyUsage(businessId, usedNumbers)
   3. On success: SET reported = true, reported_at = NOW()
   4. On failure: pg-boss retries
 ```
 
-Same outbox pattern as T-ARCH-08 (email) and T13 (allocation).
+Same job pattern as T-ARCH-08 (email) and T13 (allocation). Uses `sendJob()` typed wrapper and `runJob()` error/timing wrapper from T-CRON-01. No `withTransactionalJob` needed — the report enqueue is fire-and-forget after a successful allocation, not atomic with any status transition.
 
 ---
 
@@ -93,8 +93,8 @@ Error codes defined as constants in `types/src/shaam.ts`, not magic strings.
 - [ ] Settings page section: owner can enter emergency numbers, see pool status (available / used count)
 - [ ] Alert shown when pool < 5 numbers remaining (on settings page and as a banner on invoice detail after emergency use)
 - [ ] When SHAAM returns E099: consume next emergency number atomically, set `allocationStatus = 'emergency'` on invoice
-- [ ] Recovery reporting job: `api/src/jobs/handlers/shaam-emergency-report.ts`
-- [ ] `singletonKey: businessId` prevents duplicate report jobs per business
+- [ ] Recovery reporting handler: `api/src/jobs/handlers/shaam-emergency-report.ts`, registered in `api/src/plugins/shaam.ts` via `runJob()` wrapper
+- [ ] Recovery report enqueued via `sendJob()` typed wrapper with `singletonKey: businessId`
 - [ ] ITA error code constants with Hebrew user-facing messages in `types/src/shaam.ts`
 - [ ] All error states visible on invoice detail page with actionable next steps per error code
 - [ ] T14 extends the `ShaamService` interface with `reportEmergencyUsage()` — T12 defers emergency methods to T14
@@ -106,8 +106,9 @@ Error codes defined as constants in `types/src/shaam.ts`, not magic strings.
 - `allocationNumber` and `allocationError` columns exist on `invoices` table (`api/src/db/schema.ts:235-237`).
 - Invoice serializer already includes `allocationStatus`, `allocationNumber`, `allocationError` (`api/src/lib/invoice-serializers.ts:33-35`).
 - Basic `rejected` → store error + show banner is done in T13 (generic message). T14 replaces generic with per-code messages.
-- pg-boss infrastructure and `app.boss` decorator from T-CRON-01.
+- pg-boss infrastructure from T-CRON-01: `app.boss` decorator, `sendJob()` typed wrapper, `runJob()` error/timing wrapper, `JobPayloads` registry (already includes `'shaam-emergency-report': { businessId: string }`).
 - `shaam_audit_log` table from T13.
+- `ShaamCredentialsRepository.markNeedsReauth(businessId)` from T12 (for E010 handling).
 
 ---
 
@@ -121,7 +122,7 @@ Error codes defined as constants in `types/src/shaam.ts`, not magic strings.
 | `shouldRequestAllocation()` pure function | T12 | Already called by T13 job — T14 doesn't call it directly |
 | `shaam-allocation-request` job handler | T13 | T14 **modifies** this handler to add E099 → emergency fallback |
 | `shaam_audit_log` table | T13 | Emergency usage logged here too |
-| pg-boss instance + `app.boss` decorator | T-CRON-01 | `boss.send('shaam-emergency-report', ...)` |
+| pg-boss instance + `app.boss` + `sendJob` + `runJob` wrappers | T-CRON-01 | `sendJob(boss, 'shaam-emergency-report', ...)`, `runJob()` for handler registration |
 | `needsReauth` flag on credentials | T12 | T14's E010 handler sets this flag |
 
 ### Modifying the T13 job handler
