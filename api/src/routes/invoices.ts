@@ -143,7 +143,34 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req) => {
       ensureBusinessContext(req);
-      return finalize(req.businessContext.businessId, req.params.invoiceId, req.body);
+      const result = await finalize(req.businessContext.businessId, req.params.invoiceId, req.body);
+
+      // Enqueue SHAAM allocation job if needed (non-blocking — fire and forget)
+      if (result.needsAllocation && app.boss) {
+        app.boss
+          .send(
+            'shaam-allocation-request',
+            {
+              businessId: req.businessContext.businessId,
+              invoiceId: req.params.invoiceId,
+            },
+            {
+              retryLimit: 5,
+              retryDelay: 30,
+              retryBackoff: true,
+              expireInSeconds: 3600,
+            }
+          )
+          .catch((err: unknown) => {
+            req.log.error(
+              { err, invoiceId: req.params.invoiceId },
+              'Failed to enqueue SHAAM allocation job'
+            );
+          });
+      }
+
+      const { needsAllocation: _, ...response } = result;
+      return response;
     }
   );
 

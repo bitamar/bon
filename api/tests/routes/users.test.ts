@@ -42,7 +42,7 @@ describe('routes/users', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
-    app = await buildServer({ logger: false });
+    app = await buildServer({ logger: false, skipJobs: true });
   });
 
   afterAll(async () => {

@@ -346,3 +346,41 @@ export const businessShaamCredentialsRelations = relations(businessShaamCredenti
     references: [businesses.id],
   }),
 }));
+
+// ── SHAAM Audit Log ──
+
+const SHAAM_AUDIT_RESULTS = ['approved', 'rejected', 'deferred', 'error'] as const;
+export const shaamAuditResultEnum = pgEnum('shaam_audit_result', SHAAM_AUDIT_RESULTS);
+
+export const shaamAuditLog = pgTable(
+  'shaam_audit_log',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id),
+    requestPayload: text('request_payload').notNull(), // JSON string
+    responsePayload: text('response_payload'), // JSON string (null if network error)
+    httpStatus: integer('http_status'),
+    allocationNumber: text('allocation_number'),
+    errorCode: text('error_code'),
+    result: shaamAuditResultEnum('result').notNull(),
+    attemptNumber: integer('attempt_number').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('shaam_audit_log_invoice_idx').on(table.invoiceId)]
+);
+
+export const shaamAuditLogRelations = relations(shaamAuditLog, ({ one }) => ({
+  business: one(businesses, {
+    fields: [shaamAuditLog.businessId],
+    references: [businesses.id],
+  }),
+  invoice: one(invoices, {
+    fields: [shaamAuditLog.invoiceId],
+    references: [invoices.id],
+  }),
+}));

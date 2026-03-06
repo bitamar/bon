@@ -26,9 +26,15 @@ import { shaamPlugin } from './plugins/shaam.js';
 import { jobsPlugin } from './plugins/jobs.js';
 import { createLogger } from './lib/logger.js';
 import { isHostAllowed, parseOriginHeader } from './lib/origin.js';
+import { jobsPlugin } from './plugins/jobs.js';
+import { createShaamAllocationHandler } from './jobs/handlers/shaam-allocation.js';
 
-export async function buildServer(options: FastifyServerOptions = {}) {
-  const { logger: providedLogger, genReqId, ...rest } = options;
+export interface BuildServerOptions extends FastifyServerOptions {
+  skipJobs?: boolean;
+}
+
+export async function buildServer(options: BuildServerOptions = {}) {
+  const { logger: providedLogger, genReqId, skipJobs, ...rest } = options;
   const logger = providedLogger ?? createLogger();
   const app = Fastify({
     ...rest,
@@ -101,6 +107,14 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(errorPlugin);
   await app.register(jobsPlugin);
   await app.register(shaamPlugin);
+
+  // Jobs infrastructure (pg-boss) — skipped in tests
+  if (!skipJobs) {
+    await app.register(jobsPlugin);
+
+    const handler = createShaamAllocationHandler(app);
+    await app.boss.work('shaam-allocation-request', handler);
+  }
 
   await app.register(authRoutes);
   await app.register(userRoutes);

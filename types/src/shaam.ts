@@ -5,6 +5,8 @@
  * and potentially frontend (to show "requires allocation" indicators).
  */
 
+import { z } from 'zod';
+
 // ── Threshold schedule ──
 // Amounts in ILS (major units). Sorted newest-first so currentThresholdILS()
 // returns the first entry whose `from` date has passed.
@@ -69,3 +71,43 @@ export function shouldRequestAllocation(
 ): boolean {
   return requiresAllocationNumber(invoice, customer, asOfDate);
 }
+
+// ── ITA document type codes ──
+
+export const ITA_DOCUMENT_TYPE_CODES = {
+  tax_invoice: 305,
+  tax_invoice_receipt: 320,
+  receipt: 400,
+  credit_note: 330,
+} as const;
+
+// ── ITA payload schemas ──
+
+export const itaLineItemSchema = z.object({
+  LineNumber: z.number().int().positive(),
+  Description: z.string(),
+  Quantity: z.number(),
+  UnitPrice: z.number(),
+  Discount: z.number(),
+  TotalLineBefore: z.number(),
+  VatRate: z.number(),
+  VatAmount: z.number(),
+  TotalLineAfter: z.number(),
+});
+
+export const itaRequestPayloadSchema = z.object({
+  InvoiceType: z.number().int(),
+  VatNumber: z.string(),
+  InvoiceNumber: z.string(),
+  InvoiceDate: z.string(),
+  ClientName: z.string(),
+  ClientVatNumber: z.string().optional(),
+  DealAmount: z.number(),
+  VatAmount: z.number(),
+  TotalAmount: z.number(),
+  Currency: z.string(),
+  LineItems: z.array(itaLineItemSchema),
+});
+
+export type ItaLineItem = z.infer<typeof itaLineItemSchema>;
+export type ItaRequestPayload = z.infer<typeof itaRequestPayloadSchema>;

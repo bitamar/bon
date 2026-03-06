@@ -11,7 +11,7 @@ describe('app genReqId behavior', () => {
 
   beforeAll(async () => {
     const { buildServer } = await import('../src/app.js');
-    app = await buildServer({ logger: false });
+    app = await buildServer({ logger: false, skipJobs: true });
     app.get('/_echo_id', async (req) => ({ id: req.id }));
     await app.ready();
   });

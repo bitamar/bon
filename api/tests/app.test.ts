@@ -18,7 +18,7 @@ describe('app', () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
-    app = await buildServer({ logger: false });
+    app = await buildServer({ logger: false, skipJobs: true });
   });
 
   afterEach(async () => {

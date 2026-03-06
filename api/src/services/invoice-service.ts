@@ -35,6 +35,11 @@ import type {
   LineItemInput,
   DocumentType,
 } from '@bon/types/invoices';
+import { shouldRequestAllocation } from '@bon/types/shaam';
+
+export interface FinalizeResult extends InvoiceResponse {
+  needsAllocation: boolean;
+}
 
 function serializeInvoiceListItem(
   record: Pick<
@@ -300,7 +305,7 @@ export async function finalize(
   businessId: string,
   invoiceId: string,
   body: { invoiceDate?: string | undefined; vatExemptionReason?: string | undefined }
-) {
+): Promise<FinalizeResult> {
   return db.transaction(async (tx) => {
     // 1. Lock the invoice row — prevents double-finalization and concurrent edits
     //    racing with finalization.
@@ -381,7 +386,17 @@ export async function finalize(
       business.startingInvoiceNumber
     );
 
-    // 7. Update invoice
+    // 7. Check if SHAAM allocation is needed
+    const needsAllocation = shouldRequestAllocation(
+      {
+        vatMinorUnits: totals.vatMinorUnits,
+        totalExclVatMinorUnits: totals.totalExclVatMinorUnits,
+      },
+      customer,
+      new Date(invoiceDate)
+    );
+
+    // 8. Update invoice
     const now = new Date();
     const updated = await updateInvoice(
       invoiceId,
@@ -393,6 +408,7 @@ export async function finalize(
         sequenceGroup: documentTypeToSequenceGroup(invoice.documentType),
         invoiceDate,
         issuedAt: now,
+        ...(needsAllocation ? { allocationStatus: 'pending' } : {}),
         ...snapshot,
         ...totals,
         updatedAt: now,
@@ -401,7 +417,7 @@ export async function finalize(
     );
     if (!updated) throw notFound();
 
-    return buildResponse(updated, updatedItems);
+    return { ...buildResponse(updated, updatedItems), needsAllocation };
   });
 }
 
