@@ -2,7 +2,8 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "pdf/Dockerfile"
+    "dockerfilePath": "pdf/Dockerfile",
+    "watchPatterns": ["types/**", "pdf/**", "package.json", "package-lock.json"]
   },
   "deploy": {
     "healthcheckPath": "/health",
