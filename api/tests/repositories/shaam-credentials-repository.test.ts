@@ -1,34 +1,19 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { randomInt, randomUUID } from 'node:crypto';
-import { db } from '../../src/db/client.js';
-import { businesses, users } from '../../src/db/schema.js';
+import { randomUUID } from 'node:crypto';
 import {
   findShaamCredentialsByBusinessId,
   upsertShaamCredentials,
   markNeedsReauth,
+  findExpiringCredentials,
 } from '../../src/repositories/shaam-credentials-repository.js';
 import { resetDb } from '../utils/db.js';
+import { createUser, createTestBusiness } from '../utils/businesses.js';
 
 // ── helpers ──
 
 async function seedBusiness() {
-  const [user] = await db
-    .insert(users)
-    .values({ email: `user-${randomUUID()}@test.com`, name: 'Test' })
-    .returning();
-  const now = new Date();
-  const [biz] = await db
-    .insert(businesses)
-    .values({
-      name: 'Test Biz',
-      businessType: 'licensed_dealer',
-      registrationNumber: String(randomInt(100_000_000, 1_000_000_000)),
-      createdByUserId: user!.id,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning();
-  return biz!;
+  const user = await createUser();
+  return createTestBusiness(user.id);
 }
 
 function makeCredentialData(businessId: string) {
@@ -123,6 +108,54 @@ describe('shaam-credentials-repository', () => {
       await markNeedsReauth(businessId);
       const result = await findShaamCredentialsByBusinessId(businessId);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('findExpiringCredentials', () => {
+    it('returns credentials expiring within the buffer window', async () => {
+      const data = makeCredentialData(businessId);
+      // Token expires 10 minutes from now — within the 20-minute buffer
+      data.tokenExpiresAt = new Date(Date.now() + 10 * 60_000);
+      await upsertShaamCredentials(data);
+
+      const results = await findExpiringCredentials(20);
+      expect(results).toHaveLength(1);
+      expect(results[0]!.businessId).toBe(businessId);
+    });
+
+    it('excludes credentials not expiring within the buffer window', async () => {
+      const data = makeCredentialData(businessId);
+      // Token expires 2 hours from now — well outside 20-minute buffer
+      data.tokenExpiresAt = new Date(Date.now() + 2 * 3_600_000);
+      await upsertShaamCredentials(data);
+
+      const results = await findExpiringCredentials(20);
+      expect(results).toHaveLength(0);
+    });
+
+    it('excludes credentials already marked as needsReauth', async () => {
+      const data = makeCredentialData(businessId);
+      data.tokenExpiresAt = new Date(Date.now() + 10 * 60_000);
+      await upsertShaamCredentials(data);
+      await markNeedsReauth(businessId);
+
+      const results = await findExpiringCredentials(20);
+      expect(results).toHaveLength(0);
+    });
+
+    it('returns multiple expiring credentials from different businesses', async () => {
+      const biz2 = await seedBusiness();
+
+      const data1 = makeCredentialData(businessId);
+      data1.tokenExpiresAt = new Date(Date.now() + 5 * 60_000);
+      await upsertShaamCredentials(data1);
+
+      const data2 = makeCredentialData(biz2.id);
+      data2.tokenExpiresAt = new Date(Date.now() + 15 * 60_000);
+      await upsertShaamCredentials(data2);
+
+      const results = await findExpiringCredentials(20);
+      expect(results).toHaveLength(2);
     });
   });
 });

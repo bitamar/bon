@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, lte, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { businessShaamCredentials } from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
@@ -37,6 +37,24 @@ export async function upsertShaamCredentials(
     })
     .returning();
   return rows[0]!;
+}
+
+export async function findExpiringCredentials(
+  bufferMinutes: number,
+  txOrDb: DbOrTx = db
+): Promise<ShaamCredentialsRecord[]> {
+  return txOrDb
+    .select()
+    .from(businessShaamCredentials)
+    .where(
+      and(
+        eq(businessShaamCredentials.needsReauth, false),
+        lte(
+          businessShaamCredentials.tokenExpiresAt,
+          sql`now() + make_interval(mins => ${bufferMinutes})`
+        )
+      )
+    );
 }
 
 export async function markNeedsReauth(businessId: string, txOrDb: DbOrTx = db): Promise<void> {

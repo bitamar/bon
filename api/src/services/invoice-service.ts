@@ -24,6 +24,8 @@ import { assignInvoiceNumber, documentTypeToSequenceGroup } from '../lib/invoice
 import { serializeInvoice, serializeInvoiceItem } from '../lib/invoice-serializers.js';
 import { toNumber } from '../lib/numeric.js';
 import { calculateLine, calculateInvoiceTotals, STANDARD_VAT_RATE_BP } from '@bon/types/vat';
+import { generateInvoicePdf } from './pdf-service.js';
+import { emailService, buildInvoiceEmailSubject, buildInvoiceEmailHtml } from './email-service.js';
 import { db } from '../db/client.js';
 import type {
   InvoiceResponse,
@@ -425,11 +427,7 @@ export async function sendInvoice(
   const business = await findBusinessById(businessId);
   if (!business) throw notFound();
 
-  const { generateInvoicePdf } = await import('./pdf-service.js');
   const { pdf, filename } = await generateInvoicePdf(businessId, invoiceId);
-
-  const { emailService, buildInvoiceEmailSubject, buildInvoiceEmailHtml } =
-    await import('./email-service.js');
 
   const serializedInvoice = serializeInvoice(invoice);
 
