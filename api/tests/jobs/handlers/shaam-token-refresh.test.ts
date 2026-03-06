@@ -1,40 +1,17 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
-import { randomUUID, randomInt } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type { Job } from 'pg-boss';
 import type { JobPayloads } from '../../../src/jobs/boss.js';
 import { createShaamTokenRefreshHandler } from '../../../src/jobs/handlers/shaam-token-refresh.js';
-import { db } from '../../../src/db/client.js';
-import { businesses, users } from '../../../src/db/schema.js';
 import {
   upsertShaamCredentials,
   findShaamCredentialsByBusinessId,
 } from '../../../src/repositories/shaam-credentials-repository.js';
 import { encrypt } from '../../../src/lib/crypto.js';
 import { resetDb } from '../../utils/db.js';
+import { createUser, createTestBusiness } from '../../utils/businesses.js';
 
 const TEST_KEY = 'a'.repeat(64);
-
-// ── helpers ──
-
-async function seedBusiness() {
-  const [user] = await db
-    .insert(users)
-    .values({ email: `user-${randomUUID()}@test.com`, name: 'Test' })
-    .returning();
-  const now = new Date();
-  const [biz] = await db
-    .insert(businesses)
-    .values({
-      name: 'Test Biz',
-      businessType: 'licensed_dealer',
-      registrationNumber: String(randomInt(100_000_000, 1_000_000_000)),
-      createdByUserId: user!.id,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning();
-  return biz!;
-}
 
 async function seedExpiringCredentials(businessId: string, minutesUntilExpiry: number) {
   return upsertShaamCredentials({
@@ -76,7 +53,8 @@ async function runHandler() {
 }
 
 async function seedExpiringBusiness(minutesUntilExpiry: number) {
-  const biz = await seedBusiness();
+  const user = await createUser();
+  const biz = await createTestBusiness(user.id);
   await seedExpiringCredentials(biz.id, minutesUntilExpiry);
   return biz;
 }
