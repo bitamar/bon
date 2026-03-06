@@ -108,9 +108,14 @@ The pattern for async external calls (email, SHAAM) is always:
 5. Return 202 Accepted to client
 ```
 
-pg-boss `singletonKey` prevents duplicate jobs for the same entity. pg-boss stores jobs in PostgreSQL so the enqueue participates in the transaction — if the transaction rolls back, the job is never enqueued.
+pg-boss `singletonKey` prevents duplicate jobs for the same entity.
 
-**Important**: pg-boss must use the **same database connection/pool** as the application so that `boss.send()` inside a Drizzle transaction actually participates in that transaction. Verify this during implementation.
+**Critical: transactional enqueue requires explicit wiring.** By default, pg-boss uses its own connection pool — `boss.send()` does NOT participate in your Drizzle transaction. To make step 3 atomic with step 2, you must pass pg-boss's `db` option with a custom `executeSql` wrapper that runs queries on the same connection held by the Drizzle transaction. Without this, a crash between steps 3 and 4 creates a job pointing to an uncommitted status change, or a committed status change with no job.
+
+Implementation must:
+1. Create a `txDb(drizzleTx)` adapter that wraps the transaction's underlying `pg` client into pg-boss's `{ executeSql }` interface
+2. Pass it as `boss.send(jobName, payload, { ...options, db: txDb(tx) })`
+3. Include an integration test that verifies a rolled-back transaction does NOT enqueue a job
 
 ### Cron Schedule Pattern (used by T-CRON-02, T12)
 

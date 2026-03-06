@@ -762,7 +762,7 @@ All on-demand jobs follow the same **outbox pattern**:
 5. Worker picks up job, calls external service, updates final status
 6. On exhaustion: revert to safe state, log error
 
-pg-boss stores jobs in PostgreSQL, so `boss.send()` inside a Drizzle transaction participates in that transaction. If the transaction rolls back, the job is never enqueued. This IS the outbox — no separate outbox table needed.
+pg-boss uses its own connection pool by default, so `boss.send()` does NOT automatically participate in a Drizzle transaction. To make step 3 atomic with step 2, pass pg-boss's `db` option with a custom adapter that runs queries on the Drizzle transaction's underlying connection. With this wiring, pg-boss inserts the job row on the same connection — if the transaction rolls back, the job is never enqueued. This IS the outbox — no separate outbox table needed. See T-CRON-01 for implementation details.
 
 **Cron jobs** (scheduled maintenance):
 
