@@ -274,42 +274,54 @@ The jobs integration test must set `ENABLE_PGBOSS=true` and use the deferred-pro
 
 ```typescript
 // api/tests/jobs/boss.integration.test.ts
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-
-// ENABLE_PGBOSS is set in the test file before app import
 process.env['ENABLE_PGBOSS'] = 'true';
 
-describe('pg-boss infrastructure', () => {
-  // ... setup app with buildServer()
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { FastifyInstance } from 'fastify';
+import { buildServer } from '../../src/app.js';
+import { pool } from '../../src/db/client.js';
+import { runJob, sendJob, withTransactionalJob } from '../../src/jobs/boss.js';
 
+const JOB_TIMEOUT_MS = 5_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`Job did not complete within ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+let app: FastifyInstance;
+
+beforeAll(async () => { app = await buildServer({ logger: false }); });
+afterAll(async () => { await app.close(); });
+
+describe('pg-boss infrastructure', () => {
   it('enqueues and runs a test job via runJob wrapper', async () => {
     const { promise, resolve } = Promise.withResolvers<string>();
 
     await app.boss.work(
       '__test-job',
-      runJob('__test-job', async (job) => {
-        resolve(job.data.value);
-      }, app.log),
+      runJob('__test-job', async (job) => { resolve(job.data.value); }, app.log),
     );
 
     await sendJob(app.boss, '__test-job', { value: 'hello' });
 
-    const result = await promise; // times out if job never runs
+    const result = await withTimeout(promise, JOB_TIMEOUT_MS);
     expect(result).toBe('hello');
   });
 
   it('rolled-back transaction does NOT enqueue a job', async () => {
-    await withTransactionalJob(pool, app.boss, async (tx, jobDb) => {
-      await app.boss.send('__test-job', { value: 'should-not-exist' }, { db: jobDb });
-      throw new Error('rollback');
+    await withTransactionalJob(pool, app.boss, async (_tx, jobDb) => {
+      await sendJob(app.boss, '__test-job', { value: 'should-not-exist' }, { db: jobDb });
+      throw new Error('intentional rollback');
     }).catch(() => {});
 
-    // Give pg-boss a moment to process
-    await new Promise((r) => setTimeout(r, 1000));
-
-    // Verify no job was created
-    const jobs = await app.boss.fetch('__test-job', 1);
-    expect(jobs).toBeNull();
+    // No sleep needed — rollback already happened synchronously,
+    // so no job row exists in the DB. fetch() queries directly.
+    const jobs = await app.boss.fetch('__test-job');
+    expect(jobs).toEqual([]);
   });
 });
 ```
