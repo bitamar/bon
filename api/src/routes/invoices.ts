@@ -155,10 +155,11 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
               invoiceId: req.params.invoiceId,
             },
             {
+              singletonKey: req.params.invoiceId,
               retryLimit: 5,
-              retryDelay: 30,
+              retryDelay: 60,
               retryBackoff: true,
-              expireInSeconds: 3600,
+              expireInSeconds: 1800,
             }
           )
           .catch((err: unknown) => {
