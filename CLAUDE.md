@@ -5,7 +5,7 @@ The build plan is in `.claude/PLAN.md`. All agents should read it for context on
 
 The full development workflow (ticket lifecycle, deployment gates, agent rules) is in `.claude/WORKFLOW.md`. Read it before starting any task.
 
-Rules learned from SonarQube, CodeRabbit, and human code reviews are in `.claude/REVIEW_RULES.md`. **Read it before writing or modifying tests.** When a reviewer flags a new pattern, add it to that file so it never recurs.
+Rules learned from SonarQube, CodeRabbit, and human code reviews are in `.claude/REVIEW_RULES.md`. **Read it before writing or modifying any code.** When a reviewer flags a new pattern, add it to that file so it never recurs.
 
 ## One Ticket at a Time — Merge Gate
 
@@ -111,6 +111,12 @@ npm run build -w front # Build for production
 - Frontend: `front/.env` (VITE_API_BASE_URL)
 
 ## Coding Standards
+
+### No Hacks — Find the Root Cause
+
+**Never work around a problem with flags, env vars, or structural changes that don't address _why_ the problem exists.** When a build, test, or deployment fails, understand the root cause before changing anything. A fix that suppresses the symptom without addressing the cause will break something else.
+
+Before proposing a fix, answer: *why does this fail?* If you can't answer that clearly, you haven't understood the problem yet. Keep investigating. If your fix requires a comment explaining why it's not the obvious approach, that's a sign you're working around something instead of fixing it.
 
 ### Refactoring Philosophy
 

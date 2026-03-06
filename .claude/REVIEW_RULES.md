@@ -60,13 +60,13 @@ import { useLocation, Route, Routes } from 'react-router-dom';
 When accessing a property that is guarded by a null check on the same object, use optional chaining (`?.`) instead of `&&`.
 
 **Wrong:**
-```ts
+```
 if (foo && foo.bar.length === 0) { ... }
 const x = obj && obj.prop;
 ```
 
 **Right:**
-```ts
+```
 if (foo?.bar.length === 0) { ... }
 const x = obj?.prop;
 ```
@@ -105,14 +105,14 @@ const total = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
 Never rethrow raw filesystem, network, or third-party errors. Wrap them in `AppError` with a clear message and the original error as `cause`. This normalizes all errors to a consistent shape for the error handler.
 
 **Wrong:**
-```ts
+```
 } catch (err: unknown) {
   throw err;  // ❌ raw FS/network error leaks
 }
 ```
 
 **Right:**
-```ts
+```
 } catch (err: unknown) {
   throw new AppError({
     statusCode: 500,
@@ -164,6 +164,39 @@ When loading HTML content in Puppeteer that may contain user-provided URLs (e.g.
 ### Extract repeated mock setup into named helpers
 
 When the same `vi.spyOn(...)` mock setup appears in multiple tests, extract it into a named helper at module scope. If some tests need the spy reference for assertions, the helper should return the spy.
+
+## Docker / Dockerfile Rules
+
+### Never suppress npm lifecycle scripts with --ignore-scripts
+
+npm's `--ignore-scripts` flag does not reliably prevent workspace `prepare` scripts from running (npm 10.x bug). Instead of fighting it:
+
+- **Builder stage**: Structure the Dockerfile so that all source files needed by `prepare` are copied BEFORE `npm ci`. Let `prepare` run naturally.
+- **Production stage**: When source/devDeps are unavailable, create a temporary `.npmrc` with `ignore-scripts=true` before `npm ci`, then remove it after. This is enforced at a lower level than the CLI flag and actually works.
+
+**Wrong:**
+```dockerfile
+COPY types/package.json types/
+RUN npm ci --workspace=types --ignore-scripts  # ❌ prepare may still run
+```
+
+**Right (builder):**
+```dockerfile
+COPY types/ types/                              # ✅ full source before npm ci
+RUN npm ci --workspace=types                    # prepare runs and succeeds
+```
+
+**Right (production):**
+```dockerfile
+COPY types/package.json types/
+RUN echo "ignore-scripts=true" > .npmrc \       # ✅ .npmrc is reliable
+    && npm ci --workspace=types --omit=dev \
+    && rm .npmrc
+```
+
+### No hacks — find the root cause
+
+Never work around a build failure with flags, env vars, or restructuring that doesn't address WHY the failure happens. If a lifecycle script runs unexpectedly, understand the npm behavior and design the Dockerfile to accommodate it, not suppress it.
 
 ## Coverage Requirements
 
