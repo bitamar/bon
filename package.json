@@ -12,7 +12,9 @@
   "scripts": {
     "format": "prettier \"api/**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yml,yaml}\" \"front/**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yml,yaml}\" \"pdf/**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yml,yaml}\" --write",
     "format:check": "prettier \"api/**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yml,yaml}\" \"front/**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yml,yaml}\" \"pdf/**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yml,yaml}\" --check",
-    "check": "npm run format:check && npm run lint -w bon-api && npm run type-check -w bon-api && npm run test -w bon-api && npm run lint -w front && npm run type-check -w front && npm run test -w front && npm run lint -w bon-pdf && npm run type-check -w bon-pdf && npm run test -w bon-pdf"
+    "precheck": "npm run build -w @bon/types",
+    "check": "npm run format:check && npm run lint -w bon-api && npm run type-check -w bon-api && npm run test -w bon-api && npm run lint -w front && npm run type-check -w front && npm run test -w front && npm run lint -w bon-pdf && npm run type-check -w bon-pdf && npm run test -w bon-pdf",
+    "prepare": "npm run build -w @bon/types"
   },
   "engines": {
     "node": ">=22.12.0"
