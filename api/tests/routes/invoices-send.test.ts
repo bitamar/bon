@@ -98,7 +98,11 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
   });
 
   it('returns 422 when no email is available', async () => {
-    const { sessionId, business, invoice } = await prepareFinalizedInvoice(ctx.app, undefined);
+    mockPdfServiceFetch();
+    const { sessionId, business } = await createOwnerWithBusiness();
+    const customer = await createCustomer(ctx.app, sessionId, business.id);
+    const { invoice } = await createDraftWithItems(ctx.app, sessionId, business.id, customer.id);
+    await finalizeInvoice(ctx.app, sessionId, business.id, invoice.id);
 
     const res = await sendInvoice(ctx.app, sessionId, business.id, invoice.id);
 
