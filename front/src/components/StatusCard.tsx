@@ -1,8 +1,8 @@
-import { Button, Card, Loader, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Button, Card, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertCircle, IconInbox, IconSearch } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 
-type StatusVariant = 'loading' | 'empty' | 'error' | 'notFound';
+type StatusVariant = 'empty' | 'error' | 'notFound';
 
 interface StatusCardProps {
   status: StatusVariant;
@@ -17,13 +17,13 @@ interface StatusCardProps {
   align?: 'center' | 'start';
 }
 
-const ICONS: Record<Exclude<StatusVariant, 'loading'>, typeof IconInbox> = {
+const ICONS: Record<StatusVariant, typeof IconInbox> = {
   empty: IconInbox,
   error: IconAlertCircle,
   notFound: IconSearch,
 };
 
-const COLORS: Record<Exclude<StatusVariant, 'loading'>, string> = {
+const COLORS: Record<StatusVariant, string> = {
   empty: 'gray',
   error: 'red',
   notFound: 'yellow',
@@ -40,45 +40,28 @@ export function StatusCard({
   const stackAlign = align === 'start' ? 'flex-start' : 'center';
   const textAlign = align === 'start' ? 'left' : 'center';
 
+  const IconComponent = ICONS[status];
+
   return (
     <Card withBorder padding="xl">
       <Stack gap="sm" align={stackAlign} miw={align === 'center' ? 260 : undefined} mx="auto">
-        {status === 'loading' ? (
-          <>
-            <Loader size="sm" />
-            <Text c="dimmed" ta={textAlign}>
-              {title}
-            </Text>
-            {description && (
-              <Text c="dimmed" size="sm" ta={textAlign}>
-                {description}
-              </Text>
-            )}
-          </>
-        ) : (
-          <>
-            <ThemeIcon size={44} radius="xl" variant="light" color={COLORS[status]}>
-              {(() => {
-                const IconComponent = ICONS[status];
-                return <IconComponent size={24} />;
-              })()}
-            </ThemeIcon>
-            <Text fw={600} ta={textAlign}>
-              {title}
-            </Text>
-            {description && (
-              <Text c="dimmed" ta={textAlign}>
-                {description}
-              </Text>
-            )}
-            {primaryAction && (
-              <Button onClick={primaryAction.onClick} loading={primaryAction.loading === true}>
-                {primaryAction.label}
-              </Button>
-            )}
-            {secondaryAction}
-          </>
+        <ThemeIcon size={44} radius="xl" variant="light" color={COLORS[status]}>
+          <IconComponent size={24} />
+        </ThemeIcon>
+        <Text fw={600} ta={textAlign}>
+          {title}
+        </Text>
+        {description && (
+          <Text c="dimmed" ta={textAlign}>
+            {description}
+          </Text>
         )}
+        {primaryAction && (
+          <Button onClick={primaryAction.onClick} loading={primaryAction.loading === true}>
+            {primaryAction.label}
+          </Button>
+        )}
+        {secondaryAction}
       </Stack>
     </Card>
   );

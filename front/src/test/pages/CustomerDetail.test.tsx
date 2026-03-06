@@ -67,10 +67,10 @@ describe('CustomerDetail page', () => {
     expect(screen.getByText('לא נבחר עסק')).toBeInTheDocument();
   });
 
-  it('shows loading state', () => {
+  it('shows loading skeleton while fetching', () => {
     vi.mocked(customersApi.fetchCustomer).mockReturnValue(new Promise(() => {}));
     renderDetail();
-    expect(screen.getByText('טוען פרטי לקוח...')).toBeInTheDocument();
+    expect(document.querySelector('.mantine-Skeleton-root')).toBeInTheDocument();
   });
 
   it('shows error state with retry button', async () => {

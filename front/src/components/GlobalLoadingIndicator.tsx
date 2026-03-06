@@ -38,7 +38,11 @@ function ProgressBar({ visible }: Readonly<{ visible: boolean }>) {
 }
 
 export function GlobalLoadingIndicator({ children }: Readonly<{ children?: ReactNode }>) {
-  const isFetching = useIsFetching();
+  // Only count queries that already have data (background refetches).
+  // Initial loads show their own skeletons — doubling up looks bad.
+  const isFetching = useIsFetching({
+    predicate: (query) => query.state.data !== undefined,
+  });
   const isMutating = useIsMutating();
   const busy = isFetching + isMutating > 0;
   const [visible, setVisible] = useState(false);

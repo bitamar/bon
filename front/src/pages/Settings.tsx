@@ -12,6 +12,7 @@ import {
 import { IconMoon, IconSun } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSettings, updateSettings } from '../auth/api';
+import { FormSkeleton } from '../components/FormSkeleton';
 import { StatusCard } from '../components/StatusCard';
 import { queryKeys } from '../lib/queryKeys';
 import type { SettingsResponse } from '@bon/types/users';
@@ -49,9 +50,12 @@ export function Settings() {
 
   if (settingsQuery.isPending) {
     return (
-      <Stack gap="md">
-        <StatusCard status="loading" title="טוען הגדרות…" align="start" />
-      </Stack>
+      <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
+        <Stack gap="md">
+          <PageTitle order={3}>הגדרות פרופיל</PageTitle>
+          <FormSkeleton rows={3} />
+        </Stack>
+      </Container>
     );
   }
 

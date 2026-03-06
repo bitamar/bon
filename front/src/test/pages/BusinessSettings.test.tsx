@@ -87,12 +87,12 @@ describe('BusinessSettings page', () => {
     expect(screen.getByText('לא נבחר עסק')).toBeInTheDocument();
   });
 
-  it('shows loading state while fetching', async () => {
+  it('shows loading skeleton while fetching', async () => {
     vi.mocked(businessesApi.fetchBusiness).mockReturnValue(new Promise(() => {}));
 
     renderSettings();
 
-    expect(await screen.findByText('טוען נתוני עסק...')).toBeInTheDocument();
+    expect(document.querySelector('.mantine-Skeleton-root')).toBeInTheDocument();
   });
 
   it('shows form with business name when loaded', async () => {

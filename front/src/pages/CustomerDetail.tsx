@@ -4,6 +4,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
+import { FormSkeleton } from '../components/FormSkeleton';
 import { StatusCard } from '../components/StatusCard';
 import {
   CustomerForm,
@@ -88,7 +89,10 @@ export function CustomerDetail() {
   if (customerQuery.isPending) {
     return (
       <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-        <StatusCard status="loading" title="טוען פרטי לקוח..." />
+        <Stack gap="md">
+          <PageTitle order={3}>פרטי לקוח</PageTitle>
+          <FormSkeleton rows={5} />
+        </Stack>
       </Container>
     );
   }

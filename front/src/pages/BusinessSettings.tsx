@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { PageTitle } from '../components/PageTitle';
+import { FormSkeleton } from '../components/FormSkeleton';
 import { StatusCard } from '../components/StatusCard';
 import { useApiMutation } from '../lib/useApiMutation';
 import { fetchBusiness, updateBusiness } from '../api/businesses';
@@ -148,7 +149,10 @@ export function BusinessSettings() {
   if (businessQuery.isPending) {
     return (
       <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-        <StatusCard status="loading" title="טוען נתוני עסק..." />
+        <Stack gap="md">
+          <PageTitle order={3}>הגדרות עסק</PageTitle>
+          <FormSkeleton rows={6} />
+        </Stack>
       </Container>
     );
   }
