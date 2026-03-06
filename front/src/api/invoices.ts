@@ -2,10 +2,13 @@ import { fetchJson } from '../lib/http';
 import {
   invoiceListResponseSchema,
   invoiceResponseSchema,
+  sendInvoiceResponseSchema,
   type CreateInvoiceDraftBody,
   type FinalizeInvoiceBody,
   type InvoiceListResponse,
   type InvoiceResponse,
+  type SendInvoiceBody,
+  type SendInvoiceResponse,
   type UpdateInvoiceDraftBody,
 } from '@bon/types/invoices';
 import { okResponseSchema } from '@bon/types/common';
@@ -74,4 +77,16 @@ export async function finalizeInvoice(
     }
   );
   return invoiceResponseSchema.parse(json);
+}
+
+export async function sendInvoiceByEmail(
+  businessId: string,
+  invoiceId: string,
+  data: SendInvoiceBody
+): Promise<SendInvoiceResponse> {
+  const json = await fetchJson<unknown>(`/businesses/${businessId}/invoices/${invoiceId}/send`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return sendInvoiceResponseSchema.parse(json);
 }

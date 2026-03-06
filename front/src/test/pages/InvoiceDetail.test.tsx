@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { UserEvent } from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { InvoiceDetail } from '../../pages/InvoiceDetail';
 import { renderWithProviders } from '../utils/renderWithProviders';
@@ -8,6 +10,7 @@ import type { Invoice, InvoiceStatus } from '@bon/types/invoices';
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/invoices', () => ({
   fetchInvoice: vi.fn(),
+  sendInvoiceByEmail: vi.fn(),
 }));
 
 import { useBusiness } from '../../contexts/BusinessContext';
@@ -31,6 +34,22 @@ function renderDetail() {
 function renderWithInvoice(overrides: Partial<Invoice> = {}) {
   vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice(overrides));
   return renderDetail();
+}
+
+async function openSendModal(user: UserEvent) {
+  await user.click(await screen.findByRole('button', { name: 'שלח במייל' }));
+  await screen.findByText('שליחת חשבונית במייל');
+}
+
+async function fillSendEmail(user: UserEvent, email: string) {
+  const emailInput = await screen.findByTestId('send-email-input');
+  await user.clear(emailInput);
+  await user.type(emailInput, email);
+}
+
+async function submitSendModal(user: UserEvent) {
+  const confirmButton = await screen.findByRole('button', { name: /^שלח$/ });
+  await user.click(confirmButton);
 }
 
 describe('InvoiceDetail page', () => {
@@ -84,9 +103,9 @@ describe('InvoiceDetail page', () => {
     // Notes
     expect(screen.getByText('הערה לדוגמה')).toBeInTheDocument();
 
-    // Action buttons
+    // Action buttons — send enabled for finalized, others still disabled
     expect(screen.getByRole('button', { name: 'הורד PDF' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'שלח במייל' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'שלח במייל' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'סמן כשולם' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'הפק חשבונית זיכוי' })).toBeDisabled();
   });
@@ -133,5 +152,89 @@ describe('InvoiceDetail page', () => {
 
     expect(await screen.findByText('ייצוא שירותים §30(א)(5)')).toBeInTheDocument();
     expect(screen.getByText(/סיבת פטור ממע"מ/)).toBeInTheDocument();
+  });
+});
+
+describe('InvoiceDetail send email', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockActiveBusiness(useBusiness);
+  });
+
+  it('opens send modal with prefilled email on click', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({ customerEmail: 'test@example.com' })
+    );
+    renderDetail();
+    const user = userEvent.setup();
+
+    await openSendModal(user);
+
+    const emailInput = await screen.findByTestId('send-email-input');
+    expect(emailInput).toHaveValue('test@example.com');
+  });
+
+  it('disables send button for non-sendable statuses', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice({ status: 'paid' }));
+    renderDetail();
+
+    const sendButton = await screen.findByRole('button', { name: 'שלח במייל' });
+    expect(sendButton).toBeDisabled();
+  });
+
+  it('calls sendInvoiceByEmail on submit', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({ customerEmail: 'test@example.com' })
+    );
+    vi.mocked(invoicesApi.sendInvoiceByEmail).mockResolvedValue({
+      ok: true,
+      sentAt: '2026-03-03T12:00:00.000Z',
+    });
+    renderDetail();
+    const user = userEvent.setup();
+
+    await openSendModal(user);
+    await submitSendModal(user);
+
+    await waitFor(() => {
+      expect(invoicesApi.sendInvoiceByEmail).toHaveBeenCalledWith('biz-1', 'inv-1', {
+        recipientEmail: 'test@example.com',
+      });
+    });
+  });
+
+  it('allows editing the recipient email before sending', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({ customerEmail: 'original@example.com' })
+    );
+    vi.mocked(invoicesApi.sendInvoiceByEmail).mockResolvedValue({
+      ok: true,
+      sentAt: '2026-03-03T12:00:00.000Z',
+    });
+    renderDetail();
+    const user = userEvent.setup();
+
+    await openSendModal(user);
+    await fillSendEmail(user, 'new@example.com');
+    await submitSendModal(user);
+
+    await waitFor(() => {
+      expect(invoicesApi.sendInvoiceByEmail).toHaveBeenCalledWith('biz-1', 'inv-1', {
+        recipientEmail: 'new@example.com',
+      });
+    });
+  });
+
+  it('disables confirm button when email is empty', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({ customerEmail: null })
+    );
+    renderDetail();
+    const user = userEvent.setup();
+
+    await openSendModal(user);
+
+    const confirmButton = await screen.findByRole('button', { name: /^שלח$/ });
+    expect(confirmButton).toBeDisabled();
   });
 });

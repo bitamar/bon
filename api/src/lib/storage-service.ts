@@ -47,8 +47,17 @@ export const localStorageService: StorageService = {
   },
 
   async put(key, data) {
-    await ensureDir();
-    await writeFile(filePath(key), data);
+    try {
+      await ensureDir();
+      await writeFile(filePath(key), data);
+    } catch (err: unknown) {
+      throw new AppError({
+        statusCode: 500,
+        code: 'storage_write_error',
+        message: 'Failed to write storage file',
+        cause: err,
+      });
+    }
   },
 
   async del(key) {

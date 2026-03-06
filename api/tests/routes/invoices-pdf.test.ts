@@ -7,42 +7,14 @@ import {
   createTestBusiness,
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
+import {
+  FAKE_PDF,
+  mockPdfServiceFetch,
+  createCustomer,
+  createDraftWithItems,
+  setupFinalizedInvoice,
+} from '../utils/invoices.js';
 import type { InvoiceResponse } from '@bon/types/invoices';
-
-// ── module-level helpers ──
-
-const FAKE_PDF = Buffer.from('%PDF-1.4 fake content');
-
-function mockFetchForPdf(): void {
-  mockFetchPdfWithSpy();
-}
-
-function mockFetchPdfWithSpy() {
-  return vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(FAKE_PDF, {
-      status: 200,
-      headers: { 'Content-Type': 'application/pdf' },
-    })
-  );
-}
-
-interface TestItem {
-  description: string;
-  quantity: number;
-  unitPriceMinorUnits: number;
-  discountPercent: number;
-  vatRateBasisPoints: number;
-  position: number;
-}
-
-const DEFAULT_ITEM: TestItem = {
-  description: 'Item 1',
-  quantity: 1,
-  unitPriceMinorUnits: 10000,
-  discountPercent: 0,
-  vatRateBasisPoints: 1700,
-  position: 0,
-};
 
 describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
   const ctx = setupIntegrationTest();
@@ -53,36 +25,6 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
 
   // ── helpers ──
 
-  async function createCustomer(sessionId: string, businessId: string) {
-    const res = await injectAuthed(ctx.app, sessionId, {
-      method: 'POST',
-      url: `/businesses/${businessId}/customers`,
-      payload: { name: 'Test Customer' },
-    });
-    return (res.json() as { customer: { id: string } }).customer;
-  }
-
-  async function createDraftWithItems(sessionId: string, businessId: string, customerId: string) {
-    const res = await injectAuthed(ctx.app, sessionId, {
-      method: 'POST',
-      url: `/businesses/${businessId}/invoices`,
-      payload: {
-        documentType: 'tax_invoice',
-        customerId,
-        items: [DEFAULT_ITEM],
-      },
-    });
-    return res.json() as InvoiceResponse;
-  }
-
-  async function finalizeInvoice(sessionId: string, businessId: string, invoiceId: string) {
-    return injectAuthed(ctx.app, sessionId, {
-      method: 'POST',
-      url: `/businesses/${businessId}/invoices/${invoiceId}/finalize`,
-      payload: {},
-    });
-  }
-
   async function getPdf(sessionId: string, businessId: string, invoiceId: string) {
     return injectAuthed(ctx.app, sessionId, {
       method: 'GET',
@@ -90,17 +32,9 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
     });
   }
 
-  async function setupFinalizedInvoice() {
-    const { sessionId, business } = await createOwnerWithBusiness();
-    const customer = await createCustomer(sessionId, business.id);
-    const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
-    await finalizeInvoice(sessionId, business.id, invoice.id);
-    return { sessionId, business, invoice };
-  }
-
   it('returns PDF for a finalized invoice', async () => {
-    mockFetchForPdf();
-    const { sessionId, business, invoice } = await setupFinalizedInvoice();
+    mockPdfServiceFetch();
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
 
     const res = await getPdf(sessionId, business.id, invoice.id);
 
@@ -113,8 +47,8 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
   it('returns 502 when PDF service is unreachable', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Connection refused'));
     const { sessionId, business } = await createOwnerWithBusiness();
-    const customer = await createCustomer(sessionId, business.id);
-    const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
+    const customer = await createCustomer(ctx.app, sessionId, business.id);
+    const { invoice } = await createDraftWithItems(ctx.app, sessionId, business.id, customer.id);
 
     const res = await getPdf(sessionId, business.id, invoice.id);
 
@@ -122,9 +56,9 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
   });
 
   it('passes invoice data to the PDF service', async () => {
-    const fetchSpy = mockFetchPdfWithSpy();
+    const fetchSpy = mockPdfServiceFetch();
 
-    const { sessionId, business, invoice } = await setupFinalizedInvoice();
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
 
     await getPdf(sessionId, business.id, invoice.id);
 
@@ -138,11 +72,11 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
   });
 
   it('sends isDraft: true for draft invoices', async () => {
-    const fetchSpy = mockFetchPdfWithSpy();
+    const fetchSpy = mockPdfServiceFetch();
 
     const { sessionId, business } = await createOwnerWithBusiness();
-    const customer = await createCustomer(sessionId, business.id);
-    const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
+    const customer = await createCustomer(ctx.app, sessionId, business.id);
+    const { invoice } = await createDraftWithItems(ctx.app, sessionId, business.id, customer.id);
 
     await getPdf(sessionId, business.id, invoice.id);
 
@@ -151,7 +85,7 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
   });
 
   it('returns 404 for non-existent invoice', async () => {
-    mockFetchForPdf();
+    mockPdfServiceFetch();
     const { sessionId, business } = await createOwnerWithBusiness();
 
     const res = await getPdf(sessionId, business.id, '00000000-0000-4000-8000-000000000099');
@@ -160,11 +94,8 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
   });
 
   it('returns 404 for non-member business', async () => {
-    mockFetchForPdf();
-    const { sessionId: ownerSession, business } = await createOwnerWithBusiness();
-    const customer = await createCustomer(ownerSession, business.id);
-    const { invoice } = await createDraftWithItems(ownerSession, business.id, customer.id);
-    await finalizeInvoice(ownerSession, business.id, invoice.id);
+    mockPdfServiceFetch();
+    const { business, invoice } = await setupFinalizedInvoice(ctx.app);
 
     const { sessionId: otherSession } = await createAuthedUser();
     const otherUser = await createUser();
@@ -188,8 +119,8 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
   });
 
   it('includes document number in filename for finalized invoice', async () => {
-    mockFetchForPdf();
-    const { sessionId, business, invoice } = await setupFinalizedInvoice();
+    mockPdfServiceFetch();
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
 
     // Re-fetch the invoice to get the finalized document number
     const invoiceRes = await injectAuthed(ctx.app, sessionId, {
@@ -207,9 +138,9 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
   });
 
   it('serves finalized PDF from cache on second request without calling PDF service again', async () => {
-    const fetchSpy = mockFetchPdfWithSpy();
+    const fetchSpy = mockPdfServiceFetch();
 
-    const { sessionId, business, invoice } = await setupFinalizedInvoice();
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
 
     await getPdf(sessionId, business.id, invoice.id);
     const secondRes = await getPdf(sessionId, business.id, invoice.id);

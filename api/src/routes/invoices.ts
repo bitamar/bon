@@ -4,6 +4,8 @@ import {
   createInvoiceDraftBodySchema,
   updateInvoiceDraftBodySchema,
   finalizeInvoiceBodySchema,
+  sendInvoiceBodySchema,
+  sendInvoiceResponseSchema,
   invoiceResponseSchema,
   invoiceListQuerySchema,
   invoiceListResponseSchema,
@@ -18,6 +20,7 @@ import {
   updateDraft,
   deleteDraft,
   finalize,
+  sendInvoice,
 } from '../services/invoice-service.js';
 import { generateInvoicePdf } from '../services/pdf-service.js';
 
@@ -141,6 +144,34 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     async (req) => {
       ensureBusinessContext(req);
       return finalize(req.businessContext.businessId, req.params.invoiceId, req.body);
+    }
+  );
+
+  app.post(
+    '/businesses/:businessId/invoices/:invoiceId/send',
+    {
+      preHandler: [
+        app.authenticate,
+        app.requireBusinessAccess,
+        app.requireBusinessRole('owner', 'admin'),
+      ],
+      schema: {
+        tags: ['Invoices'],
+        params: invoiceIdParamSchema,
+        body: sendInvoiceBodySchema,
+        response: {
+          200: sendInvoiceResponseSchema,
+        },
+      },
+    },
+    async (req) => {
+      ensureBusinessContext(req);
+      const { sentAt } = await sendInvoice(
+        req.businessContext.businessId,
+        req.params.invoiceId,
+        req.body
+      );
+      return { ok: true as const, sentAt };
     }
   );
 

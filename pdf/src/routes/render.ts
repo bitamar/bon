@@ -46,8 +46,13 @@ export async function renderRoutes(app: FastifyInstance): Promise<void> {
     const input = parseRenderInput(req, reply);
     if (!input) return reply;
 
-    const html = renderInvoiceHtml(input);
-    return reply.type('text/html').send(html);
+    try {
+      const html = renderInvoiceHtml(input);
+      return reply.type('text/html').send(html);
+    } catch (err: unknown) {
+      req.log.error(err, 'HTML render failed');
+      return reply.status(500).send({ error: 'render_failed' });
+    }
   });
 
   app.get('/health', async () => ({ ok: true }));

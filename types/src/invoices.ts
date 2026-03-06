@@ -85,6 +85,17 @@ export const finalizeInvoiceBodySchema = z
   })
   .strict();
 
+export const sendInvoiceBodySchema = z
+  .object({
+    recipientEmail: z.string().email().optional(),
+  })
+  .strict();
+
+export const sendInvoiceResponseSchema = z.object({
+  ok: z.literal(true),
+  sentAt: isoDateTime,
+});
+
 // ── Response schemas ──
 
 // Note: quantity and discountPercent are numeric DB columns returned as strings
@@ -246,3 +257,5 @@ export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
 export type InvoiceListAggregates = z.infer<typeof invoiceListAggregatesSchema>;
 export type InvoiceListResponse = z.infer<typeof invoiceListResponseSchema>;
 export type InvoiceIdParam = z.infer<typeof invoiceIdParamSchema>;
+export type SendInvoiceBody = z.infer<typeof sendInvoiceBodySchema>;
+export type SendInvoiceResponse = z.infer<typeof sendInvoiceResponseSchema>;
