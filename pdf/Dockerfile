@@ -3,15 +3,14 @@ FROM node:22-slim AS builder
 
 WORKDIR /app
 
-# Copy workspace config and package files for dependency install
+# Copy workspace config, lockfile, and types source (needed if prepare runs)
 COPY package.json package-lock.json ./
-COPY types/package.json types/
+COPY types/ types/
 COPY pdf/package.json pdf/
 
-RUN npm ci --workspace=types --workspace=pdf --ignore-scripts
+RUN npm ci --workspace=types --workspace=pdf
 
-# Copy source code
-COPY types/ types/
+# Copy pdf source code
 COPY pdf/ pdf/
 
 # Build types first (shared dependency), then pdf
@@ -37,7 +36,7 @@ COPY package.json package-lock.json ./
 COPY types/package.json types/
 COPY pdf/package.json pdf/
 
-# Install production dependencies only
+# Install production dependencies only (ignore-scripts: no source available)
 RUN npm ci --workspace=types --workspace=pdf --omit=dev --ignore-scripts
 
 # Copy compiled output from builder
