@@ -462,12 +462,14 @@ Cache finalized PDFs after first generation (local filesystem via `StorageServic
 Invalidate cache when invoice status changes via `invalidatePdfCache()`.
 For drafts: generate but don't cache (watermark "טיוטה - לא בתוקף" across the page).
 
-### 3.3 Email Delivery (T11 — delivered)
+### 3.3 Email Delivery (T11 — delivered, T-ARCH-08 — async upgrade pending)
 
 Email delivery is implemented alongside T10 in this PR:
 - `POST /businesses/:businessId/invoices/:invoiceId/send` — sends finalized invoice to customer
 - Email sender (Resend, with console fallback in dev) with PDF attachment
 - `sentAt` timestamp tracking and status update to `sent`
+
+**Async upgrade (T-ARCH-08)**: Currently synchronous — email is sent inline during the HTTP request. T-ARCH-08 moves this to a pg-boss background job using the outbox pattern (transaction → enqueue → worker → status update). Adds `'sending'` transitional status for UI feedback. This is the first on-demand job and proves the pattern reused by SHAAM (T13, T14).
 
 ---
 
@@ -477,30 +479,16 @@ Email delivery is implemented alongside T10 in this PR:
 Do it incrementally — start with sandbox, build the abstraction layer first,
 wire real credentials last.
 
-### 4.1 Design First: The SHAAM Abstraction Layer
+All SHAAM work depends on pg-boss infrastructure (T-CRON-01). Token refresh runs as a cron job. Allocation requests and emergency reporting run as on-demand jobs using the outbox pattern (transaction → enqueue → worker → status update), the same pattern proven by T-ARCH-08 (async email).
 
-Before writing any HTTP code, define the interface:
+### 4.1 SHAAM Abstraction Layer (T12)
+
+Define the interface first, then implement:
 
 ```typescript
 interface ShaamService {
-  // Request an allocation number for an invoice
-  requestAllocationNumber(
-    businessId: string,
-    invoice: FinalizedInvoice,
-    lineItems: InvoiceItem[]
-  ): Promise<AllocationResult>;
-
-  // Pre-acquire emergency allocation numbers
-  acquireEmergencyNumbers(
-    businessId: string,
-    count: number
-  ): Promise<EmergencyNumber[]>;
-
-  // Report usage of emergency numbers (when SHAAM recovers)
-  reportEmergencyUsage(
-    businessId: string,
-    usedNumbers: string[]
-  ): Promise<void>;
+  requestAllocationNumber(request: AllocationRequest): Promise<AllocationResult>;
+  // Emergency methods added in T14 when the interface is extended
 }
 
 type AllocationResult =
@@ -510,97 +498,81 @@ type AllocationResult =
   | { status: 'deferred'; reason: string };
 ```
 
-This interface is implemented by:
-- `ShaamApiClient` (real) — calls ITA's OAuth2 + allocation API
-- `ShaamSandboxClient` (test) — calls ITA sandbox
-- `ShaamMockClient` (development) — returns fake numbers instantly
+Two implementations (not three — sandbox and production are the same HTTP client with different base URLs):
+- `ShaamHttpClient` — single class, configurable `baseUrl` (sandbox vs production)
+- `ShaamMockClient` — returns fake numbers for dev/test
 
 Toggle via environment variable: `SHAAM_MODE=mock|sandbox|production`
 
-### 4.2 OAuth2 Token Management
+### 4.2 OAuth2 Token Management (T12)
 
 Each business authorizes BON to submit on their behalf. Store per-business:
 
-```
+```text
 business_shaam_credentials table:
-  businessId      uuid FK → businesses (unique)
-  accessToken     text (encrypted at rest)
-  refreshToken    text (encrypted at rest)
-  tokenExpiresAt  timestamp with tz
-  scope           text
-  createdAt       timestamp with tz
-  updatedAt       timestamp with tz
+  businessId              uuid FK → businesses (unique, cascade)
+  encryptedAccessToken    text NOT NULL  — AES-256-GCM encrypted
+  encryptedRefreshToken   text NOT NULL  — AES-256-GCM encrypted
+  tokenExpiresAt          timestamp with tz NOT NULL
+  scope                   text
+  needsReauth             boolean default false
 ```
 
-Token refresh logic: refresh 5 minutes before expiry. On refresh failure: mark business as
-needing re-authorization, send email to owner, fall back to emergency numbers.
+Token refresh runs as a **pg-boss cron job** (`shaam-token-refresh`, every 15 min, registered in `api/src/plugins/shaam.ts`). Finds credentials expiring within 20 minutes (buffer exceeds the 15-min interval). On refresh failure: set `needsReauth = true`.
 
-### 4.3 Allocation Number Request
+### 4.3 Allocation Number Request (T13 — via pg-boss)
 
-The SHAAM API expects a JSON payload with ~26 fields. Map from invoice:
+Allocation requests run as **background jobs** using the outbox pattern:
 
-```
-// Table 2.1 fields (from ITA spec):
-{
-  "AccountingDocType": documentTypeCode,     // 305 = חשבונית מס
-  "AccountingSoftwareNumber": REGISTRATION_NUMBER,  // BON's ITA certificate
-  "VatNumber": business.vatNumber,
-  "DocumentNumber": invoice.documentNumber,
-  "DocumentDate": invoice.invoiceDate,       // YYYY-MM-DD
-  "DealAmount": invoice.totalExclVatMinorUnits / 100,  // in major currency units (decimal)
-  "VatAmount": invoice.vatMinorUnits / 100,
-  "TotalAmount": invoice.totalInclVatMinorUnits / 100,
-  "ClientVatNumber": customer.taxId,        // required if isLicensedDealer
-  // ...all other required fields
-  "LineItems": lineItems.map(item => ({     // Table 2.2
-    "Description": item.description,
-    "Quantity": item.quantity,
-    "UnitPrice": item.unitPriceMinorUnits / 100,
-    "LineTotal": item.lineTotalMinorUnits / 100,
-    // ...
-  }))
-}
-```
+1. Invoice finalized → inside the finalization transaction:
+   - Evaluate `shouldRequestAllocation()` (threshold + isLicensedDealer + VAT check)
+   - If true: set `allocationStatus = 'pending'`, enqueue `shaam-allocation-request` job via `boss.send()` with `singletonKey: invoiceId`
+2. pg-boss worker picks up job → calls `ShaamService.requestAllocationNumber()` with ~26 ITA fields
+3. Full request + response stored in `shaam_audit_log` table
+4. On approved: store `allocationNumber`, set `allocationStatus = 'approved'`
+5. On deferred/transient error: pg-boss retries with exponential backoff
+6. On E099 (SHAAM unavailable): use emergency number (T14)
 
-Store the full request and response JSON in a `shaam_audit_log` table for debugging and ITA audits.
+The invoice is legally valid the moment it's finalized — the allocation number is an async compliance step that must not block the user.
 
-### 4.4 SHAAM Trigger Logic
+### 4.4 SHAAM Trigger Logic (T12 — pure functions)
 
-An invoice requires an allocation number when:
 ```typescript
-function requiresAllocationNumber(invoice: Invoice, customer: Customer, business: Business): boolean {
+function requiresAllocationNumber(
+  invoice: { totalExclVatMinorUnits: number; vatMinorUnits: number },
+  customer: { isLicensedDealer: boolean },
+  asOfDate?: Date
+): boolean {
   if (invoice.vatMinorUnits === 0) return false;          // no VAT = no SHAAM
-  if (!customer.isLicensedDealer) return false;      // B2C = no SHAAM
-  if (invoice.totalExclVatMinorUnits < currentThreshold()) return false;  // below threshold
+  if (!customer.isLicensedDealer) return false;            // B2C = no SHAAM
+  if (invoice.totalExclVatMinorUnits <= currentThreshold(asOfDate) * 100) return false;
   return true;
 }
-
-// OR: business has opted in to voluntary allocation for all invoices
-function shouldRequestAllocation(invoice, customer, business): boolean {
-  return requiresAllocationNumber(invoice, customer, business)
-    || business.alwaysRequestAllocation;
-}
 ```
 
-### 4.5 Emergency Numbers
+### 4.5 Emergency Numbers (T14)
 
-Pre-acquire a pool (business owner requests from ITA directly, enters codes in our system):
+Pre-acquire a pool (business owner requests from ITA directly, enters codes in BON):
 
-```
+```text
 emergency_allocation_numbers table:
   id          uuid PK
   businessId  uuid FK → businesses
-  number      text UNIQUE            — the pre-acquired number
+  number      text UNIQUE
   used        boolean default false
   usedForInvoiceId  uuid FK → invoices nullable
   usedAt      timestamp with tz nullable
+  reported    boolean default false
+  reportedAt  timestamp with tz nullable
   acquiredAt  timestamp with tz
 ```
+
+When SHAAM recovers after an outage, BON enqueues a `shaam-emergency-report` job (via `boss.send()` with `singletonKey: businessId`) to batch-report used emergency numbers back to ITA.
 
 UI: settings page for owner to enter their emergency number pool.
 Alert when pool < 5 numbers remaining.
 
-### 4.6 Error Taxonomy
+### 4.6 Error Taxonomy (T14)
 
 ITA returns specific error codes. Each must be handled distinctly:
 
@@ -609,10 +581,10 @@ ITA returns specific error codes. Each must be handled distinctly:
 | E001 | Invalid VAT number | Show to user: "מספר מע״מ לא תקין" |
 | E002 | Invoice already allocated | Idempotent — store the returned number |
 | E003 | Below threshold | Don't request (shouldn't happen — check before calling) |
-| E010 | Authentication failure | Trigger re-auth flow for business |
-| E099 | System unavailable | Use emergency number |
+| E010 | Authentication failure | Set `needsReauth = true`, show re-auth prompt |
+| E099 | System unavailable | Use emergency number via pg-boss job |
 
-These must be defined as constants, not magic strings, with Hebrew user-facing messages.
+These must be defined as constants in `types/src/shaam.ts`, not magic strings, with Hebrew user-facing messages.
 
 ---
 
@@ -655,13 +627,11 @@ Flow:
 5. Original invoice status → `credited`
 6. SHAAM: credit note may also need allocation number if above threshold
 
-### 5.3 Overdue Detection
+### 5.3 Overdue Detection (moved to T-CRON-02)
 
-Background job (cron, daily at 6am):
-- Find all invoices with `status = finalized` or `partially_paid`
-  where `dueDate < NOW()` and `dueDate IS NOT NULL`
-- Mark as `overdue` (add to status or a flag column)
-- Send email notification to business owner (configurable frequency: daily digest or per-invoice)
+Implemented as a pg-boss cron job in T-CRON-02 (daily at 6am Israel time).
+Batch-marks invoices as overdue (`isOverdue` flag), resets flag when paid.
+Future: sends digest email to business owners.
 
 ### 5.4 Invoice Search & Filtering
 
@@ -770,14 +740,48 @@ Administrative process, can be done in parallel with Phase 6.
 - Store PDFs on **local filesystem** via `StorageService` interface for MVP (`.data/pdfs/`). Upgrade to S3 (Cloudflare R2) without interface change when needed.
 - **Draft PDFs**: watermarked "טיוטה - לא בתוקף", never cached.
 
-### Background Jobs
+### Background Jobs — pg-boss Architecture
+
 Use **pg-boss** (PostgreSQL-backed job queue) — already have Postgres, no new infrastructure.
-Jobs needed:
-- PDF generation
-- SHAAM allocation number requests (async, non-blocking to invoice finalization)
-- Overdue invoice detection (daily cron)
-- SHAAM token refresh
-- Email delivery
+
+**Infrastructure** (T-CRON-01): Fastify plugin that starts pg-boss, decorates `app.boss`, handles graceful shutdown. Type-safe `JobPayloads` map ensures every job name has a typed payload. No handlers in the infra ticket — each feature registers its own.
+
+**On-demand jobs** (enqueued by features, outbox pattern):
+
+| Job | Ticket | Trigger | External Call | Idempotency |
+|-----|--------|---------|---------------|-------------|
+| `send-invoice-email` | T-ARCH-08 | User clicks "Send" | Resend API | `singletonKey: invoiceId` |
+| `shaam-allocation-request` | T13 | Invoice finalized + threshold met | ITA SHAAM API | `singletonKey: invoiceId` |
+| `shaam-emergency-report` | T14 | SHAAM recovers after outage | ITA SHAAM API | `singletonKey: businessId` |
+
+All on-demand jobs follow the same **outbox pattern**:
+1. BEGIN transaction
+2. Update entity to transitional status (`'sending'`, `allocationStatus: 'pending'`)
+3. `boss.send(jobName, payload, { singletonKey })` — inside transaction
+4. COMMIT → return 202 Accepted
+5. Worker picks up job, calls external service, updates final status
+6. On exhaustion: revert to safe state, log error
+
+pg-boss uses its own connection pool by default, so `boss.send()` does NOT automatically participate in a Drizzle transaction. To make step 3 atomic with step 2, pass pg-boss's `db` option with a custom adapter that runs queries on the Drizzle transaction's underlying connection. With this wiring, pg-boss inserts the job row on the same connection — if the transaction rolls back, the job is never enqueued. This IS the outbox — no separate outbox table needed. See T-CRON-01 for implementation details.
+
+**Cron jobs** (scheduled maintenance):
+
+| Job | Ticket | Schedule | Timezone |
+|-----|--------|----------|----------|
+| `draft-cleanup` | T-CRON-02 | `0 3 * * *` (3am daily) | Asia/Jerusalem |
+| `session-cleanup` | T-CRON-02 | `0 4 * * *` (4am daily) | Asia/Jerusalem |
+| `overdue-detection` | T-CRON-02 | `0 6 * * *` (6am daily) | Asia/Jerusalem |
+| `shaam-token-refresh` | T12 | `*/15 * * * *` (every 15min) | Asia/Jerusalem |
+
+**Build order for jobs:**
+```text
+T-CRON-01 (pg-boss infra)           ← ~150 lines, small
+    ├── T-ARCH-08 (async email)      ← ~300 lines, medium (first on-demand job, proves outbox pattern)
+    ├── T-CRON-02 (cron jobs)        ← ~200 lines, small (3 simple handlers)
+    └── T12 (SHAAM abstraction)      ← ~800 lines, large (interface + encryption + token refresh + trigger logic)
+            └── T13 (allocation)     ← ~600 lines, large (ITA payload mapping + audit log + job handler)
+                    └── T14 (emergency) ← ~500 lines, medium (pool mgmt + recovery reporting)
+```
 
 ### Email
 Use **Resend** (developer-friendly, good Hebrew support, reliable deliverability).
@@ -824,27 +828,27 @@ Abstract behind a `StorageService` interface from day one.
   T10.5: Docker + Railway deployment (PRs #52-#54)
   T11: Email delivery (delivered with T10)
 
-→ Phase 4: SHAAM Integration         (~3 weeks)
-  4.1 SHAAM abstraction interface
-  4.2 OAuth2 per-business token management
-  4.3 Allocation number request (sandbox)
-  4.4 Emergency number pool
-  4.5 Error handling + audit log
-  4.6 Production SHAAM credentials
+→ Phase 3.5: Job Queue Infrastructure
+  T-CRON-01: pg-boss infrastructure (plugin, typed job registry, graceful shutdown)
+  T-ARCH-08: Async email delivery (first on-demand job, proves outbox pattern)
+  T-CRON-02: Scheduled maintenance jobs (draft cleanup, session cleanup, overdue detection)
 
-→ Phase 5: Invoice Lifecycle         (~1.5 weeks)
-  5.1 Payment recording
-  5.2 Credit notes
-  5.3 Overdue detection (cron)
-  5.4 Invoice search + pagination
+→ Phase 4: SHAAM Integration
+  T12: SHAAM abstraction + token management + token refresh cron job
+  T13: Allocation requests via pg-boss job queue (outbox pattern)
+  T14: Emergency numbers + recovery reporting job
 
-→ Phase 6: Reporting                 (~2 weeks)
-  6.1 PCN874 VAT report export
-  6.2 Business dashboard
-  6.3 Uniform file export
+→ Phase 5: Invoice Lifecycle
+  T15: Payment recording
+  T16: Credit notes
+
+→ Phase 6: Reporting
+  T18: Business dashboard
+  T19: PCN874 VAT report export
+  T20: Uniform file export (קובץ במבנה אחיד)
 
 → Phase 7: ITA Registration          (parallel with 6)
-  Administrative + legal review
+  T21: Administrative + legal review
 ```
 
 ---

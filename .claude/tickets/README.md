@@ -43,7 +43,8 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T-API-01](./T-API-01-api-hardening.md) | API Hardening (8 fixes from full audit) | ✅ | main (PR #8) |
 | [T-SEC-01](./T-SEC-01-query-limits.md) | Query Limits (subsumed by T-API-01 item 7) | ✅ | main (PR #8) |
 | [T-LEGAL-01](./T-LEGAL-01-accountant-review.md) | Accountant Review (6 items before invoice launch) | ⬜ | — |
-| [T-CRON-01](./T-CRON-01-nightly-jobs.md) | Nightly Jobs & pg-boss (absorbs T17) | 🔒 | — |
+| [T-CRON-01](./T-CRON-01-nightly-jobs.md) | pg-boss Job Queue Infrastructure | ⬜ | — |
+| [T-CRON-02](./T-CRON-02-scheduled-jobs.md) | Scheduled Maintenance Jobs (cleanup + overdue) | 🔒 | — |
 
 ### Architecture Fixes (from deep review — execute before T08)
 
@@ -56,6 +57,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T-ARCH-05](./T-ARCH-05-rbac-enforcement.md) | Enforce Role-Based Access Control | ✅ | main |
 | [T-ARCH-06](./T-ARCH-06-test-infra.md) | Replace pg-mem with testcontainers (post-MVP) |✅ | main |
 | [T-ARCH-07](./T-ARCH-07-address-error-handling.md) | Address API Error Handling (post-MVP) | ✅ | main |
+| [T-ARCH-08](./T-ARCH-08-idempotent-email-send.md) | Async Email Delivery via pg-boss (outbox pattern) | 🔒 | — |
 
 ### Phase 1 — Customers
 
@@ -100,7 +102,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 |--------|------|--------|--------|
 | [T15](./T15-payments.md) | Payment Recording | 🔒 | — |
 | [T16](./T16-credit-notes.md) | Credit Notes | 🔒 | — |
-| ~~[T17](./T17-overdue.md)~~ | ~~Overdue Detection (cron)~~ — absorbed into T-CRON-01 | — | — |
+| ~~[T17](./T17-overdue.md)~~ | ~~Overdue Detection (cron)~~ — absorbed into T-CRON-02 | — | — |
 
 ### Phase 6 — Reporting
 
