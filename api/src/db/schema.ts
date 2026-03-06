@@ -349,7 +349,7 @@ export const businessShaamCredentialsRelations = relations(businessShaamCredenti
 
 // ── SHAAM Audit Log ──
 
-const SHAAM_AUDIT_RESULTS = ['approved', 'rejected', 'deferred', 'error'] as const;
+const SHAAM_AUDIT_RESULTS = ['approved', 'rejected', 'deferred', 'error', 'emergency'] as const;
 export const shaamAuditResultEnum = pgEnum('shaam_audit_result', SHAAM_AUDIT_RESULTS);
 
 export const shaamAuditLog = pgTable(

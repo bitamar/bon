@@ -1,4 +1,4 @@
-CREATE TYPE "public"."shaam_audit_result" AS ENUM('approved', 'rejected', 'deferred', 'error');--> statement-breakpoint
+CREATE TYPE "public"."shaam_audit_result" AS ENUM('approved', 'rejected', 'deferred', 'error', 'emergency');--> statement-breakpoint
 CREATE TABLE "shaam_audit_log" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"business_id" uuid NOT NULL,

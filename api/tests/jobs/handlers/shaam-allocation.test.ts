@@ -3,6 +3,7 @@ import type { Job } from 'pg-boss';
 import type { FastifyBaseLogger } from 'fastify';
 import { createShaamAllocationHandler } from '../../../src/jobs/handlers/shaam-allocation.js';
 import type { ShaamService } from '../../../src/services/shaam/types.js';
+import type { JobPayloads } from '../../../src/jobs/boss.js';
 
 // Mock repositories
 vi.mock('../../../src/repositories/invoice-repository.js', () => ({
@@ -86,9 +87,18 @@ const MOCK_CUSTOMER = {
   isActive: true,
 };
 
-type PayloadType = { businessId: string; invoiceId: string };
+type Payload = JobPayloads['shaam-allocation-request'];
 
 // ── helpers ──
+
+function createMockLogger(): FastifyBaseLogger {
+  return {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  } as unknown as FastifyBaseLogger;
+}
 
 function createMockShaamService(): ShaamService {
   return {
@@ -99,25 +109,13 @@ function createMockShaamService(): ShaamService {
   };
 }
 
-function createMockApp(shaamService?: ShaamService) {
+function createMockJob(retryCount = 0): Job<Payload> {
   return {
-    log: {
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-    } as unknown as FastifyBaseLogger,
-    shaamService: shaamService ?? createMockShaamService(),
-  } as unknown as Parameters<typeof createShaamAllocationHandler>[0];
-}
-
-function createMockJobs(): Job<PayloadType>[] {
-  return [
-    {
-      id: 'job-1',
-      name: 'shaam-allocation-request',
-      data: { businessId: BUSINESS_ID, invoiceId: INVOICE_ID },
-    } as Job<PayloadType>,
-  ];
+    id: 'job-1',
+    name: 'shaam-allocation-request',
+    data: { businessId: BUSINESS_ID, invoiceId: INVOICE_ID },
+    retryCount,
+  } as Job<Payload>;
 }
 
 function setupMocks() {
@@ -137,10 +135,10 @@ describe('shaam-allocation handler', () => {
 
   it('stores allocation number when SHAAM approves', async () => {
     const shaamService = createMockShaamService();
-    const app = createMockApp(shaamService);
-    const handler = createShaamAllocationHandler(app);
+    const logger = createMockLogger();
+    const handler = createShaamAllocationHandler(shaamService, logger);
 
-    await handler(createMockJobs());
+    await handler(createMockJob());
 
     expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
       allocationStatus: 'approved',
@@ -154,6 +152,7 @@ describe('shaam-allocation handler', () => {
         invoiceId: INVOICE_ID,
         result: 'approved',
         allocationNumber: '123456789',
+        attemptNumber: 1,
       })
     );
   });
@@ -166,9 +165,9 @@ describe('shaam-allocation handler', () => {
         errorMessage: 'Invalid VAT number',
       }),
     };
-    const handler = createShaamAllocationHandler(createMockApp(shaamService));
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
 
-    await handler(createMockJobs());
+    await handler(createMockJob());
 
     expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
       allocationStatus: 'rejected',
@@ -190,9 +189,9 @@ describe('shaam-allocation handler', () => {
         reason: 'System maintenance',
       }),
     };
-    const handler = createShaamAllocationHandler(createMockApp(shaamService));
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
 
-    await expect(handler(createMockJobs())).rejects.toThrow('SHAAM deferred: System maintenance');
+    await expect(handler(createMockJob())).rejects.toThrow('SHAAM deferred: System maintenance');
     expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
       allocationStatus: 'pending',
       allocationError: 'System maintenance',
@@ -207,9 +206,9 @@ describe('shaam-allocation handler', () => {
     } as never);
 
     const shaamService = createMockShaamService();
-    const handler = createShaamAllocationHandler(createMockApp(shaamService));
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
 
-    await handler(createMockJobs());
+    await handler(createMockJob());
 
     expect(shaamService.requestAllocationNumber).not.toHaveBeenCalled();
     expect(updateInvoice).not.toHaveBeenCalled();
@@ -219,9 +218,9 @@ describe('shaam-allocation handler', () => {
     vi.mocked(findInvoiceById).mockResolvedValue(null);
 
     const shaamService = createMockShaamService();
-    const handler = createShaamAllocationHandler(createMockApp(shaamService));
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
 
-    await handler(createMockJobs());
+    await handler(createMockJob());
 
     expect(shaamService.requestAllocationNumber).not.toHaveBeenCalled();
   });
@@ -230,9 +229,9 @@ describe('shaam-allocation handler', () => {
     const shaamService: ShaamService = {
       requestAllocationNumber: vi.fn().mockRejectedValue(new Error('Network timeout')),
     };
-    const handler = createShaamAllocationHandler(createMockApp(shaamService));
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
 
-    await expect(handler(createMockJobs())).rejects.toThrow('Network timeout');
+    await expect(handler(createMockJob())).rejects.toThrow('Network timeout');
     expect(insertShaamAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         result: 'error',
@@ -244,5 +243,18 @@ describe('shaam-allocation handler', () => {
       allocationError: 'Network timeout',
       updatedAt: expect.any(Date),
     });
+  });
+
+  it('uses retrycount from job for attemptNumber', async () => {
+    const shaamService = createMockShaamService();
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
+
+    await handler(createMockJob(2));
+
+    expect(insertShaamAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptNumber: 3,
+      })
+    );
   });
 });

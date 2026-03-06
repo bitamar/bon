@@ -7,7 +7,7 @@ export function setupIntegrationTest() {
   let app: FastifyInstance;
 
   beforeAll(async () => {
-    app = await buildServer({ logger: false, skipJobs: true });
+    app = await buildServer({ logger: false });
   });
 
   afterAll(async () => {

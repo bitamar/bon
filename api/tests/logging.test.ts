@@ -13,7 +13,7 @@ describe('logging plugin', () => {
   let app: FastifyInstance | undefined;
 
   beforeEach(async () => {
-    app = await buildServer({ logger: { level: 'silent' }, skipJobs: true });
+    app = await buildServer({ logger: { level: 'silent' } });
   });
 
   afterEach(async () => {

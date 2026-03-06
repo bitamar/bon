@@ -1369,7 +1369,7 @@
     "public.shaam_audit_result": {
       "name": "shaam_audit_result",
       "schema": "public",
-      "values": ["approved", "rejected", "deferred", "error"]
+      "values": ["approved", "rejected", "deferred", "error", "emergency"]
     },
     "public.tax_id_type": {
       "name": "tax_id_type",
