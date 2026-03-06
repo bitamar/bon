@@ -3,20 +3,23 @@ FROM node:22-slim AS builder
 
 WORKDIR /app
 
-# Copy workspace config, lockfile, and full types source.
-# types/ must be present before npm ci because its prepare script
-# runs tsc to build the package.
+# Copy workspace config and lockfile
 COPY package.json package-lock.json ./
-COPY types/ types/
+COPY types/package.json types/
 COPY pdf/package.json pdf/
 
-RUN npm ci --workspace=types --workspace=pdf
+# Install all deps with scripts disabled — the types workspace has a
+# prepare script that runs tsc, but binaries aren't on PATH yet during
+# npm's lifecycle phase.  We build explicitly in the next step.
+RUN echo "ignore-scripts=true" > .npmrc \
+    && npm ci --workspace=types --workspace=pdf \
+    && rm .npmrc
 
-# Copy pdf source code (types already copied above)
+# Copy source and build
+COPY types/ types/
 COPY pdf/ pdf/
 
-# Build pdf (types was already built by prepare during npm ci)
-RUN npm run build --workspace=pdf
+RUN npm run build --workspace=types && npm run build --workspace=pdf
 
 # ── Production stage ─────────────────────────────────────────────
 FROM node:22-slim

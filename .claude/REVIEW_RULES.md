@@ -169,29 +169,29 @@ When the same `vi.spyOn(...)` mock setup appears in multiple tests, extract it i
 
 ### Never suppress npm lifecycle scripts with --ignore-scripts
 
-npm's `--ignore-scripts` flag does not reliably prevent workspace `prepare` scripts from running (npm 10.x bug). Instead of fighting it:
+npm workspace `prepare` scripts run during `npm ci` but binaries (e.g. `tsc`) may not be on PATH yet during the lifecycle phase. The `--ignore-scripts` CLI flag is also unreliable (npm 10.x bug). Use `.npmrc` to suppress scripts, then build explicitly:
 
-- **Builder stage**: Structure the Dockerfile so that all source files needed by `prepare` are copied BEFORE `npm ci`. Let `prepare` run naturally.
-- **Production stage**: When source/devDeps are unavailable, create a temporary `.npmrc` with `ignore-scripts=true` before `npm ci`, then remove it after. This is enforced at a lower level than the CLI flag and actually works.
+- **Both stages**: Create a temporary `.npmrc` with `ignore-scripts=true` before `npm ci`, remove it after. Then run builds explicitly.
+- The `--ignore-scripts` CLI flag does NOT work reliably — always use `.npmrc`.
 
 **Wrong:**
 ```dockerfile
-COPY types/package.json types/
-RUN npm ci --workspace=types --ignore-scripts  # ❌ prepare may still run
+COPY types/ types/
+RUN npm ci --workspace=types                    # ❌ prepare runs tsc, tsc not on PATH
 ```
 
-**Right (builder):**
+**Also wrong:**
 ```dockerfile
-COPY types/ types/                              # ✅ full source before npm ci
-RUN npm ci --workspace=types                    # prepare runs and succeeds
+RUN npm ci --workspace=types --ignore-scripts   # ❌ flag unreliable, prepare may still run
 ```
 
-**Right (production):**
+**Right:**
 ```dockerfile
-COPY types/package.json types/
 RUN echo "ignore-scripts=true" > .npmrc \       # ✅ .npmrc is reliable
-    && npm ci --workspace=types --omit=dev \
+    && npm ci --workspace=types \
     && rm .npmrc
+COPY types/ types/
+RUN npm run build --workspace=types             # ✅ explicit build after deps installed
 ```
 
 ### No hacks — find the root cause
