@@ -14,7 +14,7 @@ export class ShaamHttpClient implements ShaamService {
   }
 
   async requestAllocationNumber(_request: AllocationRequest): Promise<AllocationResult> {
-    // TODO(T13): Implement real HTTP call to ITA API at this.baseUrl
+    // T13: Implement real HTTP call to ITA API at this.baseUrl
     throw new Error(
       `ShaamHttpClient.requestAllocationNumber not implemented — see T13. baseUrl=${this.baseUrl}`
     );

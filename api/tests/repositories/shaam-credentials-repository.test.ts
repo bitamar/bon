@@ -37,7 +37,7 @@ function makeCredentialData(businessId: string) {
     businessId,
     encryptedAccessToken: 'enc-access-' + randomUUID(),
     encryptedRefreshToken: 'enc-refresh-' + randomUUID(),
-    tokenExpiresAt: new Date(now.getTime() + 3600_000),
+    tokenExpiresAt: new Date(now.getTime() + 3_600_000),
     scope: 'shaam:allocate',
     createdAt: now,
     updatedAt: now,

@@ -32,7 +32,7 @@ export function currentThresholdILS(asOfDate: Date = new Date()): number {
     }
   }
   // Before the earliest entry — use the oldest threshold
-  const oldest = ALLOCATION_THRESHOLDS[ALLOCATION_THRESHOLDS.length - 1];
+  const oldest = ALLOCATION_THRESHOLDS.at(-1);
   return oldest ? oldest.thresholdILS : 25_000;
 }
 
@@ -60,7 +60,7 @@ export function requiresAllocationNumber(
  * Determines whether an allocation should be requested.
  * Currently delegates to requiresAllocationNumber().
  *
- * TODO: Add `business.alwaysRequestAllocation` opt-in when business settings page ships.
+ * Future: Add `business.alwaysRequestAllocation` opt-in (tracked in T14).
  */
 export function shouldRequestAllocation(
   invoice: Readonly<{ totalExclVatMinorUnits: number; vatMinorUnits: number }>,
