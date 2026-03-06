@@ -294,7 +294,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 let app: FastifyInstance;
 
-beforeAll(async () => { app = await buildServer({ logger: false }); });
+beforeAll(async () => {
+  app = await buildServer({ logger: false });
+  await app.boss.createQueue('__test-job');
+});
 afterAll(async () => { await app.close(); });
 
 describe('pg-boss infrastructure', () => {

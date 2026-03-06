@@ -21,6 +21,7 @@ let app: FastifyInstance;
 
 beforeAll(async () => {
   app = await buildServer({ logger: false });
+  await app.boss.createQueue('__test-job');
 });
 
 afterAll(async () => {
