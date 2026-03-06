@@ -17,8 +17,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "type-check": "tsc --noEmit",
-    "prepare": "npm run build"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "zod": "^4.3.6"
