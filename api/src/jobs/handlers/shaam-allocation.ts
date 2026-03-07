@@ -63,6 +63,7 @@ export function createShaamAllocationHandler(
 
     // 2. Build allocation request + ITA payload, call SHAAM, and log audit
     let result: AllocationResult;
+    let request: AllocationRequest | null = null;
     let itaPayload: ReturnType<typeof buildItaPayload> | null = null;
     try {
       const lineItemsData = items.map((item) => ({
@@ -77,7 +78,7 @@ export function createShaamAllocationHandler(
         lineTotalInclVatMinorUnits: item.lineTotalInclVatMinorUnits,
       }));
 
-      const request: AllocationRequest = {
+      request = {
         businessId,
         invoiceId,
         documentType: invoice.documentType,
@@ -119,7 +120,7 @@ export function createShaamAllocationHandler(
       await insertShaamAuditLog({
         businessId,
         invoiceId,
-        requestPayload: itaPayload ? JSON.stringify(itaPayload) : JSON.stringify({ invoiceId }),
+        requestPayload: JSON.stringify(itaPayload ?? request ?? { invoiceId }),
         responsePayload: null,
         httpStatus: null,
         allocationNumber: null,

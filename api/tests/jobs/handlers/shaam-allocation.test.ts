@@ -172,6 +172,32 @@ describe('shaam-allocation handler', () => {
     );
   });
 
+  it('stores emergency allocation number when SHAAM returns emergency', async () => {
+    const shaamService: ShaamService = {
+      requestAllocationNumber: vi.fn().mockResolvedValue({
+        status: 'emergency',
+        emergencyNumber: 'EMG-1234',
+        message: 'Immediate action',
+      }),
+    };
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
+
+    await handler(createMockJob());
+
+    expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
+      allocationStatus: 'emergency',
+      allocationNumber: 'EMG-1234',
+      allocationError: null,
+      updatedAt: expect.any(Date),
+    });
+    expect(insertShaamAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        result: 'emergency',
+        allocationNumber: 'EMG-1234',
+      })
+    );
+  });
+
   it('stores error when SHAAM rejects', async () => {
     const shaamService: ShaamService = {
       requestAllocationNumber: vi.fn().mockResolvedValue({
