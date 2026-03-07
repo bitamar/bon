@@ -40,7 +40,7 @@ const emergencyNumbersRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/businesses/:businessId/emergency-numbers',
     {
-      preHandler: [app.requireBusinessAccess, app.requireBusinessRole('owner', 'admin')],
+      preHandler: [app.authenticate, app.requireBusinessAccess, app.requireBusinessRole('owner', 'admin')],
       schema: {
         tags: ['Emergency Numbers'],
         params: z.object({ businessId: z.string().uuid() }),
@@ -69,7 +69,7 @@ const emergencyNumbersRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.post(
     '/businesses/:businessId/emergency-numbers',
     {
-      preHandler: [app.requireBusinessAccess, app.requireBusinessRole('owner')],
+      preHandler: [app.authenticate, app.requireBusinessAccess, app.requireBusinessRole('owner')],
       schema: {
         tags: ['Emergency Numbers'],
         params: z.object({ businessId: z.string().uuid() }),
@@ -113,7 +113,7 @@ const emergencyNumbersRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.delete(
     '/businesses/:businessId/emergency-numbers/:id',
     {
-      preHandler: [app.requireBusinessAccess, app.requireBusinessRole('owner')],
+      preHandler: [app.authenticate, app.requireBusinessAccess, app.requireBusinessRole('owner')],
       schema: {
         tags: ['Emergency Numbers'],
         params: z.object({
