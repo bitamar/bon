@@ -40,7 +40,11 @@ const emergencyNumbersRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/businesses/:businessId/emergency-numbers',
     {
-      preHandler: [app.authenticate, app.requireBusinessAccess, app.requireBusinessRole('owner', 'admin')],
+      preHandler: [
+        app.authenticate,
+        app.requireBusinessAccess,
+        app.requireBusinessRole('owner', 'admin'),
+      ],
       schema: {
         tags: ['Emergency Numbers'],
         params: z.object({ businessId: z.string().uuid() }),
