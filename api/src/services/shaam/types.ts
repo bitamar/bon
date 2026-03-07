@@ -22,6 +22,15 @@ export interface AllocationRequest {
   }>;
 }
 
+export interface EmergencyUsageReport {
+  readonly number: string;
+  readonly invoiceId: string;
+}
+
 export interface ShaamService {
   requestAllocationNumber(request: AllocationRequest): Promise<AllocationResult>;
+  reportEmergencyUsage?(
+    businessId: string,
+    usedNumbers: readonly EmergencyUsageReport[]
+  ): Promise<void>;
 }

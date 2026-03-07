@@ -24,6 +24,14 @@ vi.mock('../../../src/repositories/shaam-audit-log-repository.js', () => ({
   insertShaamAuditLog: vi.fn(),
 }));
 
+vi.mock('../../../src/repositories/emergency-allocation-repository.js', () => ({
+  consumeNext: vi.fn(),
+}));
+
+vi.mock('../../../src/repositories/shaam-credentials-repository.js', () => ({
+  markNeedsReauth: vi.fn(),
+}));
+
 vi.mock('../../../src/services/shaam/build-ita-payload.js', () => ({
   buildItaPayload: vi.fn().mockReturnValue({ mocked: true }),
 }));
@@ -36,7 +44,10 @@ import {
 import { findBusinessById } from '../../../src/repositories/business-repository.js';
 import { findCustomerById } from '../../../src/repositories/customer-repository.js';
 import { insertShaamAuditLog } from '../../../src/repositories/shaam-audit-log-repository.js';
+import { consumeNext } from '../../../src/repositories/emergency-allocation-repository.js';
+import { markNeedsReauth } from '../../../src/repositories/shaam-credentials-repository.js';
 import { buildItaPayload } from '../../../src/services/shaam/build-ita-payload.js';
+import { EMERGENCY_POOL_EMPTY_MESSAGE, ITA_ERROR_MAP } from '@bon/types/shaam';
 
 const BUSINESS_ID = '00000000-0000-0000-0000-000000000001';
 const INVOICE_ID = '00000000-0000-0000-0000-000000000002';
@@ -204,12 +215,12 @@ describe('shaam-allocation handler', () => {
     );
   });
 
-  it('stores error when SHAAM rejects', async () => {
+  it('stores error when SHAAM rejects with unknown code', async () => {
     const shaamService: ShaamService = {
       requestAllocationNumber: vi.fn().mockResolvedValue({
         status: 'rejected',
-        errorCode: 'E001',
-        errorMessage: 'Invalid VAT number',
+        errorCode: 'E999',
+        errorMessage: 'Unknown error',
       }),
     };
     const handler = createShaamAllocationHandler(shaamService, createMockLogger());
@@ -218,13 +229,13 @@ describe('shaam-allocation handler', () => {
 
     expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
       allocationStatus: 'rejected',
-      allocationError: 'E001: Invalid VAT number',
+      allocationError: 'E999: Unknown error',
       updatedAt: expect.any(Date),
     });
     expect(insertShaamAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         result: 'rejected',
-        errorCode: 'E001',
+        errorCode: 'E999',
       })
     );
   });
@@ -311,6 +322,158 @@ describe('shaam-allocation handler', () => {
         attemptNumber: 3,
       })
     );
+  });
+
+  // ── T14: error-code-specific handling ──
+
+  it('E099: falls back to emergency pool when available', async () => {
+    vi.mocked(consumeNext).mockResolvedValue({
+      id: 'emg-1',
+      businessId: BUSINESS_ID,
+      number: 'EMG-5678',
+      used: true,
+      usedForInvoiceId: INVOICE_ID,
+      usedAt: new Date(),
+      reported: false,
+      reportedAt: null,
+      acquiredAt: new Date(),
+    });
+    const shaamService: ShaamService = {
+      requestAllocationNumber: vi.fn().mockResolvedValue({
+        status: 'rejected',
+        errorCode: 'E099',
+        errorMessage: 'Service unavailable',
+      }),
+    };
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
+
+    await handler(createMockJob());
+
+    expect(consumeNext).toHaveBeenCalledWith(BUSINESS_ID, INVOICE_ID);
+    expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
+      allocationStatus: 'emergency',
+      allocationNumber: 'EMG-5678',
+      allocationError: null,
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('E099: stores pool-empty message when no emergency numbers left', async () => {
+    vi.mocked(consumeNext).mockResolvedValue(null);
+    const shaamService: ShaamService = {
+      requestAllocationNumber: vi.fn().mockResolvedValue({
+        status: 'rejected',
+        errorCode: 'E099',
+        errorMessage: 'Service unavailable',
+      }),
+    };
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
+
+    await handler(createMockJob());
+
+    expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
+      allocationStatus: 'rejected',
+      allocationError: EMERGENCY_POOL_EMPTY_MESSAGE,
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('E010: marks business as needing re-auth', async () => {
+    const shaamService: ShaamService = {
+      requestAllocationNumber: vi.fn().mockResolvedValue({
+        status: 'rejected',
+        errorCode: 'E010',
+        errorMessage: 'Auth failure',
+      }),
+    };
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
+
+    await handler(createMockJob());
+
+    expect(markNeedsReauth).toHaveBeenCalledWith(BUSINESS_ID);
+    expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
+      allocationStatus: 'rejected',
+      allocationError: ITA_ERROR_MAP.E010.hebrewMessage,
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('E002: treats as idempotent (no invoice update)', async () => {
+    const shaamService: ShaamService = {
+      requestAllocationNumber: vi.fn().mockResolvedValue({
+        status: 'rejected',
+        errorCode: 'E002',
+        errorMessage: 'Already allocated',
+      }),
+    };
+    const logger = createMockLogger();
+    const handler = createShaamAllocationHandler(shaamService, logger);
+
+    await handler(createMockJob());
+
+    expect(logger.info).toHaveBeenCalledWith(
+      { invoiceId: INVOICE_ID },
+      'SHAAM E002: already allocated, treating as approved'
+    );
+    // E002 should not update invoice — it's already allocated
+    expect(updateInvoice).not.toHaveBeenCalled();
+  });
+
+  it('E003: clears allocation status as below threshold', async () => {
+    const shaamService: ShaamService = {
+      requestAllocationNumber: vi.fn().mockResolvedValue({
+        status: 'rejected',
+        errorCode: 'E003',
+        errorMessage: 'Below threshold',
+      }),
+    };
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
+
+    await handler(createMockJob());
+
+    expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
+      allocationStatus: null,
+      allocationError: null,
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('E001: stores Hebrew error message from ITA_ERROR_MAP', async () => {
+    const shaamService: ShaamService = {
+      requestAllocationNumber: vi.fn().mockResolvedValue({
+        status: 'rejected',
+        errorCode: 'E001',
+        errorMessage: 'Invalid data',
+      }),
+    };
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
+
+    await handler(createMockJob());
+
+    expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
+      allocationStatus: 'rejected',
+      allocationError: ITA_ERROR_MAP.E001.hebrewMessage,
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('enqueues recovery report when approved after emergency status', async () => {
+    vi.mocked(findInvoiceById).mockResolvedValue({
+      ...MOCK_INVOICE,
+      allocationStatus: 'emergency',
+    } as never);
+    const shaamService = createMockShaamService();
+    const mockBoss = { send: vi.fn().mockResolvedValue('job-id') } as never;
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger(), mockBoss);
+
+    await handler(createMockJob());
+
+    expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
+      allocationStatus: 'approved',
+      allocationNumber: '123456789',
+      allocationError: null,
+      updatedAt: expect.any(Date),
+    });
   });
 
   it('logs audit and updates invoice when payload construction throws', async () => {

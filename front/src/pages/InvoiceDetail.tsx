@@ -13,8 +13,15 @@ import {
   Text,
   TextInput,
 } from '@mantine/core';
-import { IconFileDownload, IconMail, IconCash, IconReceiptRefund } from '@tabler/icons-react';
-import { Navigate, useParams } from 'react-router-dom';
+import {
+  IconFileDownload,
+  IconMail,
+  IconCash,
+  IconReceiptRefund,
+  IconSettings,
+  IconAlertTriangle,
+} from '@tabler/icons-react';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
@@ -28,6 +35,7 @@ import { formatDate, formatMinorUnits } from '@bon/types/formatting';
 import { DOCUMENT_TYPE_LABELS, type InvoiceStatus } from '@bon/types/invoices';
 import { INVOICE_STATUS_CONFIG } from '../lib/invoiceStatus';
 import { computeVatLabel } from '../lib/vatLabel';
+import { ITA_ERROR_MAP, EMERGENCY_POOL_EMPTY_MESSAGE } from '@bon/types/shaam';
 
 function formatDateTime(isoString: string): string {
   const d = new Date(isoString);
@@ -37,6 +45,106 @@ function formatDateTime(isoString: string): string {
   const hours = String(d.getHours()).padStart(2, '0');
   const minutes = String(d.getMinutes()).padStart(2, '0');
   return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+function detectErrorCode(allocationError: string | null): string | null {
+  if (!allocationError) return null;
+  if (allocationError === EMERGENCY_POOL_EMPTY_MESSAGE) return 'E099_EMPTY';
+  if (allocationError === ITA_ERROR_MAP.E001.hebrewMessage) return 'E001';
+  if (allocationError === ITA_ERROR_MAP.E010.hebrewMessage) return 'E010';
+  if (allocationError.includes(ITA_ERROR_MAP.E099.hebrewMessage)) return 'E099';
+  return null;
+}
+
+function AllocationRejectedBanner(
+  props: Readonly<{ allocationError: string | null; businessId: string }>
+) {
+  const navigate = useNavigate();
+  const errorCode = detectErrorCode(props.allocationError);
+
+  // E010: orange, re-auth action
+  if (errorCode === 'E010') {
+    return (
+      <Paper withBorder p="md" radius="md" bg="orange.0" data-testid="allocation-rejected-e010">
+        <Group gap="sm" justify="space-between">
+          <Group gap="sm">
+            <IconAlertTriangle size={18} color="var(--mantine-color-orange-7)" />
+            <Text fw={600}>{props.allocationError}</Text>
+          </Group>
+          <Button
+            size="xs"
+            variant="light"
+            color="orange"
+            leftSection={<IconSettings size={14} />}
+            onClick={() => navigate(`/businesses/${props.businessId}/settings`)}
+          >
+            חבר מחדש
+          </Button>
+        </Group>
+      </Paper>
+    );
+  }
+
+  // E099 pool empty: red, go to settings
+  if (errorCode === 'E099_EMPTY') {
+    return (
+      <Paper withBorder p="md" radius="md" bg="red.0" data-testid="allocation-rejected-e099-empty">
+        <Group gap="sm" justify="space-between">
+          <Group gap="sm">
+            <IconAlertTriangle size={18} color="var(--mantine-color-red-7)" />
+            <Text fw={600}>{props.allocationError}</Text>
+          </Group>
+          <Button
+            size="xs"
+            variant="light"
+            color="red"
+            onClick={() => navigate(`/businesses/${props.businessId}/settings`)}
+          >
+            הזן מספרי חירום
+          </Button>
+        </Group>
+      </Paper>
+    );
+  }
+
+  // E001: red, go to settings
+  if (errorCode === 'E001') {
+    return (
+      <Paper withBorder p="md" radius="md" bg="red.0" data-testid="allocation-rejected-e001">
+        <Group gap="sm" justify="space-between">
+          <Group gap="sm">
+            <IconAlertTriangle size={18} color="var(--mantine-color-red-7)" />
+            <Text fw={600}>{props.allocationError}</Text>
+          </Group>
+          <Button
+            size="xs"
+            variant="light"
+            color="red"
+            leftSection={<IconSettings size={14} />}
+            onClick={() => navigate(`/businesses/${props.businessId}/settings`)}
+          >
+            עבור להגדרות
+          </Button>
+        </Group>
+      </Paper>
+    );
+  }
+
+  // Default rejected banner
+  return (
+    <Paper withBorder p="md" radius="md" bg="red.0" data-testid="allocation-rejected">
+      <Stack gap={4}>
+        <Group gap="sm">
+          <Text fw={600}>הקצאת SHAAM נדחתה</Text>
+        </Group>
+        {props.allocationError && (
+          <Text size="sm" c="red.7">
+            {props.allocationError}
+          </Text>
+        )}
+      </Stack>
+    </Paper>
+  );
 }
 
 const CREDIT_NOTE_ELIGIBLE: readonly InvoiceStatus[] = [
@@ -258,18 +366,10 @@ export function InvoiceDetail() {
           </Paper>
         )}
         {invoice.allocationStatus === 'rejected' && (
-          <Paper withBorder p="md" radius="md" bg="red.0" data-testid="allocation-rejected">
-            <Stack gap={4}>
-              <Group gap="sm">
-                <Text fw={600}>הקצאת SHAAM נדחתה</Text>
-              </Group>
-              {invoice.allocationError && (
-                <Text size="sm" c="red.7">
-                  {invoice.allocationError}
-                </Text>
-              )}
-            </Stack>
-          </Paper>
+          <AllocationRejectedBanner
+            allocationError={invoice.allocationError}
+            businessId={businessId}
+          />
         )}
 
         {/* Invoice document */}

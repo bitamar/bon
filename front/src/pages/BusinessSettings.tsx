@@ -22,6 +22,7 @@ import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
 import { extractErrorMessage } from '../lib/notifications';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
+import { EmergencyNumbersSection } from '../components/EmergencyNumbersSection';
 import type { UpdateBusinessBody, BusinessType } from '@bon/types/businesses';
 
 function getVatLabel(businessType: BusinessType): string {
@@ -259,6 +260,20 @@ export function BusinessSettings() {
             </Group>
           </Stack>
         </Paper>
+
+        {activeBusiness.role === 'owner' && (
+          <Paper withBorder radius="lg" p="lg">
+            <Stack gap="md">
+              <Text size="lg" fw={600}>
+                מספרי חירום שע״מ
+              </Text>
+              <Text size="sm" c="dimmed">
+                מספרי הקצאה לשימוש כאשר מערכת שע״מ אינה זמינה. המספרים מתקבלים ישירות מרשות המסים.
+              </Text>
+              <EmergencyNumbersSection businessId={businessId} />
+            </Stack>
+          </Paper>
+        )}
       </Stack>
     </Container>
   );

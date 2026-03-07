@@ -111,3 +111,82 @@ export const itaRequestPayloadSchema = z.object({
 
 export type ItaLineItem = z.infer<typeof itaLineItemSchema>;
 export type ItaRequestPayload = z.infer<typeof itaRequestPayloadSchema>;
+
+// ── ITA Error Codes ──
+
+export const ITA_ERROR_CODES = {
+  E001: 'E001',
+  E002: 'E002',
+  E003: 'E003',
+  E010: 'E010',
+  E099: 'E099',
+} as const;
+
+export type ItaErrorCode = (typeof ITA_ERROR_CODES)[keyof typeof ITA_ERROR_CODES];
+
+export interface ItaErrorInfo {
+  readonly code: ItaErrorCode;
+  readonly hebrewMessage: string;
+  readonly userVisible: boolean;
+}
+
+export const ITA_ERROR_MAP: Record<ItaErrorCode, ItaErrorInfo> = {
+  E001: {
+    code: 'E001',
+    hebrewMessage: 'מספר מע״מ לא תקין — בדוק את פרטי העסק',
+    userVisible: true,
+  },
+  E002: {
+    code: 'E002',
+    hebrewMessage: 'חשבונית כבר קיבלה מספר הקצאה',
+    userVisible: false,
+  },
+  E003: {
+    code: 'E003',
+    hebrewMessage: 'חשבונית מתחת לסף — לא נדרש מספר הקצאה',
+    userVisible: false,
+  },
+  E010: {
+    code: 'E010',
+    hebrewMessage: 'נדרש חיבור מחדש למערכת שע״מ',
+    userVisible: true,
+  },
+  E099: {
+    code: 'E099',
+    hebrewMessage: 'שע״מ לא זמין — הוקצה מספר חירום',
+    userVisible: true,
+  },
+};
+
+export const EMERGENCY_POOL_LOW_THRESHOLD = 5;
+export const EMERGENCY_POOL_EMPTY_MESSAGE = 'שע״מ לא זמין ומאגר מספרי החירום ריק';
+
+// ── Emergency number schemas ──
+
+export const emergencyNumberSchema = z.object({
+  id: z.string().uuid(),
+  businessId: z.string().uuid(),
+  number: z.string(),
+  used: z.boolean(),
+  usedForInvoiceId: z.string().uuid().nullable(),
+  usedAt: z.string().nullable(),
+  reported: z.boolean(),
+  reportedAt: z.string().nullable(),
+  acquiredAt: z.string(),
+});
+
+export type EmergencyNumber = z.infer<typeof emergencyNumberSchema>;
+
+export const addEmergencyNumbersBodySchema = z.object({
+  numbers: z.array(z.string().trim().min(1)).min(1).max(100),
+});
+
+export type AddEmergencyNumbersBody = z.infer<typeof addEmergencyNumbersBodySchema>;
+
+export const emergencyNumbersResponseSchema = z.object({
+  numbers: z.array(emergencyNumberSchema),
+  availableCount: z.number().int().nonnegative(),
+  usedCount: z.number().int().nonnegative(),
+});
+
+export type EmergencyNumbersResponse = z.infer<typeof emergencyNumbersResponseSchema>;
