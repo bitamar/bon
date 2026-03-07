@@ -1,7 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import type { Job } from 'pg-boss';
-import type { JobPayloads } from '../../../src/jobs/boss.js';
+import type { FastifyBaseLogger } from 'fastify';
 import { createShaamTokenRefreshHandler } from '../../../src/jobs/handlers/shaam-token-refresh.js';
 import {
   upsertShaamCredentials,
@@ -10,6 +9,7 @@ import {
 import { encrypt } from '../../../src/lib/crypto.js';
 import { resetDb } from '../../utils/db.js';
 import { createUser, createTestBusiness } from '../../utils/businesses.js';
+import { makeLogger, makeJob } from '../../utils/jobs.js';
 
 const TEST_KEY = 'a'.repeat(64);
 
@@ -25,31 +25,11 @@ async function seedExpiringCredentials(businessId: string, minutesUntilExpiry: n
   });
 }
 
-function makeJob(): Job<JobPayloads['shaam-token-refresh']> {
-  return { id: randomUUID(), name: 'shaam-token-refresh', data: {} } as Job<
-    JobPayloads['shaam-token-refresh']
-  >;
-}
-
-function makeLogger() {
-  return {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    fatal: vi.fn(),
-    trace: vi.fn(),
-    child: vi.fn(),
-    level: 'info',
-    silent: vi.fn(),
-  } as unknown as import('fastify').FastifyBaseLogger;
-}
-
-let logger: ReturnType<typeof makeLogger>;
+let logger: FastifyBaseLogger;
 
 async function runHandler() {
   const handler = createShaamTokenRefreshHandler(logger);
-  await handler(makeJob());
+  await handler(makeJob('shaam-token-refresh'));
 }
 
 async function seedExpiringBusiness(minutesUntilExpiry: number) {
