@@ -118,7 +118,7 @@ describe('emergency-numbers routes', () => {
     });
 
     it('returns 404 for nonexistent number', async () => {
-      const res = await deleteNumber(sessionId, businessId, '00000000-0000-0000-0000-000000000099');
+      const res = await deleteNumber(sessionId, businessId, '10000000-0000-4000-8000-000000000099');
       expect(res.statusCode).toBe(404);
     });
   });
