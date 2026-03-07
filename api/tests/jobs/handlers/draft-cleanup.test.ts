@@ -8,14 +8,16 @@ import { resetDb } from '../../utils/db.js';
 import { createUser, createTestBusiness } from '../../utils/businesses.js';
 import { makeLogger, makeJob } from '../../utils/jobs.js';
 
-async function createInvoice(businessId: string, status: string, updatedDaysAgo: number) {
+type InvoiceStatus = (typeof invoices)['$inferInsert']['status'];
+
+async function createInvoice(businessId: string, status: InvoiceStatus, updatedDaysAgo: number) {
   const updatedAt = new Date(Date.now() - updatedDaysAgo * 24 * 60 * 60 * 1000);
   const [row] = await db
     .insert(invoices)
     .values({
       businessId,
       documentType: 'tax_invoice',
-      status: status as 'draft',
+      status,
       updatedAt,
       createdAt: updatedAt,
     })

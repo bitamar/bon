@@ -1,5 +1,5 @@
 {
-  "id": "4e5ab30b-46e9-43af-ad9c-a5ca0be9e71b",
+  "id": "4137f4b4-5e55-4085-a6cc-159d81e69ae2",
   "prevId": "fc6d121d-8af1-4e20-b4c8-2c27e56da9d7",
   "version": "7",
   "dialect": "postgresql",
@@ -424,140 +424,6 @@
           "value": "(\"customers\".\"is_active\" AND \"customers\".\"deleted_at\" IS NULL) OR (NOT \"customers\".\"is_active\" AND \"customers\".\"deleted_at\" IS NOT NULL)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.emergency_allocation_numbers": {
-      "name": "emergency_allocation_numbers",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "business_id": {
-          "name": "business_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "number": {
-          "name": "number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "used": {
-          "name": "used",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "used_for_invoice_id": {
-          "name": "used_for_invoice_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "used_at": {
-          "name": "used_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reported": {
-          "name": "reported",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "reported_at": {
-          "name": "reported_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "acquired_at": {
-          "name": "acquired_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "emergency_numbers_business_number_unique": {
-          "name": "emergency_numbers_business_number_unique",
-          "columns": [
-            {
-              "expression": "business_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "emergency_numbers_business_available_idx": {
-          "name": "emergency_numbers_business_available_idx",
-          "columns": [
-            {
-              "expression": "business_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "used",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"emergency_allocation_numbers\".\"used\" = false",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "emergency_allocation_numbers_business_id_businesses_id_fk": {
-          "name": "emergency_allocation_numbers_business_id_businesses_id_fk",
-          "tableFrom": "emergency_allocation_numbers",
-          "tableTo": "businesses",
-          "columnsFrom": ["business_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "emergency_allocation_numbers_used_for_invoice_id_invoices_id_fk": {
-          "name": "emergency_allocation_numbers_used_for_invoice_id_invoices_id_fk",
-          "tableFrom": "emergency_allocation_numbers",
-          "tableTo": "invoices",
-          "columnsFrom": ["used_for_invoice_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.invoice_items": {
@@ -1035,6 +901,44 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invoices_overdue_candidates_idx": {
+          "name": "invoices_overdue_candidates_idx",
+          "columns": [
+            {
+              "expression": "due_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"invoices\".\"is_overdue\" = false AND \"invoices\".\"due_date\" IS NOT NULL AND \"invoices\".\"status\" IN ('finalized', 'sent', 'partially_paid')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invoices_overdue_reset_idx": {
+          "name": "invoices_overdue_reset_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"invoices\".\"is_overdue\" = true AND \"invoices\".\"status\" IN ('paid', 'cancelled', 'credited')",
           "concurrently": false,
           "method": "btree",
           "with": {}

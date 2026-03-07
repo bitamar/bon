@@ -13,7 +13,7 @@ const maintenanceJobsPluginFn: FastifyPluginAsync = async (app) => {
 
   // Draft cleanup — 3:00 AM daily (Israel time)
   await app.boss.createQueue('draft-cleanup');
-  await app.boss.schedule('draft-cleanup', '0 3 * * *', null, { tz: 'Asia/Jerusalem' });
+  await app.boss.schedule('draft-cleanup', '0 3 * * *', {}, { tz: 'Asia/Jerusalem' });
   await app.boss.work(
     'draft-cleanup',
     runJob('draft-cleanup', createDraftCleanupHandler(app.log), app.log)
@@ -21,7 +21,7 @@ const maintenanceJobsPluginFn: FastifyPluginAsync = async (app) => {
 
   // Session cleanup — 4:00 AM daily (Israel time)
   await app.boss.createQueue('session-cleanup');
-  await app.boss.schedule('session-cleanup', '0 4 * * *', null, { tz: 'Asia/Jerusalem' });
+  await app.boss.schedule('session-cleanup', '0 4 * * *', {}, { tz: 'Asia/Jerusalem' });
   await app.boss.work(
     'session-cleanup',
     runJob('session-cleanup', createSessionCleanupHandler(app.log), app.log)
@@ -29,7 +29,7 @@ const maintenanceJobsPluginFn: FastifyPluginAsync = async (app) => {
 
   // Overdue detection — 6:00 AM daily (Israel time)
   await app.boss.createQueue('overdue-detection');
-  await app.boss.schedule('overdue-detection', '0 6 * * *', null, { tz: 'Asia/Jerusalem' });
+  await app.boss.schedule('overdue-detection', '0 6 * * *', {}, { tz: 'Asia/Jerusalem' });
   await app.boss.work(
     'overdue-detection',
     runJob('overdue-detection', createOverdueDetectionHandler(app.log), app.log)

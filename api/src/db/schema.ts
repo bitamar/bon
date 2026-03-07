@@ -255,6 +255,17 @@ export const invoices = pgTable(
     index('invoices_business_status_idx').on(table.businessId, table.status),
     index('invoices_business_date_idx').on(table.businessId, table.invoiceDate),
     index('invoices_business_customer_idx').on(table.businessId, table.customerId),
+    // Partial indexes for overdue-detection cron job
+    index('invoices_overdue_candidates_idx')
+      .on(table.dueDate, table.status)
+      .where(
+        sql`${table.isOverdue} = false AND ${table.dueDate} IS NOT NULL AND ${table.status} IN ('finalized', 'sent', 'partially_paid')`
+      ),
+    index('invoices_overdue_reset_idx')
+      .on(table.status)
+      .where(
+        sql`${table.isOverdue} = true AND ${table.status} IN ('paid', 'cancelled', 'credited')`
+      ),
   ]
 );
 

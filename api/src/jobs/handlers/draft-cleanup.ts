@@ -1,5 +1,5 @@
 import type { FastifyBaseLogger } from 'fastify';
-import { and, eq, lt, sql } from 'drizzle-orm';
+import { and, eq, lte, sql } from 'drizzle-orm';
 import type { Job } from 'pg-boss';
 import type { JobPayloads } from '../boss.js';
 import { db } from '../../db/client.js';
@@ -20,7 +20,7 @@ export function createDraftCleanupHandler(
 
     const deleted = await db
       .delete(invoices)
-      .where(and(eq(invoices.status, 'draft'), lt(invoices.updatedAt, cutoff)))
+      .where(and(eq(invoices.status, 'draft'), lte(invoices.updatedAt, cutoff)))
       .returning({ id: invoices.id });
 
     logger.info({ count: deleted.length }, 'draft-cleanup: deleted stale drafts');

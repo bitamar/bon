@@ -20,9 +20,11 @@ function daysFromNow(days: number): string {
   return d.toISOString().split('T')[0]!;
 }
 
+type InvoiceStatus = (typeof invoices)['$inferInsert']['status'];
+
 async function createInvoice(
   businessId: string,
-  status: string,
+  status: InvoiceStatus,
   dueDate: string | null,
   isOverdue = false
 ) {
@@ -31,7 +33,7 @@ async function createInvoice(
     .values({
       businessId,
       documentType: 'tax_invoice',
-      status: status as 'draft',
+      status,
       dueDate,
       isOverdue,
     })
