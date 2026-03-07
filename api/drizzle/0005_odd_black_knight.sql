@@ -1,1 +1,0 @@
-CREATE INDEX "invoices_draft_cleanup_idx" ON "invoices" USING btree ("updated_at") WHERE "invoices"."status" = 'draft';
