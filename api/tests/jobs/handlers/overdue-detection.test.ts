@@ -1,34 +1,12 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { randomUUID } from 'node:crypto';
-import type { Job } from 'pg-boss';
+import { describe, expect, it, beforeEach } from 'vitest';
 import type { FastifyBaseLogger } from 'fastify';
-import type { JobPayloads } from '../../../src/jobs/boss.js';
 import { createOverdueDetectionHandler } from '../../../src/jobs/handlers/overdue-detection.js';
 import { db } from '../../../src/db/client.js';
 import { invoices } from '../../../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { resetDb } from '../../utils/db.js';
 import { createUser, createTestBusiness } from '../../utils/businesses.js';
-
-function makeJob(): Job<JobPayloads['overdue-detection']> {
-  return { id: randomUUID(), name: 'overdue-detection', data: {} } as Job<
-    JobPayloads['overdue-detection']
-  >;
-}
-
-function makeLogger(): FastifyBaseLogger {
-  return {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    fatal: vi.fn(),
-    trace: vi.fn(),
-    child: vi.fn(),
-    level: 'info',
-    silent: vi.fn(),
-  } as unknown as FastifyBaseLogger;
-}
+import { makeLogger, makeJob } from '../../utils/jobs.js';
 
 function daysAgo(days: number): string {
   const d = new Date();
@@ -66,7 +44,7 @@ let businessId: string;
 
 async function runHandler() {
   const handler = createOverdueDetectionHandler(logger);
-  await handler(makeJob());
+  await handler(makeJob('overdue-detection'));
 }
 
 async function findInvoice(id: string) {

@@ -1,32 +1,12 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { randomUUID } from 'node:crypto';
-import type { Job } from 'pg-boss';
+import { describe, expect, it, beforeEach } from 'vitest';
 import type { FastifyBaseLogger } from 'fastify';
-import type { JobPayloads } from '../../../src/jobs/boss.js';
 import { createDraftCleanupHandler } from '../../../src/jobs/handlers/draft-cleanup.js';
 import { db } from '../../../src/db/client.js';
 import { invoices } from '../../../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { resetDb } from '../../utils/db.js';
 import { createUser, createTestBusiness } from '../../utils/businesses.js';
-
-function makeJob(): Job<JobPayloads['draft-cleanup']> {
-  return { id: randomUUID(), name: 'draft-cleanup', data: {} } as Job<JobPayloads['draft-cleanup']>;
-}
-
-function makeLogger(): FastifyBaseLogger {
-  return {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    fatal: vi.fn(),
-    trace: vi.fn(),
-    child: vi.fn(),
-    level: 'info',
-    silent: vi.fn(),
-  } as unknown as FastifyBaseLogger;
-}
+import { makeLogger, makeJob } from '../../utils/jobs.js';
 
 async function createInvoice(businessId: string, status: string, updatedDaysAgo: number) {
   const updatedAt = new Date(Date.now() - updatedDaysAgo * 24 * 60 * 60 * 1000);
@@ -48,7 +28,7 @@ let businessId: string;
 
 async function runHandler() {
   const handler = createDraftCleanupHandler(logger);
-  await handler(makeJob());
+  await handler(makeJob('draft-cleanup'));
 }
 
 describe('draft-cleanup handler', () => {

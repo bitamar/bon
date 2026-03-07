@@ -1,33 +1,12 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import type { Job } from 'pg-boss';
 import type { FastifyBaseLogger } from 'fastify';
-import type { JobPayloads } from '../../../src/jobs/boss.js';
 import { createSessionCleanupHandler } from '../../../src/jobs/handlers/session-cleanup.js';
 import { db } from '../../../src/db/client.js';
 import { sessions } from '../../../src/db/schema.js';
 import { resetDb } from '../../utils/db.js';
 import { createUser } from '../../utils/businesses.js';
-
-function makeJob(): Job<JobPayloads['session-cleanup']> {
-  return { id: randomUUID(), name: 'session-cleanup', data: {} } as Job<
-    JobPayloads['session-cleanup']
-  >;
-}
-
-function makeLogger(): FastifyBaseLogger {
-  return {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    fatal: vi.fn(),
-    trace: vi.fn(),
-    child: vi.fn(),
-    level: 'info',
-    silent: vi.fn(),
-  } as unknown as FastifyBaseLogger;
-}
+import { makeLogger, makeJob } from '../../utils/jobs.js';
 
 async function createSession(userId: string, expiresInMs: number) {
   const now = new Date();
@@ -49,7 +28,7 @@ let userId: string;
 
 async function runHandler() {
   const handler = createSessionCleanupHandler(logger);
-  await handler(makeJob());
+  await handler(makeJob('session-cleanup'));
 }
 
 describe('session-cleanup handler', () => {
