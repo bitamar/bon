@@ -255,6 +255,10 @@ export const invoices = pgTable(
     index('invoices_business_status_idx').on(table.businessId, table.status),
     index('invoices_business_date_idx').on(table.businessId, table.invoiceDate),
     index('invoices_business_customer_idx').on(table.businessId, table.customerId),
+    // Partial index for draft-cleanup cron job
+    index('invoices_draft_cleanup_idx')
+      .on(table.updatedAt)
+      .where(sql`${table.status} = 'draft'`),
     // Partial indexes for overdue-detection cron job
     index('invoices_overdue_candidates_idx')
       .on(table.dueDate, table.status)
