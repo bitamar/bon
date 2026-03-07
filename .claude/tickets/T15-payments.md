@@ -64,7 +64,7 @@ Multiple payments per invoice is the norm, not the exception. The `paidAt` field
 
 ### Outstanding Balance Calculation
 
-```
+```text
 remainingBalance = invoice.totalInclVatMinorUnits - SUM(payments.amountMinorUnits)
 ```
 
@@ -72,7 +72,7 @@ Calculated server-side; returned as `remainingBalanceMinorUnits` in the invoice 
 
 ### Status Transitions
 
-```
+```text
 finalized ──┬── partial payment ──→ partially_paid
 sent ───────┘                          │
                                        ├── more partial ──→ partially_paid (stays)
@@ -82,6 +82,8 @@ Deleting a payment reverses:
 paid ──→ partially_paid (if other payments remain)
 partially_paid ──→ finalized/sent (if no payments remain — restore pre-payment status)
 ```
+
+**Payment deletion rules**: Deletion is allowed on `paid`, `partially_paid`, `finalized`, and `sent` invoices — it recalculates status as shown above. Deletion is blocked (422 `cannot_delete_payment`) only when the invoice is `cancelled` or `credited`, since those are terminal states where payment history must remain immutable.
 
 **Pre-payment status tracking**: When recording the first payment on a `finalized` or `sent` invoice, store the current status in a `statusBeforePayment` column so deletions can restore it accurately. Alternative: derive from `sentAt` — if `sentAt` is set, restore to `sent`; otherwise restore to `finalized`.
 
@@ -102,7 +104,7 @@ await db.transaction(async (tx) => {
 
 #### `invoice_payments` table
 
-```
+```sql
 invoice_payments:
   id                uuid PK default gen_random_uuid()
   invoiceId         uuid FK → invoices NOT NULL (cascade delete)
@@ -142,7 +144,7 @@ export const invoiceResponseSchema = z.object({
   invoice: invoiceSchema,
   items: z.array(lineItemSchema),
   payments: z.array(paymentSchema),            // NEW
-  remainingBalanceMinorUnits: z.number().int(), // NEW
+  remainingBalanceMinorUnits: z.number().int().nonnegative(), // NEW — always ≥ 0 since overpayment is disallowed
 });
 ```
 
