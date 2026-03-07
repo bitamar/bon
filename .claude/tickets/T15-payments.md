@@ -65,10 +65,10 @@ Multiple payments per invoice is the norm, not the exception. The `paidAt` field
 ### Outstanding Balance Calculation
 
 ```text
-remainingBalance = invoice.totalInclVatMinorUnits - SUM(payments.amountMinorUnits)
+remainingBalance = invoice.totalInclVatMinorUnits - COALESCE(SUM(payments.amountMinorUnits), 0)
 ```
 
-Calculated server-side; returned as `remainingBalanceMinorUnits` in the invoice response. Never trust the client.
+Calculated server-side; returned as `remainingBalanceMinorUnits` in the invoice response. Never trust the client. `COALESCE` ensures invoices with no payments return `totalInclVatMinorUnits` as the remaining balance (not NULL).
 
 ### Status Transitions
 
@@ -80,14 +80,13 @@ sent ───────┘                          │
 
 Deleting a payment reverses:
 paid ──→ partially_paid (if other payments remain)
-partially_paid ──→ finalized/sent (if no payments remain — restore pre-payment status)
+paid ──→ finalized/sent (if no payments remain — see restoration rule below)
+partially_paid ──→ finalized/sent (if no payments remain — see restoration rule below)
 ```
 
 **Payment deletion rules**: Deletion is allowed on `paid`, `partially_paid`, `finalized`, and `sent` invoices — it recalculates status as shown above. Deletion is blocked (422 `cannot_delete_payment`) only when the invoice is `cancelled` or `credited`, since those are terminal states where payment history must remain immutable.
 
-**Pre-payment status tracking**: When recording the first payment on a `finalized` or `sent` invoice, store the current status in a `statusBeforePayment` column so deletions can restore it accurately. Alternative: derive from `sentAt` — if `sentAt` is set, restore to `sent`; otherwise restore to `finalized`.
-
-Preferred approach: derive from `sentAt` (simpler, no extra column). If `sentAt IS NOT NULL` → restore to `sent`, else → restore to `finalized`.
+**Pre-payment status restoration**: When all payments are removed (including from a `paid` invoice that loses its only payment), restore to `sent` if `sentAt IS NOT NULL`, else restore to `finalized`. This derives the pre-payment status without an extra column.
 
 ### Transaction Safety
 
@@ -108,9 +107,9 @@ await db.transaction(async (tx) => {
 invoice_payments:
   id                uuid PK default gen_random_uuid()
   invoiceId         uuid FK → invoices NOT NULL (cascade delete)
-  amountMinorUnits  integer NOT NULL           — always positive, in minor units
+  amountMinorUnits  integer NOT NULL CHECK (amount_minor_units > 0)  — named: invoice_payments_amount_positive
   paidAt            date NOT NULL              — date of payment (not recording time)
-  method            paymentMethodEnum NOT NULL  — cash, transfer, credit, check, other
+  method            payment_method NOT NULL    — enum: cash, transfer, credit, check, other
   reference         text                       — check #, transfer ref, etc.
   notes             text
   recordedByUserId  uuid FK → users NOT NULL
@@ -118,6 +117,8 @@ invoice_payments:
 
 Index: (invoiceId) for lookups
 ```
+
+Drizzle variable: `paymentMethodEnum = pgEnum('payment_method', PAYMENT_METHODS)` — follows the codebase convention where JS uses camelCase (`paymentMethodEnum`) and SQL uses snake_case (`payment_method`).
 
 #### Payment method enum
 
