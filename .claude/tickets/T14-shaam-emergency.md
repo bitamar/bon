@@ -2,7 +2,7 @@
 
 **Status**: 🔒 Blocked (T13 must merge first)
 **Phase**: 4 — SHAAM Integration
-**Requires**: T13 merged, T-CRON-01 merged (pg-boss for bulk report job)
+**Requires**: T13 merged (T-CRON-01 is a transitive dependency via T13→T12→T-CRON-01)
 **Blocks**: nothing directly (T15 payments is independent — see scope note below)
 
 ---
@@ -96,7 +96,7 @@ Error codes defined as constants in `types/src/shaam.ts`, not magic strings.
 - [ ] Recovery reporting handler: `api/src/jobs/handlers/shaam-emergency-report.ts`, registered in `api/src/plugins/shaam.ts` via `runJob()` wrapper
 - [ ] Recovery report enqueued via `sendJob()` typed wrapper with `singletonKey: businessId`
 - [ ] ITA error code constants with Hebrew user-facing messages in `types/src/shaam.ts`
-- [ ] All error states visible on invoice detail page with actionable next steps per error code
+- [ ] All user-visible error states (E001, E010, E099) shown on invoice detail page with actionable next steps; E002 and E003 handled silently (see error matrix below)
 - [ ] T14 extends the `ShaamService` interface with `reportEmergencyUsage()` — T12 defers emergency methods to T14
 - [ ] `npm run check` passes
 
@@ -155,15 +155,18 @@ DELETE /businesses/:businessId/emergency-numbers/:id    — remove unused number
 
 ### Invoice detail page — error state display
 
-Each error code maps to a distinct banner on the invoice detail page:
+User-visible error codes map to distinct banners on the invoice detail page:
 
 | Error code | Banner color | Message | Action button |
 |---|---|---|---|
 | E001 | Red | "מספר מע״מ לא תקין — בדוק את פרטי העסק" | "עבור להגדרות" |
-| E002 | Blue (info) | "חשבונית כבר קיבלה מספר הקצאה" | (none — auto-resolved) |
 | E010 | Orange | "נדרש חיבור מחדש למערכת שע"מ" | "חבר מחדש" |
 | E099 + emergency used | Yellow | "שע"מ לא זמין — הוקצה מספר חירום XXXXX" | (none — auto-resolved) |
 | E099 + pool empty | Red | "שע"מ לא זמין ומאגר מספרי החירום ריק" | "הזן מספרי חירום" |
+
+**Not shown on invoice detail** (backend-only handling):
+- **E002** (already allocated): idempotent — store the returned number, clear any error state. No banner needed since the invoice ends up with a valid allocation number.
+- **E003** (below threshold): log a warning for debugging (indicates a logic error in `shouldRequestAllocation()`). No user-facing display — the invoice doesn't require an allocation number, so there's nothing for the user to act on.
 
 ---
 
@@ -174,9 +177,7 @@ Each error code maps to a distinct banner on the invoice detail page:
 - T14 replaces generic rejection with per-code Hebrew messages and adds E099 → emergency fallback.
 - T14 **modifies** T13's job handler — not a separate handler.
 
-**T14 does NOT block T15 (payments):**
-- T15 is payment recording (mark as paid, partial payments). It operates on finalized invoices regardless of whether they have allocation numbers.
-- Payments don't depend on emergency numbers or error handling. T15 depends on build order (Phase 4 complete), not T14 specifically.
+**T15 (payments) is independent of T14.** Payment recording operates on finalized invoices regardless of allocation status — a business can record payments whether the invoice has an allocation number, an emergency number, or none at all. T15 is gated only by build order (Phase 4 complete), not by T14 specifically.
 
 ---
 
