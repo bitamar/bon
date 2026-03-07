@@ -130,6 +130,7 @@ function setupMocks() {
   vi.mocked(findCustomerById).mockResolvedValue(MOCK_CUSTOMER as never);
   vi.mocked(updateInvoice).mockResolvedValue(MOCK_INVOICE as never);
   vi.mocked(insertShaamAuditLog).mockResolvedValue(null);
+  vi.mocked(buildItaPayload).mockReturnValue({ mocked: true } as never);
 }
 
 describe('shaam-allocation handler', () => {
@@ -238,6 +239,14 @@ describe('shaam-allocation handler', () => {
     const handler = createShaamAllocationHandler(shaamService, createMockLogger());
 
     await expect(handler(createMockJob())).rejects.toThrow('SHAAM deferred: System maintenance');
+    expect(insertShaamAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        businessId: BUSINESS_ID,
+        invoiceId: INVOICE_ID,
+        result: 'deferred',
+        attemptNumber: 1,
+      })
+    );
     expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
       allocationStatus: 'pending',
       allocationError: 'System maintenance',
