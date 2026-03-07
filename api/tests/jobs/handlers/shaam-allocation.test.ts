@@ -24,6 +24,10 @@ vi.mock('../../../src/repositories/shaam-audit-log-repository.js', () => ({
   insertShaamAuditLog: vi.fn(),
 }));
 
+vi.mock('../../../src/services/shaam/build-ita-payload.js', () => ({
+  buildItaPayload: vi.fn().mockReturnValue({ mocked: true }),
+}));
+
 import {
   findInvoiceById,
   findItemsByInvoiceId,
@@ -32,6 +36,7 @@ import {
 import { findBusinessById } from '../../../src/repositories/business-repository.js';
 import { findCustomerById } from '../../../src/repositories/customer-repository.js';
 import { insertShaamAuditLog } from '../../../src/repositories/shaam-audit-log-repository.js';
+import { buildItaPayload } from '../../../src/services/shaam/build-ita-payload.js';
 
 const BUSINESS_ID = '00000000-0000-0000-0000-000000000001';
 const INVOICE_ID = '00000000-0000-0000-0000-000000000002';
@@ -297,5 +302,27 @@ describe('shaam-allocation handler', () => {
         attemptNumber: 3,
       })
     );
+  });
+
+  it('logs audit and updates invoice when payload construction throws', async () => {
+    vi.mocked(buildItaPayload).mockImplementation(() => {
+      throw new Error('payload error');
+    });
+    const shaamService = createMockShaamService();
+    const handler = createShaamAllocationHandler(shaamService, createMockLogger());
+
+    await expect(handler(createMockJob())).rejects.toThrow('payload error');
+    expect(shaamService.requestAllocationNumber).not.toHaveBeenCalled();
+    expect(insertShaamAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        result: 'error',
+        responsePayload: null,
+      })
+    );
+    expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
+      allocationStatus: 'pending',
+      allocationError: 'payload error',
+      updatedAt: expect.any(Date),
+    });
   });
 });
