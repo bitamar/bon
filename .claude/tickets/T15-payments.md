@@ -5,7 +5,7 @@
 **Requires**: Phase 4 complete (build order), T08-D merged ✓ (invoice detail view)
 **Blocks**: T16
 
-> **Dependency note**: The original ticket listed T14 (SHAAM emergency) as a blocker. Payment recording has **zero technical dependency** on SHAAM — it needs invoices (done since T08) and the invoice detail view (T08-D). The `isOverdue` column already exists in the schema; T15 clears it on full payment independently of T-CRON-02's cron job that sets it. T15 is gated by build order (Phase 4 complete), not by any specific technical dependency.
+> **Dependency note**: Payment recording has **zero technical dependency** on SHAAM — it needs invoices (done since T08) and the invoice detail view (T08-D). The `isOverdue` column already exists in the schema; T15 clears it on full payment independently of T-CRON-02's cron job that sets it. T15 is gated by build order (Phase 4 complete), not by any specific technical dependency.
 
 ---
 
@@ -132,6 +132,21 @@ Hebrew labels (frontend only, not in DB):
 | `credit` | אשראי |
 | `check` | שיק |
 | `other` | אחר |
+
+### Response Schema Extension
+
+`invoiceResponseSchema` in `types/src/invoices.ts` currently returns `{ invoice, items }`. T15 extends it to:
+
+```typescript
+export const invoiceResponseSchema = z.object({
+  invoice: invoiceSchema,
+  items: z.array(lineItemSchema),
+  payments: z.array(paymentSchema),            // NEW
+  remainingBalanceMinorUnits: z.number().int(), // NEW
+});
+```
+
+This is a backward-compatible addition (new fields). The serializer in `api/src/lib/invoice-serializers.ts` must include payments and computed remaining balance. Payments are always returned (empty array for drafts).
 
 ### Zod Schemas (`types/src/payments.ts`)
 
