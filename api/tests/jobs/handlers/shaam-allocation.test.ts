@@ -140,6 +140,21 @@ describe('shaam-allocation handler', () => {
 
     await handler(createMockJob());
 
+    expect(shaamService.requestAllocationNumber).toHaveBeenCalledWith(
+      expect.objectContaining({
+        businessId: BUSINESS_ID,
+        invoiceId: INVOICE_ID,
+        documentType: 'tax_invoice',
+        items: [
+          expect.objectContaining({
+            description: 'Service',
+            quantity: 1,
+            unitPriceMinorUnits: 100_000,
+            lineTotalMinorUnits: 100_000,
+          }),
+        ],
+      })
+    );
     expect(updateInvoice).toHaveBeenCalledWith(INVOICE_ID, BUSINESS_ID, {
       allocationStatus: 'approved',
       allocationNumber: '123456789',

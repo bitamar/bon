@@ -67,7 +67,8 @@ export function buildItaPayload(
     throw new Error(`Unknown document type: ${invoice.documentType}`);
   }
 
-  const itaLineItems: ItaLineItem[] = lineItems.map((item, index) => ({
+  const sorted = [...lineItems].sort((a, b) => a.position - b.position);
+  const itaLineItems: ItaLineItem[] = sorted.map((item, index) => ({
     LineNumber: index + 1,
     Description: item.description,
     Quantity: item.quantity,

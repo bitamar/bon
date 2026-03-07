@@ -503,7 +503,9 @@ describe('routes/invoices', () => {
         makeItem({ unitPriceMinorUnits: 1_100_000 }),
       ]);
 
-      const res = await finalizeInvoice(sessionId, business.id, invoice.id);
+      const res = await finalizeInvoice(sessionId, business.id, invoice.id, {
+        invoiceDate: '2026-03-01',
+      });
 
       expect(res.statusCode).toBe(200);
       const body = res.json() as InvoiceResponse;
@@ -522,7 +524,9 @@ describe('routes/invoices', () => {
         makeItem({ unitPriceMinorUnits: 5000 }),
       ]);
 
-      const res = await finalizeInvoice(sessionId, business.id, invoice.id);
+      const res = await finalizeInvoice(sessionId, business.id, invoice.id, {
+        invoiceDate: '2026-03-01',
+      });
 
       expect(res.statusCode).toBe(200);
       const body = res.json() as InvoiceResponse;

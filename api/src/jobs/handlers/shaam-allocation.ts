@@ -11,8 +11,17 @@ import { findCustomerById } from '../../repositories/customer-repository.js';
 import { insertShaamAuditLog } from '../../repositories/shaam-audit-log-repository.js';
 import { buildItaPayload } from '../../services/shaam/build-ita-payload.js';
 import { toNumber } from '../../lib/numeric.js';
-import type { AllocationRequest, AllocationResult } from '../../services/shaam/types.js';
-import type { ShaamService } from '../../services/shaam/types.js';
+import type {
+  AllocationRequest,
+  AllocationResult,
+  ShaamService,
+} from '../../services/shaam/types.js';
+
+function resolveAllocationNumber(result: AllocationResult): string | null {
+  if (result.status === 'approved') return result.allocationNumber;
+  if (result.status === 'emergency') return result.emergencyNumber;
+  return null;
+}
 
 /**
  * Creates the shaam-allocation-request handler.
@@ -52,66 +61,65 @@ export function createShaamAllocationHandler(
       ? await findCustomerById(invoice.customerId, businessId)
       : null;
 
-    // 2. Build allocation request
-    const lineItemsData = items.map((item) => ({
-      position: item.position,
-      description: item.description,
-      quantity: toNumber(item.quantity),
-      unitPriceMinorUnits: item.unitPriceMinorUnits,
-      discountPercent: toNumber(item.discountPercent),
-      vatRateBasisPoints: item.vatRateBasisPoints,
-      lineTotalMinorUnits: item.lineTotalMinorUnits,
-      vatAmountMinorUnits: item.vatAmountMinorUnits,
-      lineTotalInclVatMinorUnits: item.lineTotalInclVatMinorUnits,
-    }));
-
-    const request: AllocationRequest = {
-      businessId,
-      invoiceId,
-      documentType: invoice.documentType,
-      documentNumber: invoice.documentNumber ?? '',
-      invoiceDate: invoice.invoiceDate,
-      totalExclVatMinorUnits: invoice.totalExclVatMinorUnits,
-      vatMinorUnits: invoice.vatMinorUnits,
-      totalInclVatMinorUnits: invoice.totalInclVatMinorUnits,
-      customerTaxId: invoice.customerTaxId,
-      items: lineItemsData.map((item) => ({
+    // 2. Build allocation request + ITA payload, call SHAAM, and log audit
+    let result: AllocationResult;
+    let itaPayload: ReturnType<typeof buildItaPayload> | null = null;
+    try {
+      const lineItemsData = items.map((item) => ({
+        position: item.position,
         description: item.description,
-        quantity: item.quantity,
+        quantity: toNumber(item.quantity),
         unitPriceMinorUnits: item.unitPriceMinorUnits,
+        discountPercent: toNumber(item.discountPercent),
+        vatRateBasisPoints: item.vatRateBasisPoints,
         lineTotalMinorUnits: item.lineTotalMinorUnits,
-      })),
-    };
+        vatAmountMinorUnits: item.vatAmountMinorUnits,
+        lineTotalInclVatMinorUnits: item.lineTotalInclVatMinorUnits,
+      }));
 
-    // Build ITA payload for audit logging
-    const itaPayload = buildItaPayload(
-      {
-        id: invoice.id,
-        businessId: invoice.businessId,
+      const request: AllocationRequest = {
+        businessId,
+        invoiceId,
         documentType: invoice.documentType,
-        documentNumber: invoice.documentNumber,
+        documentNumber: invoice.documentNumber ?? '',
         invoiceDate: invoice.invoiceDate,
-        customerName: invoice.customerName,
-        customerTaxId: invoice.customerTaxId,
         totalExclVatMinorUnits: invoice.totalExclVatMinorUnits,
         vatMinorUnits: invoice.vatMinorUnits,
         totalInclVatMinorUnits: invoice.totalInclVatMinorUnits,
-        currency: invoice.currency,
-      },
-      lineItemsData,
-      { vatNumber: business.vatNumber }
-    );
+        customerTaxId: invoice.customerTaxId,
+        items: lineItemsData.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPriceMinorUnits: item.unitPriceMinorUnits,
+          lineTotalMinorUnits: item.lineTotalMinorUnits,
+        })),
+      };
 
-    // 3. Call SHAAM service
-    let result: AllocationResult;
-    try {
+      itaPayload = buildItaPayload(
+        {
+          id: invoice.id,
+          businessId: invoice.businessId,
+          documentType: invoice.documentType,
+          documentNumber: invoice.documentNumber,
+          invoiceDate: invoice.invoiceDate,
+          customerName: invoice.customerName,
+          customerTaxId: invoice.customerTaxId,
+          totalExclVatMinorUnits: invoice.totalExclVatMinorUnits,
+          vatMinorUnits: invoice.vatMinorUnits,
+          totalInclVatMinorUnits: invoice.totalInclVatMinorUnits,
+          currency: invoice.currency,
+        },
+        lineItemsData,
+        { vatNumber: business.vatNumber }
+      );
+
       result = await shaamService.requestAllocationNumber(request);
     } catch (err: unknown) {
-      // Network / unexpected error — log and let pg-boss retry
+      // Payload build or SHAAM call failed — log and let pg-boss retry
       await insertShaamAuditLog({
         businessId,
         invoiceId,
-        requestPayload: JSON.stringify(itaPayload),
+        requestPayload: itaPayload ? JSON.stringify(itaPayload) : JSON.stringify({ invoiceId }),
         responsePayload: null,
         httpStatus: null,
         allocationNumber: null,
@@ -130,19 +138,15 @@ export function createShaamAllocationHandler(
       throw err; // pg-boss will retry
     }
 
-    // 4. Log to audit table
+    // 3. Log successful result to audit table
+    const allocationNumber = resolveAllocationNumber(result);
     await insertShaamAuditLog({
       businessId,
       invoiceId,
       requestPayload: JSON.stringify(itaPayload),
       responsePayload: JSON.stringify(result),
       httpStatus: null,
-      allocationNumber:
-        result.status === 'approved'
-          ? result.allocationNumber
-          : result.status === 'emergency'
-            ? result.emergencyNumber
-            : null,
+      allocationNumber,
       errorCode: result.status === 'rejected' ? result.errorCode : null,
       result: result.status,
       attemptNumber,
