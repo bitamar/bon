@@ -1,4 +1,5 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { sendJob } from '../jobs/boss.js';
 import { ensureBusinessContext } from '../plugins/business-context.js';
 import {
   createInvoiceDraftBodySchema,
@@ -143,7 +144,34 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req) => {
       ensureBusinessContext(req);
-      return finalize(req.businessContext.businessId, req.params.invoiceId, req.body);
+      const result = await finalize(req.businessContext.businessId, req.params.invoiceId, req.body);
+
+      // Enqueue SHAAM allocation job if needed (non-blocking — fire and forget)
+      if (result.needsAllocation && app.boss) {
+        sendJob(
+          app.boss,
+          'shaam-allocation-request',
+          {
+            businessId: req.businessContext.businessId,
+            invoiceId: req.params.invoiceId,
+          },
+          {
+            singletonKey: req.params.invoiceId,
+            retryLimit: 5,
+            retryDelay: 60,
+            retryBackoff: true,
+            expireInSeconds: 1800,
+          }
+        ).catch((err: unknown) => {
+          req.log.error(
+            { err, invoiceId: req.params.invoiceId },
+            'Failed to enqueue SHAAM allocation job'
+          );
+        });
+      }
+
+      const { needsAllocation: _, ...response } = result;
+      return response;
     }
   );
 

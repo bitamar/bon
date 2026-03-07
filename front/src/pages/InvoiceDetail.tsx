@@ -232,13 +232,43 @@ export function InvoiceDetail() {
           </Group>
         </Paper>
 
-        {/* Allocation number */}
-        {invoice.allocationNumber && (
-          <Paper withBorder p="md" radius="md" bg="blue.0">
+        {/* SHAAM allocation status */}
+        {invoice.allocationStatus === 'approved' && invoice.allocationNumber && (
+          <Paper withBorder p="md" radius="md" bg="blue.0" data-testid="allocation-approved">
             <Group gap="sm">
               <Text fw={600}>מספר הקצאה:</Text>
-              <Text>{invoice.allocationNumber}</Text>
+              <Text dir="ltr">{invoice.allocationNumber}</Text>
             </Group>
+          </Paper>
+        )}
+        {invoice.allocationStatus === 'pending' && (
+          <Paper withBorder p="md" radius="md" bg="yellow.0" data-testid="allocation-pending">
+            <Group gap="sm">
+              <Text fw={600}>סטטוס הקצאה:</Text>
+              <Text>ממתין לאישור SHAAM</Text>
+            </Group>
+          </Paper>
+        )}
+        {invoice.allocationStatus === 'emergency' && invoice.allocationNumber && (
+          <Paper withBorder p="md" radius="md" bg="orange.0" data-testid="allocation-emergency">
+            <Group gap="sm">
+              <Text fw={600}>מספר הקצאת חירום:</Text>
+              <Text dir="ltr">{invoice.allocationNumber}</Text>
+            </Group>
+          </Paper>
+        )}
+        {invoice.allocationStatus === 'rejected' && (
+          <Paper withBorder p="md" radius="md" bg="red.0" data-testid="allocation-rejected">
+            <Stack gap={4}>
+              <Group gap="sm">
+                <Text fw={600}>הקצאת SHAAM נדחתה</Text>
+              </Group>
+              {invoice.allocationError && (
+                <Text size="sm" c="red.7">
+                  {invoice.allocationError}
+                </Text>
+              )}
+            </Stack>
           </Paper>
         )}
 

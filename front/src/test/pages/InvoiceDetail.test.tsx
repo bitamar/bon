@@ -140,11 +140,48 @@ describe('InvoiceDetail page', () => {
     expect(screen.queryByRole('button', { name: 'הפק חשבונית זיכוי' })).not.toBeInTheDocument();
   });
 
-  it('shows allocation number when present', async () => {
-    renderWithInvoice({ allocationNumber: 'ALLOC-12345' });
+  it('shows allocation number when approved', async () => {
+    renderWithInvoice({ allocationStatus: 'approved', allocationNumber: 'ALLOC-12345' });
 
     expect(await screen.findByText('ALLOC-12345')).toBeInTheDocument();
     expect(screen.getByText('מספר הקצאה:')).toBeInTheDocument();
+    expect(screen.getByTestId('allocation-approved')).toBeInTheDocument();
+  });
+
+  it('shows pending status when allocation is pending', async () => {
+    renderWithInvoice({ allocationStatus: 'pending' });
+
+    expect(await screen.findByText('ממתין לאישור SHAAM')).toBeInTheDocument();
+    expect(screen.getByTestId('allocation-pending')).toBeInTheDocument();
+  });
+
+  it('shows rejected status with error message', async () => {
+    renderWithInvoice({
+      allocationStatus: 'rejected',
+      allocationError: 'E001: מספר מע״מ לא תקין',
+    });
+
+    expect(await screen.findByText('הקצאת SHAAM נדחתה')).toBeInTheDocument();
+    expect(screen.getByText('E001: מספר מע״מ לא תקין')).toBeInTheDocument();
+    expect(screen.getByTestId('allocation-rejected')).toBeInTheDocument();
+  });
+
+  it('shows emergency allocation number', async () => {
+    renderWithInvoice({ allocationStatus: 'emergency', allocationNumber: 'EMR-99999' });
+
+    expect(await screen.findByText('EMR-99999')).toBeInTheDocument();
+    expect(screen.getByText('מספר הקצאת חירום:')).toBeInTheDocument();
+    expect(screen.getByTestId('allocation-emergency')).toBeInTheDocument();
+  });
+
+  it('does not show allocation section when status is null', async () => {
+    renderWithInvoice({ allocationStatus: null, allocationNumber: null });
+
+    await screen.findByText('INV-0001');
+    expect(screen.queryByTestId('allocation-approved')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('allocation-pending')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('allocation-rejected')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('allocation-emergency')).not.toBeInTheDocument();
   });
 
   it('shows vat exemption reason when present', async () => {

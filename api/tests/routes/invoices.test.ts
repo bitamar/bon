@@ -490,6 +490,48 @@ describe('routes/invoices', () => {
       expect(body2.invoice.sequenceNumber).toBe(1);
       expect(body1.invoice.sequenceNumber).toBe(2);
     });
+
+    it('sets allocationStatus to pending for above-threshold licensed dealer invoice', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const customer = await createCustomer(sessionId, business.id, {
+        name: 'Licensed Dealer Corp',
+        isLicensedDealer: true,
+        taxIdType: 'company_id',
+        taxId: '510000001',
+      });
+      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id, [
+        makeItem({ unitPriceMinorUnits: 1_100_000 }),
+      ]);
+
+      const res = await finalizeInvoice(sessionId, business.id, invoice.id, {
+        invoiceDate: '2026-03-01',
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as InvoiceResponse;
+      expect(body.invoice.allocationStatus).toBe('pending');
+    });
+
+    it('does not set allocationStatus for below-threshold invoice', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const customer = await createCustomer(sessionId, business.id, {
+        name: 'Small Invoice Customer',
+        isLicensedDealer: true,
+        taxIdType: 'company_id',
+        taxId: '510000002',
+      });
+      const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id, [
+        makeItem({ unitPriceMinorUnits: 5000 }),
+      ]);
+
+      const res = await finalizeInvoice(sessionId, business.id, invoice.id, {
+        invoiceDate: '2026-03-01',
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as InvoiceResponse;
+      expect(body.invoice.allocationStatus).toBeNull();
+    });
   });
 
   // ── RBAC ──
