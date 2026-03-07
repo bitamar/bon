@@ -18,6 +18,7 @@ import { userRoutes } from './routes/users.js';
 import { businessRoutes } from './routes/businesses.js';
 import { customerRoutes } from './routes/customers.js';
 import { invoiceRoutes } from './routes/invoices.js';
+import { emergencyNumberRoutes } from './routes/emergency-numbers.js';
 import { authPlugin } from './plugins/auth.js';
 import { businessContextPlugin } from './plugins/business-context.js';
 import { errorPlugin } from './plugins/errors.js';
@@ -107,11 +108,21 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   // Register job handlers when pg-boss is available (skipped in test mode)
   if (app.boss) {
     await app.boss.createQueue('shaam-allocation-request');
-    const handler = createShaamAllocationHandler(app.shaamService, app.log);
+    const handler = createShaamAllocationHandler(app.shaamService, app.log, app.boss);
     await app.boss.work(
       'shaam-allocation-request',
       { includeMetadata: true },
       runJob('shaam-allocation-request', handler, app.log)
+    );
+
+    // Register emergency report job handler
+    await app.boss.createQueue('shaam-emergency-report');
+    const { createShaamEmergencyReportHandler } =
+      await import('./jobs/handlers/shaam-emergency-report.js');
+    const emergencyHandler = createShaamEmergencyReportHandler(app.shaamService, app.log);
+    await app.boss.work(
+      'shaam-emergency-report',
+      runJob('shaam-emergency-report', emergencyHandler, app.log)
     );
   }
 
@@ -120,6 +131,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(businessRoutes);
   await app.register(customerRoutes);
   await app.register(invoiceRoutes);
+  await app.register(emergencyNumberRoutes);
   app.get('/health', async () => ({ ok: true }));
   app.get('/', async (_request, reply) => reply.redirect('/docs'));
 

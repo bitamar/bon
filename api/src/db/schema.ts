@@ -384,3 +384,44 @@ export const shaamAuditLogRelations = relations(shaamAuditLog, ({ one }) => ({
     references: [invoices.id],
   }),
 }));
+
+// ── Emergency allocation numbers ──
+
+export const emergencyAllocationNumbers = pgTable(
+  'emergency_allocation_numbers',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    number: text('number').notNull(),
+    used: boolean('used').notNull().default(false),
+    usedForInvoiceId: uuid('used_for_invoice_id').references(() => invoices.id, {
+      onDelete: 'set null',
+    }),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    reported: boolean('reported').notNull().default(false),
+    reportedAt: timestamp('reported_at', { withTimezone: true }),
+    acquiredAt: timestamp('acquired_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('emergency_numbers_business_number_unique').on(table.businessId, table.number),
+    index('emergency_numbers_business_available_idx')
+      .on(table.businessId, table.used)
+      .where(sql`${table.used} = false`),
+  ]
+);
+
+export const emergencyAllocationNumbersRelations = relations(
+  emergencyAllocationNumbers,
+  ({ one }) => ({
+    business: one(businesses, {
+      fields: [emergencyAllocationNumbers.businessId],
+      references: [businesses.id],
+    }),
+    invoice: one(invoices, {
+      fields: [emergencyAllocationNumbers.usedForInvoiceId],
+      references: [invoices.id],
+    }),
+  })
+);

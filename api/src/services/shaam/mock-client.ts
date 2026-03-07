@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { AllocationRequest, AllocationResult, ShaamService } from './types.js';
+import type {
+  AllocationRequest,
+  AllocationResult,
+  EmergencyUsageReport,
+  ShaamService,
+} from './types.js';
 
 export class ShaamMockClient implements ShaamService {
   private readonly delayMs: number;
@@ -16,5 +21,14 @@ export class ShaamMockClient implements ShaamService {
       status: 'approved',
       allocationNumber: `MOCK-${randomUUID()}`,
     };
+  }
+
+  async reportEmergencyUsage(
+    _businessId: string,
+    _usedNumbers: readonly EmergencyUsageReport[]
+  ): Promise<void> {
+    if (this.delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    }
   }
 }

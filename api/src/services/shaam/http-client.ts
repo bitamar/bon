@@ -1,4 +1,9 @@
-import type { AllocationRequest, AllocationResult, ShaamService } from './types.js';
+import type {
+  AllocationRequest,
+  AllocationResult,
+  EmergencyUsageReport,
+  ShaamService,
+} from './types.js';
 
 /**
  * HTTP client for ITA's SHAAM API. Used for both sandbox and production —
@@ -17,6 +22,16 @@ export class ShaamHttpClient implements ShaamService {
     // T13: Implement real HTTP call to ITA API at this.baseUrl
     throw new Error(
       `ShaamHttpClient.requestAllocationNumber not implemented — see T13. baseUrl=${this.baseUrl}`
+    );
+  }
+
+  async reportEmergencyUsage(
+    _businessId: string,
+    _usedNumbers: readonly EmergencyUsageReport[]
+  ): Promise<void> {
+    // T14: Implement real HTTP call to report emergency usage to ITA
+    throw new Error(
+      `ShaamHttpClient.reportEmergencyUsage not implemented. baseUrl=${this.baseUrl}`
     );
   }
 }
