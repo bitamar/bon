@@ -1,23 +1,22 @@
-import { Button, Card, SimpleGrid, Text } from '@mantine/core';
+import { Button, Card, Stack, Text, Title } from '@mantine/core';
 import { IconFileInvoice, IconUserPlus } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
 
-export function QuickActions() {
+export function WelcomeState() {
   const { businessId } = useParams<{ businessId: string }>();
 
   return (
-    <Card withBorder radius="lg" p="lg">
-      <Text fw={600} mb="md">
-        פעולות מהירות
-      </Text>
-      <SimpleGrid cols={1} spacing="xs">
+    <Card withBorder radius="lg" p="xl" maw={500} mx="auto">
+      <Stack align="center" gap="lg">
+        <Title order={3}>!BON-ברוכים הבאים ל</Title>
+        <Text c="dimmed" ta="center">
+          התחילו בהפקת החשבונית הראשונה שלכם, או הוסיפו לקוח כדי להתחיל
+        </Text>
         <Button
           component={Link}
           to={`/businesses/${businessId}/invoices/new`}
-          variant="light"
           leftSection={<IconFileInvoice size={18} />}
-          justify="start"
-          fullWidth
+          size="md"
         >
           חשבונית חדשה
         </Button>
@@ -26,12 +25,11 @@ export function QuickActions() {
           to={`/businesses/${businessId}/customers/new`}
           variant="light"
           leftSection={<IconUserPlus size={18} />}
-          justify="start"
-          fullWidth
+          size="md"
         >
           הוסף לקוח
         </Button>
-      </SimpleGrid>
+      </Stack>
     </Card>
   );
 }

@@ -1,6 +1,6 @@
-import { desc, eq, and, sum, sql } from 'drizzle-orm';
+import { desc, eq, and, gte, lt, sum, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { invoicePayments } from '../db/schema.js';
+import { invoicePayments, invoices } from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
 
 export type PaymentRecord = (typeof invoicePayments)['$inferSelect'];
@@ -44,5 +44,31 @@ export async function sumPaymentsByInvoiceId(invoiceId: string, txOrDb: DbOrTx =
     .select({ total: sql<number>`COALESCE(${sum(invoicePayments.amountMinorUnits)}, 0)` })
     .from(invoicePayments)
     .where(eq(invoicePayments.invoiceId, invoiceId));
+  return Number(rows[0]?.total ?? 0);
+}
+
+/**
+ * Sum payments for a business within a date range (paidAt is a date column).
+ * JOINs through invoices to scope by businessId.
+ */
+export async function sumPaymentsForPeriod(
+  businessId: string,
+  dateFrom: string,
+  dateTo: string,
+  txOrDb: DbOrTx = db
+): Promise<number> {
+  const rows = await txOrDb
+    .select({
+      total: sql<string>`COALESCE(${sum(invoicePayments.amountMinorUnits)}, 0)`,
+    })
+    .from(invoicePayments)
+    .innerJoin(invoices, eq(invoicePayments.invoiceId, invoices.id))
+    .where(
+      and(
+        eq(invoices.businessId, businessId),
+        gte(invoicePayments.paidAt, dateFrom),
+        lt(invoicePayments.paidAt, dateTo)
+      )
+    );
   return Number(rows[0]?.total ?? 0);
 }

@@ -1,15 +1,18 @@
-import { Badge, Card, Group, Skeleton, Stack, Table, Text } from '@mantine/core';
-import type { RecentInvoice } from '../hooks/useDashboardData';
-import { formatCurrency } from '../hooks/useDashboardData';
+import { Anchor, Badge, Card, Group, Skeleton, Stack, Table, Text } from '@mantine/core';
+import { Link, useParams } from 'react-router-dom';
+import type { InvoiceListItem } from '@bon/types/invoices';
 import { INVOICE_STATUS_CONFIG } from '../lib/invoiceStatus';
+import { formatCurrency } from '../lib/format';
 
 export function RecentInvoicesTable({
   invoices,
   isLoading,
 }: Readonly<{
-  invoices: RecentInvoice[] | undefined;
+  invoices: InvoiceListItem[] | undefined;
   isLoading?: boolean;
 }>) {
+  const { businessId } = useParams<{ businessId: string }>();
+
   if (isLoading) {
     return (
       <Card withBorder radius="lg" p="lg">
@@ -37,6 +40,9 @@ export function RecentInvoicesTable({
     <Card withBorder radius="lg" p="lg">
       <Group justify="space-between" mb="md">
         <Text fw={600}>חשבוניות אחרונות</Text>
+        <Anchor component={Link} to={`/businesses/${businessId}/invoices`} size="sm">
+          הצג הכל
+        </Anchor>
       </Group>
       <Table highlightOnHover>
         <Table.Thead>
@@ -50,25 +56,28 @@ export function RecentInvoicesTable({
         </Table.Thead>
         <Table.Tbody>
           {invoices.map((invoice) => {
-            const status = INVOICE_STATUS_CONFIG[
-              invoice.status as keyof typeof INVOICE_STATUS_CONFIG
-            ] ?? {
+            const status = INVOICE_STATUS_CONFIG[invoice.status] ?? {
               label: invoice.status,
               color: 'gray',
             };
             return (
               <Table.Tr key={invoice.id}>
                 <Table.Td>
-                  <Text size="sm" fw={500}>
-                    {invoice.number}
-                  </Text>
+                  <Anchor
+                    component={Link}
+                    to={`/businesses/${businessId}/invoices/${invoice.id}`}
+                    size="sm"
+                    fw={500}
+                  >
+                    {invoice.documentNumber ?? '—'}
+                  </Anchor>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm">{invoice.customer}</Text>
+                  <Text size="sm">{invoice.customerName ?? '—'}</Text>
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {formatCurrency(invoice.amount)}
+                    {formatCurrency(invoice.totalInclVatMinorUnits)}
                   </Text>
                 </Table.Td>
                 <Table.Td>
@@ -78,7 +87,7 @@ export function RecentInvoicesTable({
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" c="dimmed">
-                    {new Date(invoice.date).toLocaleDateString('he-IL')}
+                    {new Date(invoice.invoiceDate).toLocaleDateString('he-IL')}
                   </Text>
                 </Table.Td>
               </Table.Tr>

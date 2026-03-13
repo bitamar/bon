@@ -8,7 +8,7 @@ describe('KpiCard', () => {
   // ── helpers ──
   function renderKpiCard(overrides: Partial<Parameters<typeof KpiCard>[0]> = {}) {
     const defaults = {
-      label: 'הכנסות החודש',
+      label: 'גבייה החודש',
       value: '₪47,520',
       trend: 12.5,
       trendLabel: 'מהחודש הקודם',
@@ -20,7 +20,7 @@ describe('KpiCard', () => {
   it('renders label, formatted value, and trend', () => {
     renderKpiCard();
 
-    expect(screen.getByText('הכנסות החודש')).toBeInTheDocument();
+    expect(screen.getByText('גבייה החודש')).toBeInTheDocument();
     expect(screen.getByText('₪47,520')).toBeInTheDocument();
     expect(screen.getByText('12.5%')).toBeInTheDocument();
     expect(screen.getByText('מהחודש הקודם')).toBeInTheDocument();
@@ -32,11 +32,25 @@ describe('KpiCard', () => {
     expect(screen.getByText('3.2%')).toBeInTheDocument();
   });
 
+  it('renders without trend when trend is omitted', () => {
+    renderWithProviders(
+      <KpiCard
+        label="ממתין לתשלום"
+        value="₪25,000"
+        subtitle="8 חשבוניות"
+        icon={<IconCash size={20} />}
+      />
+    );
+
+    expect(screen.getByText('8 חשבוניות')).toBeInTheDocument();
+    expect(screen.queryByText('%')).not.toBeInTheDocument();
+  });
+
   it('renders loading skeleton state', () => {
     const { container } = renderKpiCard({ isLoading: true });
 
     const skeletons = container.querySelectorAll('[data-visible="true"]');
     expect(skeletons.length).toBeGreaterThan(0);
-    expect(screen.queryByText('הכנסות החודש')).not.toBeInTheDocument();
+    expect(screen.queryByText('גבייה החודש')).not.toBeInTheDocument();
   });
 });
