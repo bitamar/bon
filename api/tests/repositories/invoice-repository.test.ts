@@ -15,6 +15,7 @@ import {
   countInvoices,
   aggregateOutstanding,
   aggregateFiltered,
+  findCreditNotesBySourceInvoiceId,
 } from '../../src/repositories/invoice-repository.js';
 import { resetDb } from '../utils/db.js';
 
@@ -582,5 +583,35 @@ describe('aggregateFiltered', () => {
   it('returns zero when no invoices match', async () => {
     const result = await aggregateFiltered(baseAggregateFilters(businessId));
     expect(result).toBe(0);
+  });
+});
+
+describe('findCreditNotesBySourceInvoiceId', () => {
+  beforeEach(resetDb);
+
+  it('returns credit notes referencing the source invoice', async () => {
+    const biz = await seedBusinessWithOwner();
+    const source = await createTestInvoice(biz.id, { status: 'credited' });
+    const cn = await createTestInvoice(biz.id, {
+      documentType: 'credit_note',
+      creditedInvoiceId: source!.id,
+      status: 'finalized',
+      documentNumber: 'CN-0001',
+    });
+    // Unrelated invoice should not appear
+    await createTestInvoice(biz.id, { status: 'finalized' });
+
+    const results = await findCreditNotesBySourceInvoiceId(source!.id, biz.id);
+    expect(results).toHaveLength(1);
+    expect(results[0]!.id).toBe(cn!.id);
+    expect(results[0]!.documentNumber).toBe('CN-0001');
+  });
+
+  it('returns empty array when no credit notes exist', async () => {
+    const biz = await seedBusinessWithOwner();
+    const invoice = await createTestInvoice(biz.id, { status: 'finalized' });
+
+    const results = await findCreditNotesBySourceInvoiceId(invoice!.id, biz.id);
+    expect(results).toHaveLength(0);
   });
 });

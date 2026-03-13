@@ -910,6 +910,7 @@ export function InvoiceDetail() {
                       <NumberInput
                         size="xs"
                         min={0}
+                        allowDecimal={false}
                         value={item.unitPriceMinorUnits}
                         onChange={(v) =>
                           updateCreditNoteItem(

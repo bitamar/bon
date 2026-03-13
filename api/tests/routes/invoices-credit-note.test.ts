@@ -1,61 +1,64 @@
 import { describe, expect, it } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 import { injectAuthed } from '../utils/inject.js';
 import { createOwnerWithBusiness } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 import { createCustomer, DEFAULT_ITEM, finalizeInvoice } from '../utils/invoices.js';
 import type { InvoiceResponse } from '@bon/types/invoices';
 
+// ── helpers ──
+
+async function createDraftWithItems(
+  app: FastifyInstance,
+  sessionId: string,
+  businessId: string,
+  customerId: string,
+  items = [DEFAULT_ITEM]
+) {
+  const res = await injectAuthed(app, sessionId, {
+    method: 'POST',
+    url: `/businesses/${businessId}/invoices`,
+    payload: { documentType: 'tax_invoice', customerId, items },
+  });
+  return res.json() as InvoiceResponse;
+}
+
+async function setupFinalizedInvoice(app: FastifyInstance) {
+  const { sessionId, business } = await createOwnerWithBusiness();
+  const customer = await createCustomer(app, sessionId, business.id);
+  const { invoice: draft } = await createDraftWithItems(app, sessionId, business.id, customer.id);
+  await finalizeInvoice(app, sessionId, business.id, draft.id);
+  const detailRes = await injectAuthed(app, sessionId, {
+    method: 'GET',
+    url: `/businesses/${business.id}/invoices/${draft.id}`,
+  });
+  const { invoice } = detailRes.json() as InvoiceResponse;
+  return { sessionId, business, customer, invoice };
+}
+
+async function postCreditNote(
+  app: FastifyInstance,
+  sessionId: string,
+  businessId: string,
+  invoiceId: string,
+  payload: object
+) {
+  return injectAuthed(app, sessionId, {
+    method: 'POST',
+    url: `/businesses/${businessId}/invoices/${invoiceId}/credit-note`,
+    payload,
+  });
+}
+
 describe('POST /businesses/:businessId/invoices/:invoiceId/credit-note', () => {
   const ctx = setupIntegrationTest();
-
-  // ── helpers ──
-
-  async function createDraftWithItems(
-    sessionId: string,
-    businessId: string,
-    customerId: string,
-    items = [DEFAULT_ITEM]
-  ) {
-    const res = await injectAuthed(ctx.app, sessionId, {
-      method: 'POST',
-      url: `/businesses/${businessId}/invoices`,
-      payload: { documentType: 'tax_invoice', customerId, items },
-    });
-    return res.json() as InvoiceResponse;
-  }
-
-  async function setupFinalizedInvoice() {
-    const { sessionId, business } = await createOwnerWithBusiness();
-    const customer = await createCustomer(ctx.app, sessionId, business.id);
-    const { invoice: draft } = await createDraftWithItems(sessionId, business.id, customer.id);
-    await finalizeInvoice(ctx.app, sessionId, business.id, draft.id);
-    const detailRes = await injectAuthed(ctx.app, sessionId, {
-      method: 'GET',
-      url: `/businesses/${business.id}/invoices/${draft.id}`,
-    });
-    const { invoice } = detailRes.json() as InvoiceResponse;
-    return { sessionId, business, customer, invoice };
-  }
-
-  async function postCreditNote(
-    sessionId: string,
-    businessId: string,
-    invoiceId: string,
-    payload: object
-  ) {
-    return injectAuthed(ctx.app, sessionId, {
-      method: 'POST',
-      url: `/businesses/${businessId}/invoices/${invoiceId}/credit-note`,
-      payload,
-    });
-  }
 
   // ── tests ──
 
   it('creates a full credit note for a finalized invoice', async () => {
-    const { sessionId, business, invoice } = await setupFinalizedInvoice();
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
 
-    const res = await postCreditNote(sessionId, business.id, invoice.id, {
+    const res = await postCreditNote(ctx.app, sessionId, business.id, invoice.id, {
       items: [DEFAULT_ITEM],
     });
 
@@ -78,10 +81,10 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/credit-note', () => {
   });
 
   it('creates a partial credit note with reduced quantity', async () => {
-    const { sessionId, business, invoice } = await setupFinalizedInvoice();
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
 
     const partialItem = { ...DEFAULT_ITEM, quantity: 0.5 };
-    const res = await postCreditNote(sessionId, business.id, invoice.id, {
+    const res = await postCreditNote(ctx.app, sessionId, business.id, invoice.id, {
       items: [partialItem],
     });
 
@@ -93,9 +96,14 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/credit-note', () => {
   it('rejects credit note for a draft invoice', async () => {
     const { sessionId, business } = await createOwnerWithBusiness();
     const customer = await createCustomer(ctx.app, sessionId, business.id);
-    const { invoice: draft } = await createDraftWithItems(sessionId, business.id, customer.id);
+    const { invoice: draft } = await createDraftWithItems(
+      ctx.app,
+      sessionId,
+      business.id,
+      customer.id
+    );
 
-    const res = await postCreditNote(sessionId, business.id, draft.id, {
+    const res = await postCreditNote(ctx.app, sessionId, business.id, draft.id, {
       items: [DEFAULT_ITEM],
     });
 
@@ -104,15 +112,15 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/credit-note', () => {
   });
 
   it('rejects credit note for an already-credited invoice', async () => {
-    const { sessionId, business, invoice } = await setupFinalizedInvoice();
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
 
     // Create first credit note
-    await postCreditNote(sessionId, business.id, invoice.id, {
+    await postCreditNote(ctx.app, sessionId, business.id, invoice.id, {
       items: [DEFAULT_ITEM],
     });
 
     // Try second credit note — should fail since invoice is now 'credited'
-    const res = await postCreditNote(sessionId, business.id, invoice.id, {
+    const res = await postCreditNote(ctx.app, sessionId, business.id, invoice.id, {
       items: [DEFAULT_ITEM],
     });
 
@@ -121,20 +129,38 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/credit-note', () => {
   });
 
   it('rejects credit note with empty items', async () => {
-    const { sessionId, business, invoice } = await setupFinalizedInvoice();
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
 
-    const res = await postCreditNote(sessionId, business.id, invoice.id, {
+    const res = await postCreditNote(ctx.app, sessionId, business.id, invoice.id, {
       items: [],
     });
 
     expect(res.statusCode).toBe(400);
   });
 
+  it('rejects credit note when source is itself a credit note', async () => {
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
+
+    // Create a credit note
+    const cnRes = await postCreditNote(ctx.app, sessionId, business.id, invoice.id, {
+      items: [DEFAULT_ITEM],
+    });
+    const creditNote = (cnRes.json() as InvoiceResponse).invoice;
+
+    // Try to credit the credit note — should fail
+    const res = await postCreditNote(ctx.app, sessionId, business.id, creditNote.id, {
+      items: [DEFAULT_ITEM],
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect((res.json() as { error: string }).error).toBe('cannot_credit_credit_note');
+  });
+
   it('includes back-link data in get invoice response', async () => {
-    const { sessionId, business, invoice } = await setupFinalizedInvoice();
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
 
     // Create credit note
-    const cnRes = await postCreditNote(sessionId, business.id, invoice.id, {
+    const cnRes = await postCreditNote(ctx.app, sessionId, business.id, invoice.id, {
       items: [DEFAULT_ITEM],
     });
     const creditNote = (cnRes.json() as InvoiceResponse).invoice;
@@ -162,19 +188,24 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/credit-note', () => {
   });
 
   it('assigns sequential numbers from the credit_note sequence group', async () => {
-    const { sessionId, business, invoice: inv1 } = await setupFinalizedInvoice();
+    const { sessionId, business, invoice: inv1 } = await setupFinalizedInvoice(ctx.app);
 
     // Create first credit note
-    const res1 = await postCreditNote(sessionId, business.id, inv1.id, {
+    const res1 = await postCreditNote(ctx.app, sessionId, business.id, inv1.id, {
       items: [DEFAULT_ITEM],
     });
     const cn1 = (res1.json() as InvoiceResponse).invoice;
 
     // Create a second finalized invoice and credit it
     const customer = await createCustomer(ctx.app, sessionId, business.id);
-    const { invoice: draft2 } = await createDraftWithItems(sessionId, business.id, customer.id);
+    const { invoice: draft2 } = await createDraftWithItems(
+      ctx.app,
+      sessionId,
+      business.id,
+      customer.id
+    );
     await finalizeInvoice(ctx.app, sessionId, business.id, draft2.id);
-    const res2 = await postCreditNote(sessionId, business.id, draft2.id, {
+    const res2 = await postCreditNote(ctx.app, sessionId, business.id, draft2.id, {
       items: [DEFAULT_ITEM],
     });
     const cn2 = (res2.json() as InvoiceResponse).invoice;
