@@ -272,6 +272,11 @@ export const invoices = pgTable(
       .where(
         sql`${table.isOverdue} = true AND ${table.status} IN ('paid', 'cancelled', 'credited')`
       ),
+    index('invoices_credited_invoice_idx').on(
+      table.businessId,
+      table.creditedInvoiceId,
+      table.documentType
+    ),
   ]
 );
 

@@ -70,6 +70,26 @@ export async function findItemsByInvoiceId(invoiceId: string, txOrDb: DbOrTx = d
     .orderBy(invoiceItems.position);
 }
 
+export async function findCreditNotesBySourceInvoiceId(
+  sourceInvoiceId: string,
+  businessId: string,
+  txOrDb: DbOrTx = db
+) {
+  return txOrDb
+    .select({
+      id: invoices.id,
+      documentNumber: invoices.documentNumber,
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.creditedInvoiceId, sourceInvoiceId),
+        eq(invoices.businessId, businessId),
+        eq(invoices.documentType, 'credit_note')
+      )
+    );
+}
+
 // ── list / count ──
 
 export interface InvoiceListFilters {

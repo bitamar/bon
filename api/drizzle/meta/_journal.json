@@ -50,6 +50,13 @@
       "when": 1773590400000,
       "tag": "0006_invoice_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1773420733902,
+      "tag": "0007_common_crystal",
+      "breakpoints": true
     }
   ]
 }

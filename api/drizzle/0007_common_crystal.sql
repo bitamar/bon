@@ -1,0 +1,1 @@
+CREATE INDEX "invoices_credited_invoice_idx" ON "invoices" USING btree ("business_id","credited_invoice_id","document_type");

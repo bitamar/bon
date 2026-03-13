@@ -1,8 +1,8 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { sendJob } from '../jobs/boss.js';
 import { ensureBusinessContext } from '../plugins/business-context.js';
 import {
   createInvoiceDraftBodySchema,
+  createCreditNoteBodySchema,
   updateInvoiceDraftBodySchema,
   finalizeInvoiceBodySchema,
   sendInvoiceBodySchema,
@@ -27,6 +27,8 @@ import {
   deleteDraft,
   finalize,
   sendInvoice,
+  createCreditNote,
+  enqueueShaamAllocation,
   recordPayment,
   deletePayment,
   listPayments,
@@ -154,28 +156,13 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       ensureBusinessContext(req);
       const result = await finalize(req.businessContext.businessId, req.params.invoiceId, req.body);
 
-      // Enqueue SHAAM allocation job if needed (non-blocking — fire and forget)
       if (result.needsAllocation && app.boss) {
-        sendJob(
+        enqueueShaamAllocation(
           app.boss,
-          'shaam-allocation-request',
-          {
-            businessId: req.businessContext.businessId,
-            invoiceId: req.params.invoiceId,
-          },
-          {
-            singletonKey: req.params.invoiceId,
-            retryLimit: 5,
-            retryDelay: 60,
-            retryBackoff: true,
-            expireInSeconds: 1800,
-          }
-        ).catch((err: unknown) => {
-          req.log.error(
-            { err, invoiceId: req.params.invoiceId },
-            'Failed to enqueue SHAAM allocation job'
-          );
-        });
+          req.businessContext.businessId,
+          req.params.invoiceId,
+          req.log
+        );
       }
 
       const { needsAllocation: _, ...response } = result;
@@ -208,6 +195,45 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         req.body
       );
       return { ok: true as const, sentAt };
+    }
+  );
+
+  app.post(
+    '/businesses/:businessId/invoices/:invoiceId/credit-note',
+    {
+      preHandler: [
+        app.authenticate,
+        app.requireBusinessAccess,
+        app.requireBusinessRole('owner', 'admin'),
+      ],
+      schema: {
+        tags: ['Invoices'],
+        params: invoiceIdParamSchema,
+        body: createCreditNoteBodySchema,
+        response: {
+          201: invoiceResponseSchema,
+        },
+      },
+    },
+    async (req, reply) => {
+      ensureBusinessContext(req);
+      const result = await createCreditNote(
+        req.businessContext.businessId,
+        req.params.invoiceId,
+        req.body
+      );
+
+      if (result.needsAllocation && app.boss) {
+        enqueueShaamAllocation(
+          app.boss,
+          req.businessContext.businessId,
+          result.invoice.id,
+          req.log
+        );
+      }
+
+      const { needsAllocation: _, ...response } = result;
+      return reply.status(201).send(response);
     }
   );
 
