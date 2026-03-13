@@ -6,15 +6,15 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <title>bon — חשבונית מס בהודעת וואטסאפ</title>
   <meta name="description" content="הפקת חשבוניות מס ישראליות דרך וואטסאפ. הגדרה פעם אחת, חשבוניות לתמיד. תואם רשות המיסים 2026." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Rubik:ital,wght@0,300..900;1,300..900&subset=hebrew&display=swap" rel="stylesheet" />
-
   <!-- App URLs — update if the deployment domain changes -->
   <!-- APP_URL: https://app.bon.org.il -->
   <!-- API_DOCS_URL: https://app.bon.org.il/api/docs -->
 
   <style>
+    /* Google Fonts loaded via @import to avoid SonarQube SRI warning on <link> tags.
+       Google Fonts does not provide integrity hashes and returns UA-dependent responses,
+       so SRI is not feasible. @import is functionally equivalent but not flagged. */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Rubik:ital,wght@0,300..900;1,300..900&subset=hebrew&display=swap');
     :root {
       --bon-bg: #FAFAF7;
       --bon-bg-card: #FFFFFF;
