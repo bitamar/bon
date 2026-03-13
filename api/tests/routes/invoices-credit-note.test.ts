@@ -170,9 +170,7 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/credit-note', () => {
       method: 'GET',
       url: `/businesses/${business.id}/invoices/${creditNote.id}`,
     });
-    const cnDetail = cnDetailRes.json() as InvoiceResponse & {
-      creditedInvoiceDocumentNumber: string | null;
-    };
+    const cnDetail = cnDetailRes.json() as InvoiceResponse;
     expect(cnDetail.creditedInvoiceDocumentNumber).toBe(invoice.documentNumber);
 
     // Fetch source invoice — should include credit notes array
@@ -180,9 +178,7 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/credit-note', () => {
       method: 'GET',
       url: `/businesses/${business.id}/invoices/${invoice.id}`,
     });
-    const sourceDetail = sourceRes.json() as InvoiceResponse & {
-      creditNotes: Array<{ id: string; documentNumber: string | null }>;
-    };
+    const sourceDetail = sourceRes.json() as InvoiceResponse;
     expect(sourceDetail.creditNotes).toHaveLength(1);
     expect(sourceDetail.creditNotes[0]!.id).toBe(creditNote.id);
   });

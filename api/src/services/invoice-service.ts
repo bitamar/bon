@@ -151,7 +151,10 @@ function toLineInput(record: InvoiceItemRecord) {
   };
 }
 
-function validateVatRates(items: InvoiceItemRecord[], isExemptDealer: boolean) {
+function validateVatRates(
+  items: ReadonlyArray<{ vatRateBasisPoints: number }>,
+  isExemptDealer: boolean
+) {
   for (const item of items) {
     if (isExemptDealer && item.vatRateBasisPoints !== 0) {
       throw unprocessableEntity({ code: 'invalid_vat_rate' });
@@ -584,19 +587,7 @@ export async function createCreditNote(
 
     const isExemptDealer = business.businessType === 'exempt_dealer';
 
-    // Validate VAT rates match exempt dealer rules
-    for (const item of body.items) {
-      if (isExemptDealer && item.vatRateBasisPoints !== 0) {
-        throw unprocessableEntity({ code: 'invalid_vat_rate' });
-      }
-      if (
-        !isExemptDealer &&
-        item.vatRateBasisPoints !== 0 &&
-        item.vatRateBasisPoints !== STANDARD_VAT_RATE_BP
-      ) {
-        throw unprocessableEntity({ code: 'invalid_vat_rate' });
-      }
-    }
+    validateVatRates(body.items, isExemptDealer);
 
     const totals = computeTotals(body.items);
 
