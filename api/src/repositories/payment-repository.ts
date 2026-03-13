@@ -24,7 +24,11 @@ export async function findPaymentsByInvoiceId(invoiceId: string, txOrDb: DbOrTx 
     .select()
     .from(invoicePayments)
     .where(eq(invoicePayments.invoiceId, invoiceId))
-    .orderBy(desc(invoicePayments.paidAt), desc(invoicePayments.createdAt));
+    .orderBy(
+      desc(invoicePayments.paidAt),
+      desc(invoicePayments.createdAt),
+      desc(invoicePayments.id)
+    );
 }
 
 export async function deletePaymentById(paymentId: string, invoiceId: string, txOrDb: DbOrTx = db) {
