@@ -242,8 +242,17 @@ export async function aggregateFiltered(
 
 const OVERDUE_STATUSES: InvoiceRecord['status'][] = ['finalized', 'sent', 'partially_paid'];
 
-export async function findOverdueInvoices(txOrDb: DbOrTx = db) {
-  return txOrDb
+export interface OverdueInvoiceRow {
+  id: string;
+  businessId: string;
+  documentNumber: string | null;
+  customerName: string | null;
+  totalInclVatMinorUnits: number;
+  dueDate: string; // always non-null — query filters with isNotNull
+}
+
+export async function findOverdueInvoices(txOrDb: DbOrTx = db): Promise<OverdueInvoiceRow[]> {
+  const rows = await txOrDb
     .select({
       id: invoices.id,
       businessId: invoices.businessId,
@@ -260,4 +269,5 @@ export async function findOverdueInvoices(txOrDb: DbOrTx = db) {
         isNotNull(invoices.dueDate)
       )
     );
+  return rows as OverdueInvoiceRow[];
 }

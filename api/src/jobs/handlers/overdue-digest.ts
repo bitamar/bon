@@ -61,8 +61,8 @@ export function createOverdueDigestHandler(
         documentNumber: row.documentNumber,
         customerName: row.customerName,
         totalInclVatMinorUnits: row.totalInclVatMinorUnits,
-        dueDate: row.dueDate!,
-        daysOverdue: computeDaysOverdue(row.dueDate!),
+        dueDate: row.dueDate,
+        daysOverdue: computeDaysOverdue(row.dueDate),
       }));
 
       // Sort by days overdue descending (most overdue first)
