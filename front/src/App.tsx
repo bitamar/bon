@@ -10,7 +10,6 @@ import { BusinessProvider, useBusiness } from './contexts/BusinessContext';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
 import { Onboarding } from './pages/Onboarding';
-import { BusinessList } from './pages/BusinessList';
 import { BusinessSettings } from './pages/BusinessSettings';
 import { CustomerList } from './pages/CustomerList';
 import { CustomerCreate } from './pages/CustomerCreate';
@@ -26,8 +25,9 @@ import { BusinessRoute } from './components/BusinessRoute';
 import { LegacyRedirect } from './components/LegacyRedirect';
 
 function HomeRedirect() {
-  const { activeBusiness } = useBusiness();
-  if (!activeBusiness) return <Navigate to="/businesses" replace />;
+  const { activeBusiness, isLoading } = useBusiness();
+  if (isLoading) return <AppSplash label="Loading businesses" />;
+  if (!activeBusiness) return <Navigate to="/onboarding" replace />;
   return <Navigate to={`/businesses/${activeBusiness.id}/dashboard`} replace />;
 }
 
@@ -132,7 +132,6 @@ export default function AppRoutes() {
           >
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/businesses" element={<BusinessList />} />
             <Route path="/businesses/:businessId" element={<BusinessRoute />}>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="settings" element={<BusinessSettings />} />
