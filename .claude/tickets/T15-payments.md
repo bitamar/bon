@@ -29,7 +29,7 @@ Multiple payments per invoice is the norm, not the exception. The `paidAt` field
 - [ ] Payable statuses: `finalized`, `sent`, `partially_paid` — reject if invoice is `draft`, `paid`, `cancelled`, `credited`
 - [ ] Partial payment → status becomes `partially_paid`, `paidAt` stays null
 - [ ] Full payment (cumulative payments ≥ `totalInclVatMinorUnits`) → status becomes `paid`, `paidAt` set to most recent payment's `paidAt`
-- [ ] Deleting a payment recalculates: may revert `paid` → `partially_paid`, or `partially_paid` → `finalized`/`sent` (restore previous status)
+- [ ] Deleting a payment recalculates: may revert `paid` → `partially_paid`, or `partially_paid` → `finalized`/`sent` (restore previous status); must also clear `paidAt` to null whenever status leaves `paid`
 - [ ] Overpayment not allowed — validate `amount ≤ remaining balance`
 - [ ] Amount must be > 0
 - [ ] Transaction safety: lock invoice row (`findInvoiceByIdForUpdate`) before recording/deleting payment
@@ -51,7 +51,7 @@ Multiple payments per invoice is the norm, not the exception. The `paidAt` field
 - [ ] Validates: amount > 0, amount ≤ remaining balance, date required, method required
 - [ ] On success: close modal, invalidate invoice + invoice list queries, show success toast
 - [ ] Payment history section on invoice detail page:
-  - [ ] Chronological list of payments
+  - [ ] List sorted newest-first (descending `paidAt`, tie-break by descending `createdAt`)
   - [ ] Each row: date, amount, method (Hebrew label), reference, recorded by
   - [ ] Delete button (trash icon) on each payment row — confirm modal before deleting
   - [ ] Empty state when no payments recorded
@@ -78,9 +78,9 @@ sent ───────┘                          │
                                        ├── more partial ──→ partially_paid (stays)
                                        └── full payment ──→ paid
 
-Deleting a payment reverses:
-paid ──→ partially_paid (if other payments remain)
-paid ──→ finalized/sent (if no payments remain — see restoration rule below)
+Deleting a payment reverses (always clear paidAt to null when leaving paid):
+paid ──→ partially_paid (if other payments remain; clear paidAt)
+paid ──→ finalized/sent (if no payments remain; clear paidAt — see restoration rule below)
 partially_paid ──→ finalized/sent (if no payments remain — see restoration rule below)
 ```
 
@@ -184,7 +184,7 @@ export const paymentSchema = z.object({
 | Method | Path | Request | Response | Status |
 |--------|------|---------|----------|--------|
 | `POST` | `.../invoices/:invoiceId/payments` | `recordPaymentBodySchema` | Updated invoice response (with payments + remainingBalance) | 201 |
-| `GET` | `.../invoices/:invoiceId/payments` | — | `paymentSchema[]` | 200 |
+| `GET` | `.../invoices/:invoiceId/payments` | — | `paymentSchema[]` (sorted descending by `paidAt`, then `createdAt`) | 200 |
 | `DELETE` | `.../invoices/:invoiceId/payments/:paymentId` | — | Updated invoice response | 200 |
 
 ### Error Codes
@@ -222,7 +222,7 @@ export const paymentSchema = z.object({
 - Payment on draft invoice → 422
 - Payment on cancelled invoice → 422
 - Delete payment reverts status correctly
-- List payments returns chronological order
+- List payments returns newest-first order (descending `paidAt`, tie-break descending `createdAt`)
 - Role check: `user` role cannot record payment
 
 **Frontend tests**:
