@@ -1,6 +1,8 @@
 import { toNumber } from './numeric.js';
 import type { Invoice, LineItem } from '@bon/types/invoices';
+import type { Payment } from '@bon/types/payments';
 import type { InvoiceRecord, InvoiceItemRecord } from '../repositories/invoice-repository.js';
+import type { PaymentRecord } from '../repositories/payment-repository.js';
 
 export function serializeInvoice(record: InvoiceRecord): Invoice {
   return {
@@ -54,5 +56,19 @@ export function serializeInvoiceItem(record: InvoiceItemRecord): LineItem {
     lineTotalMinorUnits: record.lineTotalMinorUnits,
     vatAmountMinorUnits: record.vatAmountMinorUnits,
     lineTotalInclVatMinorUnits: record.lineTotalInclVatMinorUnits,
+  };
+}
+
+export function serializePayment(record: PaymentRecord): Payment {
+  return {
+    id: record.id,
+    invoiceId: record.invoiceId,
+    amountMinorUnits: record.amountMinorUnits,
+    paidAt: record.paidAt,
+    method: record.method,
+    reference: record.reference ?? null,
+    notes: record.notes ?? null,
+    recordedByUserId: record.recordedByUserId,
+    createdAt: record.createdAt.toISOString(),
   };
 }

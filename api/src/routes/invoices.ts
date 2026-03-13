@@ -12,6 +12,11 @@ import {
   invoiceListResponseSchema,
   invoiceIdParamSchema,
 } from '@bon/types/invoices';
+import {
+  recordPaymentBodySchema,
+  paymentListResponseSchema,
+  paymentIdParamSchema,
+} from '@bon/types/payments';
 import { businessIdParamSchema } from '@bon/types/businesses';
 import { okResponseSchema } from '@bon/types/common';
 import {
@@ -22,6 +27,9 @@ import {
   deleteDraft,
   finalize,
   sendInvoice,
+  recordPayment,
+  deletePayment,
+  listPayments,
 } from '../services/invoice-service.js';
 import { generateInvoicePdf } from '../services/pdf-service.js';
 
@@ -223,6 +231,80 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         .type('application/pdf')
         .header('Content-Disposition', `inline; filename="${safeFilename}"`)
         .send(pdf);
+    }
+  );
+  // ── Payment routes ──
+
+  app.post(
+    '/businesses/:businessId/invoices/:invoiceId/payments',
+    {
+      preHandler: [
+        app.authenticate,
+        app.requireBusinessAccess,
+        app.requireBusinessRole('owner', 'admin'),
+      ],
+      schema: {
+        tags: ['Invoices'],
+        params: invoiceIdParamSchema,
+        body: recordPaymentBodySchema,
+        response: {
+          201: invoiceResponseSchema,
+        },
+      },
+    },
+    async (req, reply) => {
+      ensureBusinessContext(req);
+      const result = await recordPayment(
+        req.businessContext.businessId,
+        req.params.invoiceId,
+        req.body,
+        req.user!.id
+      );
+      return reply.status(201).send(result);
+    }
+  );
+
+  app.get(
+    '/businesses/:businessId/invoices/:invoiceId/payments',
+    {
+      preHandler: [app.authenticate, app.requireBusinessAccess],
+      schema: {
+        tags: ['Invoices'],
+        params: invoiceIdParamSchema,
+        response: {
+          200: paymentListResponseSchema,
+        },
+      },
+    },
+    async (req) => {
+      ensureBusinessContext(req);
+      return listPayments(req.businessContext.businessId, req.params.invoiceId);
+    }
+  );
+
+  app.delete(
+    '/businesses/:businessId/invoices/:invoiceId/payments/:paymentId',
+    {
+      preHandler: [
+        app.authenticate,
+        app.requireBusinessAccess,
+        app.requireBusinessRole('owner', 'admin'),
+      ],
+      schema: {
+        tags: ['Invoices'],
+        params: paymentIdParamSchema,
+        response: {
+          200: invoiceResponseSchema,
+        },
+      },
+    },
+    async (req) => {
+      ensureBusinessContext(req);
+      return deletePayment(
+        req.businessContext.businessId,
+        req.params.invoiceId,
+        req.params.paymentId
+      );
     }
   );
 };

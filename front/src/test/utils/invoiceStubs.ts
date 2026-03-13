@@ -52,38 +52,44 @@ const BASE_INVOICE: Invoice = {
 };
 
 export function makeDraftInvoice(overrides: Partial<Invoice> = {}): InvoiceResponse {
+  const invoice: Invoice = {
+    ...BASE_INVOICE,
+    invoiceDate: '2026-02-23',
+    notes: 'הערה לדוגמה',
+    createdAt: '2026-02-23T00:00:00.000Z',
+    updatedAt: '2026-02-23T00:00:00.000Z',
+    ...overrides,
+  };
   return {
-    invoice: {
-      ...BASE_INVOICE,
-      invoiceDate: '2026-02-23',
-      notes: 'הערה לדוגמה',
-      createdAt: '2026-02-23T00:00:00.000Z',
-      updatedAt: '2026-02-23T00:00:00.000Z',
-      ...overrides,
-    },
+    invoice,
     items: [{ ...BASE_LINE_ITEM }],
+    payments: [],
+    remainingBalanceMinorUnits: invoice.totalInclVatMinorUnits,
   };
 }
 
 export function makeFinalizedInvoice(overrides: Partial<Invoice> = {}): InvoiceResponse {
+  const invoice: Invoice = {
+    ...BASE_INVOICE,
+    customerId: 'cust-1',
+    customerName: 'לקוח לדוגמה',
+    customerTaxId: '123456782',
+    customerAddress: 'רחוב הרצל 1, תל אביב',
+    customerEmail: 'test@example.com',
+    status: 'finalized',
+    sequenceGroup: 'tax_document',
+    sequenceNumber: 1,
+    documentNumber: 'INV-0001',
+    issuedAt: '2026-02-20T10:30:00.000Z',
+    dueDate: '2026-03-20',
+    notes: 'הערה לדוגמה',
+    updatedAt: '2026-02-20T10:30:00.000Z',
+    ...overrides,
+  };
   return {
-    invoice: {
-      ...BASE_INVOICE,
-      customerId: 'cust-1',
-      customerName: 'לקוח לדוגמה',
-      customerTaxId: '123456782',
-      customerAddress: 'רחוב הרצל 1, תל אביב',
-      customerEmail: 'test@example.com',
-      status: 'finalized',
-      sequenceGroup: 'tax_document',
-      sequenceNumber: 1,
-      documentNumber: 'INV-0001',
-      issuedAt: '2026-02-20T10:30:00.000Z',
-      dueDate: '2026-03-20',
-      notes: 'הערה לדוגמה',
-      updatedAt: '2026-02-20T10:30:00.000Z',
-      ...overrides,
-    },
+    invoice,
     items: [{ ...BASE_LINE_ITEM }],
+    payments: [],
+    remainingBalanceMinorUnits: invoice.totalInclVatMinorUnits,
   };
 }
