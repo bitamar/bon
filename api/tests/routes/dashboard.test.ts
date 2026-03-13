@@ -12,6 +12,27 @@ import { db } from '../../src/db/client.js';
 import { invoices, invoicePayments } from '../../src/db/schema.js';
 import type { DashboardResponse } from '@bon/types/dashboard';
 
+// ── helpers ──
+
+async function createFinalized(
+  businessId: string,
+  overrides: Partial<typeof invoices.$inferInsert> = {}
+) {
+  const [inv] = await db
+    .insert(invoices)
+    .values({
+      businessId,
+      documentType: 'tax_invoice',
+      status: 'finalized',
+      invoiceDate: '2026-03-10',
+      issuedAt: new Date('2026-03-10T10:00:00Z'),
+      totalInclVatMinorUnits: 10000,
+      ...overrides,
+    })
+    .returning();
+  return inv!;
+}
+
 describe('routes/dashboard', () => {
   const ctx = setupIntegrationTest();
 
@@ -22,25 +43,6 @@ describe('routes/dashboard', () => {
       method: 'GET',
       url: `/businesses/${businessId}/dashboard`,
     });
-  }
-
-  async function createFinalized(
-    businessId: string,
-    overrides: Partial<typeof invoices.$inferInsert> = {}
-  ) {
-    const [inv] = await db
-      .insert(invoices)
-      .values({
-        businessId,
-        documentType: 'tax_invoice',
-        status: 'finalized',
-        invoiceDate: '2026-03-10',
-        issuedAt: new Date('2026-03-10T10:00:00Z'),
-        totalInclVatMinorUnits: 10000,
-        ...overrides,
-      })
-      .returning();
-    return inv!;
   }
 
   // ── tests ──

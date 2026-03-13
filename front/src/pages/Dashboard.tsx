@@ -2,6 +2,7 @@ import { Container, Grid, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle, IconCash, IconFileInvoice, IconReceipt } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
+import type { DashboardKpis } from '@bon/types/dashboard';
 import { PageTitle } from '../components/PageTitle';
 import { KpiCard } from '../components/KpiCard';
 import { RecentInvoicesTable } from '../components/RecentInvoicesTable';
@@ -18,12 +19,68 @@ function computeTrend(current: number, previous: number): number | undefined {
   return ((current - previous) / previous) * 100;
 }
 
+function trendProps(trend: number | undefined) {
+  if (trend == null) return {};
+  return { trend, trendLabel: 'מהחודש הקודם' };
+}
+
+function KpiCards(props: Readonly<{ kpis: DashboardKpis; isLoading: boolean }>) {
+  if (props.isLoading) {
+    return Array.from({ length: 4 }, (_, i) => (
+      <KpiCard key={i} label="" value="" icon={null} isLoading />
+    ));
+  }
+
+  const { kpis } = props;
+  const revenueTrend = computeTrend(
+    kpis.revenue.thisMonthMinorUnits,
+    kpis.revenue.prevMonthMinorUnits
+  );
+  const invoicesTrend = computeTrend(
+    kpis.invoicesThisMonth.count,
+    kpis.invoicesThisMonth.prevMonthCount
+  );
+  const overdueProps =
+    kpis.overdue.count > 0
+      ? { subtitle: formatCurrency(kpis.overdue.totalMinorUnits), accent: 'red' as const }
+      : {};
+
+  return (
+    <>
+      <KpiCard
+        label="ממתין לתשלום"
+        value={formatCurrency(kpis.outstanding.totalMinorUnits)}
+        subtitle={`${kpis.outstanding.count} חשבוניות`}
+        icon={<IconCash size={20} />}
+      />
+      <KpiCard
+        label="גבייה החודש"
+        value={formatCurrency(kpis.revenue.thisMonthMinorUnits)}
+        {...trendProps(revenueTrend)}
+        icon={<IconReceipt size={20} />}
+      />
+      <KpiCard
+        label="חשבוניות החודש"
+        value={kpis.invoicesThisMonth.count.toLocaleString('he-IL')}
+        {...trendProps(invoicesTrend)}
+        icon={<IconFileInvoice size={20} />}
+      />
+      <KpiCard
+        label="פגות מועד"
+        value={kpis.overdue.count.toLocaleString('he-IL')}
+        {...overdueProps}
+        icon={<IconAlertTriangle size={20} />}
+      />
+    </>
+  );
+}
+
 export function Dashboard() {
   const { businessId } = useParams<{ businessId: string }>();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: queryKeys.dashboard(businessId!),
-    queryFn: () => fetchDashboard(businessId!),
+    queryKey: queryKeys.dashboard(businessId as string),
+    queryFn: () => fetchDashboard(businessId as string),
     enabled: !!businessId,
   });
 
@@ -37,75 +94,39 @@ export function Dashboard() {
     );
   }
 
-  // Show welcome state for new businesses with no finalized invoices
-  if (!isLoading && data && !data.hasInvoices) {
+  if (data && !data.hasInvoices) {
     return (
       <Container size="lg" mt="xl">
         <Stack gap="lg">
-          <PageTitle order={3}>סקירה</PageTitle>
+          <PageTitle order={3}>דאשבורד</PageTitle>
           <WelcomeState />
         </Stack>
       </Container>
     );
   }
 
-  const kpis = data?.kpis;
-  const revenueTrend = kpis
-    ? computeTrend(kpis.revenue.thisMonthMinorUnits, kpis.revenue.prevMonthMinorUnits)
-    : undefined;
-  const invoicesTrend = kpis
-    ? computeTrend(kpis.invoicesThisMonth.count, kpis.invoicesThisMonth.prevMonthCount)
-    : undefined;
-
   return (
     <Container size="lg" mt="xl">
       <Stack gap="lg">
-        <PageTitle order={3}>סקירה</PageTitle>
+        <PageTitle order={3}>דאשבורד</PageTitle>
 
-        {kpis ? <DashboardAlerts kpis={kpis} /> : null}
+        {data ? <DashboardAlerts kpis={data.kpis} /> : null}
 
         <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }}>
-          {isLoading ? (
-            Array.from({ length: 4 }, (_, i) => (
-              <KpiCard key={i} label="" value="" icon={null} isLoading />
-            ))
-          ) : kpis ? (
-            <>
-              <KpiCard
-                label="ממתין לתשלום"
-                value={formatCurrency(kpis.outstanding.totalMinorUnits)}
-                subtitle={`${kpis.outstanding.count} חשבוניות`}
-                icon={<IconCash size={20} />}
-              />
-              <KpiCard
-                label="גבייה החודש"
-                value={formatCurrency(kpis.revenue.thisMonthMinorUnits)}
-                {...(revenueTrend != null
-                  ? { trend: revenueTrend, trendLabel: 'מהחודש הקודם' }
-                  : {})}
-                icon={<IconReceipt size={20} />}
-              />
-              <KpiCard
-                label="חשבוניות החודש"
-                value={kpis.invoicesThisMonth.count.toLocaleString('he-IL')}
-                {...(invoicesTrend != null
-                  ? { trend: invoicesTrend, trendLabel: 'מהחודש הקודם' }
-                  : {})}
-                icon={<IconFileInvoice size={20} />}
-              />
-              <KpiCard
-                label="פגות מועד"
-                value={kpis.overdue.count.toLocaleString('he-IL')}
-                {...(kpis.overdue.count > 0
-                  ? {
-                      subtitle: formatCurrency(kpis.overdue.totalMinorUnits),
-                      accent: 'red' as const,
-                    }
-                  : {})}
-                icon={<IconAlertTriangle size={20} />}
-              />
-            </>
-          ) : null}
+          {data ? (
+            <KpiCards kpis={data.kpis} isLoading={isLoading} />
+          ) : (
+            <KpiCards
+              kpis={{
+                outstanding: { totalMinorUnits: 0, count: 0 },
+                overdue: { totalMinorUnits: 0, count: 0 },
+                revenue: { thisMonthMinorUnits: 0, prevMonthMinorUnits: 0 },
+                invoicesThisMonth: { count: 0, prevMonthCount: 0 },
+                staleDraftCount: 0,
+              }}
+              isLoading
+            />
+          )}
         </SimpleGrid>
 
         <Grid gutter="lg">

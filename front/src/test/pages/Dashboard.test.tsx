@@ -64,7 +64,7 @@ describe('Dashboard page', () => {
 
     renderDashboard();
 
-    expect(await screen.findByRole('heading', { name: 'סקירה' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'דאשבורד' })).toBeInTheDocument();
     expect(await screen.findByText('ממתין לתשלום')).toBeInTheDocument();
     expect(await screen.findByText('גבייה החודש')).toBeInTheDocument();
     expect(await screen.findByText('חשבוניות החודש')).toBeInTheDocument();
