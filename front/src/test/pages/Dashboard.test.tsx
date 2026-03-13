@@ -1,5 +1,5 @@
-import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { Dashboard } from '../../pages/Dashboard';
 import { renderWithProviders } from '../utils/renderWithProviders';
@@ -9,37 +9,23 @@ vi.mock('../../api/dashboard', () => ({
   fetchDashboard: vi.fn(),
 }));
 
+import * as dashboardApi from '../../api/dashboard';
+
 // ── helpers ──
 
-function createMockDashboard(overrides: Partial<DashboardResponse> = {}): DashboardResponse {
+function makeDashboardData(overrides: Partial<DashboardResponse> = {}): DashboardResponse {
   return {
-    kpis: {
-      outstanding: { totalMinorUnits: 2500000, count: 8 },
-      overdue: { totalMinorUnits: 420000, count: 2 },
-      revenue: { thisMonthMinorUnits: 4752000, prevMonthMinorUnits: 4230000 },
-      invoicesThisMonth: { count: 12, prevMonthCount: 10 },
-      staleDraftCount: 0,
-    },
-    recentInvoices: [
-      {
-        id: 'inv-1',
-        businessId: 'biz-1',
-        customerId: 'cust-1',
-        customerName: 'אלקטרה בע"מ',
-        documentType: 'tax_invoice',
-        status: 'paid',
-        isOverdue: false,
-        sequenceGroup: 'tax_document',
-        documentNumber: 'INV-001',
-        invoiceDate: '2026-03-10',
-        dueDate: null,
-        totalInclVatMinorUnits: 1240000,
-        currency: 'ILS',
-        createdAt: '2026-03-10T10:00:00.000Z',
-      },
-    ],
-    overdueInvoices: [],
-    hasInvoices: true,
+    revenueThisMonthMinorUnits: 4752000,
+    revenuePrevMonthMinorUnits: 3800000,
+    invoiceCountThisMonth: 12,
+    invoiceCountPrevMonth: 10,
+    outstandingAmountMinorUnits: 1500000,
+    outstandingCount: 5,
+    overdueAmountMinorUnits: 300000,
+    overdueCount: 2,
+    shaamPendingCount: 0,
+    shaamRejectedCount: 0,
+    recentInvoices: [],
     ...overrides,
   };
 }
@@ -59,52 +45,83 @@ async function setupMock(data: DashboardResponse) {
 }
 
 describe('Dashboard page', () => {
-  beforeEach(async () => {
-    await setupMock(createMockDashboard());
-  });
-
   it('renders KPI cards when data is loaded', async () => {
+    vi.mocked(dashboardApi.fetchDashboard).mockResolvedValue(makeDashboardData());
+
     renderDashboard();
 
-    expect(await screen.findByRole('heading', { name: 'דאשבורד' })).toBeInTheDocument();
-    expect(await screen.findByText('ממתין לתשלום')).toBeInTheDocument();
-    expect(await screen.findByText('גבייה החודש')).toBeInTheDocument();
-    expect(await screen.findByText('חשבוניות החודש')).toBeInTheDocument();
-    expect((await screen.findAllByText('פגות מועד')).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByText('הכנסות החודש')).toBeInTheDocument();
+    });
+    expect(screen.getByText('חשבוניות החודש')).toBeInTheDocument();
+    expect(screen.getByText('ממתין לתשלום')).toBeInTheDocument();
+    expect(screen.getByText('פגות מועד')).toBeInTheDocument();
   });
 
-  it('renders quick actions without settings button', async () => {
+  it('renders quick actions section', async () => {
+    vi.mocked(dashboardApi.fetchDashboard).mockResolvedValue(makeDashboardData());
+
     renderDashboard();
 
-    expect(await screen.findByText('פעולות מהירות')).toBeInTheDocument();
-    expect(screen.queryByText('הגדרות עסק')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('פעולות מהירות')).toBeInTheDocument();
+    });
   });
 
-  it('renders welcome state for new business', async () => {
-    await setupMock(createMockDashboard({ hasInvoices: false }));
+  it('renders loading skeletons while loading', () => {
+    vi.mocked(dashboardApi.fetchDashboard).mockReturnValue(new Promise(() => {}));
 
-    renderDashboard();
+    const { container } = renderDashboard();
 
-    expect(await screen.findByText(/ברוכים הבאים/)).toBeInTheDocument();
-    expect(screen.getByText('חשבונית חדשה')).toBeInTheDocument();
+    const skeletons = container.querySelectorAll('[data-visible="true"]');
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 
-  it('shows stale draft alert when drafts are old', async () => {
-    const data = createMockDashboard();
-    data.kpis.staleDraftCount = 3;
-    await setupMock(data);
+  it('shows error state when fetch fails', async () => {
+    vi.mocked(dashboardApi.fetchDashboard).mockRejectedValue(new Error('fail'));
 
     renderDashboard();
 
-    expect(await screen.findByText('3 טיוטות ממתינות להפקה')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('שגיאה בטעינת הנתונים')).toBeInTheDocument();
+    });
   });
 
-  it('shows error state when API fails', async () => {
-    const { fetchDashboard } = await import('../../api/dashboard');
-    vi.mocked(fetchDashboard).mockRejectedValueOnce(new Error('fail'));
+  it('renders empty invoices state when no recent invoices', async () => {
+    vi.mocked(dashboardApi.fetchDashboard).mockResolvedValue(
+      makeDashboardData({ recentInvoices: [] })
+    );
 
     renderDashboard();
 
-    expect(await screen.findByText('שגיאה בטעינת הנתונים')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('אין חשבוניות להצגה')).toBeInTheDocument();
+    });
+  });
+
+  it('hides SHAAM status card when counts are zero', async () => {
+    vi.mocked(dashboardApi.fetchDashboard).mockResolvedValue(
+      makeDashboardData({ shaamPendingCount: 0, shaamRejectedCount: 0 })
+    );
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('הכנסות החודש')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('סטטוס שע"מ')).not.toBeInTheDocument();
+  });
+
+  it('shows SHAAM status card when there are pending allocations', async () => {
+    vi.mocked(dashboardApi.fetchDashboard).mockResolvedValue(
+      makeDashboardData({ shaamPendingCount: 3, shaamRejectedCount: 1 })
+    );
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('3 בקשות ממתינות להקצאה')).toBeInTheDocument();
+    });
+    expect(screen.getByText('1 בקשות נדחו')).toBeInTheDocument();
   });
 });

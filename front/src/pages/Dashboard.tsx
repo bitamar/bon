@@ -1,133 +1,163 @@
-import { Container, Grid, SimpleGrid, Stack, Text } from '@mantine/core';
-import { IconAlertTriangle, IconCash, IconFileInvoice, IconReceipt } from '@tabler/icons-react';
+import { Alert, Card, Container, Grid, Group, SimpleGrid, Stack, Text } from '@mantine/core';
+import {
+  IconAlertTriangle,
+  IconCash,
+  IconClock,
+  IconFileInvoice,
+} from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import type { DashboardKpis } from '@bon/types/dashboard';
 import { PageTitle } from '../components/PageTitle';
 import { KpiCard } from '../components/KpiCard';
 import { RecentInvoicesTable } from '../components/RecentInvoicesTable';
 import { QuickActions } from '../components/QuickActions';
-import { DashboardAlerts } from '../components/DashboardAlerts';
-import { OverdueMiniList } from '../components/OverdueMiniList';
-import { WelcomeState } from '../components/WelcomeState';
 import { fetchDashboard } from '../api/dashboard';
 import { queryKeys } from '../lib/queryKeys';
-import { formatCurrency } from '../lib/format';
+import { formatMinorUnits } from '@bon/types/formatting';
+import type { DashboardResponse } from '@bon/types/dashboard';
 
-function computeTrend(current: number, previous: number): number | undefined {
-  if (previous === 0) return undefined;
-  return ((current - previous) / previous) * 100;
+function trendPercent(current: number, previous: number): number {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return ((current - previous) / Math.abs(previous)) * 100;
 }
 
-function trendProps(trend: number | undefined) {
-  if (trend == null) return {};
-  return { trend, trendLabel: 'מהחודש הקודם' };
+function buildKpis(data: DashboardResponse, businessId: string) {
+  const revenueTrend = trendPercent(
+    data.revenueThisMonthMinorUnits,
+    data.revenuePrevMonthMinorUnits
+  );
+  const countTrend = trendPercent(data.invoiceCountThisMonth, data.invoiceCountPrevMonth);
+
+  return [
+    {
+      label: 'הכנסות החודש',
+      value: formatMinorUnits(data.revenueThisMonthMinorUnits),
+      trend: revenueTrend,
+      trendLabel: 'מהחודש הקודם',
+      icon: <IconCash size={20} />,
+      href: `/businesses/${businessId}/invoices?status=finalized,sent,paid,partially_paid`,
+    },
+    {
+      label: 'חשבוניות החודש',
+      value: data.invoiceCountThisMonth.toLocaleString('he-IL'),
+      trend: countTrend,
+      trendLabel: 'מהחודש הקודם',
+      icon: <IconFileInvoice size={20} />,
+      href: `/businesses/${businessId}/invoices`,
+    },
+    {
+      label: 'ממתין לתשלום',
+      value: formatMinorUnits(data.outstandingAmountMinorUnits),
+      trend: 0,
+      trendLabel: `${data.outstandingCount} חשבוניות`,
+      icon: <IconClock size={20} />,
+      href: `/businesses/${businessId}/invoices?status=finalized,sent,partially_paid`,
+    },
+    {
+      label: 'פגות מועד',
+      value: formatMinorUnits(data.overdueAmountMinorUnits),
+      trend: 0,
+      trendLabel: `${data.overdueCount} חשבוניות`,
+      icon: <IconAlertTriangle size={20} />,
+      href: `/businesses/${businessId}/invoices?status=finalized,sent,partially_paid`,
+      color: data.overdueCount > 0 ? 'red' : undefined,
+    },
+  ];
 }
 
-function KpiCards(props: Readonly<{ kpis: DashboardKpis | null; isLoading: boolean }>) {
-  if (props.isLoading || !props.kpis) {
-    return (
-      <>
-        {Array.from({ length: 4 }, (_, i) => (
-          <KpiCard key={i} label="" value="" icon={null} isLoading />
-        ))}
-      </>
-    );
-  }
-
-  const { kpis } = props;
-  const revenueTrend = computeTrend(
-    kpis.revenue.thisMonthMinorUnits,
-    kpis.revenue.prevMonthMinorUnits
-  );
-  const invoicesTrend = computeTrend(
-    kpis.invoicesThisMonth.count,
-    kpis.invoicesThisMonth.prevMonthCount
-  );
-  const overdueProps =
-    kpis.overdue.count > 0
-      ? { subtitle: formatCurrency(kpis.overdue.totalMinorUnits), accent: 'red' as const }
-      : {};
+function ShaamStatusCard({
+  pendingCount,
+  rejectedCount,
+}: Readonly<{ pendingCount: number; rejectedCount: number }>) {
+  if (pendingCount === 0 && rejectedCount === 0) return null;
 
   return (
-    <>
-      <KpiCard
-        label="ממתין לתשלום"
-        value={formatCurrency(kpis.outstanding.totalMinorUnits)}
-        subtitle={`${kpis.outstanding.count} חשבוניות`}
-        icon={<IconCash size={20} />}
-      />
-      <KpiCard
-        label="גבייה החודש"
-        value={formatCurrency(kpis.revenue.thisMonthMinorUnits)}
-        {...trendProps(revenueTrend)}
-        icon={<IconReceipt size={20} />}
-      />
-      <KpiCard
-        label="חשבוניות החודש"
-        value={kpis.invoicesThisMonth.count.toLocaleString('he-IL')}
-        {...trendProps(invoicesTrend)}
-        icon={<IconFileInvoice size={20} />}
-      />
-      <KpiCard
-        label="פגות מועד"
-        value={kpis.overdue.count.toLocaleString('he-IL')}
-        {...overdueProps}
-        icon={<IconAlertTriangle size={20} />}
-      />
-    </>
+    <Card withBorder radius="lg" p="lg">
+      <Text fw={600} mb="md">
+        סטטוס שע&quot;מ
+      </Text>
+      <Stack gap="xs">
+        {pendingCount > 0 && (
+          <Group gap="xs">
+            <IconClock size={16} color="var(--mantine-color-yellow-6)" />
+            <Text size="sm">{pendingCount} בקשות ממתינות להקצאה</Text>
+          </Group>
+        )}
+        {rejectedCount > 0 && (
+          <Group gap="xs">
+            <IconAlertTriangle size={16} color="var(--mantine-color-red-6)" />
+            <Text size="sm" c="red">
+              {rejectedCount} בקשות נדחו
+            </Text>
+          </Group>
+        )}
+      </Stack>
+    </Card>
   );
 }
 
 export function Dashboard() {
-  const { businessId } = useParams<{ businessId: string }>();
+  const { businessId = '' } = useParams<{ businessId: string }>();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: queryKeys.dashboard(businessId as string),
-    queryFn: () => fetchDashboard(businessId as string),
+    queryKey: queryKeys.dashboard(businessId),
+    queryFn: () => fetchDashboard(businessId),
     enabled: !!businessId,
   });
 
   if (error) {
     return (
       <Container size="lg" mt="xl">
-        <Text c="red" ta="center">
+        <Alert color="red" title="שגיאה">
           שגיאה בטעינת הנתונים
-        </Text>
+        </Alert>
       </Container>
     );
   }
 
-  if (data && !data.hasInvoices) {
-    return (
-      <Container size="lg" mt="xl">
-        <Stack gap="lg">
-          <PageTitle order={3}>דאשבורד</PageTitle>
-          <WelcomeState />
-        </Stack>
-      </Container>
-    );
-  }
+  const kpis = data ? buildKpis(data, businessId) : [];
 
   return (
     <Container size="lg" mt="xl">
       <Stack gap="lg">
         <PageTitle order={3}>דאשבורד</PageTitle>
 
-        <DashboardAlerts kpis={data?.kpis} isLoading={isLoading} />
-
         <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }}>
-          <KpiCards kpis={data?.kpis ?? null} isLoading={isLoading} />
+          {isLoading
+            ? Array.from({ length: 4 }, (_, i) => (
+                <KpiCard key={i} label="" value="" trend={0} trendLabel="" icon={null} isLoading />
+              ))
+            : kpis.map((kpi) => (
+                <KpiCard
+                  key={kpi.label}
+                  label={kpi.label}
+                  value={kpi.value}
+                  trend={kpi.trend}
+                  trendLabel={kpi.trendLabel}
+                  icon={kpi.icon}
+                  href={kpi.href}
+                  {...(kpi.color ? { color: kpi.color } : {})}
+                />
+              ))}
         </SimpleGrid>
 
         <Grid gutter="lg">
           <Grid.Col span={{ base: 12, md: 8 }}>
-            <RecentInvoicesTable invoices={data?.recentInvoices} isLoading={isLoading} />
+            <RecentInvoicesTable
+              invoices={data?.recentInvoices}
+              businessId={businessId}
+              isLoading={isLoading}
+            />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 4 }}>
             <Stack gap="lg">
               <QuickActions />
-              <OverdueMiniList invoices={data?.overdueInvoices ?? []} isLoading={isLoading} />
+              {data && (
+                <ShaamStatusCard
+                  pendingCount={data.shaamPendingCount}
+                  rejectedCount={data.shaamRejectedCount}
+                />
+              )}
             </Stack>
           </Grid.Col>
         </Grid>

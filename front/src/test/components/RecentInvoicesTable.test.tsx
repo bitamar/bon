@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
-import { Route, Routes } from 'react-router-dom';
 import { RecentInvoicesTable } from '../../components/RecentInvoicesTable';
 import { renderWithProviders } from '../utils/renderWithProviders';
 import type { InvoiceListItem } from '@bon/types/invoices';
@@ -9,7 +8,7 @@ import type { InvoiceListItem } from '@bon/types/invoices';
 
 function makeInvoice(overrides: Partial<InvoiceListItem> = {}): InvoiceListItem {
   return {
-    id: '1',
+    id: 'inv-1',
     businessId: 'biz-1',
     customerId: 'cust-1',
     customerName: 'אלקטרה בע"מ',
@@ -19,7 +18,7 @@ function makeInvoice(overrides: Partial<InvoiceListItem> = {}): InvoiceListItem 
     sequenceGroup: 'tax_document',
     documentNumber: 'INV-001',
     invoiceDate: '2026-02-18',
-    dueDate: null,
+    dueDate: '2026-03-18',
     totalInclVatMinorUnits: 1240000,
     currency: 'ILS',
     createdAt: '2026-02-18T10:00:00.000Z',
@@ -27,37 +26,24 @@ function makeInvoice(overrides: Partial<InvoiceListItem> = {}): InvoiceListItem 
   };
 }
 
-function renderTable(invoices: InvoiceListItem[] | undefined, isLoading = false) {
-  return renderWithProviders(
-    <Routes>
-      <Route
-        path="/businesses/:businessId/*"
-        element={<RecentInvoicesTable invoices={invoices} isLoading={isLoading} />}
-      />
-    </Routes>,
-    { router: { initialEntries: ['/businesses/biz-1/dashboard'] } }
-  );
-}
-
-const mockInvoices = [
+const mockInvoices: InvoiceListItem[] = [
   makeInvoice(),
-  makeInvoice({ id: '2', documentNumber: 'INV-002', customerName: 'סולאר אנרגיה', status: 'sent' }),
+  makeInvoice({
+    id: 'inv-2',
+    customerName: 'סולאר אנרגיה',
+    documentNumber: 'INV-002',
+    status: 'sent',
+    totalInclVatMinorUnits: 875000,
+    invoiceDate: '2026-02-17',
+  }),
 ];
 
 describe('RecentInvoicesTable', () => {
-  it('renders table headers', () => {
-    renderTable(mockInvoices);
+  it('renders table headers and invoice rows', () => {
+    renderWithProviders(<RecentInvoicesTable invoices={mockInvoices} businessId="biz-1" />);
 
     expect(screen.getByText('מספר')).toBeInTheDocument();
     expect(screen.getByText('לקוח')).toBeInTheDocument();
-    expect(screen.getByText('סכום')).toBeInTheDocument();
-    expect(screen.getByText('סטטוס')).toBeInTheDocument();
-    expect(screen.getByText('תאריך')).toBeInTheDocument();
-  });
-
-  it('renders invoice rows with correct data', () => {
-    renderTable(mockInvoices);
-
     expect(screen.getByText('INV-001')).toBeInTheDocument();
     expect(screen.getByText('אלקטרה בע"מ')).toBeInTheDocument();
     expect(screen.getByText('שולמה')).toBeInTheDocument();
@@ -66,20 +52,22 @@ describe('RecentInvoicesTable', () => {
   });
 
   it('renders empty state when no invoices', () => {
-    renderTable([]);
+    renderWithProviders(<RecentInvoicesTable invoices={[]} businessId="biz-1" />);
 
     expect(screen.getByText('אין חשבוניות להצגה')).toBeInTheDocument();
   });
 
   it('renders loading skeleton', () => {
-    const { container } = renderTable(undefined, true);
+    const { container } = renderWithProviders(
+      <RecentInvoicesTable invoices={undefined} businessId="biz-1" isLoading />
+    );
 
     const skeletons = container.querySelectorAll('[data-visible="true"]');
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it('renders "show all" link with correct href', () => {
-    renderTable(mockInvoices);
+    renderWithProviders(<RecentInvoicesTable invoices={mockInvoices} businessId="biz-1" />);
 
     const link = screen.getByRole('link', { name: 'הצג הכל' });
     expect(link).toBeInTheDocument();

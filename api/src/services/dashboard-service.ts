@@ -1,80 +1,114 @@
 import {
-  getDashboardAggregates,
+  aggregateRevenue,
+  aggregateOutstanding,
+  aggregateOverdue,
+  aggregateShaamStatus,
   findInvoices,
   type InvoiceListFilters,
+  type InvoiceRecord,
 } from '../repositories/invoice-repository.js';
-import { sumPaymentsForPeriod } from '../repositories/payment-repository.js';
-import { serializeInvoiceListItem } from './invoice-service.js';
-import type { DashboardResponse, DashboardKpis } from '@bon/types/dashboard';
+import type { DashboardResponse } from '@bon/types/dashboard';
+import type { InvoiceListItem } from '@bon/types/invoices';
 
-function getMonthBoundaries() {
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth();
-  const thisMonthStart = new Date(Date.UTC(year, month, 1));
-  const prevMonthStart = new Date(Date.UTC(year, month - 1, 1));
-  const nextMonthStart = new Date(Date.UTC(year, month + 1, 1));
+function getMonthBoundaries(now: Date): {
+  thisMonthStart: string;
+  thisMonthEnd: string;
+  prevMonthStart: string;
+  prevMonthEnd: string;
+} {
+  // Use Israel timezone for month boundaries
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const todayStr = formatter.format(now);
+  const [yearStr, monthStr] = todayStr.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+
+  const thisMonthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+  const thisMonthEnd = todayStr;
+
+  // Previous month
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  const lastDayOfPrevMonth = new Date(year, month - 1, 0).getDate();
+  const prevMonthStart = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`;
+  const prevMonthEnd = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(lastDayOfPrevMonth).padStart(2, '0')}`;
+
+  return { thisMonthStart, thisMonthEnd, prevMonthStart, prevMonthEnd };
+}
+
+function serializeListItem(
+  record: Pick<
+    InvoiceRecord,
+    | 'id'
+    | 'businessId'
+    | 'customerId'
+    | 'customerName'
+    | 'documentType'
+    | 'status'
+    | 'isOverdue'
+    | 'sequenceGroup'
+    | 'documentNumber'
+    | 'invoiceDate'
+    | 'dueDate'
+    | 'totalInclVatMinorUnits'
+    | 'currency'
+    | 'createdAt'
+  >
+): InvoiceListItem {
   return {
-    thisMonthStart: thisMonthStart.toISOString().slice(0, 10),
-    prevMonthStart: prevMonthStart.toISOString().slice(0, 10),
-    nextMonthStart: nextMonthStart.toISOString().slice(0, 10),
+    id: record.id,
+    businessId: record.businessId,
+    customerId: record.customerId ?? null,
+    customerName: record.customerName ?? null,
+    documentType: record.documentType,
+    status: record.status,
+    isOverdue: record.isOverdue,
+    sequenceGroup: record.sequenceGroup ?? null,
+    documentNumber: record.documentNumber ?? null,
+    invoiceDate: record.invoiceDate,
+    dueDate: record.dueDate ?? null,
+    totalInclVatMinorUnits: record.totalInclVatMinorUnits,
+    currency: record.currency,
+    createdAt: record.createdAt.toISOString(),
   };
 }
 
-const STALE_DRAFT_DAYS = 7;
+export async function getDashboard(businessId: string): Promise<DashboardResponse> {
+  const now = new Date();
+  const { thisMonthStart, thisMonthEnd, prevMonthStart, prevMonthEnd } = getMonthBoundaries(now);
 
-export async function getDashboardData(businessId: string): Promise<DashboardResponse> {
-  const { thisMonthStart, prevMonthStart, nextMonthStart } = getMonthBoundaries();
-  const staleThreshold = new Date(Date.now() - STALE_DRAFT_DAYS * 24 * 60 * 60 * 1000);
-
-  const recentFilters: InvoiceListFilters = {
+  const baseFilters: InvoiceListFilters = {
     businessId,
     sort: 'createdAt:desc',
     offset: 0,
     limit: 10,
   };
 
-  const overdueFilters: InvoiceListFilters = {
-    businessId,
-    isOverdue: true,
-    sort: 'dueDate:asc',
-    offset: 0,
-    limit: 5,
-  };
-
-  const [aggregates, revenueThisMonth, revenuePrevMonth, recentRows, overdueRows] =
-    await Promise.all([
-      getDashboardAggregates(businessId, thisMonthStart, prevMonthStart, staleThreshold),
-      sumPaymentsForPeriod(businessId, thisMonthStart, nextMonthStart),
-      sumPaymentsForPeriod(businessId, prevMonthStart, thisMonthStart),
-      findInvoices(recentFilters),
-      findInvoices(overdueFilters),
-    ]);
-
-  const kpis: DashboardKpis = {
-    outstanding: {
-      totalMinorUnits: aggregates.outstandingTotal,
-      count: aggregates.outstandingCount,
-    },
-    overdue: {
-      totalMinorUnits: aggregates.overdueTotal,
-      count: aggregates.overdueCount,
-    },
-    revenue: {
-      thisMonthMinorUnits: revenueThisMonth,
-      prevMonthMinorUnits: revenuePrevMonth,
-    },
-    invoicesThisMonth: {
-      count: aggregates.invoicesThisMonth,
-      prevMonthCount: aggregates.invoicesPrevMonth,
-    },
-    staleDraftCount: aggregates.staleDraftCount,
-  };
+  const [revenue, prevRevenue, outstanding, overdue, shaam, recent] = await Promise.all([
+    aggregateRevenue(businessId, thisMonthStart, thisMonthEnd),
+    aggregateRevenue(businessId, prevMonthStart, prevMonthEnd),
+    aggregateOutstanding(baseFilters),
+    aggregateOverdue(businessId),
+    aggregateShaamStatus(businessId),
+    findInvoices(baseFilters),
+  ]);
 
   return {
-    kpis,
-    recentInvoices: recentRows.map(serializeInvoiceListItem),
-    overdueInvoices: overdueRows.map(serializeInvoiceListItem),
-    hasInvoices: aggregates.hasInvoices,
+    revenueThisMonthMinorUnits: revenue.total,
+    revenuePrevMonthMinorUnits: prevRevenue.total,
+    invoiceCountThisMonth: revenue.count,
+    invoiceCountPrevMonth: prevRevenue.count,
+    outstandingAmountMinorUnits: outstanding.total,
+    outstandingCount: outstanding.count,
+    overdueAmountMinorUnits: overdue.total,
+    overdueCount: overdue.count,
+    shaamPendingCount: shaam.pending,
+    shaamRejectedCount: shaam.rejected,
+    recentInvoices: recent.map(serializeListItem),
   };
 }

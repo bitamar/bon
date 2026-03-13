@@ -1,25 +1,26 @@
 import { Card, Group, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 export function KpiCard({
   label,
   value,
-  subtitle,
   trend,
   trendLabel,
   icon,
-  accent,
   isLoading,
+  href,
+  color,
 }: Readonly<{
   label: string;
   value: string;
-  subtitle?: string;
   trend?: number;
   trendLabel?: string;
   icon: ReactNode;
-  accent?: 'red';
   isLoading?: boolean;
+  href?: string;
+  color?: string;
 }>) {
   if (isLoading) {
     return (
@@ -33,51 +34,48 @@ export function KpiCard({
     );
   }
 
-  const borderColor = accent === 'red' ? 'var(--mantine-color-red-4)' : undefined;
+  const showTrendArrows = trend !== 0;
+  const isPositive = (trend ?? 0) >= 0;
 
-  return (
-    <Card withBorder radius="lg" p="lg" style={borderColor ? { borderColor } : undefined}>
+  const card = (
+    <Card withBorder radius="lg" p="lg" style={href ? { cursor: 'pointer' } : undefined}>
       <Group justify="space-between" mb="xs">
         <Text size="sm" c="dimmed" fw={500}>
           {label}
         </Text>
-        <ThemeIcon
-          variant="light"
-          size="lg"
-          radius="md"
-          {...(accent === 'red' ? { color: 'red' as const } : {})}
-        >
+        <ThemeIcon variant="light" size="lg" radius="md" {...(color ? { color } : {})}>
           {icon}
         </ThemeIcon>
       </Group>
-      <Text
-        fw={700}
-        fz={28}
-        {...(accent ? { c: accent } : {})}
-        style={{ fontVariantNumeric: 'tabular-nums' }}
-      >
+      <Text fw={700} fz={28} {...(color ? { c: color } : {})} style={{ fontVariantNumeric: 'tabular-nums' }}>
         {value}
       </Text>
-      {subtitle ? (
-        <Text size="xs" c="dimmed" mt="xs">
-          {subtitle}
-        </Text>
-      ) : null}
-      {trend != null && trendLabel ? (
-        <Group gap={4} mt="xs">
-          {trend >= 0 ? (
+      <Group gap={4} mt="xs">
+        {showTrendArrows &&
+          (isPositive ? (
             <IconArrowUpRight size={16} color="var(--mantine-color-brand-6)" />
           ) : (
             <IconArrowDownRight size={16} color="var(--mantine-color-red-6)" />
-          )}
-          <Text size="xs" c={trend >= 0 ? 'brand.6' : 'red.6'} fw={500}>
-            {Math.abs(trend).toFixed(1)}%
+          ))}
+        {showTrendArrows && (
+          <Text size="xs" c={isPositive ? 'brand.6' : 'red.6'} fw={500}>
+            {Math.abs(trend ?? 0).toFixed(1)}%
           </Text>
-          <Text size="xs" c="dimmed">
-            {trendLabel}
-          </Text>
-        </Group>
-      ) : null}
+        )}
+        <Text size="xs" c="dimmed">
+          {trendLabel}
+        </Text>
+      </Group>
     </Card>
   );
+
+  if (href) {
+    return (
+      <Link to={href} style={{ textDecoration: 'none', color: 'inherit' }}>
+        {card}
+      </Link>
+    );
+  }
+
+  return card;
 }

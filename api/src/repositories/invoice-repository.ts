@@ -266,6 +266,100 @@ export async function aggregateFiltered(
   return Number(rows[0]?.total ?? 0);
 }
 
+// ── dashboard aggregates ──
+
+const REVENUE_STATUSES: InvoiceRecord['status'][] = [
+  'finalized',
+  'sent',
+  'paid',
+  'partially_paid',
+  'credited',
+];
+
+export async function aggregateRevenue(
+  businessId: string,
+  dateFrom: string,
+  dateTo: string,
+  txOrDb: DbOrTx = db
+): Promise<AggregateResult> {
+  const rows = await txOrDb
+    .select({
+      total: sum(invoices.totalInclVatMinorUnits),
+      count: count(),
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.businessId, businessId),
+        inArray(invoices.status, REVENUE_STATUSES),
+        gte(invoices.invoiceDate, dateFrom),
+        lte(invoices.invoiceDate, dateTo)
+      )
+    );
+
+  return {
+    total: Number(rows[0]?.total ?? 0),
+    count: rows[0]?.count ?? 0,
+  };
+}
+
+export async function aggregateOverdue(
+  businessId: string,
+  txOrDb: DbOrTx = db
+): Promise<AggregateResult> {
+  const rows = await txOrDb
+    .select({
+      total: sum(invoices.totalInclVatMinorUnits),
+      count: count(),
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.businessId, businessId),
+        eq(invoices.isOverdue, true),
+        inArray(invoices.status, OUTSTANDING_STATUSES)
+      )
+    );
+
+  return {
+    total: Number(rows[0]?.total ?? 0),
+    count: rows[0]?.count ?? 0,
+  };
+}
+
+export interface ShaamStatusResult {
+  pending: number;
+  rejected: number;
+}
+
+export async function aggregateShaamStatus(
+  businessId: string,
+  txOrDb: DbOrTx = db
+): Promise<ShaamStatusResult> {
+  const rows = await txOrDb
+    .select({
+      status: invoices.allocationStatus,
+      count: count(),
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.businessId, businessId),
+        inArray(invoices.allocationStatus, ['pending', 'rejected'])
+      )
+    )
+    .groupBy(invoices.allocationStatus);
+
+  let pending = 0;
+  let rejected = 0;
+  for (const row of rows) {
+    if (row.status === 'pending') pending = row.count;
+    if (row.status === 'rejected') rejected = row.count;
+  }
+
+  return { pending, rejected };
+}
+
 // ── overdue digest ──
 
 export interface OverdueInvoiceRow {

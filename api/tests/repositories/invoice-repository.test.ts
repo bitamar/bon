@@ -15,6 +15,9 @@ import {
   countInvoices,
   aggregateOutstanding,
   aggregateFiltered,
+  aggregateRevenue,
+  aggregateOverdue,
+  aggregateShaamStatus,
   findCreditNotesBySourceInvoiceId,
   getDashboardAggregates,
 } from '../../src/repositories/invoice-repository.js';
@@ -584,6 +587,151 @@ describe('aggregateFiltered', () => {
   it('returns zero when no invoices match', async () => {
     const result = await aggregateFiltered(baseAggregateFilters(businessId));
     expect(result).toBe(0);
+  });
+});
+
+// ── dashboard aggregates ──
+
+describe('aggregateRevenue', () => {
+  let businessId: string;
+
+  beforeEach(async () => {
+    await resetDb();
+    const biz = await seedBusinessWithOwner();
+    businessId = biz.id;
+  });
+
+  it('sums revenue for invoices in the date range with revenue statuses', async () => {
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 5000,
+      invoiceDate: '2026-03-10',
+    });
+    await createTestInvoice(businessId, {
+      status: 'paid',
+      totalInclVatMinorUnits: 3000,
+      invoiceDate: '2026-03-05',
+    });
+    // Draft — excluded
+    await createTestInvoice(businessId, {
+      status: 'draft',
+      totalInclVatMinorUnits: 9000,
+      invoiceDate: '2026-03-08',
+    });
+    // Outside date range — excluded
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 7000,
+      invoiceDate: '2026-02-15',
+    });
+
+    const result = await aggregateRevenue(businessId, '2026-03-01', '2026-03-31');
+
+    expect(result.total).toBe(8000);
+    expect(result.count).toBe(2);
+  });
+
+  it('returns zero when no invoices match', async () => {
+    const result = await aggregateRevenue(businessId, '2026-03-01', '2026-03-31');
+    expect(result.total).toBe(0);
+    expect(result.count).toBe(0);
+  });
+});
+
+describe('aggregateOverdue', () => {
+  let businessId: string;
+
+  beforeEach(async () => {
+    await resetDb();
+    const biz = await seedBusinessWithOwner();
+    businessId = biz.id;
+  });
+
+  it('sums overdue invoices with outstanding statuses', async () => {
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      isOverdue: true,
+      totalInclVatMinorUnits: 2000,
+    });
+    await createTestInvoice(businessId, {
+      status: 'sent',
+      isOverdue: true,
+      totalInclVatMinorUnits: 3000,
+    });
+    // Not overdue
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      isOverdue: false,
+      totalInclVatMinorUnits: 1000,
+    });
+    // Paid + overdue — excluded (paid is not outstanding)
+    await createTestInvoice(businessId, {
+      status: 'paid',
+      isOverdue: true,
+      totalInclVatMinorUnits: 4000,
+    });
+
+    const result = await aggregateOverdue(businessId);
+
+    expect(result.total).toBe(5000);
+    expect(result.count).toBe(2);
+  });
+
+  it('returns zero when no overdue invoices', async () => {
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      isOverdue: false,
+      totalInclVatMinorUnits: 1000,
+    });
+
+    const result = await aggregateOverdue(businessId);
+    expect(result.total).toBe(0);
+    expect(result.count).toBe(0);
+  });
+});
+
+describe('aggregateShaamStatus', () => {
+  let businessId: string;
+
+  beforeEach(async () => {
+    await resetDb();
+    const biz = await seedBusinessWithOwner();
+    businessId = biz.id;
+  });
+
+  it('counts pending and rejected allocation statuses', async () => {
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      allocationStatus: 'pending',
+    });
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      allocationStatus: 'pending',
+    });
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      allocationStatus: 'rejected',
+    });
+    // Approved — not counted
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      allocationStatus: 'approved',
+    });
+    // No allocation — not counted
+    await createTestInvoice(businessId, { status: 'finalized' });
+
+    const result = await aggregateShaamStatus(businessId);
+
+    expect(result.pending).toBe(2);
+    expect(result.rejected).toBe(1);
+  });
+
+  it('returns zeros when no SHAAM allocations', async () => {
+    await createTestInvoice(businessId, { status: 'finalized' });
+
+    const result = await aggregateShaamStatus(businessId);
+    expect(result.pending).toBe(0);
+    expect(result.rejected).toBe(0);
   });
 });
 
