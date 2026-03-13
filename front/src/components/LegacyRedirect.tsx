@@ -6,7 +6,7 @@ export function LegacyRedirect() {
   const businessId = localStorage.getItem(ACTIVE_BUSINESS_KEY);
 
   if (!businessId) {
-    return <Navigate to="/businesses" replace />;
+    return <Navigate to="/onboarding" replace />;
   }
 
   const suffix = location.pathname.replace(/^\/business(?=\/|$)/, '');

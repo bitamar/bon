@@ -22,7 +22,7 @@ function renderRedirect(path: string) {
     <Routes>
       <Route path="/business/*" element={<LegacyRedirect />} />
       <Route path="/business" element={<LegacyRedirect />} />
-      <Route path="/businesses" element={<div data-testid="businesses-page" />} />
+      <Route path="/onboarding" element={<div data-testid="onboarding-page" />} />
       <Route path="*" element={<LocationDisplay />} />
     </Routes>,
     { router: { initialEntries: [path] } }
@@ -34,10 +34,10 @@ describe('LegacyRedirect', () => {
     localStorage.clear();
   });
 
-  it('redirects to /businesses when no businessId in localStorage', () => {
+  it('redirects to /onboarding when no businessId in localStorage', () => {
     renderRedirect('/business/dashboard');
 
-    expect(screen.getByTestId('businesses-page')).toBeInTheDocument();
+    expect(screen.getByTestId('onboarding-page')).toBeInTheDocument();
   });
 
   it('redirects to canonical path with stored businessId and suffix', () => {

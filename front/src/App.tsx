@@ -9,7 +9,6 @@ import { BusinessProvider, useBusiness } from './contexts/BusinessContext';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
 import { Onboarding } from './pages/Onboarding';
-import { BusinessList } from './pages/BusinessList';
 import { BusinessSettings } from './pages/BusinessSettings';
 import { CustomerList } from './pages/CustomerList';
 import { CustomerCreate } from './pages/CustomerCreate';
@@ -25,8 +24,10 @@ import { BusinessRoute } from './components/BusinessRoute';
 import { LegacyRedirect } from './components/LegacyRedirect';
 
 function HomeRedirect() {
-  const { activeBusiness } = useBusiness();
-  if (!activeBusiness) return <Navigate to="/businesses" replace />;
+  const { activeBusiness, businesses } = useBusiness();
+  // Wait one frame for auto-select effect when businesses exist but none is active yet
+  if (businesses.length > 0 && !activeBusiness) return null;
+  if (!activeBusiness) return <Navigate to="/onboarding" replace />;
   return <Navigate to={`/businesses/${activeBusiness.id}/dashboard`} replace />;
 }
 
@@ -130,7 +131,6 @@ export default function AppRoutes() {
           >
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/businesses" element={<BusinessList />} />
             <Route path="/businesses/:businessId" element={<BusinessRoute />}>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="settings" element={<BusinessSettings />} />
