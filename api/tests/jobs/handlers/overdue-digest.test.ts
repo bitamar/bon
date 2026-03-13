@@ -58,18 +58,17 @@ async function runHandler() {
   await handler(makeJob('overdue-digest'));
 }
 
-describe('overdue-digest handler', () => {
-  // ── helpers ──
-  async function createOwnedBusiness(
-    userOverrides?: Partial<Parameters<typeof createUser>[0]>,
-    bizOverrides?: Partial<Parameters<typeof createTestBusiness>[1]>
-  ) {
-    const user = await createUser(userOverrides);
-    const biz = await createTestBusiness(user.id, bizOverrides);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-    return { user, biz };
-  }
+async function createOwnedBusiness(
+  userOverrides?: Partial<Parameters<typeof createUser>[0]>,
+  bizOverrides?: Partial<Parameters<typeof createTestBusiness>[1]>
+) {
+  const user = await createUser(userOverrides);
+  const biz = await createTestBusiness(user.id, bizOverrides);
+  await addUserToBusiness(user.id, biz.id, 'owner');
+  return { user, biz };
+}
 
+describe('overdue-digest handler', () => {
   beforeEach(async () => {
     await resetDb();
     logger = makeLogger();
