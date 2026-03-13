@@ -108,3 +108,68 @@ export function buildInvoiceEmailSubject(invoice: Invoice, businessName: string)
   const docLabel = DOCUMENT_TYPE_LABELS[invoice.documentType] ?? invoice.documentType;
   return `${docLabel} ${invoice.documentNumber ?? ''} מ-${businessName}`;
 }
+
+export interface OverdueInvoiceSummary {
+  documentNumber: string | null;
+  customerName: string | null;
+  totalInclVatMinorUnits: number;
+  dueDate: string;
+  daysOverdue: number;
+}
+
+export function buildOverdueDigestSubject(businessName: string, count: number): string {
+  return `${count} חשבוניות באיחור — ${businessName}`;
+}
+
+export function buildOverdueDigestHtml(
+  businessName: string,
+  ownerName: string,
+  items: readonly OverdueInvoiceSummary[]
+): string {
+  const escapedBiz = escapeHtml(businessName);
+  const escapedOwner = escapeHtml(ownerName);
+
+  const totalAmount = items.reduce((sum, i) => sum + i.totalInclVatMinorUnits, 0);
+  const escapedTotal = escapeHtml(formatMinorUnits(totalAmount));
+
+  const rows = items
+    .map((item) => {
+      const num = escapeHtml(item.documentNumber ?? 'טיוטה');
+      const customer = escapeHtml(item.customerName ?? '—');
+      const amount = escapeHtml(formatMinorUnits(item.totalInclVatMinorUnits));
+      return `<tr>
+      <td style="padding:8px;border-bottom:1px solid #eee;">${num}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;">${customer}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;">${amount}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;">${item.daysOverdue} ימים</td>
+    </tr>`;
+    })
+    .join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head><meta charset="utf-8"></head>
+<body style="font-family:Arial,Helvetica,sans-serif;direction:rtl;text-align:right;max-width:600px;margin:0 auto;padding:20px;color:#333;">
+  <div style="border-bottom:2px solid #e03131;padding-bottom:16px;margin-bottom:20px;">
+    <h2 style="margin:0;color:#e03131;">חשבוניות באיחור — ${escapedBiz}</h2>
+  </div>
+  <p style="margin:8px 0;">שלום ${escapedOwner},</p>
+  <p style="margin:8px 0;">ישנן <strong>${items.length}</strong> חשבוניות שעברו את מועד התשלום בסך ${escapedTotal}:</p>
+  <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+    <thead>
+      <tr style="background:#f8f9fa;">
+        <th style="padding:8px;text-align:right;border-bottom:2px solid #dee2e6;">מספר</th>
+        <th style="padding:8px;text-align:right;border-bottom:2px solid #dee2e6;">לקוח</th>
+        <th style="padding:8px;text-align:right;border-bottom:2px solid #dee2e6;">סכום</th>
+        <th style="padding:8px;text-align:right;border-bottom:2px solid #dee2e6;">באיחור</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+  <hr style="border:none;border-top:1px solid #dee2e6;margin:24px 0;">
+  <p style="margin:0;color:#999;font-size:12px;">נשלח באמצעות BON — מערכת חשבוניות</p>
+</body>
+</html>`;
+}
