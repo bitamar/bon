@@ -1,5 +1,4 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { sendJob } from '../jobs/boss.js';
 import { ensureBusinessContext } from '../plugins/business-context.js';
 import {
   createInvoiceDraftBodySchema,
@@ -29,6 +28,7 @@ import {
   finalize,
   sendInvoice,
   createCreditNote,
+  enqueueShaamAllocation,
   recordPayment,
   deletePayment,
   listPayments,
@@ -156,28 +156,13 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       ensureBusinessContext(req);
       const result = await finalize(req.businessContext.businessId, req.params.invoiceId, req.body);
 
-      // Enqueue SHAAM allocation job if needed (non-blocking — fire and forget)
       if (result.needsAllocation && app.boss) {
-        sendJob(
+        enqueueShaamAllocation(
           app.boss,
-          'shaam-allocation-request',
-          {
-            businessId: req.businessContext.businessId,
-            invoiceId: req.params.invoiceId,
-          },
-          {
-            singletonKey: req.params.invoiceId,
-            retryLimit: 5,
-            retryDelay: 60,
-            retryBackoff: true,
-            expireInSeconds: 1800,
-          }
-        ).catch((err: unknown) => {
-          req.log.error(
-            { err, invoiceId: req.params.invoiceId },
-            'Failed to enqueue SHAAM allocation job'
-          );
-        });
+          req.businessContext.businessId,
+          req.params.invoiceId,
+          req.log
+        );
       }
 
       const { needsAllocation: _, ...response } = result;
@@ -238,28 +223,13 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         req.body
       );
 
-      // Enqueue SHAAM allocation job if needed (non-blocking — fire and forget)
       if (result.needsAllocation && app.boss) {
-        sendJob(
+        enqueueShaamAllocation(
           app.boss,
-          'shaam-allocation-request',
-          {
-            businessId: req.businessContext.businessId,
-            invoiceId: result.invoice.id,
-          },
-          {
-            singletonKey: result.invoice.id,
-            retryLimit: 5,
-            retryDelay: 60,
-            retryBackoff: true,
-            expireInSeconds: 1800,
-          }
-        ).catch((err: unknown) => {
-          req.log.error(
-            { err, invoiceId: result.invoice.id },
-            'Failed to enqueue SHAAM allocation job for credit note'
-          );
-        });
+          req.businessContext.businessId,
+          result.invoice.id,
+          req.log
+        );
       }
 
       const { needsAllocation: _, ...response } = result;

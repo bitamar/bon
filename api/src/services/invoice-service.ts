@@ -39,6 +39,9 @@ import { toNumber } from '../lib/numeric.js';
 import { calculateLine, calculateInvoiceTotals, STANDARD_VAT_RATE_BP } from '@bon/types/vat';
 import { generateInvoicePdf } from './pdf-service.js';
 import { emailService, buildInvoiceEmailSubject, buildInvoiceEmailHtml } from './email-service.js';
+import { sendJob } from '../jobs/boss.js';
+import type { PgBoss } from 'pg-boss';
+import type { FastifyBaseLogger } from 'fastify';
 import { db } from '../db/client.js';
 import type {
   InvoiceResponse,
@@ -565,6 +568,24 @@ export interface CreditNoteResult extends InvoiceResponse {
   needsAllocation: boolean;
 }
 
+function validateCreditLines(
+  creditItems: readonly LineItemInput[],
+  sourceItems: InvoiceItemRecord[]
+) {
+  for (const credit of creditItems) {
+    const source = sourceItems.find((s) => s.position === credit.position);
+    if (!source) {
+      throw unprocessableEntity({ code: 'invalid_credit_line' });
+    }
+    if (credit.quantity > toNumber(source.quantity)) {
+      throw unprocessableEntity({ code: 'invalid_credit_line' });
+    }
+    if (credit.unitPriceMinorUnits > source.unitPriceMinorUnits) {
+      throw unprocessableEntity({ code: 'invalid_credit_line' });
+    }
+  }
+}
+
 export async function createCreditNote(
   businessId: string,
   sourceInvoiceId: string,
@@ -588,6 +609,9 @@ export async function createCreditNote(
     const isExemptDealer = business.businessType === 'exempt_dealer';
 
     validateVatRates(body.items, isExemptDealer);
+
+    const sourceItems = await findItemsByInvoiceId(sourceInvoiceId, tx);
+    validateCreditLines(body.items, sourceItems);
 
     const totals = computeTotals(body.items);
 
@@ -664,10 +688,37 @@ export async function createCreditNote(
       tx
     );
 
-    // Update source invoice status to credited
-    await updateInvoice(sourceInvoiceId, businessId, { status: 'credited', updatedAt: now }, tx);
+    // Only mark source as 'credited' when the credit note fully reverses it
+    const isFullCredit = totals.totalInclVatMinorUnits === sourceInvoice.totalInclVatMinorUnits;
+    if (isFullCredit) {
+      await updateInvoice(sourceInvoiceId, businessId, { status: 'credited', updatedAt: now }, tx);
+    }
 
     return { ...buildResponse(creditNote, creditItems), needsAllocation };
+  });
+}
+
+// ── SHAAM allocation ──
+
+export function enqueueShaamAllocation(
+  boss: PgBoss,
+  businessId: string,
+  invoiceId: string,
+  log: FastifyBaseLogger
+): void {
+  sendJob(
+    boss,
+    'shaam-allocation-request',
+    { businessId, invoiceId },
+    {
+      singletonKey: invoiceId,
+      retryLimit: 5,
+      retryDelay: 60,
+      retryBackoff: true,
+      expireInSeconds: 1800,
+    }
+  ).catch((err: unknown) => {
+    log.error({ err, invoiceId }, 'Failed to enqueue SHAAM allocation job');
   });
 }
 

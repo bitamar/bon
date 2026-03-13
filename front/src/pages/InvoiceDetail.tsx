@@ -382,7 +382,11 @@ export function InvoiceDetail() {
     setCreditNoteModalOpen(true);
   }
 
-  function updateCreditNoteItem(index: number, field: string, value: number) {
+  function updateCreditNoteItem(
+    index: number,
+    field: 'quantity' | 'unitPriceMinorUnits',
+    value: number
+  ) {
     setCreditNoteItems((prev) =>
       prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
     );
@@ -898,6 +902,7 @@ export function InvoiceDetail() {
                       <NumberInput
                         size="xs"
                         min={0.01}
+                        decimalScale={2}
                         value={item.quantity}
                         onChange={(v) =>
                           updateCreditNoteItem(index, 'quantity', typeof v === 'number' ? v : 0)

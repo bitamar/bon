@@ -339,8 +339,13 @@ describe('InvoiceDetail payments', () => {
     expect(await screen.findByTestId('no-payments')).toBeInTheDocument();
     expect(screen.getByText('לא נרשמו תשלומים')).toBeInTheDocument();
   });
+});
 
-  // ── credit note tests ──
+describe('InvoiceDetail credit notes', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockActiveBusiness(useBusiness);
+  });
 
   it('opens credit note modal and shows pre-filled items', async () => {
     renderWithInvoice();

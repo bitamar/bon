@@ -80,7 +80,7 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/credit-note', () => {
     expect(sourceBody.invoice.status).toBe('credited');
   });
 
-  it('creates a partial credit note with reduced quantity', async () => {
+  it('creates a partial credit note without marking source as credited', async () => {
     const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
 
     const partialItem = { ...DEFAULT_ITEM, quantity: 0.5 };
@@ -91,6 +91,50 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/credit-note', () => {
     expect(res.statusCode).toBe(201);
     const body = res.json() as InvoiceResponse;
     expect(body.invoice.totalInclVatMinorUnits).toBeLessThan(invoice.totalInclVatMinorUnits);
+
+    // Source invoice should remain in original status (not 'credited')
+    const sourceRes = await injectAuthed(ctx.app, sessionId, {
+      method: 'GET',
+      url: `/businesses/${business.id}/invoices/${invoice.id}`,
+    });
+    const sourceBody = sourceRes.json() as InvoiceResponse;
+    expect(sourceBody.invoice.status).toBe('finalized');
+  });
+
+  it('rejects credit note when quantity exceeds source line', async () => {
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
+
+    const overItem = { ...DEFAULT_ITEM, quantity: 999 };
+    const res = await postCreditNote(ctx.app, sessionId, business.id, invoice.id, {
+      items: [overItem],
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect((res.json() as { error: string }).error).toBe('invalid_credit_line');
+  });
+
+  it('rejects credit note when unitPriceMinorUnits exceeds source line', async () => {
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
+
+    const overPriceItem = { ...DEFAULT_ITEM, unitPriceMinorUnits: 999999 };
+    const res = await postCreditNote(ctx.app, sessionId, business.id, invoice.id, {
+      items: [overPriceItem],
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect((res.json() as { error: string }).error).toBe('invalid_credit_line');
+  });
+
+  it('rejects credit note with non-matching position', async () => {
+    const { sessionId, business, invoice } = await setupFinalizedInvoice(ctx.app);
+
+    const badPositionItem = { ...DEFAULT_ITEM, position: 99 };
+    const res = await postCreditNote(ctx.app, sessionId, business.id, invoice.id, {
+      items: [badPositionItem],
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect((res.json() as { error: string }).error).toBe('invalid_credit_line');
   });
 
   it('rejects credit note for a draft invoice', async () => {
