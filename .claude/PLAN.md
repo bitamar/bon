@@ -550,7 +550,46 @@ function requiresAllocationNumber(
 }
 ```
 
-### 4.5 Emergency Numbers (T14)
+### 4.5 SHAAM HTTP Integration (T13.5)
+
+Connect the `ShaamHttpClient` and token refresh handler to the real ITA SHAAM API. Everything else is in place (job queue, payload mapping, audit logging, encryption) — this ticket wires the actual HTTP calls.
+
+**Scope:**
+
+1. **`ShaamHttpClient.requestAllocationNumber()`** (`api/src/services/shaam/http-client.ts`)
+   - POST the ITA payload (built by `buildItaPayload()`) to `{baseUrl}/allocation`
+   - Send the business's decrypted access token as a Bearer header
+   - Parse ITA's response into `AllocationResult` (approved / rejected / deferred)
+   - Handle HTTP-level errors (timeouts, 5xx → `deferred` for pg-boss retry)
+
+2. **Token refresh HTTP call** (`api/src/jobs/handlers/shaam-token-refresh.ts`)
+   - Replace the `throw` in `refreshOne()` with an OAuth2 refresh grant request to ITA's token endpoint
+   - Decrypt refresh token → POST to token endpoint → encrypt new access + refresh tokens → upsert credentials
+   - On invalid_grant: set `needsReauth = true`
+
+3. **Environment config** — add to `api/src/env.ts`:
+   - `SHAAM_CLIENT_ID` — OAuth2 client ID (required when mode ≠ mock)
+   - `SHAAM_CLIENT_SECRET` — OAuth2 client secret (required when mode ≠ mock)
+   - `SHAAM_TOKEN_URL` — token endpoint URL (with sandbox/production defaults)
+
+4. **Tests**
+   - Unit test `ShaamHttpClient` with nock/msw (mock HTTP, not the SHAAM service interface)
+   - Unit test `refreshOne()` with mocked token endpoint
+   - Integration test: sandbox mode end-to-end (only runs when `SHAAM_SANDBOX_CREDENTIALS` env var is set, skipped in CI)
+
+**Prerequisites:** ITA sandbox credentials (client ID + secret). Apply at the ITA developer portal.
+
+**Size:** ~300 lines. Small, focused — no schema changes, no new tables.
+
+**Acceptance criteria:**
+- [ ] `SHAAM_MODE=sandbox` with valid credentials successfully requests an allocation number from ITA sandbox
+- [ ] Token refresh works end-to-end (decrypt → refresh grant → re-encrypt → store)
+- [ ] HTTP errors (timeout, 5xx) return `{ status: 'deferred' }` so pg-boss retries
+- [ ] Auth errors (401, invalid_grant) set `needsReauth = true`
+- [ ] `SHAAM_MODE=mock` still works unchanged
+- [ ] All existing tests still pass
+
+### 4.6 Emergency Numbers (T14)
 
 Pre-acquire a pool (business owner requests from ITA directly, enters codes in BON):
 
@@ -572,7 +611,7 @@ When SHAAM recovers after an outage, BON enqueues a `shaam-emergency-report` job
 UI: settings page for owner to enter their emergency number pool.
 Alert when pool < 5 numbers remaining.
 
-### 4.6 Error Taxonomy (T14)
+### 4.7 Error Taxonomy (T14)
 
 ITA returns specific error codes. Each must be handled distinctly:
 
@@ -780,7 +819,8 @@ T-CRON-01 (pg-boss infra)           ← ~150 lines, small
     ├── T-CRON-02 (cron jobs)        ← ~200 lines, small (3 simple handlers)
     └── T12 (SHAAM abstraction)      ← ~800 lines, large (interface + encryption + token refresh + trigger logic)
             └── T13 (allocation)     ← ~600 lines, large (ITA payload mapping + audit log + job handler)
-                    └── T14 (emergency) ← ~500 lines, medium (pool mgmt + recovery reporting)
+                    └── T13.5 (HTTP)    ← ~300 lines, small (real ITA API calls + token refresh)
+                            └── T14 (emergency) ← ~500 lines, medium (pool mgmt + recovery reporting)
 ```
 
 ### Email
@@ -836,6 +876,7 @@ Abstract behind a `StorageService` interface from day one.
 → Phase 4: SHAAM Integration
   T12: SHAAM abstraction + token management + token refresh cron job
   T13: Allocation requests via pg-boss job queue (outbox pattern)
+  T13.5: SHAAM HTTP integration (real ITA API calls + token refresh)
   T14: Emergency numbers + recovery reporting job
 
 → Phase 5: Invoice Lifecycle
