@@ -80,7 +80,7 @@ describe('routes/dashboard', () => {
       invoiceId: inv.id,
       amountMinorUnits: 10000,
       paidAt: '2026-03-12',
-      method: 'wire_transfer',
+      method: 'transfer',
       recordedByUserId: user.id,
     });
 
@@ -117,13 +117,13 @@ describe('routes/dashboard', () => {
     expect(data.overdueInvoices[0].customerName).toBe('Late Payer');
   });
 
-  it('rejects non-member with 403', async () => {
+  it('rejects non-member with 404', async () => {
     const { sessionId } = await createAuthedUser();
     const owner = await createUser();
     const business = await createTestBusiness(owner.id);
     await addUserToBusiness(owner.id, business.id, 'owner');
 
     const res = await getDashboard(sessionId, business.id);
-    expect(res.statusCode).toBe(403);
+    expect(res.statusCode).toBe(404);
   });
 });

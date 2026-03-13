@@ -4,29 +4,8 @@ import {
   type InvoiceListFilters,
 } from '../repositories/invoice-repository.js';
 import { sumPaymentsForPeriod } from '../repositories/payment-repository.js';
+import { serializeInvoiceListItem } from './invoice-service.js';
 import type { DashboardResponse, DashboardKpis } from '@bon/types/dashboard';
-import type { InvoiceListItem } from '@bon/types/invoices';
-
-type InvoiceRecord = Awaited<ReturnType<typeof findInvoices>>[number];
-
-function serializeInvoiceListItem(record: InvoiceRecord): InvoiceListItem {
-  return {
-    id: record.id,
-    businessId: record.businessId,
-    customerId: record.customerId ?? null,
-    customerName: record.customerName ?? null,
-    documentType: record.documentType,
-    status: record.status,
-    isOverdue: record.isOverdue,
-    sequenceGroup: record.sequenceGroup ?? null,
-    documentNumber: record.documentNumber ?? null,
-    invoiceDate: record.invoiceDate,
-    dueDate: record.dueDate ?? null,
-    totalInclVatMinorUnits: record.totalInclVatMinorUnits,
-    currency: record.currency,
-    createdAt: record.createdAt.toISOString(),
-  };
-}
 
 function getMonthBoundaries() {
   const now = new Date();
