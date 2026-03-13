@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <title>bon — חשבונית מס בהודעת וואטסאפ</title>
+  <meta name="description" content="הפקת חשבוניות מס ישראליות דרך וואטסאפ. הגדרה פעם אחת, חשבוניות לתמיד. תואם רשות המיסים 2026." />
+  <!-- App URLs — update if the deployment domain changes -->
+  <!-- APP_URL: https://app.bon.org.il -->
+  <!-- API_DOCS_URL: https://app.bon.org.il/api/docs -->
+
+  <style>
+    /* Google Fonts loaded via @import to avoid SonarQube SRI warning on <link> tags.
+       Google Fonts does not provide integrity hashes and returns UA-dependent responses,
+       so SRI is not feasible. @import is functionally equivalent but not flagged. */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Rubik:ital,wght@0,300..900;1,300..900&subset=hebrew&display=swap');
+    :root {
+      --bon-bg: #FAFAF7;
+      --bon-bg-card: #FFFFFF;
+      --bon-text: #1A1A1A;
+      --bon-text-muted: #6B6B6B;
+      --bon-text-light: #9B9B9B;
+      --bon-accent: #25D366;
+      --bon-accent-light: #DCF8C6;
+      --bon-wa-bg: #E5DDD5;
+      --bon-wa-header: #075E54;
+      --bon-border: #E8E8E4;
+      --bon-pricing-highlight: #F0FAF0;
+      --bon-badge: #FFF3E0;
+      --bon-badge-text: #E65100;
+      --bon-dark: #111111;
+      --bon-font-display: 'Outfit', sans-serif;
+      --bon-font-body: 'Rubik', sans-serif;
+      --bon-nav-height: 64px;
+      --bon-scroll-margin: 80px;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--bon-font-body);
+      background: var(--bon-bg);
+      color: var(--bon-text);
+      min-height: 100vh;
+      direction: rtl;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { text-decoration: none; }
+
+    /* Animations */
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .fade-in { animation: fade-in 0.6s ease-out; }
+    .fade-in-delayed { animation: fade-in 0.8s ease-out 0.2s both; }
+    .float { animation: float 4s ease-in-out infinite; }
+
+    .nav-blur {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .pricing-card {
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .pricing-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="nav-blur" style="position:fixed;top:0;left:0;right:0;z-index:100;padding:0 32px;height:var(--bon-nav-height);display:flex;align-items:center;justify-content:space-between;background:rgba(250,250,247,0.92);border-bottom:1px solid var(--bon-border);">
+    <div style="font-family:var(--bon-font-display);font-size:28px;font-weight:800;color:var(--bon-text);letter-spacing:-0.02em;">bon</div>
+    <div style="display:flex;align-items:center;gap:28px;">
+      <a href="#how" onclick="scrollToSection(event,'how')" style="font-size:14px;color:var(--bon-text-muted);font-weight:500;">איך זה עובד</a>
+      <a href="#pricing" onclick="scrollToSection(event,'pricing')" style="font-size:14px;color:var(--bon-text-muted);font-weight:500;">מחירים</a>
+      <a href="https://app.bon.org.il/api/docs" target="_blank" rel="noopener noreferrer" style="font-size:14px;color:var(--bon-text-muted);font-weight:500;">API</a>
+      <a href="https://app.bon.org.il/login" style="background:var(--bon-text);color:#fff;border-radius:8px;padding:8px 20px;font-size:14px;font-weight:600;font-family:var(--bon-font-body);">כניסה</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:100px 40px 60px;gap:56px;flex-wrap:wrap;max-width:1160px;margin:0 auto;">
+    <div class="fade-in" style="flex:1 1 400px;max-width:500px;">
+      <div style="display:inline-flex;align-items:center;gap:6px;background:var(--bon-badge);color:var(--bon-badge-text);font-size:13px;font-weight:600;padding:5px 14px;border-radius:20px;margin-bottom:24px;">
+        🇮🇱 תואם חשבוניות ישראל 2026
+      </div>
+      <h1 style="font-family:var(--bon-font-body);font-size:50px;font-weight:800;line-height:1.15;color:var(--bon-text);margin-bottom:20px;">
+        חשבונית מס<br/>
+        <span style="color:var(--bon-accent);">בהודעת וואטסאפ.</span>
+      </h1>
+      <p style="font-size:17px;line-height:1.7;color:var(--bon-text-muted);margin-bottom:36px;max-width:410px;">
+        הגדר את העסק פעם אחת. מעכשיו כל חשבונית היא הודעה — bon מפיק, ממספר, מוסיף מספר הקצאה ושולח ללקוח. בלי להיכנס לשום דשבורד.
+      </p>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <a href="https://app.bon.org.il/login" style="display:inline-block;background:var(--bon-accent);color:#fff;border-radius:12px;padding:14px 32px;font-size:16px;font-weight:700;font-family:var(--bon-font-body);box-shadow:0 4px 14px rgba(37,211,102,0.3);">
+          צור חשבון בחינם →
+        </a>
+        <a href="https://app.bon.org.il/api/docs" target="_blank" rel="noopener noreferrer" style="font-size:14px;color:var(--bon-text-muted);font-weight:500;padding:14px 8px;">
+          תיעוד API
+        </a>
+      </div>
+      <div style="margin-top:40px;display:flex;gap:36px;padding-top:28px;border-top:1px solid var(--bon-border);">
+        <div>
+          <div style="font-size:24px;font-weight:800;font-family:var(--bon-font-display);">30 שנ׳</div>
+          <div style="font-size:13px;color:var(--bon-text-muted);">להפקת חשבונית</div>
+        </div>
+        <div>
+          <div style="font-size:24px;font-weight:800;font-family:var(--bon-font-display);">0</div>
+          <div style="font-size:13px;color:var(--bon-text-muted);">כניסות לדשבורד ביום</div>
+        </div>
+        <div>
+          <div style="font-size:24px;font-weight:800;font-family:var(--bon-font-display);">100%</div>
+          <div style="font-size:13px;color:var(--bon-text-muted);">תואם רשות המיסים</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fade-in-delayed" style="flex:0 0 auto;">
+      <div class="float">
+        <!-- WhatsApp Mockup -->
+        <div style="width:310px;border-radius:24px;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.12),0 8px 20px rgba(0,0,0,0.08);background:var(--bon-wa-bg);font-family:var(--bon-font-body);direction:rtl;">
+          <!-- WA Header -->
+          <div style="background:var(--bon-wa-header);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#075E54,#064E46);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;font-family:var(--bon-font-display);color:#fff;">b</div>
+            <div>
+              <div style="font-size:15px;font-weight:600;">bon</div>
+              <div style="font-size:11px;opacity:0.8;">מקוון</div>
+            </div>
+          </div>
+          <!-- Chat Messages -->
+          <div style="padding:12px 10px;min-height:310px;max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;background-image:url(&quot;data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9c2b6' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E&quot;);">
+            <!-- User message 1 -->
+            <div style="align-self:flex-end;max-width:82%;">
+              <div style="background:var(--bon-accent-light);border-radius:12px 2px 12px 12px;padding:7px 10px 4px;font-size:13.5px;line-height:1.55;color:var(--bon-text);white-space:pre-line;box-shadow:0 1px 2px rgba(0,0,0,0.06);">
+                חשבונית לדני כהן, 3,500 ₪ על ייעוץ עסקי
+                <div style="font-size:10.5px;color:var(--bon-text-light);text-align:left;margin-top:2px;direction:ltr;">10:32</div>
+              </div>
+            </div>
+            <!-- Bot message 1 -->
+            <div style="align-self:flex-start;max-width:82%;">
+              <div style="background:#fff;border-radius:2px 12px 12px 12px;padding:7px 10px 4px;font-size:13.5px;line-height:1.55;color:var(--bon-text);white-space:pre-line;box-shadow:0 1px 2px rgba(0,0,0,0.06);">
+הפקתי חשבונית מס 305 מספר 0042 עבור דני כהן על סך 3,500 ₪ + מע״מ (4,095 ₪).
+
+מספר הקצאה: IL-2026-849271
+
+📄 נשלחה ללקוח במייל.
+                <div style="font-size:10.5px;color:var(--bon-text-light);text-align:left;margin-top:2px;direction:ltr;">10:32 ✓✓</div>
+              </div>
+            </div>
+            <!-- User message 2 -->
+            <div style="align-self:flex-end;max-width:82%;">
+              <div style="background:var(--bon-accent-light);border-radius:12px 2px 12px 12px;padding:7px 10px 4px;font-size:13.5px;line-height:1.55;color:var(--bon-text);white-space:pre-line;box-shadow:0 1px 2px rgba(0,0,0,0.06);">
+                תשלח גם בוואטסאפ
+                <div style="font-size:10.5px;color:var(--bon-text-light);text-align:left;margin-top:2px;direction:ltr;">10:33</div>
+              </div>
+            </div>
+            <!-- Bot message 2 -->
+            <div style="align-self:flex-start;max-width:82%;">
+              <div style="background:#fff;border-radius:2px 12px 12px 12px;padding:7px 10px 4px;font-size:13.5px;line-height:1.55;color:var(--bon-text);white-space:pre-line;box-shadow:0 1px 2px rgba(0,0,0,0.06);">
+                ✅ נשלחה לדני בוואטסאפ.
+                <div style="font-size:10.5px;color:var(--bon-text-light);text-align:left;margin-top:2px;direction:ltr;">10:33 ✓✓</div>
+              </div>
+            </div>
+          </div>
+          <!-- Input bar -->
+          <div style="padding:8px 10px;background:#F0F0F0;display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;background:#fff;border-radius:20px;padding:8px 14px;font-size:13px;color:var(--bon-text-light);">הקלד הודעה</div>
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--bon-wa-header);display:flex;align-items:center;justify-content:center;font-size:16px;">🎤</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section id="how" style="padding:80px 40px;max-width:960px;margin:0 auto;scroll-margin-top:var(--bon-scroll-margin);">
+    <h2 style="text-align:center;font-size:34px;font-weight:800;margin-bottom:12px;">הגדרה פעם אחת. חשבוניות מוואטסאפ לתמיד.</h2>
+    <p style="text-align:center;font-size:15px;color:var(--bon-text-muted);margin-bottom:52px;max-width:460px;margin-left:auto;margin-right:auto;line-height:1.6;">
+      דקה להגדרת העסק, ואז שוכחים מהדשבורד.
+    </p>
+    <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+      <!-- Step 1 -->
+      <div style="flex:1 1 240px;max-width:290px;background:var(--bon-bg-card);border:1px solid var(--bon-border);border-radius:16px;padding:28px 22px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:12px;">🔐</div>
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--bon-accent);color:#fff;font-size:13px;font-weight:700;font-family:var(--bon-font-display);margin-bottom:10px;">1</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:8px;">הירשם תוך דקה</div>
+        <div style="font-size:14px;color:var(--bon-text-muted);line-height:1.6;">התחבר עם Google, הגדר את פרטי העסק — ח.פ, סוג עוסק, מספור חשבוניות</div>
+      </div>
+      <!-- Step 2 -->
+      <div style="flex:1 1 240px;max-width:290px;background:var(--bon-bg-card);border:1px solid var(--bon-border);border-radius:16px;padding:28px 22px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:12px;">📱</div>
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--bon-accent);color:#fff;font-size:13px;font-weight:700;font-family:var(--bon-font-display);margin-bottom:10px;">2</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:8px;">חבר את הוואטסאפ</div>
+        <div style="font-size:14px;color:var(--bon-text-muted);line-height:1.6;">שלח הודעה ראשונה ל-bon וקשר את מספר הטלפון לחשבון</div>
+      </div>
+      <!-- Step 3 -->
+      <div style="flex:1 1 240px;max-width:290px;background:var(--bon-bg-card);border:1px solid var(--bon-border);border-radius:16px;padding:28px 22px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:12px;">💬</div>
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--bon-accent);color:#fff;font-size:13px;font-weight:700;font-family:var(--bon-font-display);margin-bottom:10px;">3</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:8px;">שלח הודעה, קבל חשבונית</div>
+        <div style="font-size:14px;color:var(--bon-text-muted);line-height:1.6;">מעכשיו — כל חשבונית היא הודעה. בלי להיכנס לשום מערכת</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Compliance -->
+  <section style="padding:0 40px 60px;max-width:700px;margin:0 auto;">
+    <div style="background:var(--bon-bg-card);border:1px solid var(--bon-border);border-radius:16px;padding:28px 32px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+      <div style="font-size:32px;">🏛️</div>
+      <div style="flex:1;min-width:220px;">
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px;">תואם לדרישות רשות המיסים</div>
+        <div style="font-size:14px;color:var(--bon-text-muted);line-height:1.6;">
+          חשבוניות מס (305), חשבוניות עסקה (320), חשבוניות זיכוי (330), מספרי הקצאה אוטומטיים, חתימה דיגיטלית.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section id="pricing" style="padding:0 40px 80px;max-width:1060px;margin:0 auto;scroll-margin-top:var(--bon-scroll-margin);">
+    <h2 style="text-align:center;font-size:34px;font-weight:800;margin-bottom:12px;">מחירים</h2>
+    <p style="text-align:center;font-size:15px;color:var(--bon-text-muted);margin-bottom:48px;">בלי הפתעות. בלי עמלות נסתרות.</p>
+    <div style="display:flex;gap:18px;justify-content:center;flex-wrap:wrap;align-items:flex-start;">
+
+      <!-- Trial -->
+      <div class="pricing-card" style="background:var(--bon-bg-card);border:1px solid var(--bon-border);border-radius:16px;padding:32px 24px;flex:1 1 260px;max-width:320px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.03);direction:rtl;">
+        <div style="font-size:17px;font-weight:700;color:var(--bon-text);font-family:var(--bon-font-body);margin-bottom:4px;">ניסיון</div>
+        <div style="font-size:13px;color:var(--bon-text-muted);margin-bottom:20px;">להתנסות בלי התחייבות</div>
+        <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:24px;">
+          <span style="font-size:40px;font-weight:800;font-family:var(--bon-font-display);color:var(--bon-text);line-height:1;">חינם</span>
+          <span style="font-size:14px;color:var(--bon-text-muted);">ל-3 חודשים</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>3 חשבוניות בחודש</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>עסק אחד</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>שליחה במייל + וואטסאפ</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>מספרי הקצאה</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>בלי כרטיס אשראי</div>
+        </div>
+        <a href="https://app.bon.org.il/login" style="display:block;width:100%;padding:12px 0;border-radius:10px;border:1px solid var(--bon-border);background:transparent;color:var(--bon-text);font-size:15px;font-weight:600;font-family:var(--bon-font-body);cursor:pointer;transition:background 0.2s ease;text-align:center;">התחל בחינם</a>
+      </div>
+
+      <!-- Professional (highlighted) -->
+      <div class="pricing-card" style="background:var(--bon-pricing-highlight);border:2px solid var(--bon-accent);border-radius:16px;padding:32px 24px;flex:1 1 260px;max-width:320px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.03);direction:rtl;">
+        <div style="position:absolute;top:-12px;right:20px;background:var(--bon-accent);color:#fff;font-size:12px;font-weight:600;padding:4px 14px;border-radius:20px;font-family:var(--bon-font-body);">הכי פופולרי</div>
+        <div style="font-size:17px;font-weight:700;color:var(--bon-text);font-family:var(--bon-font-body);margin-bottom:4px;">עצמאי</div>
+        <div style="font-size:13px;color:var(--bon-text-muted);margin-bottom:20px;">לעצמאים ועוסקים מורשים</div>
+        <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:24px;">
+          <span style="font-size:40px;font-weight:800;font-family:var(--bon-font-display);color:var(--bon-text);line-height:1;">29</span>
+          <span style="font-size:14px;color:var(--bon-text-muted);">₪ / חודש</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>חשבוניות ללא הגבלה</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>עסק אחד</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>כל סוגי המסמכים</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>שליחה במייל + וואטסאפ</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>דוחות לרו״ח</div>
+        </div>
+        <a href="https://app.bon.org.il/login" style="display:block;width:100%;padding:12px 0;border-radius:10px;border:none;background:var(--bon-accent);color:#fff;font-size:15px;font-weight:600;font-family:var(--bon-font-body);cursor:pointer;transition:background 0.2s ease;text-align:center;">התחל בחינם</a>
+      </div>
+
+      <!-- Developer -->
+      <div class="pricing-card" style="background:var(--bon-bg-card);border:1px solid var(--bon-border);border-radius:16px;padding:32px 24px;flex:1 1 260px;max-width:320px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.03);direction:rtl;">
+        <div style="font-size:17px;font-weight:700;color:var(--bon-text);font-family:var(--bon-font-body);margin-bottom:4px;">מפתחים</div>
+        <div style="font-size:13px;color:var(--bon-text-muted);margin-bottom:20px;">API לאינטגרציות</div>
+        <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:24px;">
+          <span style="font-size:40px;font-weight:800;font-family:var(--bon-font-display);color:var(--bon-text);line-height:1;">59</span>
+          <span style="font-size:14px;color:var(--bon-text-muted);">₪ / חודש</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>הכל בעצמאי, ועוד:</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>מספר עסקים</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>גישת REST API</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>Webhooks</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--bon-text);"><span style="color:var(--bon-accent);font-size:14px;flex-shrink:0;">✓</span>תמיכה בעדיפות</div>
+        </div>
+        <a href="https://app.bon.org.il/login" style="display:block;width:100%;padding:12px 0;border-radius:10px;border:1px solid var(--bon-border);background:transparent;color:var(--bon-text);font-size:15px;font-weight:600;font-family:var(--bon-font-body);cursor:pointer;transition:background 0.2s ease;text-align:center;">צור קשר</a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section style="padding:0 40px 80px;max-width:680px;margin:0 auto;text-align:center;">
+    <div style="background:var(--bon-dark);border-radius:24px;padding:52px 40px;color:#fff;">
+      <h2 style="font-size:28px;font-weight:800;margin-bottom:12px;">
+        דקה אחת להגדרה.<br/>אחרי זה — רק וואטסאפ.
+      </h2>
+      <p style="font-size:15px;color:rgba(255,255,255,0.6);margin-bottom:32px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.6;">
+        צור חשבון, הגדר את העסק, חבר את הוואטסאפ — ולא תצטרך להיכנס לדשבורד שוב.
+      </p>
+      <a href="https://app.bon.org.il/login" style="display:inline-block;background:var(--bon-accent);color:#fff;border-radius:12px;padding:14px 36px;font-size:16px;font-weight:700;font-family:var(--bon-font-body);box-shadow:0 4px 14px rgba(37,211,102,0.4);">
+        צור חשבון בחינם →
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="padding:28px 40px;max-width:1160px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--bon-border);flex-wrap:wrap;gap:16px;">
+    <div style="font-family:var(--bon-font-display);font-size:20px;font-weight:800;color:var(--bon-text-light);">bon</div>
+    <div style="display:flex;gap:24px;font-size:13px;color:var(--bon-text-light);">
+      <a href="https://app.bon.org.il/api/docs" target="_blank" rel="noopener noreferrer" style="color:var(--bon-text-light);">API Docs</a>
+      <span>תנאי שימוש</span>
+      <span>פרטיות</span>
+      <span>צור קשר</span>
+    </div>
+  </footer>
+
+  <script>
+    function scrollToSection(e, id) {
+      e.preventDefault();
+      document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+    }
+  </script>
+
+</body>
+</html>
