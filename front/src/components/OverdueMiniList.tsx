@@ -6,9 +6,11 @@ import { formatCurrency } from '../lib/format';
 
 function daysOverdue(dueDate: string | null): number {
   if (!dueDate) return 0;
-  const due = new Date(dueDate);
+  const parts = dueDate.split('-').map(Number);
+  const dueUtc = Date.UTC(parts[0]!, parts[1]! - 1, parts[2]);
   const now = new Date();
-  return Math.max(0, Math.floor((now.getTime() - due.getTime()) / 86_400_000));
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.max(0, Math.floor((todayUtc - dueUtc) / 86_400_000));
 }
 
 export function OverdueMiniList({

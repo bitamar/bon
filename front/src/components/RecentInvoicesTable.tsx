@@ -1,5 +1,5 @@
 import { Anchor, Badge, Card, Group, Skeleton, Stack, Table, Text } from '@mantine/core';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { InvoiceListItem } from '@bon/types/invoices';
 import { INVOICE_STATUS_CONFIG } from '../lib/invoiceStatus';
 import { formatCurrency } from '../lib/format';
@@ -12,6 +12,7 @@ export function RecentInvoicesTable({
   isLoading?: boolean;
 }>) {
   const { businessId } = useParams<{ businessId: string }>();
+  const navigate = useNavigate();
 
   if (isLoading) {
     return (
@@ -61,16 +62,22 @@ export function RecentInvoicesTable({
               color: 'gray',
             };
             return (
-              <Table.Tr key={invoice.id}>
+              <Table.Tr
+                key={invoice.id}
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/businesses/${businessId}/invoices/${invoice.id}`)}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/businesses/${businessId}/invoices/${invoice.id}`);
+                  }
+                }}
+              >
                 <Table.Td>
-                  <Anchor
-                    component={Link}
-                    to={`/businesses/${businessId}/invoices/${invoice.id}`}
-                    size="sm"
-                    fw={500}
-                  >
+                  <Text size="sm" fw={500}>
                     {invoice.documentNumber ?? '—'}
-                  </Anchor>
+                  </Text>
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm">{invoice.customerName ?? '—'}</Text>
@@ -87,7 +94,9 @@ export function RecentInvoicesTable({
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" c="dimmed">
-                    {new Date(invoice.invoiceDate).toLocaleDateString('he-IL')}
+                    {new Date(invoice.invoiceDate + 'T00:00:00Z').toLocaleDateString('he-IL', {
+                      timeZone: 'UTC',
+                    })}
                   </Text>
                 </Table.Td>
               </Table.Tr>

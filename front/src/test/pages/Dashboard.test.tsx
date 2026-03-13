@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { Dashboard } from '../../pages/Dashboard';
@@ -59,9 +59,11 @@ async function setupMock(data: DashboardResponse) {
 }
 
 describe('Dashboard page', () => {
-  it('renders KPI cards when data is loaded', async () => {
+  beforeEach(async () => {
     await setupMock(createMockDashboard());
+  });
 
+  it('renders KPI cards when data is loaded', async () => {
     renderDashboard();
 
     expect(await screen.findByRole('heading', { name: 'דאשבורד' })).toBeInTheDocument();
@@ -72,8 +74,6 @@ describe('Dashboard page', () => {
   });
 
   it('renders quick actions without settings button', async () => {
-    await setupMock(createMockDashboard());
-
     renderDashboard();
 
     expect(await screen.findByText('פעולות מהירות')).toBeInTheDocument();

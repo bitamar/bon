@@ -9,9 +9,11 @@ import type { DashboardResponse, DashboardKpis } from '@bon/types/dashboard';
 
 function getMonthBoundaries() {
   const now = new Date();
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const thisMonthStart = new Date(Date.UTC(year, month, 1));
+  const prevMonthStart = new Date(Date.UTC(year, month - 1, 1));
+  const nextMonthStart = new Date(Date.UTC(year, month + 1, 1));
   return {
     thisMonthStart: thisMonthStart.toISOString().slice(0, 10),
     prevMonthStart: prevMonthStart.toISOString().slice(0, 10),

@@ -82,35 +82,15 @@ A single endpoint that returns everything the dashboard needs in one round-trip.
 // types/src/dashboard.ts
 interface DashboardResponse {
   kpis: {
-    outstandingMinorUnits: number;      // total awaiting payment
-    outstandingCount: number;           // number of outstanding invoices
-    revenueThisMonthMinorUnits: number; // payments received this month
-    revenuePrevMonthMinorUnits: number; // payments received previous month
-    invoicesThisMonth: number;          // finalized this month
-    invoicesPrevMonth: number;          // finalized previous month
-    overdueMinorUnits: number;          // total overdue
-    overdueCount: number;              // count overdue
+    outstanding: { totalMinorUnits: number; count: number };
+    overdue: { totalMinorUnits: number; count: number };
+    revenue: { thisMonthMinorUnits: number; prevMonthMinorUnits: number };
+    invoicesThisMonth: { count: number; prevMonthCount: number };
+    staleDraftCount: number;
   };
   recentInvoices: InvoiceListItem[];    // 10 most recent (reuse existing type)
-  overdueInvoices: OverdueSummaryItem[]; // up to 5, for the mini-list
-  alerts: DashboardAlert[];             // conditional alerts
-}
-
-interface OverdueSummaryItem {
-  id: string;
-  invoiceNumber: string;
-  customerName: string;
-  totalMinorUnits: number;
-  dueDate: string;
-  daysOverdue: number;
-}
-
-interface DashboardAlert {
-  type: 'overdue' | 'stale_drafts' | 'shaam_pending';
-  message: string;
-  count: number;
-  totalMinorUnits?: number;
-  linkTo: string; // relative path within business context
+  overdueInvoices: InvoiceListItem[];   // up to 5, for the mini-list
+  hasInvoices: boolean;                 // false for new businesses (welcome state)
 }
 ```
 
@@ -139,7 +119,7 @@ In `invoice-repository.ts`:
 ### New Route
 
 `api/src/routes/dashboard-routes.ts` — registered in `app.ts`:
-```
+```text
 GET /businesses/:businessId/dashboard
 → dashboardService.getDashboardData(businessId)
 → DashboardResponse
@@ -178,7 +158,7 @@ Delete `front/src/hooks/useDashboardData.ts` entirely. Replace with:
 
 When a business has zero invoices, the entire dashboard should show a **welcome state** instead of zeroed-out KPIs:
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │                                         │
 │   ברוכים הבאים ל-BON!                   │

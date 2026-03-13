@@ -15,7 +15,7 @@ import { queryKeys } from '../lib/queryKeys';
 import { formatCurrency } from '../lib/format';
 
 function computeTrend(current: number, previous: number): number | undefined {
-  if (previous === 0) return current > 0 ? 100 : undefined;
+  if (previous === 0) return undefined;
   return ((current - previous) / previous) * 100;
 }
 

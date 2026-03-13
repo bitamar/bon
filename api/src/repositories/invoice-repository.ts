@@ -344,4 +344,3 @@ export async function getDashboardAggregates(
     hasInvoices: row?.hasInvoices ?? false,
   };
 }
-}

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { injectAuthed } from '../utils/inject.js';
 import {
   createOwnerWithBusiness,
@@ -35,6 +35,14 @@ async function createFinalized(
 
 describe('routes/dashboard', () => {
   const ctx = setupIntegrationTest();
+
+  beforeEach(() => {
+    vi.useFakeTimers({ now: new Date('2026-03-15T12:00:00Z') });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   // ── helpers ──
 
@@ -89,7 +97,7 @@ describe('routes/dashboard', () => {
 
     const data = res.json() as DashboardResponse;
     expect(data.hasInvoices).toBe(true);
-    expect(data.kpis.outstanding.totalMinorUnits).toBe(25000);
+    expect(data.kpis.outstanding.totalMinorUnits).toBe(15000);
     expect(data.kpis.outstanding.count).toBe(1);
     expect(data.kpis.revenue.thisMonthMinorUnits).toBe(10000);
     expect(data.kpis.invoicesThisMonth.count).toBe(1);

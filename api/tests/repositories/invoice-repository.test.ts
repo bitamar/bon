@@ -16,6 +16,7 @@ import {
   aggregateOutstanding,
   aggregateFiltered,
   findCreditNotesBySourceInvoiceId,
+  getDashboardAggregates,
 } from '../../src/repositories/invoice-repository.js';
 import { resetDb } from '../utils/db.js';
 
@@ -613,5 +614,102 @@ describe('findCreditNotesBySourceInvoiceId', () => {
 
     const results = await findCreditNotesBySourceInvoiceId(invoice!.id, biz.id);
     expect(results).toHaveLength(0);
+  });
+});
+
+// ── getDashboardAggregates ──
+
+describe('getDashboardAggregates', () => {
+  let businessId: string;
+  const monthStart = '2026-03-01';
+  const prevMonthStart = '2026-02-01';
+  const staleThreshold = new Date('2026-02-27T00:00:00Z');
+
+  beforeEach(async () => {
+    await resetDb();
+    const biz = await seedBusinessWithOwner();
+    businessId = biz.id;
+  });
+
+  it('returns zeros for business with no invoices', async () => {
+    const result = await getDashboardAggregates(
+      businessId,
+      monthStart,
+      prevMonthStart,
+      staleThreshold
+    );
+
+    expect(result.outstandingTotal).toBe(0);
+    expect(result.outstandingCount).toBe(0);
+    expect(result.overdueTotal).toBe(0);
+    expect(result.overdueCount).toBe(0);
+    expect(result.invoicesThisMonth).toBe(0);
+    expect(result.invoicesPrevMonth).toBe(0);
+    expect(result.staleDraftCount).toBe(0);
+    expect(result.hasInvoices).toBe(false);
+  });
+
+  it('ignores draft-only invoices for hasInvoices', async () => {
+    await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
+
+    const result = await getDashboardAggregates(
+      businessId,
+      monthStart,
+      prevMonthStart,
+      staleThreshold
+    );
+
+    expect(result.hasInvoices).toBe(false);
+    expect(result.outstandingCount).toBe(0);
+  });
+
+  it('computes overdue and outstanding for non-draft invoices', async () => {
+    await createTestInvoice(businessId, {
+      status: 'sent',
+      totalInclVatMinorUnits: 3000,
+      isOverdue: true,
+      issuedAt: new Date('2026-03-05T10:00:00Z'),
+    });
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      totalInclVatMinorUnits: 2000,
+      isOverdue: false,
+      issuedAt: new Date('2026-03-10T10:00:00Z'),
+    });
+
+    const result = await getDashboardAggregates(
+      businessId,
+      monthStart,
+      prevMonthStart,
+      staleThreshold
+    );
+
+    expect(result.hasInvoices).toBe(true);
+    expect(result.outstandingTotal).toBe(5000);
+    expect(result.outstandingCount).toBe(2);
+    expect(result.overdueTotal).toBe(3000);
+    expect(result.overdueCount).toBe(1);
+    expect(result.invoicesThisMonth).toBe(2);
+  });
+
+  it('detects stale drafts based on threshold', async () => {
+    const now = new Date();
+    await createTestInvoice(businessId, {
+      status: 'draft',
+      updatedAt: new Date('2026-02-20T00:00:00Z'),
+    });
+    await createTestInvoice(businessId, {
+      status: 'draft',
+      updatedAt: now,
+    });
+
+    const result = await getDashboardAggregates(
+      businessId,
+      monthStart,
+      prevMonthStart,
+      staleThreshold
+    );
+
+    expect(result.staleDraftCount).toBe(1);
   });
 });
