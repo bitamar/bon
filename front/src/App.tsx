@@ -25,8 +25,7 @@ import { BusinessRoute } from './components/BusinessRoute';
 import { LegacyRedirect } from './components/LegacyRedirect';
 
 function HomeRedirect() {
-  const { activeBusiness, isLoading } = useBusiness();
-  if (isLoading) return <AppSplash label="Loading businesses" />;
+  const { activeBusiness } = useBusiness();
   if (!activeBusiness) return <Navigate to="/onboarding" replace />;
   return <Navigate to={`/businesses/${activeBusiness.id}/dashboard`} replace />;
 }
