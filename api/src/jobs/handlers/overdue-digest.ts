@@ -75,7 +75,7 @@ export function createOverdueDigestHandler(
           const html = buildOverdueDigestHtml(business.name, owner.name, items);
           await emailService.send({ to: owner.email, subject, html });
           emailsSent++;
-        } catch (err: unknown) {
+        } catch (err) {
           logger.error(
             { businessId, ownerEmail: owner.email, err },
             'overdue-digest: failed to send email'
