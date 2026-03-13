@@ -25,7 +25,9 @@ import { BusinessRoute } from './components/BusinessRoute';
 import { LegacyRedirect } from './components/LegacyRedirect';
 
 function HomeRedirect() {
-  const { activeBusiness } = useBusiness();
+  const { activeBusiness, businesses } = useBusiness();
+  // Wait one frame for auto-select effect when businesses exist but none is active yet
+  if (businesses.length > 0 && !activeBusiness) return null;
   if (!activeBusiness) return <Navigate to="/onboarding" replace />;
   return <Navigate to={`/businesses/${activeBusiness.id}/dashboard`} replace />;
 }
