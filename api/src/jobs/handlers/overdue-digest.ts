@@ -1,9 +1,7 @@
 import type { FastifyBaseLogger } from 'fastify';
-import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { Job } from 'pg-boss';
 import type { JobPayloads } from '../boss.js';
-import { db } from '../../db/client.js';
-import { invoices } from '../../db/schema.js';
+import { findOverdueInvoices } from '../../repositories/invoice-repository.js';
 import { findBusinessById } from '../../repositories/business-repository.js';
 import { findBusinessOwnerEmails } from '../../repositories/user-business-repository.js';
 import {
@@ -23,8 +21,6 @@ function computeDaysOverdue(dueDate: string): number {
   return Math.floor((today.getTime() - due.getTime()) / MS_PER_DAY);
 }
 
-const OVERDUE_STATUSES = ['finalized', 'sent', 'partially_paid'] as const;
-
 /**
  * Creates the overdue-digest cron handler.
  * Sends a digest email to business owners listing all overdue invoices.
@@ -34,24 +30,7 @@ export function createOverdueDigestHandler(
   logger: FastifyBaseLogger
 ): (job: Job<JobPayloads['overdue-digest']>) => Promise<void> {
   return async (_job) => {
-    // Find all overdue invoices across all businesses
-    const overdueRows = await db
-      .select({
-        id: invoices.id,
-        businessId: invoices.businessId,
-        documentNumber: invoices.documentNumber,
-        customerName: invoices.customerName,
-        totalInclVatMinorUnits: invoices.totalInclVatMinorUnits,
-        dueDate: invoices.dueDate,
-      })
-      .from(invoices)
-      .where(
-        and(
-          eq(invoices.isOverdue, true),
-          inArray(invoices.status, [...OVERDUE_STATUSES]),
-          isNotNull(invoices.dueDate)
-        )
-      );
+    const overdueRows = await findOverdueInvoices();
 
     if (overdueRows.length === 0) {
       logger.info({ emailsSent: 0 }, 'overdue-digest: no overdue invoices');

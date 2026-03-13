@@ -118,7 +118,8 @@ export interface OverdueInvoiceSummary {
 }
 
 export function buildOverdueDigestSubject(businessName: string, count: number): string {
-  return `${count} חשבוניות באיחור — ${businessName}`;
+  const label = count === 1 ? 'חשבונית אחת באיחור' : `${count} חשבוניות באיחור`;
+  return `${label} — ${businessName}`;
 }
 
 export function buildOverdueDigestHtml(
@@ -141,7 +142,7 @@ export function buildOverdueDigestHtml(
       <td style="padding:8px;border-bottom:1px solid #eee;">${num}</td>
       <td style="padding:8px;border-bottom:1px solid #eee;">${customer}</td>
       <td style="padding:8px;border-bottom:1px solid #eee;">${amount}</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;">${item.daysOverdue} ימים</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(String(item.daysOverdue))} ימים</td>
     </tr>`;
     })
     .join('\n');

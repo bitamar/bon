@@ -1,4 +1,18 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql, sum } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  lte,
+  or,
+  sql,
+  sum,
+} from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { invoiceItems, invoices } from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
@@ -222,4 +236,28 @@ export async function aggregateFiltered(
     .where(and(...conditions));
 
   return Number(rows[0]?.total ?? 0);
+}
+
+// ── overdue digest ──
+
+const OVERDUE_STATUSES: InvoiceRecord['status'][] = ['finalized', 'sent', 'partially_paid'];
+
+export async function findOverdueInvoices(txOrDb: DbOrTx = db) {
+  return txOrDb
+    .select({
+      id: invoices.id,
+      businessId: invoices.businessId,
+      documentNumber: invoices.documentNumber,
+      customerName: invoices.customerName,
+      totalInclVatMinorUnits: invoices.totalInclVatMinorUnits,
+      dueDate: invoices.dueDate,
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.isOverdue, true),
+        inArray(invoices.status, OVERDUE_STATUSES),
+        isNotNull(invoices.dueDate)
+      )
+    );
 }
