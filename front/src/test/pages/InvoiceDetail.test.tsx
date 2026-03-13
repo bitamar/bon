@@ -13,12 +13,13 @@ vi.mock('../../api/invoices', () => ({
   sendInvoiceByEmail: vi.fn(),
   recordPayment: vi.fn(),
   deletePayment: vi.fn(),
+  createCreditNote: vi.fn(),
 }));
 
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as invoicesApi from '../../api/invoices';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
-import { makeFinalizedInvoice } from '../utils/invoiceStubs';
+import { makeFinalizedInvoice, makeCreditNoteInvoice } from '../utils/invoiceStubs';
 
 function renderDetail() {
   return renderWithProviders(
@@ -110,11 +111,11 @@ describe('InvoiceDetail page', () => {
     // Notes
     expect(screen.getByText('הערה לדוגמה')).toBeInTheDocument();
 
-    // Action buttons — send + payment enabled for finalized, others still disabled
+    // Action buttons — send + payment + credit note enabled for finalized, PDF still disabled
     expect(screen.getByRole('button', { name: 'הורד PDF' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'שלח במייל' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'סמן כשולם' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'הפק חשבונית זיכוי' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'הפק חשבונית זיכוי' })).toBeEnabled();
   });
 
   it.each([
@@ -337,5 +338,74 @@ describe('InvoiceDetail payments', () => {
 
     expect(await screen.findByTestId('no-payments')).toBeInTheDocument();
     expect(screen.getByText('לא נרשמו תשלומים')).toBeInTheDocument();
+  });
+
+  // ── credit note tests ──
+
+  it('opens credit note modal and shows pre-filled items', async () => {
+    renderWithInvoice();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'הפק חשבונית זיכוי' }));
+
+    expect(await screen.findByText('הפקת חשבונית זיכוי')).toBeInTheDocument();
+    expect(screen.getAllByTestId('credit-note-item-row')).toHaveLength(1);
+    expect(screen.getByTestId('credit-note-submit')).toBeEnabled();
+  });
+
+  it('calls createCreditNote on submission', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
+    vi.mocked(invoicesApi.createCreditNote).mockResolvedValue(makeCreditNoteInvoice());
+    renderDetail();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'הפק חשבונית זיכוי' }));
+    await screen.findByText('הפקת חשבונית זיכוי');
+    await user.click(screen.getByTestId('credit-note-submit'));
+
+    await waitFor(() => {
+      expect(invoicesApi.createCreditNote).toHaveBeenCalledWith('biz-1', 'inv-1', {
+        items: expect.arrayContaining([expect.objectContaining({ description: 'שירות ייעוץ' })]),
+      });
+    });
+  });
+
+  it('disables submit when all items removed', async () => {
+    renderWithInvoice();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'הפק חשבונית זיכוי' }));
+    await screen.findByText('הפקת חשבונית זיכוי');
+
+    // Remove the item
+    await user.click(screen.getByTestId('credit-note-remove-0'));
+
+    expect(screen.getByTestId('credit-note-submit')).toBeDisabled();
+    expect(screen.getByTestId('credit-note-empty')).toBeInTheDocument();
+  });
+
+  it('does not show credit note button for credit_note documents', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeCreditNoteInvoice());
+    renderDetail();
+
+    await screen.findByText('CN-0001');
+    expect(screen.queryByRole('button', { name: 'הפק חשבונית זיכוי' })).not.toBeInTheDocument();
+  });
+
+  it('shows source invoice link on credit note detail', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeCreditNoteInvoice());
+    renderDetail();
+
+    expect(await screen.findByTestId('credit-note-source-link')).toBeInTheDocument();
+    expect(screen.getByText('INV-0001')).toBeInTheDocument();
+  });
+
+  it('shows credit note link on credited invoice detail', async () => {
+    const stub = makeFinalizedInvoice({ status: 'credited' });
+    stub.creditNotes = [{ id: 'cn-1', documentNumber: 'CN-0001' }];
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(stub);
+    renderDetail();
+
+    expect(await screen.findByTestId('credited-invoice-link')).toBeInTheDocument();
   });
 });

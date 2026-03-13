@@ -97,6 +97,14 @@ export const sendInvoiceResponseSchema = z.object({
   sentAt: isoDateTime,
 });
 
+export const createCreditNoteBodySchema = z
+  .object({
+    items: z.array(lineItemInputSchema).min(1),
+    invoiceDate: dateString.optional(),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .strict();
+
 // ── Response schemas ──
 
 // Note: quantity and discountPercent are numeric DB columns returned as strings
@@ -156,11 +164,18 @@ export const invoiceSchema = z.object({
   updatedAt: isoDateTime,
 });
 
+export const creditNoteRefSchema = z.object({
+  id: uuidSchema,
+  documentNumber: nullableString,
+});
+
 export const invoiceResponseSchema = z.object({
   invoice: invoiceSchema,
   items: z.array(lineItemSchema),
   payments: z.array(paymentSchema),
   remainingBalanceMinorUnits: z.number().int().nonnegative(),
+  creditedInvoiceDocumentNumber: nullableString.optional(),
+  creditNotes: z.array(creditNoteRefSchema).optional(),
 });
 
 export const invoiceListItemSchema = z.object({
@@ -262,3 +277,4 @@ export type InvoiceListResponse = z.infer<typeof invoiceListResponseSchema>;
 export type InvoiceIdParam = z.infer<typeof invoiceIdParamSchema>;
 export type SendInvoiceBody = z.infer<typeof sendInvoiceBodySchema>;
 export type SendInvoiceResponse = z.infer<typeof sendInvoiceResponseSchema>;
+export type CreateCreditNoteBody = z.infer<typeof createCreditNoteBodySchema>;

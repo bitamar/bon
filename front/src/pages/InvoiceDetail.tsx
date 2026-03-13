@@ -27,18 +27,24 @@ import {
   IconAlertTriangle,
   IconTrash,
 } from '@tabler/icons-react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
 import { InvoiceTotalsSummary } from '../components/InvoiceTotalsSummary';
 import { InvoiceAnnotation } from '../components/InvoiceAnnotation';
-import { fetchInvoice, sendInvoiceByEmail, recordPayment, deletePayment } from '../api/invoices';
+import {
+  fetchInvoice,
+  sendInvoiceByEmail,
+  recordPayment,
+  deletePayment,
+  createCreditNote,
+} from '../api/invoices';
 import { queryKeys } from '../lib/queryKeys';
 import { useApiMutation } from '../lib/useApiMutation';
 import { useBusiness } from '../contexts/BusinessContext';
 import { formatDate, formatMinorUnits } from '@bon/types/formatting';
-import { DOCUMENT_TYPE_LABELS, type InvoiceStatus } from '@bon/types/invoices';
+import { DOCUMENT_TYPE_LABELS, type InvoiceStatus, type LineItemInput } from '@bon/types/invoices';
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@bon/types/payments';
 import { INVOICE_STATUS_CONFIG } from '../lib/invoiceStatus';
 import { computeVatLabel } from '../lib/vatLabel';
@@ -219,6 +225,7 @@ export function InvoiceDetail() {
     invoiceId: string;
   }>();
   const { activeBusiness } = useBusiness();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [sendModalOpen, setSendModalOpen] = useState(false);
@@ -232,6 +239,9 @@ export function InvoiceDetail() {
   const [paymentNotes, setPaymentNotes] = useState('');
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const [creditNoteModalOpen, setCreditNoteModalOpen] = useState(false);
+  const [creditNoteItems, setCreditNoteItems] = useState<LineItemInput[]>([]);
 
   const invoiceQuery = useQuery({
     queryKey: queryKeys.invoice(businessId, invoiceId),
@@ -287,6 +297,19 @@ export function InvoiceDetail() {
     },
   });
 
+  const creditNoteMutation = useApiMutation({
+    mutationFn: () =>
+      createCreditNote(businessId, invoiceId, {
+        items: creditNoteItems,
+      }),
+    successToast: { message: 'חשבונית זיכוי הופקה בהצלחה' },
+    onSuccess: (data) => {
+      setCreditNoteModalOpen(false);
+      invalidateInvoiceQueries();
+      navigate(`/businesses/${businessId}/invoices/${data.invoice.id}`);
+    },
+  });
+
   // ── Guards ──
 
   if (!activeBusiness) {
@@ -317,7 +340,14 @@ export function InvoiceDetail() {
     );
   }
 
-  const { invoice, items, payments, remainingBalanceMinorUnits } = invoiceQuery.data;
+  const {
+    invoice,
+    items,
+    payments,
+    remainingBalanceMinorUnits,
+    creditedInvoiceDocumentNumber,
+    creditNotes,
+  } = invoiceQuery.data;
 
   // Draft invoices redirect to edit page
   if (invoice.status === 'draft') {
@@ -335,6 +365,31 @@ export function InvoiceDetail() {
   function openSendModal() {
     setRecipientEmail(invoice.customerEmail ?? '');
     setSendModalOpen(true);
+  }
+
+  function openCreditNoteModal() {
+    // Pre-fill with the original invoice's line items
+    const prefilled: LineItemInput[] = items.map((item) => ({
+      description: item.description,
+      catalogNumber: item.catalogNumber ?? undefined,
+      quantity: item.quantity,
+      unitPriceMinorUnits: item.unitPriceMinorUnits,
+      discountPercent: item.discountPercent,
+      vatRateBasisPoints: item.vatRateBasisPoints,
+      position: item.position,
+    }));
+    setCreditNoteItems(prefilled);
+    setCreditNoteModalOpen(true);
+  }
+
+  function updateCreditNoteItem(index: number, field: string, value: number) {
+    setCreditNoteItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
+  }
+
+  function removeCreditNoteItem(index: number) {
+    setCreditNoteItems((prev) => prev.filter((_, i) => i !== index));
   }
 
   function openPaymentModal() {
@@ -412,18 +467,64 @@ export function InvoiceDetail() {
             >
               סמן כשולם
             </Button>
-            {showCreditNote && (
+            {showCreditNote && invoice.documentType !== 'credit_note' && (
               <Button
                 variant="light"
                 leftSection={<IconReceiptRefund size={16} />}
-                disabled
-                title="יהיה זמין בקרוב"
+                onClick={openCreditNoteModal}
               >
                 הפק חשבונית זיכוי
               </Button>
             )}
           </Group>
         </Paper>
+
+        {/* Credit note back-link: this is a credit note → link to original */}
+        {invoice.documentType === 'credit_note' && invoice.creditedInvoiceId && (
+          <Paper withBorder p="md" radius="md" bg="grape.0" data-testid="credit-note-source-link">
+            <Group gap="sm">
+              <IconReceiptRefund size={18} />
+              <Text>
+                חשבונית זיכוי עבור{' '}
+                <Text
+                  component={Link}
+                  to={`/businesses/${businessId}/invoices/${invoice.creditedInvoiceId}`}
+                  c="blue"
+                  td="underline"
+                  inherit
+                >
+                  {creditedInvoiceDocumentNumber ?? 'חשבונית מקורית'}
+                </Text>
+              </Text>
+            </Group>
+          </Paper>
+        )}
+
+        {/* Credited invoice back-link: this invoice was credited → link to credit notes */}
+        {creditNotes && creditNotes.length > 0 && (
+          <Paper withBorder p="md" radius="md" bg="grape.0" data-testid="credited-invoice-link">
+            <Group gap="sm">
+              <IconReceiptRefund size={18} />
+              <Text>
+                {'זוכתה בחשבונית זיכוי '}
+                {creditNotes.map((cn, i) => (
+                  <span key={cn.id}>
+                    {i > 0 && ', '}
+                    <Text
+                      component={Link}
+                      to={`/businesses/${businessId}/invoices/${cn.id}`}
+                      c="blue"
+                      td="underline"
+                      inherit
+                    >
+                      {cn.documentNumber ?? 'חשבונית זיכוי'}
+                    </Text>
+                  </span>
+                ))}
+              </Text>
+            </Group>
+          </Paper>
+        )}
 
         {/* SHAAM allocation status */}
         {invoice.allocationStatus === 'approved' && invoice.allocationNumber && (
@@ -757,6 +858,98 @@ export function InvoiceDetail() {
               data-testid="confirm-delete-payment"
             >
               מחק
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Credit note modal */}
+      <Modal
+        opened={creditNoteModalOpen}
+        onClose={() => setCreditNoteModalOpen(false)}
+        title="הפקת חשבונית זיכוי"
+        centered
+        size="lg"
+        data-testid="credit-note-modal"
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            ערוך את הפריטים לזיכוי. להסרת פריט לחץ על כפתור המחיקה. לזיכוי חלקי — עדכן כמות או מחיר.
+          </Text>
+          {creditNoteItems.length === 0 ? (
+            <Text size="sm" c="red" data-testid="credit-note-empty">
+              לא נבחרו פריטים לזיכוי
+            </Text>
+          ) : (
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>תיאור</Table.Th>
+                  <Table.Th>כמות</Table.Th>
+                  <Table.Th>מחיר יח׳ (אג׳)</Table.Th>
+                  <Table.Th />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {creditNoteItems.map((item, index) => (
+                  <Table.Tr key={item.position} data-testid="credit-note-item-row">
+                    <Table.Td>{item.description}</Table.Td>
+                    <Table.Td>
+                      <NumberInput
+                        size="xs"
+                        min={0.01}
+                        value={item.quantity}
+                        onChange={(v) =>
+                          updateCreditNoteItem(index, 'quantity', typeof v === 'number' ? v : 0)
+                        }
+                        data-testid={`credit-note-quantity-${index}`}
+                        style={{ width: 80 }}
+                      />
+                    </Table.Td>
+                    <Table.Td>
+                      <NumberInput
+                        size="xs"
+                        min={0}
+                        value={item.unitPriceMinorUnits}
+                        onChange={(v) =>
+                          updateCreditNoteItem(
+                            index,
+                            'unitPriceMinorUnits',
+                            typeof v === 'number' ? v : 0
+                          )
+                        }
+                        data-testid={`credit-note-price-${index}`}
+                        style={{ width: 100 }}
+                      />
+                    </Table.Td>
+                    <Table.Td>
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        size="sm"
+                        onClick={() => removeCreditNoteItem(index)}
+                        data-testid={`credit-note-remove-${index}`}
+                        aria-label={`הסר ${item.description}`}
+                      >
+                        <IconTrash size={14} />
+                      </ActionIcon>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          )}
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={() => setCreditNoteModalOpen(false)}>
+              ביטול
+            </Button>
+            <Button
+              onClick={() => creditNoteMutation.mutate()}
+              loading={creditNoteMutation.isPending}
+              disabled={creditNoteItems.length === 0}
+              data-testid="credit-note-submit"
+            >
+              הפק חשבונית זיכוי
             </Button>
           </Group>
         </Stack>

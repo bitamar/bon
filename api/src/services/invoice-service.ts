@@ -11,6 +11,7 @@ import {
   countInvoices,
   aggregateOutstanding,
   aggregateFiltered,
+  findCreditNotesBySourceInvoiceId,
   type InvoiceRecord,
   type InvoiceItemRecord,
   type InvoiceInsert,
@@ -46,6 +47,7 @@ import type {
   InvoiceListResponse,
   LineItemInput,
   DocumentType,
+  CreateCreditNoteBody,
 } from '@bon/types/invoices';
 import type { RecordPaymentBody } from '@bon/types/payments';
 import { shouldRequestAllocation } from '@bon/types/shaam';
@@ -222,12 +224,30 @@ export async function getInvoice(businessId: string, invoiceId: string) {
   const invoice = await findInvoiceById(invoiceId, businessId);
   if (!invoice) throw notFound();
 
-  const [items, payments, paidTotal] = await Promise.all([
+  const [items, payments, paidTotal, creditNotes] = await Promise.all([
     findItemsByInvoiceId(invoiceId),
     findPaymentsByInvoiceId(invoiceId),
     sumPaymentsByInvoiceId(invoiceId),
+    findCreditNotesBySourceInvoiceId(invoiceId, businessId),
   ]);
-  return buildResponse(invoice, items, payments, paidTotal);
+
+  const response = buildResponse(invoice, items, payments, paidTotal);
+
+  // Back-link: if this is a credit note, include the source invoice's document number
+  let creditedInvoiceDocumentNumber: string | null = null;
+  if (invoice.creditedInvoiceId) {
+    const source = await findInvoiceById(invoice.creditedInvoiceId, businessId);
+    creditedInvoiceDocumentNumber = source?.documentNumber ?? null;
+  }
+
+  return {
+    ...response,
+    creditedInvoiceDocumentNumber,
+    creditNotes: creditNotes.map((cn) => ({
+      id: cn.id,
+      documentNumber: cn.documentNumber ?? null,
+    })),
+  };
 }
 
 export type UpdateDraftInput = {
@@ -532,6 +552,132 @@ export async function listInvoices(
       totalFilteredMinorUnits: filteredTotal,
     },
   };
+}
+
+// ── credit note ──
+
+const CREDITABLE_STATUSES = new Set(['finalized', 'sent', 'paid', 'partially_paid']);
+
+export interface CreditNoteResult extends InvoiceResponse {
+  needsAllocation: boolean;
+}
+
+export async function createCreditNote(
+  businessId: string,
+  sourceInvoiceId: string,
+  body: CreateCreditNoteBody
+): Promise<CreditNoteResult> {
+  return db.transaction(async (tx) => {
+    const sourceInvoice = await findInvoiceByIdForUpdate(sourceInvoiceId, businessId, tx);
+    if (!sourceInvoice) throw notFound();
+
+    if (!CREDITABLE_STATUSES.has(sourceInvoice.status)) {
+      throw unprocessableEntity({ code: 'invoice_not_creditable' });
+    }
+
+    if (sourceInvoice.documentType === 'credit_note') {
+      throw unprocessableEntity({ code: 'cannot_credit_credit_note' });
+    }
+
+    const business = await findBusinessById(businessId, tx);
+    if (!business) throw notFound();
+
+    const isExemptDealer = business.businessType === 'exempt_dealer';
+
+    // Validate VAT rates match exempt dealer rules
+    for (const item of body.items) {
+      if (isExemptDealer && item.vatRateBasisPoints !== 0) {
+        throw unprocessableEntity({ code: 'invalid_vat_rate' });
+      }
+      if (
+        !isExemptDealer &&
+        item.vatRateBasisPoints !== 0 &&
+        item.vatRateBasisPoints !== STANDARD_VAT_RATE_BP
+      ) {
+        throw unprocessableEntity({ code: 'invalid_vat_rate' });
+      }
+    }
+
+    const totals = computeTotals(body.items);
+
+    const invoiceDate = body.invoiceDate ?? todayDateString();
+    const maxDateStr = maxFutureDateString(7);
+    if (invoiceDate > maxDateStr) {
+      throw unprocessableEntity({ code: 'invalid_invoice_date' });
+    }
+
+    // Copy customer snapshot from source invoice
+    const snapshot = {
+      customerName: sourceInvoice.customerName,
+      customerTaxId: sourceInvoice.customerTaxId,
+      customerAddress: sourceInvoice.customerAddress,
+      customerEmail: sourceInvoice.customerEmail,
+    };
+
+    // Assign sequence number from credit_note group
+    const { sequenceNumber, documentNumber } = await assignInvoiceNumber(
+      tx,
+      businessId,
+      'credit_note',
+      business.invoiceNumberPrefix ?? '',
+      business.startingInvoiceNumber
+    );
+
+    // Check SHAAM allocation need — use source invoice's customer for threshold check
+    const customer = sourceInvoice.customerId
+      ? await findCustomerById(sourceInvoice.customerId, businessId, tx)
+      : null;
+
+    const needsAllocation = customer
+      ? shouldRequestAllocation(
+          {
+            vatMinorUnits: totals.vatMinorUnits,
+            totalExclVatMinorUnits: totals.totalExclVatMinorUnits,
+          },
+          customer,
+          new Date(invoiceDate)
+        )
+      : false;
+
+    const now = new Date();
+    const creditNote = await insertInvoice(
+      {
+        businessId,
+        documentType: 'credit_note',
+        customerId: sourceInvoice.customerId,
+        creditedInvoiceId: sourceInvoiceId,
+        status: 'finalized',
+        sequenceGroup: 'credit_note',
+        sequenceNumber,
+        documentNumber,
+        invoiceDate,
+        issuedAt: now,
+        dueDate: null,
+        notes: body.notes ?? null,
+        internalNotes: null,
+        currency: sourceInvoice.currency,
+        vatExemptionReason: sourceInvoice.vatExemptionReason,
+        ...snapshot,
+        ...totals,
+        ...(needsAllocation ? { allocationStatus: 'pending' } : {}),
+        createdAt: now,
+        updatedAt: now,
+      },
+      tx
+    );
+    if (!creditNote) throw new Error('Failed to create credit note');
+
+    // Insert line items with proper invoiceId
+    const creditItems = await insertItems(
+      body.items.map((item) => buildItemInsert(creditNote.id, item)),
+      tx
+    );
+
+    // Update source invoice status to credited
+    await updateInvoice(sourceInvoiceId, businessId, { status: 'credited', updatedAt: now }, tx);
+
+    return { ...buildResponse(creditNote, creditItems), needsAllocation };
+  });
 }
 
 // ── payment methods ──

@@ -65,6 +65,8 @@ export function makeDraftInvoice(overrides: Partial<Invoice> = {}): InvoiceRespo
     items: [{ ...BASE_LINE_ITEM }],
     payments: [],
     remainingBalanceMinorUnits: invoice.totalInclVatMinorUnits,
+    creditedInvoiceDocumentNumber: null,
+    creditNotes: [],
   };
 }
 
@@ -91,5 +93,35 @@ export function makeFinalizedInvoice(overrides: Partial<Invoice> = {}): InvoiceR
     items: [{ ...BASE_LINE_ITEM }],
     payments: [],
     remainingBalanceMinorUnits: invoice.totalInclVatMinorUnits,
+    creditedInvoiceDocumentNumber: null,
+    creditNotes: [],
+  };
+}
+
+export function makeCreditNoteInvoice(overrides: Partial<Invoice> = {}): InvoiceResponse {
+  const invoice: Invoice = {
+    ...BASE_INVOICE,
+    customerId: 'cust-1',
+    customerName: 'לקוח לדוגמה',
+    customerTaxId: '123456782',
+    customerAddress: 'רחוב הרצל 1, תל אביב',
+    customerEmail: 'test@example.com',
+    documentType: 'credit_note',
+    status: 'finalized',
+    sequenceGroup: 'credit_note',
+    sequenceNumber: 1,
+    documentNumber: 'CN-0001',
+    creditedInvoiceId: 'inv-original',
+    issuedAt: '2026-02-20T10:30:00.000Z',
+    updatedAt: '2026-02-20T10:30:00.000Z',
+    ...overrides,
+  };
+  return {
+    invoice,
+    items: [{ ...BASE_LINE_ITEM }],
+    payments: [],
+    remainingBalanceMinorUnits: 0,
+    creditedInvoiceDocumentNumber: 'INV-0001',
+    creditNotes: [],
   };
 }

@@ -3,6 +3,7 @@ import {
   invoiceListResponseSchema,
   invoiceResponseSchema,
   sendInvoiceResponseSchema,
+  type CreateCreditNoteBody,
   type CreateInvoiceDraftBody,
   type FinalizeInvoiceBody,
   type InvoiceListResponse,
@@ -90,6 +91,21 @@ export async function sendInvoiceByEmail(
     body: JSON.stringify(data),
   });
   return sendInvoiceResponseSchema.parse(json);
+}
+
+export async function createCreditNote(
+  businessId: string,
+  invoiceId: string,
+  data: CreateCreditNoteBody
+): Promise<InvoiceResponse> {
+  const json = await fetchJson<unknown>(
+    `/businesses/${businessId}/invoices/${invoiceId}/credit-note`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  );
+  return invoiceResponseSchema.parse(json);
 }
 
 export async function recordPayment(
