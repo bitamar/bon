@@ -4,7 +4,6 @@ import Header from './Header';
 import Navbar from './Navbar';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { Login } from './pages/Login';
-import { LandingPage } from './pages/LandingPage';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { BusinessProvider, useBusiness } from './contexts/BusinessContext';
 import { Dashboard } from './pages/Dashboard';
@@ -36,7 +35,7 @@ function ProtectedRoute({ children }: Readonly<{ children: ReactNode }>) {
   if (!isHydrated) {
     return <AppSplash label="Loading user" />;
   }
-  if (!user) return <Navigate to="/welcome" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   return children;
 }
 
@@ -107,7 +106,6 @@ export default function AppRoutes() {
       <GlobalLoadingIndicator>
         <Routes>
           <Route element={<PlainLayout />}>
-            <Route path="/welcome" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route
               path="/onboarding"
