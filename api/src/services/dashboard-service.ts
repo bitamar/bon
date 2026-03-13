@@ -21,7 +21,7 @@ function getMonthBoundaries() {
   };
 }
 
-const STALE_DRAFT_DAYS = 14;
+const STALE_DRAFT_DAYS = 7;
 
 export async function getDashboardData(businessId: string): Promise<DashboardResponse> {
   const { thisMonthStart, prevMonthStart, nextMonthStart } = getMonthBoundaries();

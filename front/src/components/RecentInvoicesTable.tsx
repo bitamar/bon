@@ -7,12 +7,24 @@ import { formatCurrency } from '../lib/format';
 export function RecentInvoicesTable({
   invoices,
   isLoading,
+  error,
 }: Readonly<{
   invoices: InvoiceListItem[] | undefined;
   isLoading?: boolean;
+  error?: Error | string | unknown;
 }>) {
   const { businessId } = useParams<{ businessId: string }>();
   const navigate = useNavigate();
+
+  if (error) {
+    return (
+      <Card withBorder radius="lg" p="lg">
+        <Text c="red" ta="center" py="xl">
+          שגיאה בטעינת חשבוניות אחרונות
+        </Text>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (

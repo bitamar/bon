@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { db } from '../../src/db/client.js';
-import { businesses, customers, users } from '../../src/db/schema.js';
+import { businesses, customers, invoicePayments, users } from '../../src/db/schema.js';
 import { randomInt, randomUUID } from 'node:crypto';
 import {
   insertInvoice,
@@ -621,23 +621,41 @@ describe('findCreditNotesBySourceInvoiceId', () => {
 
 describe('getDashboardAggregates', () => {
   let businessId: string;
+  let userId: string;
   const monthStart = '2026-03-01';
   const prevMonthStart = '2026-02-01';
   const staleThreshold = new Date('2026-02-27T00:00:00Z');
 
+  // ── helpers ──
+
+  async function fetchAggregates() {
+    return getDashboardAggregates(businessId, monthStart, prevMonthStart, staleThreshold);
+  }
+
   beforeEach(async () => {
     await resetDb();
-    const biz = await seedBusinessWithOwner();
-    businessId = biz.id;
+    const [user] = await db
+      .insert(users)
+      .values({ email: `user-${randomUUID()}@test.com`, name: 'Test' })
+      .returning();
+    userId = user!.id;
+    const now = new Date();
+    const [biz] = await db
+      .insert(businesses)
+      .values({
+        name: 'Test Biz',
+        businessType: 'licensed_dealer',
+        registrationNumber: String(randomInt(100_000_000, 1_000_000_000)),
+        createdByUserId: userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+    businessId = biz!.id;
   });
 
   it('returns zeros for business with no invoices', async () => {
-    const result = await getDashboardAggregates(
-      businessId,
-      monthStart,
-      prevMonthStart,
-      staleThreshold
-    );
+    const result = await fetchAggregates();
 
     expect(result.outstandingTotal).toBe(0);
     expect(result.outstandingCount).toBe(0);
@@ -652,12 +670,7 @@ describe('getDashboardAggregates', () => {
   it('ignores draft-only invoices for hasInvoices', async () => {
     await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
 
-    const result = await getDashboardAggregates(
-      businessId,
-      monthStart,
-      prevMonthStart,
-      staleThreshold
-    );
+    const result = await fetchAggregates();
 
     expect(result.hasInvoices).toBe(false);
     expect(result.outstandingCount).toBe(0);
@@ -677,12 +690,7 @@ describe('getDashboardAggregates', () => {
       issuedAt: new Date('2026-03-10T10:00:00Z'),
     });
 
-    const result = await getDashboardAggregates(
-      businessId,
-      monthStart,
-      prevMonthStart,
-      staleThreshold
-    );
+    const result = await fetchAggregates();
 
     expect(result.hasInvoices).toBe(true);
     expect(result.outstandingTotal).toBe(5000);
@@ -690,6 +698,29 @@ describe('getDashboardAggregates', () => {
     expect(result.overdueTotal).toBe(3000);
     expect(result.overdueCount).toBe(1);
     expect(result.invoicesThisMonth).toBe(2);
+  });
+
+  it('subtracts payments from outstanding and overdue totals', async () => {
+    const inv = await createTestInvoice(businessId, {
+      status: 'partially_paid',
+      totalInclVatMinorUnits: 10000,
+      isOverdue: true,
+      issuedAt: new Date('2026-03-05T10:00:00Z'),
+    });
+    await db.insert(invoicePayments).values({
+      invoiceId: inv!.id,
+      amountMinorUnits: 3000,
+      paidAt: '2026-03-10',
+      method: 'cash',
+      recordedByUserId: userId,
+    });
+
+    const result = await fetchAggregates();
+
+    expect(result.outstandingTotal).toBe(7000);
+    expect(result.outstandingCount).toBe(1);
+    expect(result.overdueTotal).toBe(7000);
+    expect(result.overdueCount).toBe(1);
   });
 
   it('detects stale drafts based on threshold', async () => {
@@ -703,12 +734,7 @@ describe('getDashboardAggregates', () => {
       updatedAt: now,
     });
 
-    const result = await getDashboardAggregates(
-      businessId,
-      monthStart,
-      prevMonthStart,
-      staleThreshold
-    );
+    const result = await fetchAggregates();
 
     expect(result.staleDraftCount).toBe(1);
   });

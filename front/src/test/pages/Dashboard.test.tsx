@@ -101,7 +101,7 @@ describe('Dashboard page', () => {
 
   it('shows error state when API fails', async () => {
     const { fetchDashboard } = await import('../../api/dashboard');
-    vi.mocked(fetchDashboard).mockRejectedValue(new Error('fail'));
+    vi.mocked(fetchDashboard).mockRejectedValueOnce(new Error('fail'));
 
     renderDashboard();
 

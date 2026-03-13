@@ -24,8 +24,8 @@ function trendProps(trend: number | undefined) {
   return { trend, trendLabel: 'מהחודש הקודם' };
 }
 
-function KpiCards(props: Readonly<{ kpis: DashboardKpis; isLoading: boolean }>) {
-  if (props.isLoading) {
+function KpiCards(props: Readonly<{ kpis: DashboardKpis | null; isLoading: boolean }>) {
+  if (props.isLoading || !props.kpis) {
     return Array.from({ length: 4 }, (_, i) => (
       <KpiCard key={i} label="" value="" icon={null} isLoading />
     ));
@@ -113,20 +113,7 @@ export function Dashboard() {
         {data ? <DashboardAlerts kpis={data.kpis} /> : null}
 
         <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }}>
-          {data ? (
-            <KpiCards kpis={data.kpis} isLoading={isLoading} />
-          ) : (
-            <KpiCards
-              kpis={{
-                outstanding: { totalMinorUnits: 0, count: 0 },
-                overdue: { totalMinorUnits: 0, count: 0 },
-                revenue: { thisMonthMinorUnits: 0, prevMonthMinorUnits: 0 },
-                invoicesThisMonth: { count: 0, prevMonthCount: 0 },
-                staleDraftCount: 0,
-              }}
-              isLoading
-            />
-          )}
+          <KpiCards kpis={data?.kpis ?? null} isLoading={isLoading} />
         </SimpleGrid>
 
         <Grid gutter="lg">
@@ -136,7 +123,7 @@ export function Dashboard() {
           <Grid.Col span={{ base: 12, md: 4 }}>
             <Stack gap="lg">
               <QuickActions />
-              <OverdueMiniList invoices={data?.overdueInvoices ?? []} />
+              <OverdueMiniList invoices={data?.overdueInvoices ?? []} isLoading={isLoading} />
             </Stack>
           </Grid.Col>
         </Grid>

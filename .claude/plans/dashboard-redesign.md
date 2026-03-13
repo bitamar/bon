@@ -202,7 +202,7 @@ This is better than showing 4 cards that all say ₪0.
 - Delete `ActivityFeed` component and `useDashboardData` hook
 
 ### Step 5: Tests
-- API: dashboard route tests (with invoices, empty business, non-member 403)
+- API: dashboard route tests (with invoices, empty business, non-member 404)
 - Frontend: dashboard page renders KPIs from API, shows alerts when overdue, shows empty state
 
 ---

@@ -1,4 +1,4 @@
-import { Anchor, Card, Group, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Anchor, Card, Group, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconClock } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
 import type { InvoiceListItem } from '@bon/types/invoices';
@@ -15,10 +15,38 @@ function daysOverdue(dueDate: string | null): number {
 
 export function OverdueMiniList({
   invoices,
+  isLoading,
+  error,
 }: Readonly<{
   invoices: InvoiceListItem[];
+  isLoading?: boolean;
+  error?: Error | string;
 }>) {
   const { businessId } = useParams<{ businessId: string }>();
+
+  if (isLoading) {
+    return (
+      <Card withBorder radius="lg" p="lg">
+        <Skeleton height={18} width="30%" mb="md" />
+        {Array.from({ length: 3 }, (_, i) => (
+          <Skeleton key={i} height={28} mb="xs" />
+        ))}
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card withBorder radius="lg" p="lg">
+        <Text fw={600} mb="md">
+          פגות מועד
+        </Text>
+        <Text c="red" size="sm" ta="center" py="md">
+          שגיאה בטעינת הנתונים
+        </Text>
+      </Card>
+    );
+  }
 
   return (
     <Card withBorder radius="lg" p="lg">
