@@ -4,6 +4,7 @@ import { runJob } from '../jobs/boss.js';
 import { createDraftCleanupHandler } from '../jobs/handlers/draft-cleanup.js';
 import { createSessionCleanupHandler } from '../jobs/handlers/session-cleanup.js';
 import { createOverdueDetectionHandler } from '../jobs/handlers/overdue-detection.js';
+import { createOverdueDigestHandler } from '../jobs/handlers/overdue-digest.js';
 
 const maintenanceJobsPluginFn: FastifyPluginAsync = async (app) => {
   if (!app.boss) {
@@ -28,14 +29,23 @@ const maintenanceJobsPluginFn: FastifyPluginAsync = async (app) => {
   );
 
   // Overdue detection — 6:00 AM daily (Israel time)
+  // On success, detection enqueues 'overdue-digest' so the digest always
+  // runs after detection completes (no fixed 5-min delay).
   await app.boss.createQueue('overdue-detection');
   await app.boss.schedule('overdue-detection', '0 6 * * *', {}, { tz: 'Asia/Jerusalem' });
   await app.boss.work(
     'overdue-detection',
-    runJob('overdue-detection', createOverdueDetectionHandler(app.log), app.log)
+    runJob('overdue-detection', createOverdueDetectionHandler(app.log, app.boss), app.log)
   );
 
-  app.log.info('maintenance-jobs: all 3 cron jobs registered');
+  // Overdue digest — enqueued by overdue-detection on success (not cron-scheduled)
+  await app.boss.createQueue('overdue-digest');
+  await app.boss.work(
+    'overdue-digest',
+    runJob('overdue-digest', createOverdueDigestHandler(app.log), app.log)
+  );
+
+  app.log.info('maintenance-jobs: all 4 cron jobs registered');
 };
 
 export const maintenanceJobsPlugin = fp(maintenanceJobsPluginFn);

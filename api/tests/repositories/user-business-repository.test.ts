@@ -5,6 +5,7 @@ import {
   findUserBusiness,
   insertUserBusiness,
   findBusinessesForUser,
+  findBusinessOwnerEmails,
 } from '../../src/repositories/user-business-repository.js';
 import { createUser, createTestBusiness } from '../utils/businesses.js';
 
@@ -77,6 +78,41 @@ describe('user-business-repository', () => {
     it('returns an empty list when the user has no businesses', async () => {
       const user = await createUser();
       const results = await findBusinessesForUser(user.id);
+      expect(results).toHaveLength(0);
+    });
+  });
+
+  describe('findBusinessOwnerEmails', () => {
+    it('returns email and name for owners', async () => {
+      const user = await createUser({ name: 'Owner One', email: 'owner@test.com' });
+      const business = await createTestBusiness(user.id);
+      await insertUserBusiness({ userId: user.id, businessId: business.id, role: 'owner' });
+
+      const results = await findBusinessOwnerEmails(business.id);
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toEqual({ email: 'owner@test.com', name: 'Owner One' });
+    });
+
+    it('excludes non-owner members', async () => {
+      const owner = await createUser({ name: 'Owner' });
+      const admin = await createUser({ name: 'Admin' });
+      const business = await createTestBusiness(owner.id);
+      await insertUserBusiness({ userId: owner.id, businessId: business.id, role: 'owner' });
+      await insertUserBusiness({ userId: admin.id, businessId: business.id, role: 'admin' });
+
+      const results = await findBusinessOwnerEmails(business.id);
+
+      expect(results).toHaveLength(1);
+      expect(results[0]!.name).toBe('Owner');
+    });
+
+    it('returns empty array when business has no owners', async () => {
+      const user = await createUser();
+      const business = await createTestBusiness(user.id);
+
+      const results = await findBusinessOwnerEmails(business.id);
+
       expect(results).toHaveLength(0);
     });
   });
