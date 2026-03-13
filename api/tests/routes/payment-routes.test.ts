@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { injectAuthed } from '../utils/inject.js';
 import {
@@ -122,17 +123,24 @@ describe('routes/payments', () => {
     });
   }
 
+  function makePaymentPayload(
+    overrides: { amountMinorUnits?: number; paidAt?: string; method?: string } = {}
+  ) {
+    return {
+      amountMinorUnits: 11700,
+      paidAt: '2026-03-10',
+      method: 'cash',
+      ...overrides,
+    };
+  }
+
   // ── POST payment ──
 
   describe('POST /businesses/:businessId/invoices/:invoiceId/payments', () => {
     it('records full payment on finalized invoice → status becomes paid', async () => {
       const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
-      const res = await postPayment(sessionId, business.id, invoice.id, {
-        amountMinorUnits: 11700,
-        paidAt: '2026-03-10',
-        method: 'cash',
-      });
+      const res = await postPayment(sessionId, business.id, invoice.id, makePaymentPayload());
 
       expect(res.statusCode).toBe(201);
       const body = res.json() as InvoiceResponse;
@@ -146,11 +154,12 @@ describe('routes/payments', () => {
     it('records partial payment → status becomes partially_paid', async () => {
       const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
-      const res = await postPayment(sessionId, business.id, invoice.id, {
-        amountMinorUnits: 5000,
-        paidAt: '2026-03-10',
-        method: 'transfer',
-      });
+      const res = await postPayment(
+        sessionId,
+        business.id,
+        invoice.id,
+        makePaymentPayload({ amountMinorUnits: 5000, method: 'transfer' })
+      );
 
       expect(res.statusCode).toBe(201);
       const body = res.json() as InvoiceResponse;
@@ -161,17 +170,19 @@ describe('routes/payments', () => {
     it('second partial payment completing balance → status becomes paid', async () => {
       const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
-      await postPayment(sessionId, business.id, invoice.id, {
-        amountMinorUnits: 5000,
-        paidAt: '2026-03-10',
-        method: 'cash',
-      });
+      await postPayment(
+        sessionId,
+        business.id,
+        invoice.id,
+        makePaymentPayload({ amountMinorUnits: 5000 })
+      );
 
-      const res = await postPayment(sessionId, business.id, invoice.id, {
-        amountMinorUnits: 6700,
-        paidAt: '2026-03-11',
-        method: 'credit',
-      });
+      const res = await postPayment(
+        sessionId,
+        business.id,
+        invoice.id,
+        makePaymentPayload({ amountMinorUnits: 6700, paidAt: '2026-03-11', method: 'credit' })
+      );
 
       expect(res.statusCode).toBe(201);
       const body = res.json() as InvoiceResponse;
@@ -183,11 +194,12 @@ describe('routes/payments', () => {
     it('rejects payment exceeding balance → 422', async () => {
       const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
-      const res = await postPayment(sessionId, business.id, invoice.id, {
-        amountMinorUnits: 99999,
-        paidAt: '2026-03-10',
-        method: 'cash',
-      });
+      const res = await postPayment(
+        sessionId,
+        business.id,
+        invoice.id,
+        makePaymentPayload({ amountMinorUnits: 99999 })
+      );
 
       expectError(res, 422, 'payment_exceeds_balance');
     });
@@ -197,11 +209,12 @@ describe('routes/payments', () => {
       const customer = await createCustomer(sessionId, business.id);
       const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id);
 
-      const res = await postPayment(sessionId, business.id, invoice.id, {
-        amountMinorUnits: 5000,
-        paidAt: '2026-03-10',
-        method: 'cash',
-      });
+      const res = await postPayment(
+        sessionId,
+        business.id,
+        invoice.id,
+        makePaymentPayload({ amountMinorUnits: 5000 })
+      );
 
       expectError(res, 422, 'invoice_not_payable');
     });
@@ -211,11 +224,12 @@ describe('routes/payments', () => {
       const { user: memberUser, sessionId: memberSession } = await createAuthedUser();
       await addUserToBusiness(memberUser.id, business.id, 'user');
 
-      const res = await postPayment(memberSession, business.id, invoice.id, {
-        amountMinorUnits: 5000,
-        paidAt: '2026-03-10',
-        method: 'cash',
-      });
+      const res = await postPayment(
+        memberSession,
+        business.id,
+        invoice.id,
+        makePaymentPayload({ amountMinorUnits: 5000 })
+      );
 
       expect(res.statusCode).toBe(403);
     });
@@ -227,16 +241,18 @@ describe('routes/payments', () => {
     it('returns payments sorted newest-first', async () => {
       const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
-      await postPayment(sessionId, business.id, invoice.id, {
-        amountMinorUnits: 3000,
-        paidAt: '2026-03-08',
-        method: 'cash',
-      });
-      await postPayment(sessionId, business.id, invoice.id, {
-        amountMinorUnits: 2000,
-        paidAt: '2026-03-10',
-        method: 'transfer',
-      });
+      await postPayment(
+        sessionId,
+        business.id,
+        invoice.id,
+        makePaymentPayload({ amountMinorUnits: 3000, paidAt: '2026-03-08' })
+      );
+      await postPayment(
+        sessionId,
+        business.id,
+        invoice.id,
+        makePaymentPayload({ amountMinorUnits: 2000, method: 'transfer' })
+      );
 
       const res = await getPayments(sessionId, business.id, invoice.id);
       expect(res.statusCode).toBe(200);
@@ -247,6 +263,22 @@ describe('routes/payments', () => {
       expect(payments[0]!.paidAt).toBe('2026-03-10');
       expect(payments[1]!.paidAt).toBe('2026-03-08');
     });
+
+    it('returns 404 for non-existent invoice', async () => {
+      const { sessionId, business } = await createOwnerWithBusiness();
+      const fakeInvoiceId = crypto.randomUUID();
+
+      const res = await getPayments(sessionId, business.id, fakeInvoiceId);
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('non-member cannot list payments → 403', async () => {
+      const { business, invoice } = await setupFinalizedInvoice();
+      const { sessionId: outsiderSession } = await createAuthedUser();
+
+      const res = await getPayments(outsiderSession, business.id, invoice.id);
+      expect(res.statusCode).toBe(403);
+    });
   });
 
   // ── DELETE payment ──
@@ -256,11 +288,7 @@ describe('routes/payments', () => {
       const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
       // Record full payment
-      const payRes = await postPayment(sessionId, business.id, invoice.id, {
-        amountMinorUnits: 11700,
-        paidAt: '2026-03-10',
-        method: 'cash',
-      });
+      const payRes = await postPayment(sessionId, business.id, invoice.id, makePaymentPayload());
       const payBody = payRes.json() as InvoiceResponse;
       expect(payBody.invoice.status).toBe('paid');
 
@@ -275,6 +303,25 @@ describe('routes/payments', () => {
       expect(delBody.invoice.paidAt).toBeNull();
       expect(delBody.payments).toHaveLength(0);
       expect(delBody.remainingBalanceMinorUnits).toBe(11700);
+    });
+
+    it('returns 404 for non-existent payment', async () => {
+      const { sessionId, business, invoice } = await setupFinalizedInvoice();
+      const fakePaymentId = crypto.randomUUID();
+
+      const res = await deletePaymentReq(sessionId, business.id, invoice.id, fakePaymentId);
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('non-member cannot delete payment → 403', async () => {
+      const { sessionId, business, invoice } = await setupFinalizedInvoice();
+
+      const payRes = await postPayment(sessionId, business.id, invoice.id, makePaymentPayload());
+      const paymentId = (payRes.json() as InvoiceResponse).payments[0]!.id;
+
+      const { sessionId: outsiderSession } = await createAuthedUser();
+      const res = await deletePaymentReq(outsiderSession, business.id, invoice.id, paymentId);
+      expect(res.statusCode).toBe(403);
     });
   });
 });

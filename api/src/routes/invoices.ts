@@ -12,8 +12,11 @@ import {
   invoiceListResponseSchema,
   invoiceIdParamSchema,
 } from '@bon/types/invoices';
-import { recordPaymentBodySchema, paymentSchema, paymentIdParamSchema } from '@bon/types/payments';
-import { z } from 'zod';
+import {
+  recordPaymentBodySchema,
+  paymentListResponseSchema,
+  paymentIdParamSchema,
+} from '@bon/types/payments';
 import { businessIdParamSchema } from '@bon/types/businesses';
 import { okResponseSchema } from '@bon/types/common';
 import {
@@ -269,7 +272,7 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         tags: ['Invoices'],
         params: invoiceIdParamSchema,
         response: {
-          200: z.array(paymentSchema),
+          200: paymentListResponseSchema,
         },
       },
     },

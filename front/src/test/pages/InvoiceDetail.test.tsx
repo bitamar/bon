@@ -54,6 +54,11 @@ async function submitSendModal(user: UserEvent) {
   await user.click(confirmButton);
 }
 
+async function openPaymentModal(user: UserEvent) {
+  await user.click(await screen.findByRole('button', { name: 'סמן כשולם' }));
+  await screen.findByText('רישום תשלום');
+}
+
 describe('InvoiceDetail page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -283,13 +288,6 @@ describe('InvoiceDetail payments', () => {
     vi.resetAllMocks();
     mockActiveBusiness(useBusiness);
   });
-
-  // ── helpers ──
-
-  async function openPaymentModal(user: UserEvent) {
-    await user.click(await screen.findByRole('button', { name: 'סמן כשולם' }));
-    await screen.findByText('רישום תשלום');
-  }
 
   it('opens payment modal on button click', async () => {
     vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());

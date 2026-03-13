@@ -445,7 +445,7 @@ export async function finalize(
   });
 }
 
-const SENDABLE_STATUSES = new Set(['finalized', 'sent']);
+const SENDABLE_STATUSES = new Set(['finalized', 'sent', 'partially_paid']);
 
 export async function sendInvoice(
   businessId: string,
@@ -583,7 +583,7 @@ export async function recordPayment(
     };
 
     if (isFullyPaid) {
-      statusUpdates.paidAt = new Date(body.paidAt);
+      statusUpdates.paidAt = now;
       if (invoice.isOverdue) {
         statusUpdates.isOverdue = false;
       }

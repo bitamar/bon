@@ -45,6 +45,8 @@ export const paymentSchema = z.object({
 
 export type Payment = z.infer<typeof paymentSchema>;
 
+export const paymentListResponseSchema = z.array(paymentSchema);
+
 // ── Param schemas ──
 
 export const paymentIdParamSchema = z.object({

@@ -168,8 +168,14 @@ const CREDIT_NOTE_ELIGIBLE: readonly InvoiceStatus[] = [
   'partially_paid',
 ] as const;
 
-const SENDABLE_STATUSES = new Set<InvoiceStatus>(['finalized', 'sent']);
+const SENDABLE_STATUSES = new Set<InvoiceStatus>(['finalized', 'sent', 'partially_paid']);
 const PAYABLE_STATUSES = new Set<InvoiceStatus>(['finalized', 'sent', 'partially_paid']);
+const PAYMENT_DELETABLE_STATUSES = new Set<InvoiceStatus>([
+  'finalized',
+  'sent',
+  'partially_paid',
+  'paid',
+]);
 
 const PAYMENT_METHOD_OPTIONS = Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({
   value,
@@ -574,17 +580,20 @@ export function InvoiceDetail() {
                       <Table.Td>{formatMinorUnits(p.amountMinorUnits)}</Table.Td>
                       <Table.Td>{PAYMENT_METHOD_LABELS[p.method]}</Table.Td>
                       <Table.Td>{p.reference ?? '—'}</Table.Td>
-                      <Table.Td>
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          size="sm"
-                          onClick={() => setDeleteConfirmId(p.id)}
-                          data-testid={`delete-payment-${p.id}`}
-                        >
-                          <IconTrash size={14} />
-                        </ActionIcon>
-                      </Table.Td>
+                      {PAYMENT_DELETABLE_STATUSES.has(invoice.status) && (
+                        <Table.Td>
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            size="sm"
+                            onClick={() => setDeleteConfirmId(p.id)}
+                            data-testid={`delete-payment-${p.id}`}
+                            aria-label={`מחק תשלום ${p.id}`}
+                          >
+                            <IconTrash size={14} />
+                          </ActionIcon>
+                        </Table.Td>
+                      )}
                     </Table.Tr>
                   ))}
                 </Table.Tbody>
