@@ -12,6 +12,7 @@ import {
   type UpdateInvoiceDraftBody,
 } from '@bon/types/invoices';
 import { okResponseSchema } from '@bon/types/common';
+import type { RecordPaymentBody } from '@bon/types/payments';
 
 export async function fetchInvoices(
   businessId: string,
@@ -89,4 +90,33 @@ export async function sendInvoiceByEmail(
     body: JSON.stringify(data),
   });
   return sendInvoiceResponseSchema.parse(json);
+}
+
+export async function recordPayment(
+  businessId: string,
+  invoiceId: string,
+  data: RecordPaymentBody
+): Promise<InvoiceResponse> {
+  const json = await fetchJson<unknown>(
+    `/businesses/${businessId}/invoices/${invoiceId}/payments`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  );
+  return invoiceResponseSchema.parse(json);
+}
+
+export async function deletePayment(
+  businessId: string,
+  invoiceId: string,
+  paymentId: string
+): Promise<InvoiceResponse> {
+  const json = await fetchJson<unknown>(
+    `/businesses/${businessId}/invoices/${invoiceId}/payments/${paymentId}`,
+    {
+      method: 'DELETE',
+    }
+  );
+  return invoiceResponseSchema.parse(json);
 }

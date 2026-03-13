@@ -1,18 +1,23 @@
 import { useState } from 'react';
 import {
+  ActionIcon,
   Badge,
   Button,
   Container,
   Divider,
   Group,
   Modal,
+  NumberInput,
   Paper,
+  Select,
   Skeleton,
   Stack,
   Table,
   Text,
   TextInput,
+  Textarea,
 } from '@mantine/core';
+import { DatePickerInput, type DateValue } from '@mantine/dates';
 import {
   IconFileDownload,
   IconMail,
@@ -20,6 +25,7 @@ import {
   IconReceiptRefund,
   IconSettings,
   IconAlertTriangle,
+  IconTrash,
 } from '@tabler/icons-react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,12 +33,13 @@ import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
 import { InvoiceTotalsSummary } from '../components/InvoiceTotalsSummary';
 import { InvoiceAnnotation } from '../components/InvoiceAnnotation';
-import { fetchInvoice, sendInvoiceByEmail } from '../api/invoices';
+import { fetchInvoice, sendInvoiceByEmail, recordPayment, deletePayment } from '../api/invoices';
 import { queryKeys } from '../lib/queryKeys';
 import { useApiMutation } from '../lib/useApiMutation';
 import { useBusiness } from '../contexts/BusinessContext';
 import { formatDate, formatMinorUnits } from '@bon/types/formatting';
 import { DOCUMENT_TYPE_LABELS, type InvoiceStatus } from '@bon/types/invoices';
+import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@bon/types/payments';
 import { INVOICE_STATUS_CONFIG } from '../lib/invoiceStatus';
 import { computeVatLabel } from '../lib/vatLabel';
 import { ITA_ERROR_MAP, EMERGENCY_POOL_EMPTY_MESSAGE } from '@bon/types/shaam';
@@ -45,6 +52,13 @@ function formatDateTime(isoString: string): string {
   const hours = String(d.getHours()).padStart(2, '0');
   const minutes = String(d.getMinutes()).padStart(2, '0');
   return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+function toDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function detectErrorCode(allocationError: string | null): string | null {
@@ -155,6 +169,12 @@ const CREDIT_NOTE_ELIGIBLE: readonly InvoiceStatus[] = [
 ] as const;
 
 const SENDABLE_STATUSES = new Set<InvoiceStatus>(['finalized', 'sent']);
+const PAYABLE_STATUSES = new Set<InvoiceStatus>(['finalized', 'sent', 'partially_paid']);
+
+const PAYMENT_METHOD_OPTIONS = Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 function DetailSkeleton() {
   return (
@@ -198,11 +218,27 @@ export function InvoiceDetail() {
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState('');
 
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState<number | string>('');
+  const [paymentDate, setPaymentDate] = useState<DateValue>(new Date());
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const invoiceQuery = useQuery({
     queryKey: queryKeys.invoice(businessId, invoiceId),
     queryFn: () => fetchInvoice(businessId, invoiceId),
     enabled: !!businessId && !!invoiceId,
   });
+
+  // ── helpers ──
+
+  function invalidateInvoiceQueries() {
+    queryClient.invalidateQueries({ queryKey: queryKeys.invoice(businessId, invoiceId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.invoices(businessId) });
+  }
 
   const sendMutation = useApiMutation({
     mutationFn: () =>
@@ -212,8 +248,36 @@ export function InvoiceDetail() {
     successToast: { message: 'החשבונית נשלחה בהצלחה' },
     onSuccess: () => {
       setSendModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: queryKeys.invoice(businessId, invoiceId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.invoices(businessId) });
+      invalidateInvoiceQueries();
+    },
+  });
+
+  const paymentMutation = useApiMutation({
+    mutationFn: () => {
+      const amountMinorUnits = Math.round(
+        (typeof paymentAmount === 'number' ? paymentAmount : 0) * 100
+      );
+      return recordPayment(businessId, invoiceId, {
+        amountMinorUnits,
+        paidAt: toDateString(paymentDate instanceof Date ? paymentDate : new Date()),
+        method: paymentMethod as PaymentMethod,
+        reference: paymentReference.trim() || undefined,
+        notes: paymentNotes.trim() || undefined,
+      });
+    },
+    successToast: { message: 'התשלום נרשם בהצלחה' },
+    onSuccess: () => {
+      setPaymentModalOpen(false);
+      invalidateInvoiceQueries();
+    },
+  });
+
+  const deleteMutation = useApiMutation({
+    mutationFn: (paymentId: string) => deletePayment(businessId, invoiceId, paymentId),
+    successToast: { message: 'התשלום נמחק בהצלחה' },
+    onSuccess: () => {
+      setDeleteConfirmId(null);
+      invalidateInvoiceQueries();
     },
   });
 
@@ -247,7 +311,7 @@ export function InvoiceDetail() {
     );
   }
 
-  const { invoice, items } = invoiceQuery.data;
+  const { invoice, items, payments, remainingBalanceMinorUnits } = invoiceQuery.data;
 
   // Draft invoices redirect to edit page
   if (invoice.status === 'draft') {
@@ -258,12 +322,27 @@ export function InvoiceDetail() {
   const documentTypeLabel = DOCUMENT_TYPE_LABELS[invoice.documentType] ?? invoice.documentType;
   const showCreditNote = CREDIT_NOTE_ELIGIBLE.includes(invoice.status);
   const canSend = SENDABLE_STATUSES.has(invoice.status);
+  const canPay = PAYABLE_STATUSES.has(invoice.status);
   const vatLabel = computeVatLabel(items.map((i) => i.vatRateBasisPoints));
+  const remainingDisplay = remainingBalanceMinorUnits / 100;
 
   function openSendModal() {
     setRecipientEmail(invoice.customerEmail ?? '');
     setSendModalOpen(true);
   }
+
+  function openPaymentModal() {
+    setPaymentAmount(remainingDisplay);
+    setPaymentDate(new Date());
+    setPaymentMethod(null);
+    setPaymentReference('');
+    setPaymentNotes('');
+    setPaymentModalOpen(true);
+  }
+
+  const paymentAmountNum = typeof paymentAmount === 'number' ? paymentAmount : 0;
+  const paymentAmountValid = paymentAmountNum > 0 && paymentAmountNum <= remainingDisplay;
+  const canSubmitPayment = paymentAmountValid && paymentDate && paymentMethod;
 
   return (
     <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
@@ -322,8 +401,8 @@ export function InvoiceDetail() {
             <Button
               variant="light"
               leftSection={<IconCash size={16} />}
-              disabled
-              title="יהיה זמין בקרוב"
+              disabled={!canPay}
+              onClick={openPaymentModal}
             >
               סמן כשולם
             </Button>
@@ -370,6 +449,18 @@ export function InvoiceDetail() {
             allocationError={invoice.allocationError}
             businessId={businessId}
           />
+        )}
+
+        {/* Remaining balance */}
+        {remainingBalanceMinorUnits > 0 && (
+          <Paper withBorder p="md" radius="md" data-testid="remaining-balance">
+            <Group gap="sm">
+              <Text fw={600}>יתרה לתשלום:</Text>
+              <Text fw={700} c="red.7">
+                {formatMinorUnits(remainingBalanceMinorUnits)}
+              </Text>
+            </Group>
+          </Paper>
         )}
 
         {/* Invoice document */}
@@ -455,6 +546,53 @@ export function InvoiceDetail() {
           </Stack>
         </Paper>
 
+        {/* Payment history */}
+        <Paper withBorder p="md" radius="md" data-testid="payment-history">
+          <Stack gap="xs">
+            <Text size="sm" fw={500}>
+              היסטוריית תשלומים
+            </Text>
+            {payments.length === 0 ? (
+              <Text size="sm" c="dimmed" data-testid="no-payments">
+                לא נרשמו תשלומים
+              </Text>
+            ) : (
+              <Table>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>תאריך</Table.Th>
+                    <Table.Th>סכום</Table.Th>
+                    <Table.Th>אמצעי תשלום</Table.Th>
+                    <Table.Th>אסמכתא</Table.Th>
+                    <Table.Th />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {payments.map((p) => (
+                    <Table.Tr key={p.id} data-testid="payment-row">
+                      <Table.Td>{formatDate(p.paidAt)}</Table.Td>
+                      <Table.Td>{formatMinorUnits(p.amountMinorUnits)}</Table.Td>
+                      <Table.Td>{PAYMENT_METHOD_LABELS[p.method]}</Table.Td>
+                      <Table.Td>{p.reference ?? '—'}</Table.Td>
+                      <Table.Td>
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          size="sm"
+                          onClick={() => setDeleteConfirmId(p.id)}
+                          data-testid={`delete-payment-${p.id}`}
+                        >
+                          <IconTrash size={14} />
+                        </ActionIcon>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            )}
+          </Stack>
+        </Paper>
+
         {/* Audit timeline */}
         <Paper withBorder p="md" radius="md">
           <Stack gap="xs">
@@ -515,6 +653,101 @@ export function InvoiceDetail() {
               disabled={!recipientEmail?.trim()}
             >
               שלח
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Payment modal */}
+      <Modal
+        opened={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        title="רישום תשלום"
+        centered
+        data-testid="payment-modal"
+      >
+        <Stack gap="md">
+          <NumberInput
+            label="סכום"
+            prefix="₪"
+            decimalScale={2}
+            fixedDecimalScale
+            min={0.01}
+            max={remainingDisplay}
+            value={paymentAmount}
+            onChange={setPaymentAmount}
+            data-testid="payment-amount-input"
+            error={
+              typeof paymentAmount === 'number' && paymentAmount > remainingDisplay
+                ? 'הסכום חורג מהיתרה לתשלום'
+                : undefined
+            }
+          />
+          <DatePickerInput
+            label="תאריך תשלום"
+            value={paymentDate}
+            onChange={setPaymentDate}
+            data-testid="payment-date-input"
+          />
+          <Select
+            label="אמצעי תשלום"
+            data={PAYMENT_METHOD_OPTIONS}
+            value={paymentMethod}
+            onChange={setPaymentMethod}
+            data-testid="payment-method-input"
+          />
+          <TextInput
+            label="אסמכתא"
+            placeholder="מספר שיק, אסמכתא להעברה..."
+            value={paymentReference}
+            onChange={(e) => setPaymentReference(e.currentTarget.value)}
+            data-testid="payment-reference-input"
+          />
+          <Textarea
+            label="הערות"
+            value={paymentNotes}
+            onChange={(e) => setPaymentNotes(e.currentTarget.value)}
+            data-testid="payment-notes-input"
+          />
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={() => setPaymentModalOpen(false)}>
+              ביטול
+            </Button>
+            <Button
+              onClick={() => paymentMutation.mutate()}
+              loading={paymentMutation.isPending}
+              disabled={!canSubmitPayment}
+              data-testid="payment-submit"
+            >
+              רשום תשלום
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Delete payment confirmation modal */}
+      <Modal
+        opened={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        title="מחיקת תשלום"
+        centered
+        size="sm"
+      >
+        <Stack gap="md">
+          <Text>האם למחוק את התשלום? פעולה זו תעדכן את סטטוס החשבונית.</Text>
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={() => setDeleteConfirmId(null)}>
+              ביטול
+            </Button>
+            <Button
+              color="red"
+              onClick={() => {
+                if (deleteConfirmId) deleteMutation.mutate(deleteConfirmId);
+              }}
+              loading={deleteMutation.isPending}
+              data-testid="confirm-delete-payment"
+            >
+              מחק
             </Button>
           </Group>
         </Stack>

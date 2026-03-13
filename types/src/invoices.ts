@@ -10,6 +10,7 @@ import {
   nullableUuid,
   uuidSchema,
 } from './common.js';
+import { paymentSchema } from './payments.js';
 
 // ── Enums ──
 
@@ -158,6 +159,8 @@ export const invoiceSchema = z.object({
 export const invoiceResponseSchema = z.object({
   invoice: invoiceSchema,
   items: z.array(lineItemSchema),
+  payments: z.array(paymentSchema),
+  remainingBalanceMinorUnits: z.number().int().nonnegative(),
 });
 
 export const invoiceListItemSchema = z.object({

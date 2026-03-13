@@ -25,6 +25,7 @@ import {
   INVOICE_STATUSES,
   ALLOCATION_STATUSES,
 } from '@bon/types/invoices';
+import { PAYMENT_METHODS } from '@bon/types/payments';
 
 export const businessTypeEnum = pgEnum('business_type', BUSINESS_TYPES);
 export const businessRoleEnum = pgEnum('business_role', BUSINESS_ROLES);
@@ -33,6 +34,7 @@ export const documentTypeEnum = pgEnum('document_type', DOCUMENT_TYPES);
 export const sequenceGroupEnum = pgEnum('sequence_group', SEQUENCE_GROUPS);
 export const invoiceStatusEnum = pgEnum('invoice_status', INVOICE_STATUSES);
 export const allocationStatusEnum = pgEnum('allocation_status', ALLOCATION_STATUSES);
+export const paymentMethodEnum = pgEnum('payment_method', PAYMENT_METHODS);
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -308,6 +310,40 @@ export const invoiceSequences = pgTable(
   (table) => [primaryKey({ columns: [table.businessId, table.sequenceGroup] })]
 );
 
+export const invoicePayments = pgTable(
+  'invoice_payments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    amountMinorUnits: integer('amount_minor_units').notNull(),
+    paidAt: date('paid_at', { mode: 'string' }).notNull(),
+    method: paymentMethodEnum('method').notNull(),
+    reference: text('reference'),
+    notes: text('notes'),
+    recordedByUserId: uuid('recorded_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check('invoice_payments_amount_positive', sql`${table.amountMinorUnits} > 0`),
+    index('invoice_payments_invoice_id_idx').on(table.invoiceId),
+  ]
+);
+
+export const invoicePaymentsRelations = relations(invoicePayments, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoicePayments.invoiceId],
+    references: [invoices.id],
+  }),
+  recordedByUser: one(users, {
+    fields: [invoicePayments.recordedByUserId],
+    references: [users.id],
+  }),
+}));
+
 export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   business: one(businesses, {
     fields: [invoices.businessId],
@@ -322,6 +358,7 @@ export const invoicesRelations = relations(invoices, ({ one, many }) => ({
     references: [invoices.id],
   }),
   items: many(invoiceItems),
+  payments: many(invoicePayments),
 }));
 
 export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({

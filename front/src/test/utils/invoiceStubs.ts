@@ -62,6 +62,8 @@ export function makeDraftInvoice(overrides: Partial<Invoice> = {}): InvoiceRespo
       ...overrides,
     },
     items: [{ ...BASE_LINE_ITEM }],
+    payments: [],
+    remainingBalanceMinorUnits: 11700,
   };
 }
 
@@ -85,5 +87,7 @@ export function makeFinalizedInvoice(overrides: Partial<Invoice> = {}): InvoiceR
       ...overrides,
     },
     items: [{ ...BASE_LINE_ITEM }],
+    payments: [],
+    remainingBalanceMinorUnits: 11700,
   };
 }

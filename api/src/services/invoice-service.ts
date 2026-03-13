@@ -16,12 +16,24 @@ import {
   type InvoiceInsert,
   type InvoiceListFilters,
 } from '../repositories/invoice-repository.js';
+import {
+  insertPayment,
+  findPaymentsByInvoiceId,
+  findPaymentById,
+  deletePaymentById,
+  sumPaymentsByInvoiceId,
+} from '../repositories/payment-repository.js';
 import { findCustomerById } from '../repositories/customer-repository.js';
 import { findBusinessById } from '../repositories/business-repository.js';
 import type { CustomerRecord } from '../repositories/customer-repository.js';
+import type { PaymentRecord } from '../repositories/payment-repository.js';
 import { AppError, notFound, unprocessableEntity } from '../lib/app-error.js';
 import { assignInvoiceNumber, documentTypeToSequenceGroup } from '../lib/invoice-sequences.js';
-import { serializeInvoice, serializeInvoiceItem } from '../lib/invoice-serializers.js';
+import {
+  serializeInvoice,
+  serializeInvoiceItem,
+  serializePayment,
+} from '../lib/invoice-serializers.js';
 import { toNumber } from '../lib/numeric.js';
 import { calculateLine, calculateInvoiceTotals, STANDARD_VAT_RATE_BP } from '@bon/types/vat';
 import { generateInvoicePdf } from './pdf-service.js';
@@ -35,6 +47,7 @@ import type {
   LineItemInput,
   DocumentType,
 } from '@bon/types/invoices';
+import type { RecordPaymentBody } from '@bon/types/payments';
 import { shouldRequestAllocation } from '@bon/types/shaam';
 
 export interface FinalizeResult extends InvoiceResponse {
@@ -113,10 +126,17 @@ function computeTotals(items: LineItemInput[]) {
   );
 }
 
-function buildResponse(invoice: InvoiceRecord, itemRecords: InvoiceItemRecord[]): InvoiceResponse {
+function buildResponse(
+  invoice: InvoiceRecord,
+  itemRecords: InvoiceItemRecord[],
+  paymentRecords: PaymentRecord[] = [],
+  paidTotal = 0
+): InvoiceResponse {
   return {
     invoice: serializeInvoice(invoice),
     items: itemRecords.map(serializeInvoiceItem),
+    payments: paymentRecords.map(serializePayment),
+    remainingBalanceMinorUnits: Math.max(0, invoice.totalInclVatMinorUnits - paidTotal),
   };
 }
 
@@ -202,8 +222,12 @@ export async function getInvoice(businessId: string, invoiceId: string) {
   const invoice = await findInvoiceById(invoiceId, businessId);
   if (!invoice) throw notFound();
 
-  const items = await findItemsByInvoiceId(invoiceId);
-  return buildResponse(invoice, items);
+  const [items, payments, paidTotal] = await Promise.all([
+    findItemsByInvoiceId(invoiceId),
+    findPaymentsByInvoiceId(invoiceId),
+    sumPaymentsByInvoiceId(invoiceId),
+  ]);
+  return buildResponse(invoice, items, payments, paidTotal);
 }
 
 export type UpdateDraftInput = {
@@ -508,4 +532,123 @@ export async function listInvoices(
       totalFilteredMinorUnits: filteredTotal,
     },
   };
+}
+
+// ── payment methods ──
+
+const PAYABLE_STATUSES = new Set(['finalized', 'sent', 'partially_paid']);
+const PAYMENT_DELETABLE_STATUSES = new Set(['finalized', 'sent', 'partially_paid', 'paid']);
+
+export async function recordPayment(
+  businessId: string,
+  invoiceId: string,
+  body: RecordPaymentBody,
+  recordedByUserId: string
+): Promise<InvoiceResponse> {
+  return db.transaction(async (tx) => {
+    const invoice = await findInvoiceByIdForUpdate(invoiceId, businessId, tx);
+    if (!invoice) throw notFound({ code: 'invoice_not_found' });
+
+    if (!PAYABLE_STATUSES.has(invoice.status)) {
+      throw unprocessableEntity({ code: 'invoice_not_payable' });
+    }
+
+    const paidSoFar = await sumPaymentsByInvoiceId(invoiceId, tx);
+    const remaining = invoice.totalInclVatMinorUnits - paidSoFar;
+
+    if (body.amountMinorUnits > remaining) {
+      throw unprocessableEntity({ code: 'payment_exceeds_balance' });
+    }
+
+    await insertPayment(
+      {
+        invoiceId,
+        amountMinorUnits: body.amountMinorUnits,
+        paidAt: body.paidAt,
+        method: body.method,
+        reference: body.reference ?? null,
+        notes: body.notes ?? null,
+        recordedByUserId,
+      },
+      tx
+    );
+
+    const newPaidTotal = paidSoFar + body.amountMinorUnits;
+    const isFullyPaid = newPaidTotal >= invoice.totalInclVatMinorUnits;
+
+    const now = new Date();
+    const statusUpdates: Partial<InvoiceInsert> = {
+      status: isFullyPaid ? 'paid' : 'partially_paid',
+      updatedAt: now,
+    };
+
+    if (isFullyPaid) {
+      statusUpdates.paidAt = new Date(body.paidAt);
+      if (invoice.isOverdue) {
+        statusUpdates.isOverdue = false;
+      }
+    }
+
+    const updated = await updateInvoice(invoiceId, businessId, statusUpdates, tx);
+    if (!updated) throw notFound();
+
+    const [items, payments] = await Promise.all([
+      findItemsByInvoiceId(invoiceId, tx),
+      findPaymentsByInvoiceId(invoiceId, tx),
+    ]);
+
+    return buildResponse(updated, items, payments, newPaidTotal);
+  });
+}
+
+export async function deletePayment(
+  businessId: string,
+  invoiceId: string,
+  paymentId: string
+): Promise<InvoiceResponse> {
+  return db.transaction(async (tx) => {
+    const invoice = await findInvoiceByIdForUpdate(invoiceId, businessId, tx);
+    if (!invoice) throw notFound({ code: 'invoice_not_found' });
+
+    if (!PAYMENT_DELETABLE_STATUSES.has(invoice.status)) {
+      throw unprocessableEntity({ code: 'cannot_delete_payment' });
+    }
+
+    const payment = await findPaymentById(paymentId, invoiceId, tx);
+    if (!payment) throw notFound({ code: 'payment_not_found' });
+
+    await deletePaymentById(paymentId, invoiceId, tx);
+
+    const newPaidTotal = await sumPaymentsByInvoiceId(invoiceId, tx);
+    const now = new Date();
+    const statusUpdates: Partial<InvoiceInsert> = { updatedAt: now };
+
+    if (newPaidTotal <= 0) {
+      // No payments remain — restore pre-payment status
+      statusUpdates.status = invoice.sentAt ? 'sent' : 'finalized';
+      statusUpdates.paidAt = null;
+    } else if (newPaidTotal < invoice.totalInclVatMinorUnits) {
+      statusUpdates.status = 'partially_paid';
+      statusUpdates.paidAt = null;
+    }
+    // If still fully paid (shouldn't happen on delete, but safe)
+
+    const updated = await updateInvoice(invoiceId, businessId, statusUpdates, tx);
+    if (!updated) throw notFound();
+
+    const [items, payments] = await Promise.all([
+      findItemsByInvoiceId(invoiceId, tx),
+      findPaymentsByInvoiceId(invoiceId, tx),
+    ]);
+
+    return buildResponse(updated, items, payments, newPaidTotal);
+  });
+}
+
+export async function listPayments(businessId: string, invoiceId: string) {
+  const invoice = await findInvoiceById(invoiceId, businessId);
+  if (!invoice) throw notFound({ code: 'invoice_not_found' });
+
+  const payments = await findPaymentsByInvoiceId(invoiceId);
+  return payments.map(serializePayment);
 }

@@ -11,6 +11,8 @@ vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/invoices', () => ({
   fetchInvoice: vi.fn(),
   sendInvoiceByEmail: vi.fn(),
+  recordPayment: vi.fn(),
+  deletePayment: vi.fn(),
 }));
 
 import { useBusiness } from '../../contexts/BusinessContext';
@@ -103,10 +105,10 @@ describe('InvoiceDetail page', () => {
     // Notes
     expect(screen.getByText('הערה לדוגמה')).toBeInTheDocument();
 
-    // Action buttons — send enabled for finalized, others still disabled
+    // Action buttons — send + payment enabled for finalized, others still disabled
     expect(screen.getByRole('button', { name: 'הורד PDF' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'שלח במייל' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'סמן כשולם' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'סמן כשולם' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'הפק חשבונית זיכוי' })).toBeDisabled();
   });
 
@@ -273,5 +275,69 @@ describe('InvoiceDetail send email', () => {
 
     const confirmButton = await screen.findByRole('button', { name: /^שלח$/ });
     expect(confirmButton).toBeDisabled();
+  });
+});
+
+describe('InvoiceDetail payments', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockActiveBusiness(useBusiness);
+  });
+
+  // ── helpers ──
+
+  async function openPaymentModal(user: UserEvent) {
+    await user.click(await screen.findByRole('button', { name: 'סמן כשולם' }));
+    await screen.findByText('רישום תשלום');
+  }
+
+  it('opens payment modal on button click', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
+    renderDetail();
+    const user = userEvent.setup();
+
+    await openPaymentModal(user);
+
+    expect(screen.getByTestId('payment-amount-input')).toBeInTheDocument();
+    expect(screen.getByTestId('payment-method-input')).toBeInTheDocument();
+    expect(screen.getByTestId('payment-submit')).toBeInTheDocument();
+  });
+
+  it('calls recordPayment on successful submission', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
+    vi.mocked(invoicesApi.recordPayment).mockResolvedValue(
+      makeFinalizedInvoice({ status: 'paid' })
+    );
+    renderDetail();
+    const user = userEvent.setup();
+
+    await openPaymentModal(user);
+
+    // Select payment method
+    await user.click(screen.getByTestId('payment-method-input'));
+    await user.click(await screen.findByText('מזומן'));
+
+    // Submit
+    await user.click(screen.getByTestId('payment-submit'));
+
+    await waitFor(() => {
+      expect(invoicesApi.recordPayment).toHaveBeenCalled();
+    });
+  });
+
+  it('disables payment button for non-payable statuses', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice({ status: 'paid' }));
+    renderDetail();
+
+    const payButton = await screen.findByRole('button', { name: 'סמן כשולם' });
+    expect(payButton).toBeDisabled();
+  });
+
+  it('shows empty payment history', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
+    renderDetail();
+
+    expect(await screen.findByTestId('no-payments')).toBeInTheDocument();
+    expect(screen.getByText('לא נרשמו תשלומים')).toBeInTheDocument();
   });
 });

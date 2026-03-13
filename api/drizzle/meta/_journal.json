@@ -43,6 +43,13 @@
       "when": 1772907655614,
       "tag": "0005_deep_bloodstorm",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773590400000,
+      "tag": "0006_invoice_payments",
+      "breakpoints": true
     }
   ]
 }

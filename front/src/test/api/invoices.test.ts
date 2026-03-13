@@ -50,7 +50,12 @@ const minimalInvoice = {
   updatedAt: '2024-01-01T00:00:00.000Z',
 };
 
-const minimalInvoiceResponse = { invoice: minimalInvoice, items: [] };
+const minimalInvoiceResponse = {
+  invoice: minimalInvoice,
+  items: [],
+  payments: [],
+  remainingBalanceMinorUnits: 0,
+};
 
 // ── helpers ──
 
