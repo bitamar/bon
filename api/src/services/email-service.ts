@@ -138,10 +138,12 @@ export function buildOverdueDigestHtml(
       const num = escapeHtml(item.documentNumber ?? 'טיוטה');
       const customer = escapeHtml(item.customerName ?? '—');
       const amount = escapeHtml(formatMinorUnits(item.totalInclVatMinorUnits));
+      const due = escapeHtml(item.dueDate);
       return `<tr>
       <td style="padding:8px;border-bottom:1px solid #eee;">${num}</td>
       <td style="padding:8px;border-bottom:1px solid #eee;">${customer}</td>
       <td style="padding:8px;border-bottom:1px solid #eee;">${amount}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;">${due}</td>
       <td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(String(item.daysOverdue))} ימים</td>
     </tr>`;
     })
@@ -155,13 +157,14 @@ export function buildOverdueDigestHtml(
     <h2 style="margin:0;color:#e03131;">חשבוניות באיחור — ${escapedBiz}</h2>
   </div>
   <p style="margin:8px 0;">שלום ${escapedOwner},</p>
-  <p style="margin:8px 0;">ישנן <strong>${items.length}</strong> חשבוניות שעברו את מועד התשלום בסך ${escapedTotal}:</p>
+  <p style="margin:8px 0;">${items.length === 1 ? `ישנה <strong>1</strong> חשבונית שעברה את מועד התשלום בסך ${escapedTotal}:` : `ישנן <strong>${items.length}</strong> חשבוניות שעברו את מועד התשלום בסך ${escapedTotal}:`}</p>
   <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
     <thead>
       <tr style="background:#f8f9fa;">
         <th style="padding:8px;text-align:right;border-bottom:2px solid #dee2e6;">מספר</th>
         <th style="padding:8px;text-align:right;border-bottom:2px solid #dee2e6;">לקוח</th>
         <th style="padding:8px;text-align:right;border-bottom:2px solid #dee2e6;">סכום</th>
+        <th style="padding:8px;text-align:right;border-bottom:2px solid #dee2e6;">תאריך תשלום</th>
         <th style="padding:8px;text-align:right;border-bottom:2px solid #dee2e6;">באיחור</th>
       </tr>
     </thead>

@@ -29,16 +29,17 @@ const maintenanceJobsPluginFn: FastifyPluginAsync = async (app) => {
   );
 
   // Overdue detection — 6:00 AM daily (Israel time)
+  // On success, detection enqueues 'overdue-digest' so the digest always
+  // runs after detection completes (no fixed 5-min delay).
   await app.boss.createQueue('overdue-detection');
   await app.boss.schedule('overdue-detection', '0 6 * * *', {}, { tz: 'Asia/Jerusalem' });
   await app.boss.work(
     'overdue-detection',
-    runJob('overdue-detection', createOverdueDetectionHandler(app.log), app.log)
+    runJob('overdue-detection', createOverdueDetectionHandler(app.log, app.boss), app.log)
   );
 
-  // Overdue digest — 6:05 AM daily (Israel time, 5 min after detection)
+  // Overdue digest — enqueued by overdue-detection on success (not cron-scheduled)
   await app.boss.createQueue('overdue-digest');
-  await app.boss.schedule('overdue-digest', '5 6 * * *', {}, { tz: 'Asia/Jerusalem' });
   await app.boss.work(
     'overdue-digest',
     runJob('overdue-digest', createOverdueDigestHandler(app.log), app.log)

@@ -13,12 +13,18 @@ import {
 
 const MS_PER_DAY = 86_400_000;
 
-function computeDaysOverdue(dueDate: string): number {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const parts = dueDate.split('-').map(Number);
-  const due = new Date(parts[0] ?? 0, (parts[1] ?? 1) - 1, parts[2] ?? 1);
-  return Math.floor((today.getTime() - due.getTime()) / MS_PER_DAY);
+/** Calendar-day difference in Asia/Jerusalem, independent of host timezone. */
+export function computeDaysOverdue(dueDate: string): number {
+  // Get today's calendar date in Israel
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+  const [tY, tM, tD] = todayStr.split('-').map(Number) as [number, number, number];
+  const todayUtc = Date.UTC(tY, tM - 1, tD);
+
+  // Parse the due date as a calendar date (UTC to avoid DST shifts)
+  const [dY, dM, dD] = dueDate.split('-').map(Number) as [number, number, number];
+  const dueUtc = Date.UTC(dY, dM - 1, dD);
+
+  return Math.floor((todayUtc - dueUtc) / MS_PER_DAY);
 }
 
 /**

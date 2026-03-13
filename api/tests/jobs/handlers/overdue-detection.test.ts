@@ -1,5 +1,6 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import type { FastifyBaseLogger } from 'fastify';
+import type { PgBoss } from 'pg-boss';
 import { createOverdueDetectionHandler } from '../../../src/jobs/handlers/overdue-detection.js';
 import { db } from '../../../src/db/client.js';
 import { invoices } from '../../../src/db/schema.js';
@@ -41,11 +42,19 @@ async function createInvoice(
   return row!;
 }
 
+vi.mock('../../../src/jobs/boss.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/jobs/boss.js')>();
+  return { ...actual, sendJob: vi.fn() };
+});
+
+import { sendJob } from '../../../src/jobs/boss.js';
+
 let logger: FastifyBaseLogger;
 let businessId: string;
+const mockBoss = {} as PgBoss;
 
 async function runHandler() {
-  const handler = createOverdueDetectionHandler(logger);
+  const handler = createOverdueDetectionHandler(logger, mockBoss);
   await handler(makeJob('overdue-detection'));
 }
 
@@ -58,6 +67,7 @@ describe('overdue-detection handler', () => {
   beforeEach(async () => {
     await resetDb();
     logger = makeLogger();
+    vi.mocked(sendJob).mockReset();
     const user = await createUser();
     const biz = await createTestBusiness(user.id);
     businessId = biz.id;
@@ -134,5 +144,13 @@ describe('overdue-detection handler', () => {
       expect.objectContaining({ markedOverdue: 0 }),
       'overdue-detection: completed'
     );
+  });
+
+  it('enqueues overdue-digest after successful detection', async () => {
+    await createInvoice(businessId, 'finalized', daysAgo(5));
+
+    await runHandler();
+
+    expect(sendJob).toHaveBeenCalledWith(mockBoss, 'overdue-digest', {});
   });
 });

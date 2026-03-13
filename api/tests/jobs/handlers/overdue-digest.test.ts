@@ -1,6 +1,9 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import type { FastifyBaseLogger } from 'fastify';
-import { createOverdueDigestHandler } from '../../../src/jobs/handlers/overdue-digest.js';
+import {
+  createOverdueDigestHandler,
+  computeDaysOverdue,
+} from '../../../src/jobs/handlers/overdue-digest.js';
 import { db } from '../../../src/db/client.js';
 import { invoices } from '../../../src/db/schema.js';
 import { resetDb } from '../../utils/db.js';
@@ -56,6 +59,17 @@ async function runHandler() {
 }
 
 describe('overdue-digest handler', () => {
+  // ── helpers ──
+  async function createOwnedBusiness(
+    userOverrides?: Partial<Parameters<typeof createUser>[0]>,
+    bizOverrides?: Partial<Parameters<typeof createTestBusiness>[1]>
+  ) {
+    const user = await createUser(userOverrides);
+    const biz = await createTestBusiness(user.id, bizOverrides);
+    await addUserToBusiness(user.id, biz.id, 'owner');
+    return { user, biz };
+  }
+
   beforeEach(async () => {
     await resetDb();
     logger = makeLogger();
@@ -63,9 +77,7 @@ describe('overdue-digest handler', () => {
   });
 
   it('sends digest email to business owner with overdue invoices', async () => {
-    const user = await createUser({ name: 'David' });
-    const biz = await createTestBusiness(user.id, { name: 'Acme Ltd' });
-    await addUserToBusiness(user.id, biz.id, 'owner');
+    const { user, biz } = await createOwnedBusiness({ name: 'David' }, { name: 'Acme Ltd' });
 
     await createInvoice(biz.id, 'finalized', daysAgo(5), {
       documentNumber: 'INV-001',
@@ -101,9 +113,7 @@ describe('overdue-digest handler', () => {
   });
 
   it('skips invoices that are not overdue', async () => {
-    const user = await createUser();
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
+    const { biz } = await createOwnedBusiness();
 
     // Paid invoice with isOverdue=false should not trigger digest
     await createInvoice(biz.id, 'paid', daysAgo(5), { isOverdue: false });
@@ -114,13 +124,12 @@ describe('overdue-digest handler', () => {
   });
 
   it('groups invoices by business and sends one email per owner', async () => {
-    const user1 = await createUser();
-    const biz1 = await createTestBusiness(user1.id, { name: 'Business 1' });
-    await addUserToBusiness(user1.id, biz1.id, 'owner');
-
-    const user2 = await createUser();
-    const biz2 = await createTestBusiness(user2.id, { name: 'Business 2' });
-    await addUserToBusiness(user2.id, biz2.id, 'owner');
+    const { user: user1, biz: biz1 } = await createOwnedBusiness(undefined, {
+      name: 'Business 1',
+    });
+    const { user: user2, biz: biz2 } = await createOwnedBusiness(undefined, {
+      name: 'Business 2',
+    });
 
     await createInvoice(biz1.id, 'sent', daysAgo(3));
     await createInvoice(biz1.id, 'finalized', daysAgo(10));
@@ -141,13 +150,8 @@ describe('overdue-digest handler', () => {
   });
 
   it('continues sending to other businesses when one email fails', async () => {
-    const user1 = await createUser();
-    const biz1 = await createTestBusiness(user1.id);
-    await addUserToBusiness(user1.id, biz1.id, 'owner');
-
-    const user2 = await createUser();
-    const biz2 = await createTestBusiness(user2.id);
-    await addUserToBusiness(user2.id, biz2.id, 'owner');
+    const { biz: biz1 } = await createOwnedBusiness();
+    const { biz: biz2 } = await createOwnedBusiness();
 
     await createInvoice(biz1.id, 'finalized', daysAgo(5));
     await createInvoice(biz2.id, 'sent', daysAgo(3));
@@ -173,7 +177,7 @@ describe('overdue-digest handler', () => {
   it('skips business with no owners', async () => {
     const user = await createUser();
     const biz = await createTestBusiness(user.id);
-    // No addUserToBusiness call — no owners
+    // No addUserToBusiness — no owners
 
     await createInvoice(biz.id, 'finalized', daysAgo(5));
 
@@ -183,10 +187,7 @@ describe('overdue-digest handler', () => {
   });
 
   it('sends to multiple owners of the same business', async () => {
-    const user1 = await createUser();
-    const biz = await createTestBusiness(user1.id);
-    await addUserToBusiness(user1.id, biz.id, 'owner');
-
+    const { user: user1, biz } = await createOwnedBusiness();
     const user2 = await createUser();
     await addUserToBusiness(user2.id, biz.id, 'owner');
 
@@ -198,5 +199,36 @@ describe('overdue-digest handler', () => {
     const recipients = vi.mocked(emailService.send).mock.calls.map((c) => c[0].to);
     expect(recipients).toContain(user1.email);
     expect(recipients).toContain(user2.email);
+  });
+});
+
+describe('computeDaysOverdue', () => {
+  it('returns correct days for a fixed date regardless of host timezone', () => {
+    // Mock Date to a fixed instant: 2026-03-13T10:00:00Z
+    // In Asia/Jerusalem (UTC+2 in March) this is 2026-03-13 12:00
+    const fixed = new Date('2026-03-13T10:00:00Z');
+    vi.useFakeTimers({ now: fixed });
+
+    // Due date was 5 days ago → 2026-03-08
+    expect(computeDaysOverdue('2026-03-08')).toBe(5);
+    // Due date is today → 0 days overdue
+    expect(computeDaysOverdue('2026-03-13')).toBe(0);
+    // Due date is tomorrow → -1 (not overdue)
+    expect(computeDaysOverdue('2026-03-14')).toBe(-1);
+
+    vi.useRealTimers();
+  });
+
+  it('handles timezone boundary: UTC midnight that is already next day in Jerusalem', () => {
+    // 2026-03-13T23:00:00Z → in Jerusalem UTC+2: 2026-03-14 01:00
+    const lateUtc = new Date('2026-03-13T23:00:00Z');
+    vi.useFakeTimers({ now: lateUtc });
+
+    // Jerusalem date is 2026-03-14, so 2026-03-08 is 6 days ago
+    expect(computeDaysOverdue('2026-03-08')).toBe(6);
+    // 2026-03-13 is yesterday in Jerusalem
+    expect(computeDaysOverdue('2026-03-13')).toBe(1);
+
+    vi.useRealTimers();
   });
 });

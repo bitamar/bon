@@ -20,6 +20,7 @@ export interface JobPayloads {
 
   // Cron jobs (scheduled, no payload)
   'overdue-detection': Record<string, never>;
+  // Enqueued by overdue-detection on success
   'overdue-digest': Record<string, never>;
   'draft-cleanup': Record<string, never>;
   'session-cleanup': Record<string, never>;

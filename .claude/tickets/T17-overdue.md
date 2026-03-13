@@ -15,7 +15,7 @@ Unpaid invoices past their due date need visibility. A business owner who doesn'
 
 ## Acceptance Criteria
 
-- [x] Daily cron job (pg-boss, 6am): find invoices with `status IN (finalized, sent, partially_paid)` and `dueDate < NOW()` and `dueDate IS NOT NULL`
+- [x] Daily cron job (pg-boss, 6am): find invoices with `status IN (finalized, sent, partially_paid)` and `dueDate < CURRENT_DATE` and `dueDate IS NOT NULL`
 - [x] Mark each as overdue (flag — `isOverdue` boolean on invoices table)
 - [x] Digest email to business owner: list of overdue invoices with amounts and days overdue
 - [ ] Email frequency: configurable (daily digest vs per-invoice notification) — **deferred** (not blocking, daily digest is the right default)
@@ -37,7 +37,7 @@ Unpaid invoices past their due date need visibility. A business owner who doesn'
 
 ### Overdue Digest Email (this PR)
 - Handler: `api/src/jobs/handlers/overdue-digest.ts`
-- Schedule: 6:05 AM daily, Asia/Jerusalem (5 min after detection)
+- Trigger: enqueued by overdue-detection on successful completion (not cron-scheduled)
 - Queries all overdue invoices, groups by business
 - For each business: finds all owner emails, sends digest with RTL Hebrew template
 - Template: table of overdue invoices (number, customer, amount, days overdue)
@@ -45,8 +45,8 @@ Unpaid invoices past their due date need visibility. A business owner who doesn'
 - Template + subject builders: `api/src/services/email-service.ts`
 
 ### New Repository Methods
-- `findUserById()` in `user-repository.ts`
 - `findBusinessOwnerEmails()` in `user-business-repository.ts`
+- `findOverdueInvoices()` in `invoice-repository.ts`
 
 ### Frontend
 `InvoiceList.tsx` computes days overdue client-side from `dueDate` for display. The `isOverdue` flag from the server is the authority; the UI calculation is for display text ("באיחור X ימים").

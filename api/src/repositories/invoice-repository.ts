@@ -193,7 +193,11 @@ export interface AggregateResult {
   count: number;
 }
 
-const OUTSTANDING_STATUSES: InvoiceRecord['status'][] = ['finalized', 'sent', 'partially_paid'];
+export const OUTSTANDING_STATUSES: InvoiceRecord['status'][] = [
+  'finalized',
+  'sent',
+  'partially_paid',
+];
 
 /**
  * Sum + count for outstanding invoices (finalized, sent, partially_paid).
@@ -240,8 +244,6 @@ export async function aggregateFiltered(
 
 // ── overdue digest ──
 
-const OVERDUE_STATUSES: InvoiceRecord['status'][] = ['finalized', 'sent', 'partially_paid'];
-
 export interface OverdueInvoiceRow {
   id: string;
   businessId: string;
@@ -265,7 +267,7 @@ export async function findOverdueInvoices(txOrDb: DbOrTx = db): Promise<OverdueI
     .where(
       and(
         eq(invoices.isOverdue, true),
-        inArray(invoices.status, OVERDUE_STATUSES),
+        inArray(invoices.status, OUTSTANDING_STATUSES),
         isNotNull(invoices.dueDate)
       )
     );
