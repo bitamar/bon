@@ -43,6 +43,17 @@ function expectError(
   expect((res.json() as { error: string }).error).toBe(error);
 }
 
+function makePaymentPayload(
+  overrides: { amountMinorUnits?: number; paidAt?: string; method?: string } = {}
+) {
+  return {
+    amountMinorUnits: 11700,
+    paidAt: '2026-03-10',
+    method: 'cash',
+    ...overrides,
+  };
+}
+
 describe('routes/payments', () => {
   const ctx = setupIntegrationTest();
 
@@ -121,17 +132,6 @@ describe('routes/payments', () => {
       method: 'DELETE',
       url: `/businesses/${businessId}/invoices/${invoiceId}/payments/${paymentId}`,
     });
-  }
-
-  function makePaymentPayload(
-    overrides: { amountMinorUnits?: number; paidAt?: string; method?: string } = {}
-  ) {
-    return {
-      amountMinorUnits: 11700,
-      paidAt: '2026-03-10',
-      method: 'cash',
-      ...overrides,
-    };
   }
 
   // ── POST payment ──
@@ -272,12 +272,12 @@ describe('routes/payments', () => {
       expect(res.statusCode).toBe(404);
     });
 
-    it('non-member cannot list payments → 403', async () => {
+    it('non-member cannot list payments → 404', async () => {
       const { business, invoice } = await setupFinalizedInvoice();
       const { sessionId: outsiderSession } = await createAuthedUser();
 
       const res = await getPayments(outsiderSession, business.id, invoice.id);
-      expect(res.statusCode).toBe(403);
+      expect(res.statusCode).toBe(404);
     });
   });
 
@@ -313,7 +313,7 @@ describe('routes/payments', () => {
       expect(res.statusCode).toBe(404);
     });
 
-    it('non-member cannot delete payment → 403', async () => {
+    it('non-member cannot delete payment → 404', async () => {
       const { sessionId, business, invoice } = await setupFinalizedInvoice();
 
       const payRes = await postPayment(sessionId, business.id, invoice.id, makePaymentPayload());
@@ -321,7 +321,7 @@ describe('routes/payments', () => {
 
       const { sessionId: outsiderSession } = await createAuthedUser();
       const res = await deletePaymentReq(outsiderSession, business.id, invoice.id, paymentId);
-      expect(res.statusCode).toBe(403);
+      expect(res.statusCode).toBe(404);
     });
   });
 });
