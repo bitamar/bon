@@ -57,6 +57,13 @@
       "when": 1773420733902,
       "tag": "0007_common_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1773475857175,
+      "tag": "0008_motionless_living_tribunal",
+      "breakpoints": true
     }
   ]
 }

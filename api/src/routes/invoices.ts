@@ -34,6 +34,7 @@ import {
   listPayments,
 } from '../services/invoice-service.js';
 import { generateInvoicePdf } from '../services/pdf-service.js';
+import { assertCanCreateInvoice } from '../services/subscription-service.js';
 
 const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.post(
@@ -51,6 +52,7 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req, reply) => {
       ensureBusinessContext(req);
+      await assertCanCreateInvoice(req.businessContext.businessId);
       const result = await createDraft(req.businessContext.businessId, req.body);
       return reply.status(201).send(result);
     }
@@ -154,6 +156,7 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req) => {
       ensureBusinessContext(req);
+      await assertCanCreateInvoice(req.businessContext.businessId);
       const result = await finalize(req.businessContext.businessId, req.params.invoiceId, req.body);
 
       if (result.needsAllocation && app.boss) {

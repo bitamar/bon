@@ -26,6 +26,7 @@ import {
   ALLOCATION_STATUSES,
 } from '@bon/types/invoices';
 import { PAYMENT_METHODS } from '@bon/types/payments';
+import { SUBSCRIPTION_PLANS, SUBSCRIPTION_STATUSES } from '@bon/types/subscriptions';
 
 export const businessTypeEnum = pgEnum('business_type', BUSINESS_TYPES);
 export const businessRoleEnum = pgEnum('business_role', BUSINESS_ROLES);
@@ -35,6 +36,8 @@ export const sequenceGroupEnum = pgEnum('sequence_group', SEQUENCE_GROUPS);
 export const invoiceStatusEnum = pgEnum('invoice_status', INVOICE_STATUSES);
 export const allocationStatusEnum = pgEnum('allocation_status', ALLOCATION_STATUSES);
 export const paymentMethodEnum = pgEnum('payment_method', PAYMENT_METHODS);
+export const subscriptionPlanEnum = pgEnum('subscription_plan', SUBSCRIPTION_PLANS);
+export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUSES);
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -482,3 +485,34 @@ export const emergencyAllocationNumbersRelations = relations(
     }),
   })
 );
+
+// ── Subscriptions ──
+
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' })
+      .unique(),
+    plan: subscriptionPlanEnum('plan').notNull(),
+    status: subscriptionStatusEnum('status').notNull().default('trialing'),
+    meshulamCustomerId: text('meshulam_customer_id'),
+    meshulamProcessId: text('meshulam_process_id'),
+    currentPeriodStart: timestamp('current_period_start', { withTimezone: true }).notNull(),
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }).notNull(),
+    trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('subscriptions_business_id_idx').on(table.businessId)]
+);
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  business: one(businesses, {
+    fields: [subscriptions.businessId],
+    references: [businesses.id],
+  }),
+}));
