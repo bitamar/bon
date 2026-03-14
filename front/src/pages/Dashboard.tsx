@@ -102,7 +102,7 @@ export function Dashboard() {
     return (
       <Container size="lg" mt="xl">
         <Stack gap="lg">
-          <PageTitle order={3}>סקירה</PageTitle>
+          <PageTitle order={3}>דאשבורד</PageTitle>
           <WelcomeState />
         </Stack>
       </Container>
@@ -112,7 +112,7 @@ export function Dashboard() {
   return (
     <Container size="lg" mt="xl">
       <Stack gap="lg">
-        <PageTitle order={3}>סקירה</PageTitle>
+        <PageTitle order={3}>דאשבורד</PageTitle>
 
         <DashboardAlerts kpis={data?.kpis} isLoading={isLoading} />
 

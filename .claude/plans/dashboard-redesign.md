@@ -12,7 +12,7 @@ This isn't a reporting dashboard. It's a **daily workbench** — the place a bus
 
 No vanity metrics. No charts for the sake of charts. No "active customers" count that never changes.
 
-Rename from "ראשי" to **"סקירה"** (Overview) — descriptive without being pretentious.
+Rename from "ראשי" to **"דאשבורד"** (Overview) — descriptive without being pretentious.
 
 ---
 
@@ -138,7 +138,7 @@ Delete `front/src/hooks/useDashboardData.ts` entirely. Replace with:
 
 `front/src/pages/Dashboard.tsx`:
 - Use `useQuery` with `queryKeys.dashboard(businessId)`
-- Rename page title from "ראשי" to "סקירה"
+- Rename page title from "ראשי" to "דאשבורד"
 
 ### Component Changes
 
@@ -190,7 +190,7 @@ This is better than showing 4 cards that all say ₪0.
 ### Step 3: Frontend — API + Hook + Page
 - Create `front/src/api/dashboard.ts`
 - Rewrite `Dashboard.tsx` to use real data via `useQuery`
-- Rename title to "סקירה"
+- Rename title to "דאשבורד"
 - Wire KPI cards to real numbers with trend calculation
 - Wire recent invoices table to real `InvoiceListItem[]`
 - Add query key to `queryKeys.ts`
