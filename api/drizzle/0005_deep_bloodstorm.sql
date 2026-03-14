@@ -1,3 +1,0 @@
-CREATE INDEX "invoices_draft_cleanup_idx" ON "invoices" USING btree ("updated_at") WHERE "invoices"."status" = 'draft';--> statement-breakpoint
-CREATE INDEX "invoices_overdue_candidates_idx" ON "invoices" USING btree ("due_date","status") WHERE "invoices"."is_overdue" = false AND "invoices"."due_date" IS NOT NULL AND "invoices"."status" IN ('finalized', 'sent', 'partially_paid');--> statement-breakpoint
-CREATE INDEX "invoices_overdue_reset_idx" ON "invoices" USING btree ("status") WHERE "invoices"."is_overdue" = true AND "invoices"."status" IN ('paid', 'cancelled', 'credited');
