@@ -1,6 +1,6 @@
 # T18 — Business Dashboard
 
-**Status**: ⬜ Not started
+**Status**: 🔄 In Review
 **Phase**: 6 — Reporting
 **Requires**: T15 + T16 merged (payments + credit notes provide the data)
 **Blocks**: T19
