@@ -11,8 +11,9 @@ import { queryKeys } from '../lib/queryKeys';
 import { formatMinorUnits } from '@bon/types/formatting';
 import type { DashboardResponse } from '@bon/types/dashboard';
 
-function trendPercent(current: number, previous: number): number {
-  if (previous === 0) return current > 0 ? 100 : current < 0 ? -100 : 0;
+function trendPercent(current: number, previous: number): number | undefined {
+  if (previous === 0 && current === 0) return undefined;
+  if (previous === 0) return current > 0 ? 100 : -100;
   return ((current - previous) / Math.abs(previous)) * 100;
 }
 

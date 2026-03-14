@@ -266,8 +266,6 @@ export async function aggregateFiltered(
   return Number(rows[0]?.total ?? 0);
 }
 
-// ── dashboard aggregates ──
-
 const REVENUE_STATUSES: InvoiceRecord['status'][] = [
   'finalized',
   'sent',

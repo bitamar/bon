@@ -15,7 +15,7 @@ export function KpiCard({
 }: Readonly<{
   label: string;
   value: string;
-  trend?: number;
+  trend?: number | undefined;
   trendLabel?: string;
   icon: ReactNode;
   isLoading?: boolean;
