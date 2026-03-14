@@ -12,6 +12,7 @@ import {
   IconAddressBook,
   IconCreditCard,
   IconFileInvoice,
+  IconFileSpreadsheet,
   IconHome2,
   IconLogout,
   IconSettings,
@@ -67,6 +68,14 @@ export default function Navbar() {
           label="חשבוניות"
           leftSection={<IconFileInvoice size={18} />}
           active={pathname.includes('/invoices')}
+          className={navLinkClass}
+        />
+        <NavLink
+          component={Link}
+          to={activeBusiness ? `${bizPrefix}/reports/vat` : '/'}
+          label="דוח מע״מ"
+          leftSection={<IconFileSpreadsheet size={18} />}
+          active={pathname.includes('/reports')}
           className={navLinkClass}
         />
         <NavLink

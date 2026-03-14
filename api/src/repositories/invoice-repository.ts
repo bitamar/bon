@@ -358,6 +358,36 @@ export async function aggregateShaamStatus(
   return { pending, rejected };
 }
 
+// ── PCN874 report ──
+
+const REPORT_STATUSES: InvoiceRecord['status'][] = [
+  'finalized',
+  'sent',
+  'paid',
+  'partially_paid',
+  'credited',
+];
+
+export async function findInvoicesForReport(
+  businessId: string,
+  dateFrom: string,
+  dateTo: string,
+  txOrDb: DbOrTx = db
+): Promise<InvoiceRecord[]> {
+  return txOrDb
+    .select()
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.businessId, businessId),
+        inArray(invoices.status, REPORT_STATUSES),
+        gte(invoices.invoiceDate, dateFrom),
+        lte(invoices.invoiceDate, dateTo)
+      )
+    )
+    .orderBy(asc(invoices.invoiceDate), asc(invoices.sequenceNumber));
+}
+
 // ── overdue digest ──
 
 export interface OverdueInvoiceRow {
