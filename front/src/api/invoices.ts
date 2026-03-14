@@ -1,4 +1,4 @@
-import { fetchJson } from '../lib/http';
+import { fetchJson, fetchBlob } from '../lib/http';
 import {
   invoiceListResponseSchema,
   invoiceResponseSchema,
@@ -121,6 +121,24 @@ export async function recordPayment(
     }
   );
   return invoiceResponseSchema.parse(json);
+}
+
+export async function downloadInvoicePdf(businessId: string, invoiceId: string): Promise<void> {
+  const response = await fetchBlob(`/businesses/${businessId}/invoices/${invoiceId}/pdf`);
+  const blob = await response.blob();
+
+  const disposition = response.headers.get('Content-Disposition');
+  const filenameMatch = disposition?.match(/filename="(.+)"/);
+  const filename = filenameMatch?.[1] ?? `invoice-${invoiceId}.pdf`;
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export async function deletePayment(

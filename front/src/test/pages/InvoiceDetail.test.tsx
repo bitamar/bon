@@ -14,6 +14,7 @@ vi.mock('../../api/invoices', () => ({
   recordPayment: vi.fn(),
   deletePayment: vi.fn(),
   createCreditNote: vi.fn(),
+  downloadInvoicePdf: vi.fn(),
 }));
 
 import { useBusiness } from '../../contexts/BusinessContext';
@@ -111,8 +112,8 @@ describe('InvoiceDetail page', () => {
     // Notes
     expect(screen.getByText('הערה לדוגמה')).toBeInTheDocument();
 
-    // Action buttons — send + payment + credit note enabled for finalized, PDF still disabled
-    expect(screen.getByRole('button', { name: 'הורד PDF' })).toBeDisabled();
+    // Action buttons — all enabled for finalized invoices
+    expect(screen.getByRole('button', { name: 'הורד PDF' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'שלח במייל' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'סמן כשולם' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'הפק חשבונית זיכוי' })).toBeEnabled();
@@ -197,6 +198,26 @@ describe('InvoiceDetail page', () => {
 
     expect(await screen.findByText('ייצוא שירותים §30(א)(5)')).toBeInTheDocument();
     expect(screen.getByText(/סיבת פטור ממע"מ/)).toBeInTheDocument();
+  });
+});
+
+describe('InvoiceDetail PDF download', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockActiveBusiness(useBusiness);
+  });
+
+  it('calls downloadInvoicePdf when PDF button is clicked', async () => {
+    vi.mocked(invoicesApi.downloadInvoicePdf).mockResolvedValue(undefined);
+    renderWithInvoice();
+    const user = userEvent.setup();
+
+    const pdfButton = await screen.findByRole('button', { name: 'הורד PDF' });
+    await user.click(pdfButton);
+
+    await waitFor(() => {
+      expect(invoicesApi.downloadInvoicePdf).toHaveBeenCalledWith('biz-1', 'inv-1');
+    });
   });
 });
 
