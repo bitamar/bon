@@ -39,6 +39,7 @@ import {
   recordPayment,
   deletePayment,
   createCreditNote,
+  downloadInvoicePdf,
 } from '../api/invoices';
 import { queryKeys } from '../lib/queryKeys';
 import { useApiMutation } from '../lib/useApiMutation';
@@ -297,6 +298,11 @@ export function InvoiceDetail() {
     },
   });
 
+  const pdfMutation = useApiMutation({
+    mutationFn: () => downloadInvoicePdf(businessId, invoiceId),
+    successToast: { message: 'הקובץ הורד בהצלחה' },
+  });
+
   const creditNoteMutation = useApiMutation({
     mutationFn: () =>
       createCreditNote(businessId, invoiceId, {
@@ -449,8 +455,8 @@ export function InvoiceDetail() {
             <Button
               variant="light"
               leftSection={<IconFileDownload size={16} />}
-              disabled
-              title="יהיה זמין בקרוב"
+              loading={pdfMutation.isPending}
+              onClick={() => pdfMutation.mutate()}
             >
               הורד PDF
             </Button>

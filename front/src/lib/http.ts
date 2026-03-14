@@ -34,3 +34,21 @@ export async function fetchJson<T>(path: string, init: RequestInit = {}): Promis
 
   return (await response.json()) as T;
 }
+
+export async function fetchBlob(path: string, init: RequestInit = {}): Promise<Response> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: 'include',
+    ...init,
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => undefined);
+    const message =
+      (body as { error?: string; message?: string })?.error ||
+      (body as { message?: string })?.message ||
+      `Request failed: ${response.status}`;
+    throw new HttpError(response.status, message, body);
+  }
+
+  return response;
+}
