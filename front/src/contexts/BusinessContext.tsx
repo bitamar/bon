@@ -34,6 +34,7 @@ interface BusinessContextValue {
   activeBusiness: ActiveBusiness | null;
   businesses: BusinessListItem[];
   switchBusiness: (businessId: string) => void;
+  setActiveBusiness: (businessId: string) => void;
   isLoading: boolean;
 }
 
@@ -115,7 +116,7 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
     };
   }, [activeBusinessId, businesses]);
 
-  const switchBusiness = useCallback(
+  const setActiveBusiness = useCallback(
     (businessId: string) => {
       const oldId = activeBusinessId;
       if (businessId === oldId) return;
@@ -125,10 +126,16 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
       if (oldId) {
         queryClient.invalidateQueries({ queryKey: ['businesses', oldId] });
       }
+    },
+    [activeBusinessId, queryClient]
+  );
 
+  const switchBusiness = useCallback(
+    (businessId: string) => {
+      setActiveBusiness(businessId);
       navigate(buildBusinessPath(businessId, locationRef.current));
     },
-    [activeBusinessId, queryClient, navigate]
+    [setActiveBusiness, navigate]
   );
 
   const value = useMemo(
@@ -136,9 +143,10 @@ export function BusinessProvider({ children }: Readonly<{ children: React.ReactN
       activeBusiness,
       businesses,
       switchBusiness,
+      setActiveBusiness,
       isLoading: isPending,
     }),
-    [activeBusiness, businesses, switchBusiness, isPending]
+    [activeBusiness, businesses, switchBusiness, setActiveBusiness, isPending]
   );
 
   return <BusinessContext.Provider value={value}>{children}</BusinessContext.Provider>;

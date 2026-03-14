@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Route, Routes } from 'react-router-dom';
-import { BusinessSettings } from '../../pages/BusinessSettings';
+import { BusinessSettingsSection } from '../../pages/BusinessSettings';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
@@ -27,12 +26,26 @@ import { activeBusinessStub } from '../utils/businessStubs';
 
 // ── helpers ──
 
-function renderSettings() {
-  return renderWithProviders(
-    <Routes>
-      <Route path="/businesses/:businessId/settings" element={<BusinessSettings />} />
-    </Routes>,
-    { router: { initialEntries: ['/businesses/biz-1/settings'] } }
+function renderSection() {
+  return renderWithProviders(<BusinessSettingsSection />);
+}
+
+function mockLoadedBusiness(overrides: Record<string, unknown> = {}) {
+  vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+    business: { ...mockBusiness, ...overrides },
+    role: 'owner' as const,
+  });
+}
+
+async function renderLoadedSection(overrides: Record<string, unknown> = {}) {
+  mockLoadedBusiness(overrides);
+  renderSection();
+  await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+}
+
+function submitSettingsForm() {
+  fireEvent.submit(
+    screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
   );
 }
 
@@ -57,13 +70,14 @@ const mockBusiness = {
   updatedAt: '2024-01-01T00:00:00.000Z',
 };
 
-describe('BusinessSettings page', () => {
+describe('BusinessSettingsSection', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(useBusiness).mockReturnValue({
       activeBusiness: activeBusinessStub,
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
     // fetchBusiness returns a never-resolving promise by default so tests that don't
@@ -74,36 +88,31 @@ describe('BusinessSettings page', () => {
     vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
   });
 
-  it('shows "לא נבחר עסק" when activeBusiness is null', () => {
+  it('renders nothing when activeBusiness is null', () => {
     vi.mocked(useBusiness).mockReturnValue({
       activeBusiness: null,
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
 
-    renderSettings();
+    const { container } = renderSection();
 
-    expect(screen.getByText('לא נבחר עסק')).toBeInTheDocument();
+    expect(container.querySelector('form')).not.toBeInTheDocument();
+    expect(container.querySelector('[data-testid="form-skeleton"]')).not.toBeInTheDocument();
   });
 
   it('shows loading skeleton while fetching', async () => {
     vi.mocked(businessesApi.fetchBusiness).mockReturnValue(new Promise(() => {}));
 
-    renderSettings();
+    renderSection();
 
     expect(screen.getByTestId('form-skeleton')).toBeInTheDocument();
   });
 
   it('shows form with business name when loaded', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
-
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
 
     expect(await screen.findByRole('textbox', { name: /שם העסק/ })).toHaveValue('Test Co');
   });
@@ -111,29 +120,21 @@ describe('BusinessSettings page', () => {
   it('shows error state when fetchBusiness rejects', async () => {
     vi.mocked(businessesApi.fetchBusiness).mockRejectedValue(new Error('Network error'));
 
-    renderSettings();
+    renderSection();
 
     expect(await screen.findByText('לא הצלחנו לטעון את נתוני העסק')).toBeInTheDocument();
   });
 
   it('submitting form calls updateBusiness without registrationNumber', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
     vi.mocked(businessesApi.updateBusiness).mockResolvedValue({
       business: mockBusiness,
       role: 'owner' as const,
     });
 
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
     await screen.findByRole('textbox', { name: /שם העסק/ });
 
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
-    );
+    submitSettingsForm();
 
     await waitFor(() => expect(businessesApi.updateBusiness).toHaveBeenCalled());
 
@@ -143,21 +144,12 @@ describe('BusinessSettings page', () => {
   });
 
   it('shows phone validation error when phone is invalid', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
-
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
 
     fireEvent.change(await screen.findByRole('textbox', { name: /טלפון/ }), {
       target: { value: '12345' },
     });
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
-    );
+    submitSettingsForm();
 
     await waitFor(() => {
       expect(screen.getByText('מספר טלפון לא תקין')).toBeInTheDocument();
@@ -165,21 +157,12 @@ describe('BusinessSettings page', () => {
   });
 
   it('shows email validation error when email is invalid', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
-
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
 
     fireEvent.change(await screen.findByRole('textbox', { name: /אימייל/ }), {
       target: { value: 'not-an-email' },
     });
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
-    );
+    submitSettingsForm();
 
     await waitFor(() => {
       expect(screen.getByText('כתובת אימייל לא תקינה')).toBeInTheDocument();
@@ -187,45 +170,25 @@ describe('BusinessSettings page', () => {
   });
 
   it('populates form from fetched business with null optional fields', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: {
-        ...mockBusiness,
-        postalCode: null,
-        phone: null,
-        email: null,
-        invoiceNumberPrefix: null,
-      },
-      role: 'owner' as const,
+    await renderLoadedSection({
+      postalCode: null,
+      phone: null,
+      email: null,
+      invoiceNumberPrefix: null,
     });
-
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
     expect(await screen.findByRole('textbox', { name: /שם העסק/ })).toHaveValue('Test Co');
     expect(screen.getByRole('textbox', { name: /טלפון/ })).toHaveValue('');
   });
 
   it('shows business type label', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
-
-    renderSettings();
+    await renderLoadedSection();
 
     expect(await screen.findByText('עוסק מורשה')).toBeInTheDocument();
   });
 
   it('shows vatNumber field for licensed_dealer and populates from API', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: { ...mockBusiness, vatNumber: '987654321' },
-      role: 'owner' as const,
-    });
-
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection({ vatNumber: '987654321' });
 
     expect(await screen.findByRole('textbox', { name: /מספר רישום מע״מ/ })).toHaveValue(
       '987654321'
@@ -237,16 +200,10 @@ describe('BusinessSettings page', () => {
       activeBusiness: { ...activeBusinessStub, businessType: 'exempt_dealer' },
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: { ...mockBusiness, businessType: 'exempt_dealer' as const },
-      role: 'owner' as const,
-    });
-
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection({ businessType: 'exempt_dealer' as const });
 
     expect(screen.queryByRole('textbox', { name: /מספר רישום מע״מ/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: /מספר מע"מ/ })).not.toBeInTheDocument();
@@ -257,36 +214,21 @@ describe('BusinessSettings page', () => {
       activeBusiness: { ...activeBusinessStub, businessType: 'limited_company' },
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: { ...mockBusiness, businessType: 'limited_company' as const },
-      role: 'owner' as const,
-    });
-
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection({ businessType: 'limited_company' as const });
 
     expect(await screen.findByText('חברה בע״מ')).toBeInTheDocument();
   });
 
   it('shows vatNumber validation error when value is not 9 digits', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
-
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
 
     fireEvent.change(await screen.findByRole('textbox', { name: /מספר רישום מע״מ/ }), {
       target: { value: '12345' },
     });
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
-    );
+    submitSettingsForm();
 
     await waitFor(() => {
       expect(screen.getByText('מספר רישום חייב להיות 9 ספרות')).toBeInTheDocument();
@@ -294,39 +236,24 @@ describe('BusinessSettings page', () => {
   });
 
   it('pre-populates city and street from existing business data', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: { ...mockBusiness, city: 'TLV', streetAddress: '1 Main' },
-      role: 'owner' as const,
-    });
-
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection({ city: 'TLV', streetAddress: '1 Main' });
 
     expect(await screen.findByRole('textbox', { name: /^עיר/ })).toHaveValue('TLV');
     expect(screen.getByRole('textbox', { name: /^רחוב/ })).toHaveValue('1 Main');
   });
 
   it('accepts a valid 9-digit vatNumber without showing a validation error', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
     vi.mocked(businessesApi.updateBusiness).mockResolvedValue({
       business: mockBusiness,
       role: 'owner' as const,
     });
 
-    renderSettings();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
 
     fireEvent.change(await screen.findByRole('textbox', { name: /מספר רישום מע״מ/ }), {
       target: { value: '123456789' },
     });
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
-    );
+    submitSettingsForm();
 
     await waitFor(() => expect(businessesApi.updateBusiness).toHaveBeenCalled());
     expect(screen.queryByText('מספר רישום חייב להיות 9 ספרות')).not.toBeInTheDocument();
@@ -336,7 +263,7 @@ describe('BusinessSettings page', () => {
     vi.mocked(businessesApi.fetchBusiness).mockRejectedValue(new Error('Network error'));
     const user = userEvent.setup();
 
-    renderSettings();
+    renderSection();
 
     const retryBtn = await screen.findByRole('button', { name: 'נסה שוב' });
     vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
@@ -348,24 +275,5 @@ describe('BusinessSettings page', () => {
     await waitFor(() => {
       expect(businessesApi.fetchBusiness).toHaveBeenCalledTimes(2);
     });
-  });
-
-  it('clicking ביטול calls navigate(-1) without errors', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
-    const user = userEvent.setup();
-
-    renderSettings();
-
-    await screen.findByRole('textbox', { name: /שם העסק/ });
-
-    // Clicking ביטול triggers navigate(-1). With MemoryRouter having no prior history
-    // it is a no-op navigation, but the onClick handler is still invoked (covering line 240).
-    await user.click(screen.getByRole('button', { name: 'ביטול' }));
-
-    // Component should still be in the DOM (no prior history to go back to)
-    expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
   });
 });

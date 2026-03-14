@@ -38,6 +38,7 @@ export function mockActiveBusiness(useBusinessFn: typeof useBusiness) {
     activeBusiness: activeBusinessStub,
     businesses: [],
     switchBusiness: vi.fn(),
+    setActiveBusiness: vi.fn(),
     isLoading: false,
   });
 }
@@ -47,6 +48,7 @@ export function mockNoBusiness(useBusinessFn: typeof useBusiness) {
     activeBusiness: null,
     businesses: [],
     switchBusiness: vi.fn(),
+    setActiveBusiness: vi.fn(),
     isLoading: false,
   });
 }

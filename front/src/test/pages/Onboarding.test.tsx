@@ -14,6 +14,7 @@ vi.mock('../../contexts/BusinessContext', () => ({
     businesses: [],
     activeBusiness: null,
     switchBusiness: vi.fn(),
+    setActiveBusiness: vi.fn(),
     isLoading: false,
   })),
 }));
@@ -77,6 +78,7 @@ async function setupWithExistingBusiness(user: User) {
     ],
     activeBusiness: null,
     switchBusiness: vi.fn(),
+    setActiveBusiness: vi.fn(),
     isLoading: false,
   });
   renderWithProviders(<Onboarding />);
@@ -199,6 +201,7 @@ describe('Onboarding page', () => {
       ],
       activeBusiness: null,
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
 

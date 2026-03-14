@@ -33,6 +33,7 @@ function setupMocks(role = 'owner') {
     },
     businesses: [],
     switchBusiness: vi.fn(),
+    setActiveBusiness: vi.fn(),
     isLoading: false,
   });
 }

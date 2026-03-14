@@ -40,6 +40,7 @@ describe('BusinessRoute', () => {
       activeBusiness: null,
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: true,
     });
 
@@ -54,6 +55,7 @@ describe('BusinessRoute', () => {
       activeBusiness: null,
       businesses: [BIZ],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
 
@@ -68,6 +70,7 @@ describe('BusinessRoute', () => {
       activeBusiness: BIZ,
       businesses: [BIZ],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
 
@@ -81,6 +84,7 @@ describe('BusinessRoute', () => {
       activeBusiness: null,
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
 

@@ -261,6 +261,7 @@ describe('InvoiceEdit page', () => {
       },
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
     setupDraftMocks();

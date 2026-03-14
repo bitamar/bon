@@ -18,6 +18,36 @@ import * as authApi from '../../auth/api';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 vi.mock('../../auth/api');
+vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
+vi.mock('../../api/businesses', () => ({
+  fetchBusiness: vi.fn(),
+  updateBusiness: vi.fn(),
+}));
+vi.mock('../../api/address', () => ({
+  fetchAllCities: vi.fn().mockResolvedValue([]),
+  fetchAllStreetsForCity: vi.fn().mockResolvedValue([]),
+  filterOptions: vi.fn(() => []),
+}));
+
+import { useBusiness } from '../../contexts/BusinessContext';
+import * as businessesApi from '../../api/businesses';
+import { activeBusinessStub } from '../utils/businessStubs';
+
+// ── helpers ──
+
+function mockUseBusinessWith(
+  overrides: Partial<typeof activeBusinessStub> & { role?: string } = {}
+) {
+  const activeBusiness =
+    Object.keys(overrides).length > 0 ? { ...activeBusinessStub, ...overrides } : null;
+  vi.mocked(useBusiness).mockReturnValue({
+    activeBusiness,
+    businesses: [],
+    switchBusiness: vi.fn(),
+    setActiveBusiness: vi.fn(),
+    isLoading: false,
+  });
+}
 
 describe('Settings page', () => {
   const getSettingsMock = vi.mocked(authApi.getSettings);
@@ -25,6 +55,7 @@ describe('Settings page', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    mockUseBusinessWith();
     getSettingsMock.mockResolvedValue({
       user: {
         id: 'u1',
@@ -49,7 +80,7 @@ describe('Settings page', () => {
 
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
-    expect(await screen.findByRole('heading', { name: 'הגדרות פרופיל' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'הגדרות' })).toBeInTheDocument();
     expect(await screen.findByLabelText(/שם/)).toHaveValue('User Test');
     expect(await screen.findByLabelText(/טלפון/)).toHaveValue('050-9999999');
   });
@@ -158,5 +189,26 @@ describe('Settings page', () => {
 
     await waitFor(() => expect(updateSettingsMock).toHaveBeenCalled());
     expect(updateSettingsMock.mock.calls[0]?.[0]).toEqual({ name: null, phone: null });
+  });
+
+  it('shows business settings section for owner', async () => {
+    mockUseBusinessWith({ role: 'owner' });
+    vi.mocked(businessesApi.fetchBusiness).mockImplementation(() => new Promise(() => {}));
+
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    await waitFor(() => expect(screen.getByTestId('form-skeleton')).toBeInTheDocument());
+  });
+
+  it('hides business settings section for non-owner', async () => {
+    mockUseBusinessWith({ role: 'user' });
+
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    expect(screen.queryByText('הגדרות עסק')).not.toBeInTheDocument();
   });
 });

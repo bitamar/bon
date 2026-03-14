@@ -9,7 +9,6 @@ import { BusinessProvider, useBusiness } from './contexts/BusinessContext';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
 import { Onboarding } from './pages/Onboarding';
-import { BusinessSettings } from './pages/BusinessSettings';
 import { CustomerList } from './pages/CustomerList';
 import { CustomerCreate } from './pages/CustomerCreate';
 import { CustomerDetail } from './pages/CustomerDetail';
@@ -134,7 +133,6 @@ export default function AppRoutes() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/businesses/:businessId" element={<BusinessRoute />}>
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="settings" element={<BusinessSettings />} />
               <Route path="customers" element={<CustomerList />} />
               <Route path="customers/new" element={<CustomerCreate />} />
               <Route path="customers/:customerId" element={<CustomerDetail />} />

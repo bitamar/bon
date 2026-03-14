@@ -6,6 +6,7 @@ import {
   Group,
   Stack,
   Switch,
+  Text,
   TextInput,
   useMantineColorScheme,
 } from '@mantine/core';
@@ -19,12 +20,15 @@ import type { SettingsResponse } from '@bon/types/users';
 import { extractErrorMessage } from '../lib/notifications';
 import { useApiMutation } from '../lib/useApiMutation';
 import { PageTitle } from '../components/PageTitle';
+import { useBusiness } from '../contexts/BusinessContext';
+import { BusinessSettingsSection } from './BusinessSettings';
 
 export function Settings() {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [name, setName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const queryClient = useQueryClient();
+  const { activeBusiness } = useBusiness();
 
   const settingsQuery = useQuery({
     queryKey: queryKeys.settings(),
@@ -52,7 +56,7 @@ export function Settings() {
     return (
       <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
         <Stack gap="md">
-          <PageTitle order={3}>הגדרות פרופיל</PageTitle>
+          <PageTitle order={3}>הגדרות</PageTitle>
           <FormSkeleton rows={3} />
         </Stack>
       </Container>
@@ -93,9 +97,12 @@ export function Settings() {
   return (
     <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
       <Stack gap="md">
-        <PageTitle order={3}>הגדרות פרופיל</PageTitle>
+        <PageTitle order={3}>הגדרות</PageTitle>
         <Card component="form" onSubmit={onSubmit} noValidate withBorder radius="lg" p="lg">
           <Stack gap="md">
+            <Text size="lg" fw={600}>
+              פרופיל
+            </Text>
             <Switch
               checked={colorScheme === 'dark'}
               onChange={({ currentTarget }) =>
@@ -122,6 +129,8 @@ export function Settings() {
             </Group>
           </Stack>
         </Card>
+
+        {activeBusiness?.role === 'owner' && <BusinessSettingsSection />}
       </Stack>
     </Container>
   );
