@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import {
   IconAddressBook,
+  IconCreditCard,
   IconFileInvoice,
   IconHome2,
   IconLogout,
@@ -66,6 +67,14 @@ export default function Navbar() {
           label="חשבוניות"
           leftSection={<IconFileInvoice size={18} />}
           active={pathname.includes('/invoices')}
+          className={navLinkClass}
+        />
+        <NavLink
+          component={Link}
+          to={activeBusiness ? `${bizPrefix}/subscription` : '/'}
+          label="מנוי ותשלום"
+          leftSection={<IconCreditCard size={18} />}
+          active={pathname.includes('/subscription')}
           className={navLinkClass}
         />
         {activeBusiness?.role === 'owner' && (

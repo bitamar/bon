@@ -4,6 +4,9 @@ import { z } from 'zod';
 export const SHAAM_MODES = ['mock', 'sandbox', 'production'] as const;
 export type ShaamMode = (typeof SHAAM_MODES)[number];
 
+export const MESHULAM_MODES = ['mock', 'sandbox', 'production'] as const;
+export type MeshulamMode = (typeof MESHULAM_MODES)[number];
+
 const Env = z
   .object({
     PORT: z.coerce.number().default(3000),
@@ -35,6 +38,19 @@ const Env = z
       .length(64)
       .regex(/^[0-9a-fA-F]+$/, 'Must be a hex string')
       .optional(),
+    MESHULAM_MODE: z.enum(MESHULAM_MODES).default('mock'),
+    MESHULAM_PAGE_CODE: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
+    MESHULAM_USER_ID: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
+    MESHULAM_WEBHOOK_SECRET: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
   })
   .superRefine((data, ctx) => {
     if (data.SHAAM_MODE !== 'mock' && !data.SHAAM_ENCRYPTION_KEY) {
@@ -43,6 +59,29 @@ const Env = z
         message: 'SHAAM_ENCRYPTION_KEY is required when SHAAM_MODE is not mock',
         path: ['SHAAM_ENCRYPTION_KEY'],
       });
+    }
+    if (data.MESHULAM_MODE !== 'mock') {
+      if (!data.MESHULAM_PAGE_CODE) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'MESHULAM_PAGE_CODE is required when MESHULAM_MODE is not mock',
+          path: ['MESHULAM_PAGE_CODE'],
+        });
+      }
+      if (!data.MESHULAM_USER_ID) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'MESHULAM_USER_ID is required when MESHULAM_MODE is not mock',
+          path: ['MESHULAM_USER_ID'],
+        });
+      }
+      if (!data.MESHULAM_WEBHOOK_SECRET) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'MESHULAM_WEBHOOK_SECRET is required when MESHULAM_MODE is not mock',
+          path: ['MESHULAM_WEBHOOK_SECRET'],
+        });
+      }
     }
   });
 
