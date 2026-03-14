@@ -1,71 +1,73 @@
 import { describe, expect, it } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 import { injectAuthed } from '../utils/inject.js';
 import { createOwnerWithBusiness } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 import type { DashboardResponse } from '@bon/types/dashboard';
 
+// ── helpers ──
+
+async function getDashboard(app: FastifyInstance, sessionId: string, businessId: string) {
+  return injectAuthed(app, sessionId, {
+    method: 'GET',
+    url: `/businesses/${businessId}/dashboard`,
+  });
+}
+
+async function createCustomer(app: FastifyInstance, sessionId: string, businessId: string) {
+  const res = await injectAuthed(app, sessionId, {
+    method: 'POST',
+    url: `/businesses/${businessId}/customers`,
+    payload: { name: 'Test Customer' },
+  });
+  return (res.json() as { customer: { id: string } }).customer;
+}
+
+async function createAndFinalizeInvoice(
+  app: FastifyInstance,
+  sessionId: string,
+  businessId: string,
+  customerId: string,
+  amount = 10000
+) {
+  const draft = await injectAuthed(app, sessionId, {
+    method: 'POST',
+    url: `/businesses/${businessId}/invoices`,
+    payload: {
+      documentType: 'tax_invoice',
+      customerId,
+      items: [
+        {
+          description: 'Service',
+          quantity: 1,
+          unitPriceMinorUnits: amount,
+          discountPercent: 0,
+          vatRateBasisPoints: 1700,
+          position: 0,
+        },
+      ],
+    },
+  });
+  const { invoice } = draft.json() as { invoice: { id: string } };
+
+  await injectAuthed(app, sessionId, {
+    method: 'POST',
+    url: `/businesses/${businessId}/invoices/${invoice.id}/finalize`,
+    payload: {},
+  });
+
+  return invoice.id;
+}
+
+// ── tests ──
+
 describe('routes/dashboard', () => {
   const ctx = setupIntegrationTest();
-
-  // ── helpers ──
-
-  async function getDashboard(sessionId: string, businessId: string) {
-    return injectAuthed(ctx.app, sessionId, {
-      method: 'GET',
-      url: `/businesses/${businessId}/dashboard`,
-    });
-  }
-
-  async function createCustomer(sessionId: string, businessId: string) {
-    const res = await injectAuthed(ctx.app, sessionId, {
-      method: 'POST',
-      url: `/businesses/${businessId}/customers`,
-      payload: { name: 'Test Customer' },
-    });
-    return (res.json() as { customer: { id: string } }).customer;
-  }
-
-  async function createAndFinalizeInvoice(
-    sessionId: string,
-    businessId: string,
-    customerId: string,
-    amount = 10000
-  ) {
-    const draft = await injectAuthed(ctx.app, sessionId, {
-      method: 'POST',
-      url: `/businesses/${businessId}/invoices`,
-      payload: {
-        documentType: 'tax_invoice',
-        customerId,
-        items: [
-          {
-            description: 'Service',
-            quantity: 1,
-            unitPriceMinorUnits: amount,
-            discountPercent: 0,
-            vatRateBasisPoints: 1700,
-            position: 0,
-          },
-        ],
-      },
-    });
-    const { invoice } = draft.json() as { invoice: { id: string } };
-
-    await injectAuthed(ctx.app, sessionId, {
-      method: 'POST',
-      url: `/businesses/${businessId}/invoices/${invoice.id}/finalize`,
-      payload: {},
-    });
-
-    return invoice.id;
-  }
-
-  // ── tests ──
 
   it('returns dashboard data for a business with no invoices', async () => {
     const { sessionId, business } = await createOwnerWithBusiness();
 
-    const res = await getDashboard(sessionId, business.id);
+    const res = await getDashboard(ctx.app, sessionId, business.id);
 
     expect(res.statusCode).toBe(200);
     const data = res.json() as DashboardResponse;
@@ -84,10 +86,10 @@ describe('routes/dashboard', () => {
 
   it('returns correct aggregates after creating and finalizing an invoice', async () => {
     const { sessionId, business } = await createOwnerWithBusiness();
-    const customer = await createCustomer(sessionId, business.id);
-    await createAndFinalizeInvoice(sessionId, business.id, customer.id, 10000);
+    const customer = await createCustomer(ctx.app, sessionId, business.id);
+    await createAndFinalizeInvoice(ctx.app, sessionId, business.id, customer.id, 10000);
 
-    const res = await getDashboard(sessionId, business.id);
+    const res = await getDashboard(ctx.app, sessionId, business.id);
 
     expect(res.statusCode).toBe(200);
     const data = res.json() as DashboardResponse;

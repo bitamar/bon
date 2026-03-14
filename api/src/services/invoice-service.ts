@@ -33,6 +33,7 @@ import { assignInvoiceNumber, documentTypeToSequenceGroup } from '../lib/invoice
 import {
   serializeInvoice,
   serializeInvoiceItem,
+  serializeInvoiceListItem,
   serializePayment,
 } from '../lib/invoice-serializers.js';
 import { toNumber } from '../lib/numeric.js';
@@ -45,7 +46,6 @@ import type { FastifyBaseLogger } from 'fastify';
 import { db } from '../db/client.js';
 import type {
   InvoiceResponse,
-  InvoiceListItem,
   InvoiceListQuery,
   InvoiceListResponse,
   LineItemInput,
@@ -59,42 +59,6 @@ export interface FinalizeResult extends InvoiceResponse {
   needsAllocation: boolean;
 }
 
-export function serializeInvoiceListItem(
-  record: Pick<
-    InvoiceRecord,
-    | 'id'
-    | 'businessId'
-    | 'customerId'
-    | 'customerName'
-    | 'documentType'
-    | 'status'
-    | 'isOverdue'
-    | 'sequenceGroup'
-    | 'documentNumber'
-    | 'invoiceDate'
-    | 'dueDate'
-    | 'totalInclVatMinorUnits'
-    | 'currency'
-    | 'createdAt'
-  >
-): InvoiceListItem {
-  return {
-    id: record.id,
-    businessId: record.businessId,
-    customerId: record.customerId ?? null,
-    customerName: record.customerName ?? null,
-    documentType: record.documentType,
-    status: record.status,
-    isOverdue: record.isOverdue,
-    sequenceGroup: record.sequenceGroup ?? null,
-    documentNumber: record.documentNumber ?? null,
-    invoiceDate: record.invoiceDate,
-    dueDate: record.dueDate ?? null,
-    totalInclVatMinorUnits: record.totalInclVatMinorUnits,
-    currency: record.currency,
-    createdAt: record.createdAt.toISOString(),
-  };
-}
 
 // ── helpers ──
 

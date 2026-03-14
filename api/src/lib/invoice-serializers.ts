@@ -1,5 +1,5 @@
 import { toNumber } from './numeric.js';
-import type { Invoice, LineItem } from '@bon/types/invoices';
+import type { Invoice, InvoiceListItem, LineItem } from '@bon/types/invoices';
 import type { Payment } from '@bon/types/payments';
 import type { InvoiceRecord, InvoiceItemRecord } from '../repositories/invoice-repository.js';
 import type { PaymentRecord } from '../repositories/payment-repository.js';
@@ -39,6 +39,43 @@ export function serializeInvoice(record: InvoiceRecord): Invoice {
     paidAt: record.paidAt ? record.paidAt.toISOString() : null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
+  };
+}
+
+export function serializeInvoiceListItem(
+  record: Pick<
+    InvoiceRecord,
+    | 'id'
+    | 'businessId'
+    | 'customerId'
+    | 'customerName'
+    | 'documentType'
+    | 'status'
+    | 'isOverdue'
+    | 'sequenceGroup'
+    | 'documentNumber'
+    | 'invoiceDate'
+    | 'dueDate'
+    | 'totalInclVatMinorUnits'
+    | 'currency'
+    | 'createdAt'
+  >
+): InvoiceListItem {
+  return {
+    id: record.id,
+    businessId: record.businessId,
+    customerId: record.customerId ?? null,
+    customerName: record.customerName ?? null,
+    documentType: record.documentType,
+    status: record.status,
+    isOverdue: record.isOverdue,
+    sequenceGroup: record.sequenceGroup ?? null,
+    documentNumber: record.documentNumber ?? null,
+    invoiceDate: record.invoiceDate,
+    dueDate: record.dueDate ?? null,
+    totalInclVatMinorUnits: record.totalInclVatMinorUnits,
+    currency: record.currency,
+    createdAt: record.createdAt.toISOString(),
   };
 }
 

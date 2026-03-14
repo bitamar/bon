@@ -5,10 +5,9 @@ import {
   aggregateShaamStatus,
   findInvoices,
   type InvoiceListFilters,
-  type InvoiceRecord,
 } from '../repositories/invoice-repository.js';
 import type { DashboardResponse } from '@bon/types/dashboard';
-import type { InvoiceListItem } from '@bon/types/invoices';
+import { serializeInvoiceListItem } from '../lib/invoice-serializers.js';
 
 function getMonthBoundaries(now: Date): {
   thisMonthStart: string;
@@ -39,43 +38,6 @@ function getMonthBoundaries(now: Date): {
   const prevMonthEnd = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(lastDayOfPrevMonth).padStart(2, '0')}`;
 
   return { thisMonthStart, thisMonthEnd, prevMonthStart, prevMonthEnd };
-}
-
-function serializeListItem(
-  record: Pick<
-    InvoiceRecord,
-    | 'id'
-    | 'businessId'
-    | 'customerId'
-    | 'customerName'
-    | 'documentType'
-    | 'status'
-    | 'isOverdue'
-    | 'sequenceGroup'
-    | 'documentNumber'
-    | 'invoiceDate'
-    | 'dueDate'
-    | 'totalInclVatMinorUnits'
-    | 'currency'
-    | 'createdAt'
-  >
-): InvoiceListItem {
-  return {
-    id: record.id,
-    businessId: record.businessId,
-    customerId: record.customerId ?? null,
-    customerName: record.customerName ?? null,
-    documentType: record.documentType,
-    status: record.status,
-    isOverdue: record.isOverdue,
-    sequenceGroup: record.sequenceGroup ?? null,
-    documentNumber: record.documentNumber ?? null,
-    invoiceDate: record.invoiceDate,
-    dueDate: record.dueDate ?? null,
-    totalInclVatMinorUnits: record.totalInclVatMinorUnits,
-    currency: record.currency,
-    createdAt: record.createdAt.toISOString(),
-  };
 }
 
 export async function getDashboard(businessId: string): Promise<DashboardResponse> {
@@ -109,6 +71,6 @@ export async function getDashboard(businessId: string): Promise<DashboardRespons
     overdueCount: overdue.count,
     shaamPendingCount: shaam.pending,
     shaamRejectedCount: shaam.rejected,
-    recentInvoices: recent.map(serializeListItem),
+    recentInvoices: recent.map(serializeInvoiceListItem),
   };
 }
