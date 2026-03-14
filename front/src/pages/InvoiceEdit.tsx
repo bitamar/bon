@@ -314,6 +314,7 @@ export function InvoiceEdit() {
     successToast: { message: 'הטיוטה נמחקה' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices(businessId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(businessId) });
       closeDelete();
       navigate(`/businesses/${businessId}/dashboard`);
     },

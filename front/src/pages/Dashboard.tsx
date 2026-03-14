@@ -26,9 +26,13 @@ function trendProps(trend: number | undefined) {
 
 function KpiCards(props: Readonly<{ kpis: DashboardKpis | null; isLoading: boolean }>) {
   if (props.isLoading || !props.kpis) {
-    return Array.from({ length: 4 }, (_, i) => (
-      <KpiCard key={i} label="" value="" icon={null} isLoading />
-    ));
+    return (
+      <>
+        {Array.from({ length: 4 }, (_, i) => (
+          <KpiCard key={i} label="" value="" icon={null} isLoading />
+        ))}
+      </>
+    );
   }
 
   const { kpis } = props;
