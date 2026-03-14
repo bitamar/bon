@@ -11,7 +11,7 @@ export function RecentInvoicesTable({
 }: Readonly<{
   invoices: InvoiceListItem[] | undefined;
   isLoading?: boolean;
-  error?: Error | string | unknown;
+  error?: unknown;
 }>) {
   const { businessId } = useParams<{ businessId: string }>();
   const navigate = useNavigate();

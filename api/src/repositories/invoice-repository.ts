@@ -14,7 +14,7 @@ import {
   sum,
 } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { invoiceItems, invoices } from '../db/schema.js';
+import { invoiceItems, invoicePayments, invoices } from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
 import { escapeLikePattern } from '../lib/query-utils.js';
 
@@ -318,11 +318,20 @@ export async function getDashboardAggregates(
   staleThreshold: Date,
   txOrDb: DbOrTx = db
 ): Promise<DashboardAggregates> {
+  const paidSub = txOrDb
+    .select({
+      invoiceId: invoicePayments.invoiceId,
+      total: sql<string>`COALESCE(SUM(${invoicePayments.amountMinorUnits}), 0)`.as('paid_total'),
+    })
+    .from(invoicePayments)
+    .groupBy(invoicePayments.invoiceId)
+    .as('paid');
+
   const rows = await txOrDb
     .select({
-      outstandingTotal: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.status} IN ('finalized', 'sent', 'partially_paid') THEN ${invoices.totalInclVatMinorUnits} - COALESCE((SELECT SUM(p.amount_minor_units) FROM invoice_payments p WHERE p.invoice_id = ${invoices.id}), 0) ELSE 0 END), 0)`,
+      outstandingTotal: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.status} IN ('finalized', 'sent', 'partially_paid') THEN ${invoices.totalInclVatMinorUnits} - COALESCE(${paidSub.total}, 0) ELSE 0 END), 0)`,
       outstandingCount: sql<string>`COUNT(CASE WHEN ${invoices.status} IN ('finalized', 'sent', 'partially_paid') THEN 1 END)`,
-      overdueTotal: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.isOverdue} = true THEN ${invoices.totalInclVatMinorUnits} - COALESCE((SELECT SUM(p.amount_minor_units) FROM invoice_payments p WHERE p.invoice_id = ${invoices.id}), 0) ELSE 0 END), 0)`,
+      overdueTotal: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.isOverdue} = true THEN ${invoices.totalInclVatMinorUnits} - COALESCE(${paidSub.total}, 0) ELSE 0 END), 0)`,
       overdueCount: sql<string>`COUNT(CASE WHEN ${invoices.isOverdue} = true THEN 1 END)`,
       invoicesThisMonth: sql<string>`COUNT(CASE WHEN ${invoices.status} != 'draft' AND ${invoices.issuedAt} >= ${monthStart} THEN 1 END)`,
       invoicesPrevMonth: sql<string>`COUNT(CASE WHEN ${invoices.status} != 'draft' AND ${invoices.issuedAt} >= ${prevMonthStart} AND ${invoices.issuedAt} < ${monthStart} THEN 1 END)`,
@@ -330,6 +339,7 @@ export async function getDashboardAggregates(
       hasInvoices: sql<boolean>`EXISTS(SELECT 1 FROM ${invoices} i2 WHERE i2.business_id = ${businessId} AND i2.status != 'draft')`,
     })
     .from(invoices)
+    .leftJoin(paidSub, eq(invoices.id, paidSub.invoiceId))
     .where(eq(invoices.businessId, businessId));
 
   const row = rows[0];
