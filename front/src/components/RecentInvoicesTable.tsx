@@ -1,19 +1,20 @@
 import { Anchor, Badge, Card, Group, Skeleton, Stack, Table, Text } from '@mantine/core';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { InvoiceListItem } from '@bon/types/invoices';
+import { formatMinorUnits } from '@bon/types/formatting';
 import { INVOICE_STATUS_CONFIG } from '../lib/invoiceStatus';
-import { formatCurrency } from '../lib/format';
 
 export function RecentInvoicesTable({
   invoices,
+  businessId,
   isLoading,
   error,
 }: Readonly<{
   invoices: InvoiceListItem[] | undefined;
+  businessId: string;
   isLoading?: boolean;
   error?: unknown;
 }>) {
-  const { businessId } = useParams<{ businessId: string }>();
   const navigate = useNavigate();
 
   if (error) {
@@ -96,7 +97,7 @@ export function RecentInvoicesTable({
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {formatCurrency(invoice.totalInclVatMinorUnits)}
+                    {formatMinorUnits(invoice.totalInclVatMinorUnits)}
                   </Text>
                 </Table.Td>
                 <Table.Td>

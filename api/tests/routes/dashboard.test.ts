@@ -9,7 +9,7 @@ import {
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 import { db } from '../../src/db/client.js';
-import { invoices, invoicePayments } from '../../src/db/schema.js';
+import { invoices } from '../../src/db/schema.js';
 import type { DashboardResponse } from '@bon/types/dashboard';
 
 // ── helpers ──
@@ -62,45 +62,32 @@ describe('routes/dashboard', () => {
     expect(res.statusCode).toBe(200);
     const data = res.json() as DashboardResponse;
 
-    expect(data.hasInvoices).toBe(false);
-    expect(data.kpis.outstanding.totalMinorUnits).toBe(0);
-    expect(data.kpis.outstanding.count).toBe(0);
-    expect(data.kpis.overdue.count).toBe(0);
-    expect(data.kpis.revenue.thisMonthMinorUnits).toBe(0);
-    expect(data.kpis.invoicesThisMonth.count).toBe(0);
-    expect(data.kpis.staleDraftCount).toBe(0);
+    expect(data.outstandingAmountMinorUnits).toBe(0);
+    expect(data.outstandingCount).toBe(0);
+    expect(data.overdueCount).toBe(0);
+    expect(data.revenueThisMonthMinorUnits).toBe(0);
+    expect(data.invoiceCountThisMonth).toBe(0);
     expect(data.recentInvoices).toHaveLength(0);
-    expect(data.overdueInvoices).toHaveLength(0);
   });
 
   it('returns correct KPIs when invoices exist', async () => {
-    const { sessionId, business, user } = await createOwnerWithBusiness();
+    const { sessionId, business } = await createOwnerWithBusiness();
 
-    // Create a finalized invoice (outstanding)
-    const inv = await createFinalized(business.id, {
+    // Create a sent invoice (outstanding, counts toward revenue)
+    await createFinalized(business.id, {
       status: 'sent',
       customerName: 'Test Customer',
       totalInclVatMinorUnits: 25000,
-    });
-
-    // Record a payment this month
-    await db.insert(invoicePayments).values({
-      invoiceId: inv.id,
-      amountMinorUnits: 10000,
-      paidAt: '2026-03-12',
-      method: 'transfer',
-      recordedByUserId: user.id,
     });
 
     const res = await getDashboard(sessionId, business.id);
     expect(res.statusCode).toBe(200);
 
     const data = res.json() as DashboardResponse;
-    expect(data.hasInvoices).toBe(true);
-    expect(data.kpis.outstanding.totalMinorUnits).toBe(15000);
-    expect(data.kpis.outstanding.count).toBe(1);
-    expect(data.kpis.revenue.thisMonthMinorUnits).toBe(10000);
-    expect(data.kpis.invoicesThisMonth.count).toBe(1);
+    expect(data.outstandingAmountMinorUnits).toBe(25000);
+    expect(data.outstandingCount).toBe(1);
+    expect(data.revenueThisMonthMinorUnits).toBe(25000);
+    expect(data.invoiceCountThisMonth).toBe(1);
     expect(data.recentInvoices).toHaveLength(1);
     expect(data.recentInvoices[0].customerName).toBe('Test Customer');
   });
@@ -119,10 +106,8 @@ describe('routes/dashboard', () => {
     const res = await getDashboard(sessionId, business.id);
     const data = res.json() as DashboardResponse;
 
-    expect(data.kpis.overdue.count).toBe(1);
-    expect(data.kpis.overdue.totalMinorUnits).toBe(5000);
-    expect(data.overdueInvoices).toHaveLength(1);
-    expect(data.overdueInvoices[0].customerName).toBe('Late Payer');
+    expect(data.overdueCount).toBe(1);
+    expect(data.overdueAmountMinorUnits).toBe(5000);
   });
 
   it('rejects non-member with 404', async () => {
