@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { injectAuthed } from '../utils/inject.js';
-import { createOwnerWithBusiness } from '../utils/businesses.js';
+import { createOwnerWithBusiness, createUser, createTestBusiness } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 import type { DashboardResponse } from '@bon/types/dashboard';
 
@@ -102,7 +102,8 @@ describe('routes/dashboard', () => {
   });
 
   it('returns 401 for unauthenticated request', async () => {
-    const { business } = await createOwnerWithBusiness();
+    const user = await createUser();
+    const business = await createTestBusiness(user.id);
 
     const res = await ctx.app.inject({
       method: 'GET',
