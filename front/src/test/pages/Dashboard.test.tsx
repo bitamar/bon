@@ -39,11 +39,6 @@ function renderDashboard() {
   );
 }
 
-async function setupMock(data: DashboardResponse) {
-  const { fetchDashboard } = await import('../../api/dashboard');
-  vi.mocked(fetchDashboard).mockResolvedValue(data);
-}
-
 describe('Dashboard page', () => {
   it('renders KPI cards when data is loaded', async () => {
     vi.mocked(dashboardApi.fetchDashboard).mockResolvedValue(makeDashboardData());

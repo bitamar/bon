@@ -59,7 +59,6 @@ export interface FinalizeResult extends InvoiceResponse {
   needsAllocation: boolean;
 }
 
-
 // ── helpers ──
 
 function buildItemInsert(invoiceId: string, item: LineItemInput) {

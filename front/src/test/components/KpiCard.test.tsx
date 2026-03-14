@@ -32,12 +32,13 @@ describe('KpiCard', () => {
     expect(screen.getByText('3.2%')).toBeInTheDocument();
   });
 
-  it('renders without trend when trend is omitted', () => {
+  it('renders trendLabel without trend arrows when trend is zero', () => {
     renderWithProviders(
       <KpiCard
         label="ממתין לתשלום"
         value="₪25,000"
-        subtitle="8 חשבוניות"
+        trend={0}
+        trendLabel="8 חשבוניות"
         icon={<IconCash size={20} />}
       />
     );

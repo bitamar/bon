@@ -43,16 +43,17 @@ describe('App routing', () => {
     getMeMock.mockResolvedValue({ user: mockUser });
     vi.mocked(businessesApi.fetchBusinesses).mockResolvedValue({ businesses: [] });
     vi.mocked(dashboardApi.fetchDashboard).mockResolvedValue({
-      kpis: {
-        outstanding: { totalMinorUnits: 0, count: 0 },
-        overdue: { totalMinorUnits: 0, count: 0 },
-        revenue: { thisMonthMinorUnits: 0, prevMonthMinorUnits: 0 },
-        invoicesThisMonth: { count: 0, prevMonthCount: 0 },
-        staleDraftCount: 0,
-      },
+      revenueThisMonthMinorUnits: 0,
+      revenuePrevMonthMinorUnits: 0,
+      invoiceCountThisMonth: 0,
+      invoiceCountPrevMonth: 0,
+      outstandingAmountMinorUnits: 0,
+      outstandingCount: 0,
+      overdueAmountMinorUnits: 0,
+      overdueCount: 0,
+      shaamPendingCount: 0,
+      shaamRejectedCount: 0,
       recentInvoices: [],
-      overdueInvoices: [],
-      hasInvoices: true,
     });
   });
 
