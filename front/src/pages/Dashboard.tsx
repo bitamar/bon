@@ -127,6 +127,16 @@ export function Dashboard() {
     );
   }
 
+  if (!businessId || (!isLoading && !data)) {
+    return (
+      <Container size="lg" mt="xl">
+        <Alert color="blue" title="אין עסק פעיל">
+          לא נמצא עסק להצגת נתונים. יש לבחור עסק או ליצור עסק חדש.
+        </Alert>
+      </Container>
+    );
+  }
+
   const kpis = data ? buildKpis(data, businessId) : [];
 
   return (

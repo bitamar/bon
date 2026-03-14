@@ -109,6 +109,13 @@ describe('routes/dashboard', () => {
     expect(data.outstandingAmountMinorUnits).toBe(11700);
     expect(data.outstandingCount).toBe(1);
     expect(data.recentInvoices).toHaveLength(1);
+    // Verify other aggregates remain zero
+    expect(data.revenuePrevMonthMinorUnits).toBe(0);
+    expect(data.invoiceCountPrevMonth).toBe(0);
+    expect(data.overdueAmountMinorUnits).toBe(0);
+    expect(data.overdueCount).toBe(0);
+    expect(data.shaamPendingCount).toBe(0);
+    expect(data.shaamRejectedCount).toBe(0);
   });
 
   it('returns 404 when accessing another business dashboard', async () => {
