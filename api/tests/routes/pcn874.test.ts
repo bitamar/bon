@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 import { injectAuthed } from '../utils/inject.js';
 import {
   createOwnerWithBusiness,
@@ -11,49 +12,55 @@ import { setupIntegrationTest } from '../utils/server.js';
 import { db } from '../../src/db/client.js';
 import { invoices } from '../../src/db/schema.js';
 
+// ── helpers ──
+
+async function getPcn874(
+  app: FastifyInstance,
+  sessionId: string,
+  businessId: string,
+  year: number,
+  month: number
+) {
+  return injectAuthed(app, sessionId, {
+    method: 'GET',
+    url: `/businesses/${businessId}/reports/pcn874?year=${year}&month=${month}`,
+  });
+}
+
+async function createFinalized(
+  businessId: string,
+  overrides: Partial<typeof invoices.$inferInsert> = {}
+) {
+  const [inv] = await db
+    .insert(invoices)
+    .values({
+      businessId,
+      documentType: 'tax_invoice',
+      status: 'finalized',
+      invoiceDate: '2026-03-10',
+      issuedAt: new Date('2026-03-10T10:00:00Z'),
+      sequenceNumber: 1,
+      sequenceGroup: 'tax_document',
+      documentNumber: 'INV-0001',
+      customerName: 'Test Customer',
+      customerTaxId: '123456789',
+      totalExclVatMinorUnits: 10000,
+      vatMinorUnits: 1700,
+      totalInclVatMinorUnits: 11700,
+      ...overrides,
+    })
+    .returning();
+  return inv!;
+}
+
 describe('routes/pcn874', () => {
   const ctx = setupIntegrationTest();
-
-  // ── helpers ──
-
-  async function getPcn874(sessionId: string, businessId: string, year: number, month: number) {
-    return injectAuthed(ctx.app, sessionId, {
-      method: 'GET',
-      url: `/businesses/${businessId}/reports/pcn874?year=${year}&month=${month}`,
-    });
-  }
-
-  async function createFinalized(
-    businessId: string,
-    overrides: Partial<typeof invoices.$inferInsert> = {}
-  ) {
-    const [inv] = await db
-      .insert(invoices)
-      .values({
-        businessId,
-        documentType: 'tax_invoice',
-        status: 'finalized',
-        invoiceDate: '2026-03-10',
-        issuedAt: new Date('2026-03-10T10:00:00Z'),
-        sequenceNumber: 1,
-        sequenceGroup: 'tax_document',
-        documentNumber: 'INV-0001',
-        customerName: 'Test Customer',
-        customerTaxId: '123456789',
-        totalExclVatMinorUnits: 10000,
-        vatMinorUnits: 1700,
-        totalInclVatMinorUnits: 11700,
-        ...overrides,
-      })
-      .returning();
-    return inv!;
-  }
 
   // ── tests ──
 
   it('returns PCN874 file with correct headers for empty period', async () => {
     const { sessionId, business } = await createOwnerWithBusiness();
-    const res = await getPcn874(sessionId, business.id, 2026, 3);
+    const res = await getPcn874(ctx.app, sessionId, business.id, 2026, 3);
 
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toContain('text/plain');
@@ -91,7 +98,7 @@ describe('routes/pcn874', () => {
       totalInclVatMinorUnits: 11700,
     });
 
-    const res = await getPcn874(sessionId, business.id, 2026, 2);
+    const res = await getPcn874(ctx.app, sessionId, business.id, 2026, 2);
     expect(res.statusCode).toBe(200);
 
     const lines = res.body.split('\r\n').filter(Boolean);
@@ -119,14 +126,14 @@ describe('routes/pcn874', () => {
     const business = await createTestBusiness(user.id, { businessType: 'exempt_dealer' });
     await addUserToBusiness(user.id, business.id, 'owner');
 
-    const res = await getPcn874(sessionId, business.id, 2026, 3);
+    const res = await getPcn874(ctx.app, sessionId, business.id, 2026, 3);
     expect(res.statusCode).toBe(422);
     expect(res.json()).toMatchObject({ code: 'exempt_dealer_no_vat' });
   });
 
   it('returns 400 for invalid month', async () => {
     const { sessionId, business } = await createOwnerWithBusiness();
-    const res = await getPcn874(sessionId, business.id, 2026, 13);
+    const res = await getPcn874(ctx.app, sessionId, business.id, 2026, 13);
     expect(res.statusCode).toBe(400);
   });
 
@@ -138,7 +145,7 @@ describe('routes/pcn874', () => {
       invoiceDate: '2026-03-10',
     });
 
-    const res = await getPcn874(sessionId, business.id, 2026, 3);
+    const res = await getPcn874(ctx.app, sessionId, business.id, 2026, 3);
     expect(res.statusCode).toBe(200);
 
     const lines = res.body.split('\r\n').filter(Boolean);
@@ -151,7 +158,7 @@ describe('routes/pcn874', () => {
     const business = await createTestBusiness(owner.id);
     await addUserToBusiness(owner.id, business.id, 'owner');
 
-    const res = await getPcn874(sessionId, business.id, 2026, 3);
+    const res = await getPcn874(ctx.app, sessionId, business.id, 2026, 3);
     expect(res.statusCode).toBe(404);
   });
 });

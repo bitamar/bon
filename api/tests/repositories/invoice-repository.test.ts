@@ -19,6 +19,7 @@ import {
   aggregateOverdue,
   aggregateShaamStatus,
   findCreditNotesBySourceInvoiceId,
+  findInvoicesForReport,
 } from '../../src/repositories/invoice-repository.js';
 import { resetDb } from '../utils/db.js';
 
@@ -758,6 +759,80 @@ describe('findCreditNotesBySourceInvoiceId', () => {
     const invoice = await createTestInvoice(biz.id, { status: 'finalized' });
 
     const results = await findCreditNotesBySourceInvoiceId(invoice!.id, biz.id);
+    expect(results).toHaveLength(0);
+  });
+});
+
+describe('findInvoicesForReport', () => {
+  let businessId: string;
+
+  beforeEach(async () => {
+    await resetDb();
+    const biz = await seedBusinessWithOwner();
+    businessId = biz.id;
+  });
+
+  it('returns finalized/sent/paid/partially_paid/credited invoices in date range', async () => {
+    const reportStatuses = ['finalized', 'sent', 'paid', 'partially_paid', 'credited'] as const;
+    for (const status of reportStatuses) {
+      await createTestInvoice(businessId, {
+        status,
+        invoiceDate: '2026-03-15',
+        totalInclVatMinorUnits: 1000,
+      });
+    }
+    // Draft — excluded
+    await createTestInvoice(businessId, {
+      status: 'draft',
+      invoiceDate: '2026-03-10',
+      totalInclVatMinorUnits: 9000,
+    });
+    // Cancelled — excluded
+    await createTestInvoice(businessId, {
+      status: 'cancelled',
+      invoiceDate: '2026-03-10',
+      totalInclVatMinorUnits: 5000,
+    });
+    // Outside date range — excluded
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      invoiceDate: '2026-02-28',
+      totalInclVatMinorUnits: 7000,
+    });
+
+    const results = await findInvoicesForReport(businessId, '2026-03-01', '2026-03-31');
+
+    expect(results).toHaveLength(5);
+    expect(results.every((r) => r.businessId === businessId)).toBe(true);
+  });
+
+  it('orders results by invoiceDate then sequenceNumber', async () => {
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      invoiceDate: '2026-03-20',
+      sequenceNumber: 1,
+    });
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      invoiceDate: '2026-03-10',
+      sequenceNumber: 2,
+    });
+    await createTestInvoice(businessId, {
+      status: 'finalized',
+      invoiceDate: '2026-03-10',
+      sequenceNumber: 1,
+    });
+
+    const results = await findInvoicesForReport(businessId, '2026-03-01', '2026-03-31');
+
+    expect(results).toHaveLength(3);
+    expect(results[0]!.sequenceNumber).toBe(1);
+    expect(results[1]!.sequenceNumber).toBe(2);
+    expect(toDateStr(results[2]!.invoiceDate)).toBe('2026-03-20');
+  });
+
+  it('returns empty array when no invoices match', async () => {
+    const results = await findInvoicesForReport(businessId, '2026-03-01', '2026-03-31');
     expect(results).toHaveLength(0);
   });
 });
