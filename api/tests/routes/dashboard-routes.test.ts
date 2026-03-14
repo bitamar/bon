@@ -30,15 +30,14 @@ async function createAndFinalizeInvoice(
   customerId: string,
   amount = 10000
 ) {
-  // Derive date in Asia/Jerusalem (matching dashboard-service) to avoid month-boundary flakiness
-  const formatter = new Intl.DateTimeFormat('en-CA', {
+  // Use today in Asia/Jerusalem (matching dashboard-service's thisMonthEnd) so the invoice
+  // always falls within the queried range regardless of when the test runs.
+  const invoiceDate = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Jerusalem',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  });
-  const [yearStr, monthStr] = formatter.format(new Date()).split('-');
-  const invoiceDate = `${yearStr}-${monthStr}-15`;
+  }).format(new Date());
 
   const draft = await injectAuthed(app, sessionId, {
     method: 'POST',
