@@ -2,6 +2,7 @@ import { API_BASE_URL } from '../config';
 
 export class HttpError extends Error {
   status: number;
+  code: string | undefined;
   body?: unknown;
 
   constructor(status: number, message: string, body?: unknown) {
@@ -9,6 +10,7 @@ export class HttpError extends Error {
     this.name = 'HttpError';
     this.status = status;
     this.body = body;
+    this.code = (body as { error?: string } | undefined)?.error;
   }
 }
 
@@ -25,10 +27,8 @@ export async function fetchJson<T>(path: string, init: RequestInit = {}): Promis
 
   if (!response.ok) {
     const body = await response.json().catch(() => undefined);
-    const message =
-      (body as { error?: string; message?: string })?.error ||
-      (body as { message?: string })?.message ||
-      `Request failed: ${response.status}`;
+    const typed = body as { error?: string; message?: string } | undefined;
+    const message = typed?.message || typed?.error || `Request failed: ${response.status}`;
     throw new HttpError(response.status, message, body);
   }
 
@@ -43,10 +43,8 @@ export async function fetchBlob(path: string, init: RequestInit = {}): Promise<R
 
   if (!response.ok) {
     const body = await response.json().catch(() => undefined);
-    const message =
-      (body as { error?: string; message?: string })?.error ||
-      (body as { message?: string })?.message ||
-      `Request failed: ${response.status}`;
+    const typed = body as { error?: string; message?: string } | undefined;
+    const message = typed?.message || typed?.error || `Request failed: ${response.status}`;
     throw new HttpError(response.status, message, body);
   }
 

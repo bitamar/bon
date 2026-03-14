@@ -8,10 +8,12 @@ import { renderWithProviders } from '../utils/renderWithProviders';
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/invoices', () => ({ fetchInvoices: vi.fn() }));
 vi.mock('../../api/customers', () => ({ fetchCustomers: vi.fn() }));
+vi.mock('../../api/subscriptions', () => ({ fetchSubscription: vi.fn() }));
 
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as invoicesApi from '../../api/invoices';
 import * as customersApi from '../../api/customers';
+import * as subscriptionsApi from '../../api/subscriptions';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 import type { InvoiceListItem } from '@bon/types/invoices';
 
@@ -74,6 +76,11 @@ describe('InvoiceList page', () => {
     vi.resetAllMocks();
     mockActiveBusiness(useBusiness);
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
+    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue({
+      subscription: null,
+      canCreateInvoices: true,
+      daysRemaining: null,
+    });
   });
 
   it('shows error when no active business', () => {
@@ -200,5 +207,17 @@ describe('InvoiceList page', () => {
     expect(screen.getByText('ממתין לתשלום:')).toBeInTheDocument();
     expect(screen.getByText('סה״כ בסינון:')).toBeInTheDocument();
     expect(screen.getByText(/1 חשבונית\)/)).toBeInTheDocument();
+  });
+
+  it('links new invoice button to subscription page when no active subscription', async () => {
+    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue({
+      subscription: null,
+      canCreateInvoices: false,
+      daysRemaining: null,
+    });
+    await renderWithInvoices();
+
+    const newButton = screen.getByRole('link', { name: /חשבונית חדשה/ });
+    expect(newButton).toHaveAttribute('href', '/businesses/biz-1/subscription');
   });
 });
