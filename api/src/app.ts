@@ -82,7 +82,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
         { name: 'Businesses', description: 'Business management' },
         { name: 'Customers', description: 'Customer management' },
         { name: 'Invoices', description: 'Invoice lifecycle' },
-        { name: 'Dashboard', description: 'Business dashboard' },
+        { name: 'Dashboard', description: 'Business dashboard aggregates' },
         { name: 'Subscriptions', description: 'Subscription & payment management' },
       ],
     },

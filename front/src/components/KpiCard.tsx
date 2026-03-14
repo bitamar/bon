@@ -47,7 +47,12 @@ export function KpiCard({
           {icon}
         </ThemeIcon>
       </Group>
-      <Text fw={700} fz={28} {...(color ? { c: color } : {})} style={{ fontVariantNumeric: 'tabular-nums' }}>
+      <Text
+        fw={700}
+        fz={28}
+        {...(color ? { c: color } : {})}
+        style={{ fontVariantNumeric: 'tabular-nums' }}
+      >
         {value}
       </Text>
       <Group gap={4} mt="xs">

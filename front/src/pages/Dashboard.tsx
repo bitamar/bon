@@ -1,10 +1,5 @@
 import { Alert, Card, Container, Grid, Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import {
-  IconAlertTriangle,
-  IconCash,
-  IconClock,
-  IconFileInvoice,
-} from '@tabler/icons-react';
+import { IconAlertTriangle, IconCash, IconClock, IconFileInvoice } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { PageTitle } from '../components/PageTitle';
