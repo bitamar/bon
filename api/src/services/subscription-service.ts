@@ -9,8 +9,11 @@ import { env } from '../env.js';
 import { MeshulamMockClient } from './meshulam/mock-client.js';
 import { MeshulamHttpClient } from './meshulam/http-client.js';
 import type { MeshulamService } from './meshulam/types.js';
+import pino from 'pino';
 import { PLAN_PRICES, TRIAL_DAYS, subscriptionPlanSchema } from '@bon/types/subscriptions';
 import type { SubscriptionPlan, SubscriptionStatus } from '@bon/types/subscriptions';
+
+const logger = pino({ name: 'subscription-service' });
 
 // ── Meshulam client singleton ──
 
@@ -174,6 +177,12 @@ export async function handlePaymentWebhook(
 ) {
   const businessId = customFields?.['businessId'];
   const planParse = subscriptionPlanSchema.safeParse(customFields?.['plan']);
+  if (!planParse.success) {
+    logger.warn(
+      { rawPlan: customFields?.['plan'], businessId, transactionId },
+      'Webhook received with invalid or missing plan, defaulting to monthly'
+    );
+  }
   const plan: SubscriptionPlan = planParse.success ? planParse.data : 'monthly';
 
   if (!businessId) {

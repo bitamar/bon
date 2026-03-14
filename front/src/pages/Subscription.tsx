@@ -125,12 +125,12 @@ export function Subscription() {
       createCheckout(
         businessId,
         plan,
-        `${window.location.origin}/businesses/${businessId}/subscription?success=true`,
-        `${window.location.origin}/businesses/${businessId}/subscription?cancelled=true`
+        `${globalThis.location.origin}/businesses/${businessId}/subscription?success=true`,
+        `${globalThis.location.origin}/businesses/${businessId}/subscription?cancelled=true`
       ),
     errorToast: { fallbackMessage: 'שגיאה ביצירת עמוד תשלום' },
     onSuccess: (data) => {
-      window.location.href = data.paymentUrl;
+      globalThis.location.href = data.paymentUrl;
     },
   });
 
@@ -207,7 +207,9 @@ export function Subscription() {
                   </Text>
                   <SegmentedControl
                     value={selectedPlan}
-                    onChange={(v) => setSelectedPlan(v as SubscriptionPlan)}
+                    onChange={(v) => {
+                      if (v === 'monthly' || v === 'yearly') setSelectedPlan(v);
+                    }}
                     data={[
                       { label: `חודשי — ${formatPrice(PLAN_PRICES.monthly)}`, value: 'monthly' },
                       { label: `שנתי — ${formatPrice(PLAN_PRICES.yearly)}`, value: 'yearly' },

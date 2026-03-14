@@ -47,6 +47,10 @@ const Env = z
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
       z.string().optional()
     ),
+    MESHULAM_WEBHOOK_SECRET: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
   })
   .superRefine((data, ctx) => {
     if (data.SHAAM_MODE !== 'mock' && !data.SHAAM_ENCRYPTION_KEY) {

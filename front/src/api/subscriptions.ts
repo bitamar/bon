@@ -2,6 +2,7 @@ import { fetchJson } from '../lib/http';
 import {
   subscriptionResponseSchema,
   checkoutResponseSchema,
+  cancelResponseSchema,
   type SubscriptionResponse,
   type CheckoutResponse,
   type SubscriptionPlan,
@@ -33,7 +34,8 @@ export async function createCheckout(
 }
 
 export async function cancelSubscription(businessId: string): Promise<{ ok: true }> {
-  return fetchJson<{ ok: true }>(`/businesses/${businessId}/subscription/cancel`, {
+  const json = await fetchJson<unknown>(`/businesses/${businessId}/subscription/cancel`, {
     method: 'POST',
   });
+  return cancelResponseSchema.parse(json);
 }

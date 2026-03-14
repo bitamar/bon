@@ -220,6 +220,7 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req, reply) => {
       ensureBusinessContext(req);
+      await assertCanCreateInvoice(req.businessContext.businessId);
       const result = await createCreditNote(
         req.businessContext.businessId,
         req.params.invoiceId,

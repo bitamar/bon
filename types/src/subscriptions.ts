@@ -77,6 +77,10 @@ export const checkoutResponseSchema = z.object({
 
 export type CheckoutResponse = z.infer<typeof checkoutResponseSchema>;
 
+export const cancelResponseSchema = z.object({
+  ok: z.literal(true),
+});
+
 // ── Webhook payload (from Meshulam) ──
 
 export const meshulamWebhookSchema = z.object({

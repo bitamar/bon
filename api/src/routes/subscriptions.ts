@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { ensureBusinessContext } from '../plugins/business-context.js';
 import { businessIdParamSchema } from '@bon/types/businesses';
@@ -15,6 +16,7 @@ import {
   cancelSubscription,
   startTrial,
 } from '../services/subscription-service.js';
+import { env } from '../env.js';
 
 const subscriptionRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   // Get subscription status for a business
@@ -115,6 +117,28 @@ const subscriptionRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (req, reply) => {
+      // Verify webhook signature when secret is configured
+      if (env.MESHULAM_WEBHOOK_SECRET) {
+        const signature = req.headers['x-meshulam-signature'] as string | undefined;
+        if (!signature) {
+          req.log.warn('Meshulam webhook received without signature header');
+          return reply.status(401).send({ error: 'Missing webhook signature' });
+        }
+        const rawBody = JSON.stringify(req.body);
+        const expected = createHmac('sha256', env.MESHULAM_WEBHOOK_SECRET)
+          .update(rawBody)
+          .digest('hex');
+        const sigBuffer = Buffer.from(signature, 'hex');
+        const expectedBuffer = Buffer.from(expected, 'hex');
+        if (
+          sigBuffer.length !== expectedBuffer.length ||
+          !timingSafeEqual(sigBuffer, expectedBuffer)
+        ) {
+          req.log.warn('Meshulam webhook signature mismatch');
+          return reply.status(401).send({ error: 'Invalid webhook signature' });
+        }
+      }
+
       const { statusCode, transactionId, sum, customFields } = req.body;
       const result = await handlePaymentWebhook(transactionId, statusCode, sum, customFields);
       return reply.status(200).send(result);

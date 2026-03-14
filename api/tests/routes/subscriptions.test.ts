@@ -51,21 +51,46 @@ describe('routes/subscriptions', () => {
       expect(body.canCreateInvoices).toBe(true);
       expect(body.daysRemaining).toBe(14);
     });
+
+    it('overwrites existing trial when called twice', async () => {
+      const { sessionId, business } = await createOwnerWithBusinessNoSub();
+      const postTrial = () =>
+        injectAuthed(ctx.app, sessionId, {
+          method: 'POST',
+          url: `/businesses/${business.id}/subscription/trial`,
+        });
+
+      const first = await postTrial();
+      expect(first.statusCode).toBe(201);
+
+      const second = await postTrial();
+      expect(second.statusCode).toBe(201);
+      const body = second.json() as { subscription: { status: string } };
+      expect(body.subscription.status).toBe('trialing');
+    });
   });
 
   describe('POST /businesses/:businessId/subscription/checkout', () => {
+    // ── helpers ──
+    function buildCheckoutPayload(plan: string = 'monthly') {
+      return {
+        plan,
+        successUrl: 'https://example.com/success',
+        cancelUrl: 'https://example.com/cancel',
+      };
+    }
+
+    async function postCheckout(sessionId: string, businessId: string, plan: string = 'monthly') {
+      return injectAuthed(ctx.app, sessionId, {
+        method: 'POST',
+        url: `/businesses/${businessId}/subscription/checkout`,
+        payload: buildCheckoutPayload(plan),
+      });
+    }
+
     it('creates a checkout session for monthly plan', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
-
-      const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'POST',
-        url: `/businesses/${business.id}/subscription/checkout`,
-        payload: {
-          plan: 'monthly',
-          successUrl: 'https://example.com/success',
-          cancelUrl: 'https://example.com/cancel',
-        },
-      });
+      const res = await postCheckout(sessionId, business.id);
 
       expect(res.statusCode).toBe(200);
       const body = res.json() as { paymentUrl: string; processId: string };
@@ -75,17 +100,7 @@ describe('routes/subscriptions', () => {
 
     it('returns 400 for invalid plan', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
-
-      const res = await injectAuthed(ctx.app, sessionId, {
-        method: 'POST',
-        url: `/businesses/${business.id}/subscription/checkout`,
-        payload: {
-          plan: 'invalid_plan',
-          successUrl: 'https://example.com/success',
-          cancelUrl: 'https://example.com/cancel',
-        },
-      });
-
+      const res = await postCheckout(sessionId, business.id, 'invalid_plan');
       expect(res.statusCode).toBe(400);
     });
   });
@@ -151,6 +166,29 @@ describe('routes/subscriptions', () => {
   });
 
   describe('POST /webhooks/meshulam', () => {
+    // ── helpers ──
+    function buildWebhookPayload(overrides: Record<string, unknown> = {}) {
+      return {
+        statusCode: '2',
+        transactionId: 'txn-123',
+        transactionToken: 'token-abc',
+        sum: '999',
+        customFields: {
+          businessId: 'some-id',
+          plan: 'yearly',
+        },
+        ...overrides,
+      };
+    }
+
+    async function postWebhook(payload: Record<string, unknown>) {
+      return ctx.app.inject({
+        method: 'POST',
+        url: '/webhooks/meshulam',
+        payload,
+      });
+    }
+
     it('activates subscription on successful payment webhook', async () => {
       const { sessionId, business } = await createOwnerWithBusiness();
 
@@ -166,20 +204,11 @@ describe('routes/subscriptions', () => {
       });
 
       // Simulate Meshulam webhook
-      const webhookRes = await ctx.app.inject({
-        method: 'POST',
-        url: '/webhooks/meshulam',
-        payload: {
-          statusCode: '2',
-          transactionId: 'txn-123',
-          transactionToken: 'token-abc',
-          sum: '999',
-          customFields: {
-            businessId: business.id,
-            plan: 'yearly',
-          },
-        },
-      });
+      const webhookRes = await postWebhook(
+        buildWebhookPayload({
+          customFields: { businessId: business.id, plan: 'yearly' },
+        })
+      );
 
       expect(webhookRes.statusCode).toBe(200);
       const whBody = webhookRes.json() as { processed: boolean };
@@ -197,6 +226,29 @@ describe('routes/subscriptions', () => {
       expect(status.subscription.status).toBe('active');
       expect(status.subscription.plan).toBe('yearly');
       expect(status.canCreateInvoices).toBe(true);
+    });
+
+    it('returns 400 when customFields is missing businessId', async () => {
+      const res = await postWebhook(buildWebhookPayload({ customFields: { plan: 'monthly' } }));
+
+      expect(res.statusCode).toBe(400);
+      const body = res.json() as { code: string };
+      expect(body.code).toBe('missing_business_id');
+    });
+
+    it('returns 400 when payment amount does not match plan price', async () => {
+      const { business } = await createOwnerWithBusinessNoSub();
+
+      const res = await postWebhook(
+        buildWebhookPayload({
+          sum: '1',
+          customFields: { businessId: business.id, plan: 'yearly' },
+        })
+      );
+
+      expect(res.statusCode).toBe(400);
+      const body = res.json() as { code: string };
+      expect(body.code).toBe('payment_amount_mismatch');
     });
   });
 });

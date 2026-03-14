@@ -1,9 +1,28 @@
+import { z } from 'zod';
 import { AppError } from '../../lib/app-error.js';
 import type {
   CreatePaymentProcessRequest,
   CreatePaymentProcessResult,
   MeshulamService,
 } from './types.js';
+
+const MESHULAM_TIMEOUT_MS = 30_000;
+
+const meshulamResponseSchema = z.object({
+  status: z.number(),
+  err: z
+    .object({
+      message: z.string().optional(),
+    })
+    .optional(),
+  data: z
+    .object({
+      url: z.string().optional(),
+      processId: z.string().optional(),
+      processToken: z.string().optional(),
+    })
+    .optional(),
+});
 
 export class MeshulamHttpClient implements MeshulamService {
   private readonly baseUrl: string;
@@ -34,11 +53,29 @@ export class MeshulamHttpClient implements MeshulamService {
       }
     }
 
-    const response = await fetch(`${this.baseUrl}/api/light/server/1.0/createPaymentProcess`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), MESHULAM_TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}/api/light/server/1.0/createPaymentProcess`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new AppError({
+          statusCode: 504,
+          code: 'meshulam_timeout',
+          message: `Meshulam API request timed out after ${MESHULAM_TIMEOUT_MS}ms`,
+        });
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!response.ok) {
       throw new AppError({
@@ -48,11 +85,17 @@ export class MeshulamHttpClient implements MeshulamService {
       });
     }
 
-    const body = (await response.json()) as {
-      status: number;
-      err?: { message?: string };
-      data?: { url?: string; processId?: string; processToken?: string };
-    };
+    const raw: unknown = await response.json();
+    const parseResult = meshulamResponseSchema.safeParse(raw);
+    if (!parseResult.success) {
+      throw new AppError({
+        statusCode: 502,
+        code: 'meshulam_invalid_response',
+        message: 'Meshulam API returned an unexpected response shape',
+      });
+    }
+
+    const body = parseResult.data;
 
     if (body.status !== 1 || !body.data?.url) {
       throw new AppError({
