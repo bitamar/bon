@@ -33,18 +33,28 @@ import { useBusiness } from '../../contexts/BusinessContext';
 import * as businessesApi from '../../api/businesses';
 import { activeBusinessStub } from '../utils/businessStubs';
 
+// ── helpers ──
+
+function mockUseBusinessWith(
+  overrides: Partial<typeof activeBusinessStub> & { role?: string } = {}
+) {
+  const activeBusiness =
+    Object.keys(overrides).length > 0 ? { ...activeBusinessStub, ...overrides } : null;
+  vi.mocked(useBusiness).mockReturnValue({
+    activeBusiness,
+    businesses: [],
+    switchBusiness: vi.fn(),
+    isLoading: false,
+  });
+}
+
 describe('Settings page', () => {
   const getSettingsMock = vi.mocked(authApi.getSettings);
   const updateSettingsMock = vi.mocked(authApi.updateSettings);
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: null,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
+    mockUseBusinessWith();
     getSettingsMock.mockResolvedValue({
       user: {
         id: 'u1',
@@ -181,12 +191,7 @@ describe('Settings page', () => {
   });
 
   it('shows business settings section for owner', async () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: activeBusinessStub,
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
+    mockUseBusinessWith({ role: 'owner' });
     vi.mocked(businessesApi.fetchBusiness).mockImplementation(() => new Promise(() => {}));
 
     renderWithProviders(<Settings />);
@@ -197,12 +202,7 @@ describe('Settings page', () => {
   });
 
   it('hides business settings section for non-owner', async () => {
-    vi.mocked(useBusiness).mockReturnValue({
-      activeBusiness: { ...activeBusinessStub, role: 'user' },
-      businesses: [],
-      switchBusiness: vi.fn(),
-      isLoading: false,
-    });
+    mockUseBusinessWith({ role: 'user' });
 
     renderWithProviders(<Settings />);
 

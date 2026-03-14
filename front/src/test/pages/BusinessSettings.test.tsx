@@ -30,6 +30,13 @@ function renderSection() {
   return renderWithProviders(<BusinessSettingsSection />);
 }
 
+function mockLoadedBusiness(overrides: Record<string, unknown> = {}) {
+  vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
+    business: { ...mockBusiness, ...overrides },
+    role: 'owner' as const,
+  });
+}
+
 const mockBusiness = {
   id: 'biz-1',
   name: 'Test Co',
@@ -91,10 +98,7 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('shows form with business name when loaded', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness();
 
     renderSection();
 
@@ -112,10 +116,7 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('submitting form calls updateBusiness without registrationNumber', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness();
     vi.mocked(businessesApi.updateBusiness).mockResolvedValue({
       business: mockBusiness,
       role: 'owner' as const,
@@ -138,10 +139,7 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('shows phone validation error when phone is invalid', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness();
 
     renderSection();
 
@@ -160,10 +158,7 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('shows email validation error when email is invalid', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness();
 
     renderSection();
 
@@ -182,15 +177,11 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('populates form from fetched business with null optional fields', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: {
-        ...mockBusiness,
-        postalCode: null,
-        phone: null,
-        email: null,
-        invoiceNumberPrefix: null,
-      },
-      role: 'owner' as const,
+    mockLoadedBusiness({
+      postalCode: null,
+      phone: null,
+      email: null,
+      invoiceNumberPrefix: null,
     });
 
     renderSection();
@@ -202,10 +193,7 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('shows business type label', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness();
 
     renderSection();
 
@@ -213,10 +201,7 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('shows vatNumber field for licensed_dealer and populates from API', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: { ...mockBusiness, vatNumber: '987654321' },
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness({ vatNumber: '987654321' });
 
     renderSection();
 
@@ -234,10 +219,7 @@ describe('BusinessSettingsSection', () => {
       switchBusiness: vi.fn(),
       isLoading: false,
     });
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: { ...mockBusiness, businessType: 'exempt_dealer' as const },
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness({ businessType: 'exempt_dealer' as const });
 
     renderSection();
 
@@ -254,10 +236,7 @@ describe('BusinessSettingsSection', () => {
       switchBusiness: vi.fn(),
       isLoading: false,
     });
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: { ...mockBusiness, businessType: 'limited_company' as const },
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness({ businessType: 'limited_company' as const });
 
     renderSection();
 
@@ -267,10 +246,7 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('shows vatNumber validation error when value is not 9 digits', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness();
 
     renderSection();
 
@@ -289,10 +265,7 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('pre-populates city and street from existing business data', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: { ...mockBusiness, city: 'TLV', streetAddress: '1 Main' },
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness({ city: 'TLV', streetAddress: '1 Main' });
 
     renderSection();
 
@@ -303,10 +276,7 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('accepts a valid 9-digit vatNumber without showing a validation error', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
+    mockLoadedBusiness();
     vi.mocked(businessesApi.updateBusiness).mockResolvedValue({
       business: mockBusiness,
       role: 'owner' as const,

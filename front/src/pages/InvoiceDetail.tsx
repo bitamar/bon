@@ -77,10 +77,10 @@ function detectErrorCode(allocationError: string | null): string | null {
   return null;
 }
 
-function AllocationRejectedBanner(
-  props: Readonly<{ allocationError: string | null; businessId: string }>
-) {
+function AllocationRejectedBanner(props: Readonly<{ allocationError: string | null }>) {
   const navigate = useNavigate();
+  const { activeBusiness } = useBusiness();
+  const isOwner = activeBusiness?.role === 'owner';
   const errorCode = detectErrorCode(props.allocationError);
 
   // E010: orange, re-auth action
@@ -92,15 +92,21 @@ function AllocationRejectedBanner(
             <IconAlertTriangle size={18} color="var(--mantine-color-orange-7)" />
             <Text fw={600}>{props.allocationError}</Text>
           </Group>
-          <Button
-            size="xs"
-            variant="light"
-            color="orange"
-            leftSection={<IconSettings size={14} />}
-            onClick={() => navigate('/settings')}
-          >
-            חבר מחדש
-          </Button>
+          {isOwner ? (
+            <Button
+              size="xs"
+              variant="light"
+              color="orange"
+              leftSection={<IconSettings size={14} />}
+              onClick={() => navigate('/settings')}
+            >
+              חבר מחדש
+            </Button>
+          ) : (
+            <Button size="xs" variant="light" color="orange" disabled>
+              פנה לבעל העסק
+            </Button>
+          )}
         </Group>
       </Paper>
     );
@@ -115,9 +121,15 @@ function AllocationRejectedBanner(
             <IconAlertTriangle size={18} color="var(--mantine-color-red-7)" />
             <Text fw={600}>{props.allocationError}</Text>
           </Group>
-          <Button size="xs" variant="light" color="red" onClick={() => navigate('/settings')}>
-            הזן מספרי חירום
-          </Button>
+          {isOwner ? (
+            <Button size="xs" variant="light" color="red" onClick={() => navigate('/settings')}>
+              הזן מספרי חירום
+            </Button>
+          ) : (
+            <Button size="xs" variant="light" color="red" disabled>
+              פנה לבעל העסק
+            </Button>
+          )}
         </Group>
       </Paper>
     );
@@ -132,15 +144,21 @@ function AllocationRejectedBanner(
             <IconAlertTriangle size={18} color="var(--mantine-color-red-7)" />
             <Text fw={600}>{props.allocationError}</Text>
           </Group>
-          <Button
-            size="xs"
-            variant="light"
-            color="red"
-            leftSection={<IconSettings size={14} />}
-            onClick={() => navigate('/settings')}
-          >
-            עבור להגדרות
-          </Button>
+          {isOwner ? (
+            <Button
+              size="xs"
+              variant="light"
+              color="red"
+              leftSection={<IconSettings size={14} />}
+              onClick={() => navigate('/settings')}
+            >
+              עבור להגדרות
+            </Button>
+          ) : (
+            <Button size="xs" variant="light" color="red" disabled>
+              פנה לבעל העסק
+            </Button>
+          )}
         </Group>
       </Paper>
     );
@@ -558,10 +576,7 @@ export function InvoiceDetail() {
           </Paper>
         )}
         {invoice.allocationStatus === 'rejected' && (
-          <AllocationRejectedBanner
-            allocationError={invoice.allocationError}
-            businessId={businessId}
-          />
+          <AllocationRejectedBanner allocationError={invoice.allocationError} />
         )}
 
         {/* Remaining balance */}
