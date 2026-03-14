@@ -18,11 +18,18 @@ function trendPercent(current: number, previous: number): number | undefined {
 }
 
 function currentMonthRange(): { dateFrom: string; dateTo: string } {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return { dateFrom: `${year}-${month}-01`, dateTo: `${year}-${month}-${day}` };
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const todayStr = formatter.format(new Date());
+  const [yearStr, monthStr] = todayStr.split('-');
+  return {
+    dateFrom: `${yearStr}-${monthStr}-01`,
+    dateTo: todayStr,
+  };
 }
 
 function buildKpis(data: DashboardResponse, businessId: string) {

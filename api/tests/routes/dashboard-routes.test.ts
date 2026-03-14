@@ -30,12 +30,17 @@ async function createAndFinalizeInvoice(
   customerId: string,
   amount = 10000
 ) {
+  // Use an explicit mid-month date to avoid flakiness near UTC month boundaries
+  const now = new Date();
+  const invoiceDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`;
+
   const draft = await injectAuthed(app, sessionId, {
     method: 'POST',
     url: `/businesses/${businessId}/invoices`,
     payload: {
       documentType: 'tax_invoice',
       customerId,
+      invoiceDate,
       items: [
         {
           description: 'Service',
