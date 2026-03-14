@@ -1,3 +1,4 @@
+import * as iconv from 'iconv-lite';
 import type { InvoiceRecord } from '../repositories/invoice-repository.js';
 import { findBusinessById } from '../repositories/business-repository.js';
 import { findInvoicesForReport } from '../repositories/invoice-repository.js';
@@ -180,7 +181,7 @@ export async function generatePcn874(
   lines.push(buildClosingRecord(invoiceRows.length));
 
   const content = lines.join(CRLF) + CRLF;
-  const buffer = Buffer.from(content, 'utf-8');
+  const buffer = iconv.encode(content, 'windows-1255');
   const period = `${year}${String(month).padStart(2, '0')}`;
   const filename = `PCN874_${vatNumber.padStart(9, '0')}_${period}.txt`;
 

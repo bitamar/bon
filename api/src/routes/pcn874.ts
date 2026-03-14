@@ -20,7 +20,7 @@ const pcn874RoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       const { buffer, filename } = await generatePcn874(businessId, year, month);
 
       return reply
-        .header('Content-Type', 'text/plain; charset=utf-8')
+        .header('Content-Type', 'text/plain; charset=windows-1255')
         .header('Content-Disposition', `attachment; filename="${filename}"`)
         .send(buffer);
     }

@@ -64,6 +64,7 @@ describe('routes/pcn874', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toContain('text/plain');
+    expect(res.headers['content-type']).toContain('charset=windows-1255');
     expect(res.headers['content-disposition']).toContain('PCN874_');
     expect(res.headers['content-disposition']).toContain('_202603.txt');
 

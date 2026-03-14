@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { VatReport } from '../../pages/VatReport';
 import { renderWithProviders } from '../utils/renderWithProviders';
 import { useBusiness } from '../../contexts/BusinessContext';
+import { downloadPcn874 } from '../../api/reports';
 
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/reports', () => ({ downloadPcn874: vi.fn() }));
@@ -49,6 +51,17 @@ describe('VatReport page', () => {
     renderVatReport();
 
     expect(screen.getByLabelText('תקופת דיווח')).toBeInTheDocument();
+  });
+
+  it('calls downloadPcn874 with correct params on button click', async () => {
+    vi.mocked(downloadPcn874).mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderVatReport();
+
+    const button = screen.getByRole('button', { name: /הורד דוח מע"מ/ });
+    await user.click(button);
+
+    expect(downloadPcn874).toHaveBeenCalledWith('biz-1', expect.any(Number), expect.any(Number));
   });
 
   it('shows not-relevant alert for exempt_dealer', () => {
