@@ -16,12 +16,17 @@ function renderQuickActions() {
 }
 
 describe('QuickActions', () => {
-  it('renders all action buttons', () => {
+  it('renders invoice and customer buttons', () => {
     renderQuickActions();
 
     expect(screen.getByText('חשבונית חדשה')).toBeInTheDocument();
     expect(screen.getByText('הוסף לקוח')).toBeInTheDocument();
-    expect(screen.getByText('הגדרות עסק')).toBeInTheDocument();
+  });
+
+  it('does not render settings button', () => {
+    renderQuickActions();
+
+    expect(screen.queryByText('הגדרות עסק')).not.toBeInTheDocument();
   });
 
   it('has invoice and customer buttons linked to their pages', () => {
@@ -32,12 +37,5 @@ describe('QuickActions', () => {
 
     expect(invoiceLink).toHaveAttribute('href', '/businesses/biz-1/invoices/new');
     expect(customerLink).toHaveAttribute('href', '/businesses/biz-1/customers/new');
-  });
-
-  it('has settings button enabled and linking to business settings', () => {
-    renderQuickActions();
-
-    const settingsLink = screen.getByText('הגדרות עסק').closest('a');
-    expect(settingsLink).toHaveAttribute('href', '/businesses/biz-1/settings');
   });
 });

@@ -20,8 +20,12 @@ vi.mock('../../api/businesses', () => ({
   updateBusiness: vi.fn(),
   createBusiness: vi.fn(),
 }));
+vi.mock('../../api/dashboard', () => ({
+  fetchDashboard: vi.fn(),
+}));
 
 import * as businessesApi from '../../api/businesses';
+import * as dashboardApi from '../../api/dashboard';
 
 const mockBizItem = {
   id: 'biz-1',
@@ -38,6 +42,18 @@ describe('App routing', () => {
   beforeEach(() => {
     getMeMock.mockResolvedValue({ user: mockUser });
     vi.mocked(businessesApi.fetchBusinesses).mockResolvedValue({ businesses: [] });
+    vi.mocked(dashboardApi.fetchDashboard).mockResolvedValue({
+      kpis: {
+        outstanding: { totalMinorUnits: 0, count: 0 },
+        overdue: { totalMinorUnits: 0, count: 0 },
+        revenue: { thisMonthMinorUnits: 0, prevMonthMinorUnits: 0 },
+        invoicesThisMonth: { count: 0, prevMonthCount: 0 },
+        staleDraftCount: 0,
+      },
+      recentInvoices: [],
+      overdueInvoices: [],
+      hasInvoices: true,
+    });
   });
 
   afterEach(() => {
@@ -105,7 +121,7 @@ describe('App routing', () => {
     renderApp('/');
 
     // After businesses load, OnboardingGuard allows through → HomeRedirect runs and
-    // navigates to /businesses/biz-1/dashboard → Dashboard renders with a heading 'ראשי'
-    await screen.findByRole('heading', { name: 'ראשי' });
+    // navigates to /businesses/biz-1/dashboard → Dashboard renders with a heading 'דאשבורד'
+    await screen.findByRole('heading', { name: 'דאשבורד' });
   });
 });

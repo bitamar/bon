@@ -5,16 +5,20 @@ import type { ReactNode } from 'react';
 export function KpiCard({
   label,
   value,
+  subtitle,
   trend,
   trendLabel,
   icon,
+  accent,
   isLoading,
 }: Readonly<{
   label: string;
   value: string;
-  trend: number;
-  trendLabel: string;
+  subtitle?: string;
+  trend?: number;
+  trendLabel?: string;
   icon: ReactNode;
+  accent?: 'red';
   isLoading?: boolean;
 }>) {
   if (isLoading) {
@@ -29,34 +33,51 @@ export function KpiCard({
     );
   }
 
-  const isPositive = trend >= 0;
+  const borderColor = accent === 'red' ? 'var(--mantine-color-red-4)' : undefined;
 
   return (
-    <Card withBorder radius="lg" p="lg">
+    <Card withBorder radius="lg" p="lg" style={borderColor ? { borderColor } : undefined}>
       <Group justify="space-between" mb="xs">
         <Text size="sm" c="dimmed" fw={500}>
           {label}
         </Text>
-        <ThemeIcon variant="light" size="lg" radius="md">
+        <ThemeIcon
+          variant="light"
+          size="lg"
+          radius="md"
+          {...(accent === 'red' ? { color: 'red' as const } : {})}
+        >
           {icon}
         </ThemeIcon>
       </Group>
-      <Text fw={700} fz={28} style={{ fontVariantNumeric: 'tabular-nums' }}>
+      <Text
+        fw={700}
+        fz={28}
+        {...(accent ? { c: accent } : {})}
+        style={{ fontVariantNumeric: 'tabular-nums' }}
+      >
         {value}
       </Text>
-      <Group gap={4} mt="xs">
-        {isPositive ? (
-          <IconArrowUpRight size={16} color="var(--mantine-color-brand-6)" />
-        ) : (
-          <IconArrowDownRight size={16} color="var(--mantine-color-red-6)" />
-        )}
-        <Text size="xs" c={isPositive ? 'brand.6' : 'red.6'} fw={500}>
-          {Math.abs(trend).toFixed(1)}%
+      {subtitle ? (
+        <Text size="xs" c="dimmed" mt="xs">
+          {subtitle}
         </Text>
-        <Text size="xs" c="dimmed">
-          {trendLabel}
-        </Text>
-      </Group>
+      ) : null}
+      {trend != null && trendLabel ? (
+        <Group gap={4} mt="xs">
+          {trend >= 0 ? (
+            <IconArrowUpRight size={16} color="var(--mantine-color-brand-6)" />
+          ) : (
+            <IconArrowDownRight size={16} color="var(--mantine-color-red-6)" />
+          )}
+          <Text size="xs" c={trend >= 0 ? 'brand.6' : 'red.6'} fw={500}>
+            {Math.abs(trend).toFixed(1)}%
+          </Text>
+          <Text size="xs" c="dimmed">
+            {trendLabel}
+          </Text>
+        </Group>
+      ) : null}
     </Card>
   );
 }

@@ -15,6 +15,7 @@ export const queryKeys = {
     ['businesses', businessId, 'invoices', invoiceId] as const,
   emergencyNumbers: (businessId: string) =>
     ['businesses', businessId, 'emergency-numbers'] as const,
+  dashboard: (businessId: string) => ['businesses', businessId, 'dashboard'] as const,
 };
 
 export type QueryKey = ReturnType<(typeof queryKeys)[keyof typeof queryKeys]>;

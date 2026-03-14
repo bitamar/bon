@@ -254,6 +254,7 @@ export function InvoiceDetail() {
   function invalidateInvoiceQueries() {
     queryClient.invalidateQueries({ queryKey: queryKeys.invoice(businessId, invoiceId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.invoices(businessId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(businessId) });
   }
 
   const sendMutation = useApiMutation({

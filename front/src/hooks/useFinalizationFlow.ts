@@ -147,6 +147,7 @@ export function useFinalizationFlow({
 
       queryClient.invalidateQueries({ queryKey: queryKeys.invoice(businessId, invoiceId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices(businessId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(businessId) });
 
       navigate(`/businesses/${businessId}/invoices/${invoiceId}`);
     } catch (err) {

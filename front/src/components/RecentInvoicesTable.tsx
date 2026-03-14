@@ -1,15 +1,31 @@
-import { Badge, Card, Group, Skeleton, Stack, Table, Text } from '@mantine/core';
-import type { RecentInvoice } from '../hooks/useDashboardData';
-import { formatCurrency } from '../hooks/useDashboardData';
+import { Anchor, Badge, Card, Group, Skeleton, Stack, Table, Text } from '@mantine/core';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import type { InvoiceListItem } from '@bon/types/invoices';
 import { INVOICE_STATUS_CONFIG } from '../lib/invoiceStatus';
+import { formatCurrency } from '../lib/format';
 
 export function RecentInvoicesTable({
   invoices,
   isLoading,
+  error,
 }: Readonly<{
-  invoices: RecentInvoice[] | undefined;
+  invoices: InvoiceListItem[] | undefined;
   isLoading?: boolean;
+  error?: unknown;
 }>) {
+  const { businessId } = useParams<{ businessId: string }>();
+  const navigate = useNavigate();
+
+  if (error) {
+    return (
+      <Card withBorder radius="lg" p="lg">
+        <Text c="red" ta="center" py="xl">
+          שגיאה בטעינת חשבוניות אחרונות
+        </Text>
+      </Card>
+    );
+  }
+
   if (isLoading) {
     return (
       <Card withBorder radius="lg" p="lg">
@@ -37,6 +53,9 @@ export function RecentInvoicesTable({
     <Card withBorder radius="lg" p="lg">
       <Group justify="space-between" mb="md">
         <Text fw={600}>חשבוניות אחרונות</Text>
+        <Anchor component={Link} to={`/businesses/${businessId}/invoices`} size="sm">
+          הצג הכל
+        </Anchor>
       </Group>
       <Table highlightOnHover>
         <Table.Thead>
@@ -50,25 +69,34 @@ export function RecentInvoicesTable({
         </Table.Thead>
         <Table.Tbody>
           {invoices.map((invoice) => {
-            const status = INVOICE_STATUS_CONFIG[
-              invoice.status as keyof typeof INVOICE_STATUS_CONFIG
-            ] ?? {
+            const status = INVOICE_STATUS_CONFIG[invoice.status] ?? {
               label: invoice.status,
               color: 'gray',
             };
             return (
-              <Table.Tr key={invoice.id}>
+              <Table.Tr
+                key={invoice.id}
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/businesses/${businessId}/invoices/${invoice.id}`)}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/businesses/${businessId}/invoices/${invoice.id}`);
+                  }
+                }}
+              >
                 <Table.Td>
                   <Text size="sm" fw={500}>
-                    {invoice.number}
+                    {invoice.documentNumber ?? '—'}
                   </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm">{invoice.customer}</Text>
+                  <Text size="sm">{invoice.customerName ?? '—'}</Text>
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {formatCurrency(invoice.amount)}
+                    {formatCurrency(invoice.totalInclVatMinorUnits)}
                   </Text>
                 </Table.Td>
                 <Table.Td>
@@ -78,7 +106,9 @@ export function RecentInvoicesTable({
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" c="dimmed">
-                    {new Date(invoice.date).toLocaleDateString('he-IL')}
+                    {new Date(invoice.invoiceDate + 'T00:00:00Z').toLocaleDateString('he-IL', {
+                      timeZone: 'UTC',
+                    })}
                   </Text>
                 </Table.Td>
               </Table.Tr>

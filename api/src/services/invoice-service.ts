@@ -59,7 +59,7 @@ export interface FinalizeResult extends InvoiceResponse {
   needsAllocation: boolean;
 }
 
-function serializeInvoiceListItem(
+export function serializeInvoiceListItem(
   record: Pick<
     InvoiceRecord,
     | 'id'
