@@ -14,7 +14,7 @@ import {
   sum,
 } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { invoiceItems, invoicePayments, invoices } from '../db/schema.js';
+import { invoiceItems, invoices } from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
 import { escapeLikePattern } from '../lib/query-utils.js';
 
@@ -390,61 +390,4 @@ export async function findOverdueInvoices(txOrDb: DbOrTx = db): Promise<OverdueI
       )
     );
   return rows as OverdueInvoiceRow[];
-}
-
-// ── dashboard aggregates ──
-
-export interface DashboardAggregates {
-  outstandingTotal: number;
-  outstandingCount: number;
-  overdueTotal: number;
-  overdueCount: number;
-  invoicesThisMonth: number;
-  invoicesPrevMonth: number;
-  staleDraftCount: number;
-  hasInvoices: boolean;
-}
-
-export async function getDashboardAggregates(
-  businessId: string,
-  monthStart: string,
-  prevMonthStart: string,
-  staleThreshold: Date,
-  txOrDb: DbOrTx = db
-): Promise<DashboardAggregates> {
-  const paidSub = txOrDb
-    .select({
-      invoiceId: invoicePayments.invoiceId,
-      total: sql<string>`COALESCE(SUM(${invoicePayments.amountMinorUnits}), 0)`.as('paid_total'),
-    })
-    .from(invoicePayments)
-    .groupBy(invoicePayments.invoiceId)
-    .as('paid');
-
-  const rows = await txOrDb
-    .select({
-      outstandingTotal: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.status} IN ('finalized', 'sent', 'partially_paid') THEN ${invoices.totalInclVatMinorUnits} - COALESCE(${paidSub.total}, 0) ELSE 0 END), 0)`,
-      outstandingCount: sql<string>`COUNT(CASE WHEN ${invoices.status} IN ('finalized', 'sent', 'partially_paid') THEN 1 END)`,
-      overdueTotal: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.isOverdue} = true THEN ${invoices.totalInclVatMinorUnits} - COALESCE(${paidSub.total}, 0) ELSE 0 END), 0)`,
-      overdueCount: sql<string>`COUNT(CASE WHEN ${invoices.isOverdue} = true THEN 1 END)`,
-      invoicesThisMonth: sql<string>`COUNT(CASE WHEN ${invoices.status} != 'draft' AND ${invoices.issuedAt} >= ${monthStart} THEN 1 END)`,
-      invoicesPrevMonth: sql<string>`COUNT(CASE WHEN ${invoices.status} != 'draft' AND ${invoices.issuedAt} >= ${prevMonthStart} AND ${invoices.issuedAt} < ${monthStart} THEN 1 END)`,
-      staleDraftCount: sql<string>`COUNT(CASE WHEN ${invoices.status} = 'draft' AND ${invoices.updatedAt} < ${staleThreshold} THEN 1 END)`,
-      hasInvoices: sql<boolean>`EXISTS(SELECT 1 FROM ${invoices} i2 WHERE i2.business_id = ${businessId} AND i2.status != 'draft')`,
-    })
-    .from(invoices)
-    .leftJoin(paidSub, eq(invoices.id, paidSub.invoiceId))
-    .where(eq(invoices.businessId, businessId));
-
-  const row = rows[0];
-  return {
-    outstandingTotal: Number(row?.outstandingTotal ?? 0),
-    outstandingCount: Number(row?.outstandingCount ?? 0),
-    overdueTotal: Number(row?.overdueTotal ?? 0),
-    overdueCount: Number(row?.overdueCount ?? 0),
-    invoicesThisMonth: Number(row?.invoicesThisMonth ?? 0),
-    invoicesPrevMonth: Number(row?.invoicesPrevMonth ?? 0),
-    staleDraftCount: Number(row?.staleDraftCount ?? 0),
-    hasInvoices: row?.hasInvoices ?? false,
-  };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { db } from '../../src/db/client.js';
-import { businesses, customers, invoicePayments, users } from '../../src/db/schema.js';
+import { businesses, customers, users } from '../../src/db/schema.js';
 import { randomInt, randomUUID } from 'node:crypto';
 import {
   insertInvoice,
@@ -19,7 +19,6 @@ import {
   aggregateOverdue,
   aggregateShaamStatus,
   findCreditNotesBySourceInvoiceId,
-  getDashboardAggregates,
 } from '../../src/repositories/invoice-repository.js';
 import { resetDb } from '../utils/db.js';
 
@@ -601,17 +600,15 @@ describe('aggregateRevenue', () => {
     businessId = biz.id;
   });
 
-  it('sums revenue for invoices in the date range with revenue statuses', async () => {
-    await createTestInvoice(businessId, {
-      status: 'finalized',
-      totalInclVatMinorUnits: 5000,
-      invoiceDate: '2026-03-10',
-    });
-    await createTestInvoice(businessId, {
-      status: 'paid',
-      totalInclVatMinorUnits: 3000,
-      invoiceDate: '2026-03-05',
-    });
+  it('sums revenue for invoices in the date range with all revenue statuses', async () => {
+    const revenueStatuses = ['finalized', 'sent', 'paid', 'partially_paid', 'credited'] as const;
+    for (const status of revenueStatuses) {
+      await createTestInvoice(businessId, {
+        status,
+        totalInclVatMinorUnits: 1000,
+        invoiceDate: '2026-03-10',
+      });
+    }
     // Draft — excluded
     await createTestInvoice(businessId, {
       status: 'draft',
@@ -627,8 +624,8 @@ describe('aggregateRevenue', () => {
 
     const result = await aggregateRevenue(businessId, '2026-03-01', '2026-03-31');
 
-    expect(result.total).toBe(8000);
-    expect(result.count).toBe(2);
+    expect(result.total).toBe(5000);
+    expect(result.count).toBe(5);
   });
 
   it('returns zero when no invoices match', async () => {
@@ -762,128 +759,5 @@ describe('findCreditNotesBySourceInvoiceId', () => {
 
     const results = await findCreditNotesBySourceInvoiceId(invoice!.id, biz.id);
     expect(results).toHaveLength(0);
-  });
-});
-
-// ── getDashboardAggregates ──
-
-describe('getDashboardAggregates', () => {
-  let businessId: string;
-  let userId: string;
-  const monthStart = '2026-03-01';
-  const prevMonthStart = '2026-02-01';
-  const staleThreshold = new Date('2026-02-27T00:00:00Z');
-
-  // ── helpers ──
-
-  async function fetchAggregates() {
-    return getDashboardAggregates(businessId, monthStart, prevMonthStart, staleThreshold);
-  }
-
-  beforeEach(async () => {
-    await resetDb();
-    const [user] = await db
-      .insert(users)
-      .values({ email: `user-${randomUUID()}@test.com`, name: 'Test' })
-      .returning();
-    userId = user!.id;
-    const now = new Date();
-    const [biz] = await db
-      .insert(businesses)
-      .values({
-        name: 'Test Biz',
-        businessType: 'licensed_dealer',
-        registrationNumber: String(randomInt(100_000_000, 1_000_000_000)),
-        createdByUserId: userId,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
-    businessId = biz!.id;
-  });
-
-  it('returns zeros for business with no invoices', async () => {
-    const result = await fetchAggregates();
-
-    expect(result.outstandingTotal).toBe(0);
-    expect(result.outstandingCount).toBe(0);
-    expect(result.overdueTotal).toBe(0);
-    expect(result.overdueCount).toBe(0);
-    expect(result.invoicesThisMonth).toBe(0);
-    expect(result.invoicesPrevMonth).toBe(0);
-    expect(result.staleDraftCount).toBe(0);
-    expect(result.hasInvoices).toBe(false);
-  });
-
-  it('ignores draft-only invoices for hasInvoices', async () => {
-    await createTestInvoice(businessId, { status: 'draft', totalInclVatMinorUnits: 1000 });
-
-    const result = await fetchAggregates();
-
-    expect(result.hasInvoices).toBe(false);
-    expect(result.outstandingCount).toBe(0);
-  });
-
-  it('computes overdue and outstanding for non-draft invoices', async () => {
-    await createTestInvoice(businessId, {
-      status: 'sent',
-      totalInclVatMinorUnits: 3000,
-      isOverdue: true,
-      issuedAt: new Date('2026-03-05T10:00:00Z'),
-    });
-    await createTestInvoice(businessId, {
-      status: 'finalized',
-      totalInclVatMinorUnits: 2000,
-      isOverdue: false,
-      issuedAt: new Date('2026-03-10T10:00:00Z'),
-    });
-
-    const result = await fetchAggregates();
-
-    expect(result.hasInvoices).toBe(true);
-    expect(result.outstandingTotal).toBe(5000);
-    expect(result.outstandingCount).toBe(2);
-    expect(result.overdueTotal).toBe(3000);
-    expect(result.overdueCount).toBe(1);
-    expect(result.invoicesThisMonth).toBe(2);
-  });
-
-  it('subtracts payments from outstanding and overdue totals', async () => {
-    const inv = await createTestInvoice(businessId, {
-      status: 'partially_paid',
-      totalInclVatMinorUnits: 10000,
-      isOverdue: true,
-      issuedAt: new Date('2026-03-05T10:00:00Z'),
-    });
-    await db.insert(invoicePayments).values({
-      invoiceId: inv!.id,
-      amountMinorUnits: 3000,
-      paidAt: '2026-03-10',
-      method: 'cash',
-      recordedByUserId: userId,
-    });
-
-    const result = await fetchAggregates();
-
-    expect(result.outstandingTotal).toBe(7000);
-    expect(result.outstandingCount).toBe(1);
-    expect(result.overdueTotal).toBe(7000);
-    expect(result.overdueCount).toBe(1);
-  });
-
-  it('detects stale drafts based on threshold', async () => {
-    const now = new Date();
-    await createTestInvoice(businessId, {
-      status: 'draft',
-      updatedAt: new Date('2026-02-20T00:00:00Z'),
-    });
-    await createTestInvoice(businessId, {
-      status: 'draft',
-      updatedAt: now,
-    });
-
-    const result = await fetchAggregates();
-
-    expect(result.staleDraftCount).toBe(1);
   });
 });

@@ -101,6 +101,16 @@ describe('routes/dashboard', () => {
     expect(data.recentInvoices).toHaveLength(1);
   });
 
+  it('returns 404 when accessing another business dashboard', async () => {
+    const { sessionId } = await createOwnerWithBusiness();
+    const otherUser = await createUser();
+    const otherBusiness = await createTestBusiness(otherUser.id);
+
+    const res = await getDashboard(ctx.app, sessionId, otherBusiness.id);
+
+    expect(res.statusCode).toBe(404);
+  });
+
   it('returns 401 for unauthenticated request', async () => {
     const user = await createUser();
     const business = await createTestBusiness(user.id);

@@ -12,8 +12,16 @@ import { formatMinorUnits } from '@bon/types/formatting';
 import type { DashboardResponse } from '@bon/types/dashboard';
 
 function trendPercent(current: number, previous: number): number {
-  if (previous === 0) return current > 0 ? 100 : 0;
+  if (previous === 0) return current > 0 ? 100 : current < 0 ? -100 : 0;
   return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+function currentMonthRange(): { dateFrom: string; dateTo: string } {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return { dateFrom: `${year}-${month}-01`, dateTo: `${year}-${month}-${day}` };
 }
 
 function buildKpis(data: DashboardResponse, businessId: string) {
@@ -22,6 +30,7 @@ function buildKpis(data: DashboardResponse, businessId: string) {
     data.revenuePrevMonthMinorUnits
   );
   const countTrend = trendPercent(data.invoiceCountThisMonth, data.invoiceCountPrevMonth);
+  const { dateFrom, dateTo } = currentMonthRange();
 
   return [
     {
@@ -30,7 +39,7 @@ function buildKpis(data: DashboardResponse, businessId: string) {
       trend: revenueTrend,
       trendLabel: 'מהחודש הקודם',
       icon: <IconCash size={20} />,
-      href: `/businesses/${businessId}/invoices?status=finalized,sent,paid,partially_paid`,
+      href: `/businesses/${businessId}/invoices?status=finalized,sent,paid,partially_paid&dateFrom=${dateFrom}&dateTo=${dateTo}`,
     },
     {
       label: 'חשבוניות החודש',
@@ -38,7 +47,7 @@ function buildKpis(data: DashboardResponse, businessId: string) {
       trend: countTrend,
       trendLabel: 'מהחודש הקודם',
       icon: <IconFileInvoice size={20} />,
-      href: `/businesses/${businessId}/invoices`,
+      href: `/businesses/${businessId}/invoices?dateFrom=${dateFrom}&dateTo=${dateTo}`,
     },
     {
       label: 'ממתין לתשלום',

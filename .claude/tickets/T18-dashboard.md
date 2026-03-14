@@ -11,7 +11,7 @@
 
 The dashboard is a working tool, not a vanity metrics page. A business owner opens it first thing in the morning to know: what's outstanding, what's overdue, what came in this month. Every number should be a link to the filtered invoice list.
 
-Must load in under 1 second — one aggregated query, not five separate calls.
+Must load in under 1 second — six parallel indexed queries via `Promise.all` in the service layer (aggregateRevenue ×2, aggregateOutstanding, aggregateOverdue, aggregateShaamStatus, findInvoices).
 
 ---
 

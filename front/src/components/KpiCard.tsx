@@ -34,8 +34,8 @@ export function KpiCard({
     );
   }
 
-  const showTrendArrows = trend !== 0;
-  const isPositive = (trend ?? 0) >= 0;
+  const showTrendArrows = trend != null && trend !== 0;
+  const isPositive = showTrendArrows && trend >= 0;
 
   const card = (
     <Card withBorder radius="lg" p="lg" style={href ? { cursor: 'pointer' } : undefined}>
