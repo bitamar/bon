@@ -6,6 +6,7 @@ import {
   createTestBusiness,
   createUser,
   addUserToBusiness,
+  createTrialSubscription,
 } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 import type { InvoiceListItem, InvoiceListResponse, InvoiceResponse } from '@bon/types/invoices';
@@ -404,6 +405,7 @@ describe('routes/invoices', () => {
       const { user, sessionId } = await createAuthedUser();
       const business = await createTestBusiness(user.id, { businessType: 'exempt_dealer' });
       await addUserToBusiness(user.id, business.id, 'owner');
+      await createTrialSubscription(business.id);
 
       const customer = await createCustomer(sessionId, business.id);
       const { invoice } = await createDraftWithItems(sessionId, business.id, customer.id, [
