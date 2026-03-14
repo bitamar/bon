@@ -66,6 +66,18 @@ describe('RecentInvoicesTable', () => {
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
+  it('renders error state when error is provided', () => {
+    renderWithProviders(
+      <RecentInvoicesTable invoices={undefined} businessId="biz-1" error={new Error('fail')} />
+    );
+    expect(screen.getByText('שגיאה בטעינת חשבוניות אחרונות')).toBeInTheDocument();
+  });
+
+  it('renders empty state when invoices is undefined and not loading', () => {
+    renderWithProviders(<RecentInvoicesTable invoices={undefined} businessId="biz-1" />);
+    expect(screen.getByText('אין חשבוניות להצגה')).toBeInTheDocument();
+  });
+
   it('renders "show all" link with correct href', () => {
     renderWithProviders(<RecentInvoicesTable invoices={mockInvoices} businessId="biz-1" />);
 
