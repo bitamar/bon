@@ -1,6 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import { db } from '../../src/db/client.js';
-import { users, businesses, userBusinesses } from '../../src/db/schema.js';
+import { users, businesses, userBusinesses, subscriptions } from '../../src/db/schema.js';
 import * as sessionModule from '../../src/auth/session.js';
 import { vi } from 'vitest';
 
@@ -74,10 +74,36 @@ export async function addUserToBusiness(
   return ub!;
 }
 
-/** Creates an authenticated user who owns a new business. */
-export async function createOwnerWithBusiness() {
+/** Creates a trial subscription so the business can create invoices. */
+export async function createTrialSubscription(businessId: string) {
+  const now = new Date();
+  const trialEnd = new Date(now);
+  trialEnd.setDate(trialEnd.getDate() + 14);
+  const [sub] = await db
+    .insert(subscriptions)
+    .values({
+      businessId,
+      plan: 'monthly',
+      status: 'trialing',
+      currentPeriodStart: now,
+      currentPeriodEnd: trialEnd,
+      trialEndsAt: trialEnd,
+    })
+    .returning();
+  return sub!;
+}
+
+/** Creates an authenticated user who owns a new business (no subscription). */
+export async function createOwnerWithBusinessNoSub() {
   const { user, sessionId } = await createAuthedUser();
   const business = await createTestBusiness(user.id);
   await addUserToBusiness(user.id, business.id, 'owner');
   return { user, sessionId, business };
+}
+
+/** Creates an authenticated user who owns a new business with a trial subscription. */
+export async function createOwnerWithBusiness() {
+  const result = await createOwnerWithBusinessNoSub();
+  await createTrialSubscription(result.business.id);
+  return result;
 }

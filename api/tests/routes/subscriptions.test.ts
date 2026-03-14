@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { injectAuthed } from '../utils/inject.js';
-import { createOwnerWithBusiness } from '../utils/businesses.js';
+import { createOwnerWithBusiness, createOwnerWithBusinessNoSub } from '../utils/businesses.js';
 import { setupIntegrationTest } from '../utils/server.js';
 
 describe('routes/subscriptions', () => {
@@ -8,7 +8,7 @@ describe('routes/subscriptions', () => {
 
   describe('GET /businesses/:businessId/subscription', () => {
     it('returns null subscription when none exists', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
+      const { sessionId, business } = await createOwnerWithBusinessNoSub();
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'GET',
@@ -22,7 +22,7 @@ describe('routes/subscriptions', () => {
     });
 
     it('returns 401 when unauthenticated', async () => {
-      const { business } = await createOwnerWithBusiness();
+      const { business } = await createOwnerWithBusinessNoSub();
       const res = await ctx.app.inject({
         method: 'GET',
         url: `/businesses/${business.id}/subscription`,
@@ -33,7 +33,7 @@ describe('routes/subscriptions', () => {
 
   describe('POST /businesses/:businessId/subscription/trial', () => {
     it('starts a 14-day trial', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
+      const { sessionId, business } = await createOwnerWithBusinessNoSub();
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'POST',
@@ -123,7 +123,7 @@ describe('routes/subscriptions', () => {
     });
 
     it('returns 404 when no subscription exists', async () => {
-      const { sessionId, business } = await createOwnerWithBusiness();
+      const { sessionId, business } = await createOwnerWithBusinessNoSub();
 
       const res = await injectAuthed(ctx.app, sessionId, {
         method: 'POST',
@@ -131,6 +131,22 @@ describe('routes/subscriptions', () => {
       });
 
       expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe('invoice creation gate', () => {
+    it('returns 403 when creating an invoice without a subscription', async () => {
+      const { sessionId, business } = await createOwnerWithBusinessNoSub();
+
+      const res = await injectAuthed(ctx.app, sessionId, {
+        method: 'POST',
+        url: `/businesses/${business.id}/invoices`,
+        payload: { documentType: 'tax_invoice' },
+      });
+
+      expect(res.statusCode).toBe(403);
+      const body = res.json() as { code: string };
+      expect(body.code).toBe('subscription_required');
     });
   });
 

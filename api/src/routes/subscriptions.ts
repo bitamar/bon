@@ -51,12 +51,9 @@ const subscriptionRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req, reply) => {
       ensureBusinessContext(req);
-      const result = await startTrial(req.businessContext.businessId);
-      return reply.status(201).send({
-        subscription: result.subscription,
-        canCreateInvoices: true,
-        daysRemaining: 14,
-      });
+      await startTrial(req.businessContext.businessId);
+      const status = await getSubscriptionStatus(req.businessContext.businessId);
+      return reply.status(201).send(status);
     }
   );
 
@@ -118,8 +115,8 @@ const subscriptionRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (req, reply) => {
-      const { statusCode, transactionId, customFields } = req.body;
-      const result = await handlePaymentWebhook(transactionId, statusCode, customFields);
+      const { statusCode, transactionId, sum, customFields } = req.body;
+      const result = await handlePaymentWebhook(transactionId, statusCode, sum, customFields);
       return reply.status(200).send(result);
     }
   );

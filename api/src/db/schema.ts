@@ -147,6 +147,10 @@ export const businessesRelations = relations(businesses, ({ one, many }) => ({
     fields: [businesses.id],
     references: [businessShaamCredentials.businessId],
   }),
+  subscription: one(subscriptions, {
+    fields: [businesses.id],
+    references: [subscriptions.businessId],
+  }),
 }));
 
 export const userBusinessesRelations = relations(userBusinesses, ({ one }) => ({
@@ -488,27 +492,23 @@ export const emergencyAllocationNumbersRelations = relations(
 
 // ── Subscriptions ──
 
-export const subscriptions = pgTable(
-  'subscriptions',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    businessId: uuid('business_id')
-      .notNull()
-      .references(() => businesses.id, { onDelete: 'cascade' })
-      .unique(),
-    plan: subscriptionPlanEnum('plan').notNull(),
-    status: subscriptionStatusEnum('status').notNull().default('trialing'),
-    meshulamCustomerId: text('meshulam_customer_id'),
-    meshulamProcessId: text('meshulam_process_id'),
-    currentPeriodStart: timestamp('current_period_start', { withTimezone: true }).notNull(),
-    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }).notNull(),
-    trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
-    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => [index('subscriptions_business_id_idx').on(table.businessId)]
-);
+export const subscriptions = pgTable('subscriptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  businessId: uuid('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' })
+    .unique(),
+  plan: subscriptionPlanEnum('plan').notNull(),
+  status: subscriptionStatusEnum('status').notNull().default('trialing'),
+  meshulamCustomerId: text('meshulam_customer_id'),
+  meshulamProcessId: text('meshulam_process_id'),
+  currentPeriodStart: timestamp('current_period_start', { withTimezone: true }).notNull(),
+  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }).notNull(),
+  trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   business: one(businesses, {

@@ -9,7 +9,7 @@ import { env } from '../env.js';
 import { MeshulamMockClient } from './meshulam/mock-client.js';
 import { MeshulamHttpClient } from './meshulam/http-client.js';
 import type { MeshulamService } from './meshulam/types.js';
-import { PLAN_PRICES, TRIAL_DAYS } from '@bon/types/subscriptions';
+import { PLAN_PRICES, TRIAL_DAYS, subscriptionPlanSchema } from '@bon/types/subscriptions';
 import type { SubscriptionPlan, SubscriptionStatus } from '@bon/types/subscriptions';
 
 // ── Meshulam client singleton ──
@@ -169,10 +169,12 @@ export async function createCheckoutSession(
 export async function handlePaymentWebhook(
   transactionId: string,
   statusCode: string,
+  sum: string,
   customFields: Record<string, string> | undefined
 ) {
   const businessId = customFields?.['businessId'];
-  const plan = (customFields?.['plan'] ?? 'monthly') as SubscriptionPlan;
+  const planParse = subscriptionPlanSchema.safeParse(customFields?.['plan']);
+  const plan: SubscriptionPlan = planParse.success ? planParse.data : 'monthly';
 
   if (!businessId) {
     throw new AppError({
@@ -185,6 +187,17 @@ export async function handlePaymentWebhook(
   // statusCode "2" = paid (שולם) in Meshulam
   if (statusCode !== '2') {
     return { processed: false, reason: `Unhandled statusCode: ${statusCode}` };
+  }
+
+  // Verify payment amount matches expected plan price (ILS, not minor units)
+  const expectedPriceIls = PLAN_PRICES[plan] / 100;
+  const paidAmount = Number(sum);
+  if (Number.isNaN(paidAmount) || paidAmount < expectedPriceIls) {
+    throw new AppError({
+      statusCode: 400,
+      code: 'payment_amount_mismatch',
+      message: `Expected payment of ${expectedPriceIls} ILS for ${plan} plan, got ${sum}`,
+    });
   }
 
   const now = new Date();
