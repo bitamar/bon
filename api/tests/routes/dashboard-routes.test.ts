@@ -30,9 +30,15 @@ async function createAndFinalizeInvoice(
   customerId: string,
   amount = 10000
 ) {
-  // Use an explicit mid-month date to avoid flakiness near UTC month boundaries
-  const now = new Date();
-  const invoiceDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`;
+  // Derive date in Asia/Jerusalem (matching dashboard-service) to avoid month-boundary flakiness
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const [yearStr, monthStr] = formatter.format(new Date()).split('-');
+  const invoiceDate = `${yearStr}-${monthStr}-15`;
 
   const draft = await injectAuthed(app, sessionId, {
     method: 'POST',
