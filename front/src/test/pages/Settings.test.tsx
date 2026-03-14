@@ -19,8 +19,19 @@ import { renderWithProviders } from '../utils/renderWithProviders';
 
 vi.mock('../../auth/api');
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
+vi.mock('../../api/businesses', () => ({
+  fetchBusiness: vi.fn(),
+  updateBusiness: vi.fn(),
+}));
+vi.mock('../../api/address', () => ({
+  fetchAllCities: vi.fn().mockResolvedValue([]),
+  fetchAllStreetsForCity: vi.fn().mockResolvedValue([]),
+  filterOptions: vi.fn(() => []),
+}));
 
 import { useBusiness } from '../../contexts/BusinessContext';
+import * as businessesApi from '../../api/businesses';
+import { activeBusinessStub } from '../utils/businessStubs';
 
 describe('Settings page', () => {
   const getSettingsMock = vi.mocked(authApi.getSettings);
@@ -167,5 +178,36 @@ describe('Settings page', () => {
 
     await waitFor(() => expect(updateSettingsMock).toHaveBeenCalled());
     expect(updateSettingsMock.mock.calls[0]?.[0]).toEqual({ name: null, phone: null });
+  });
+
+  it('shows business settings section for owner', async () => {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: activeBusinessStub,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+    vi.mocked(businessesApi.fetchBusiness).mockImplementation(() => new Promise(() => {}));
+
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    await waitFor(() => expect(screen.getByTestId('form-skeleton')).toBeInTheDocument());
+  });
+
+  it('hides business settings section for non-owner', async () => {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: { ...activeBusinessStub, role: 'user' },
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
+
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    expect(screen.queryByText('הגדרות עסק')).not.toBeInTheDocument();
   });
 });
