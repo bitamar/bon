@@ -138,7 +138,7 @@ describe('routes/subscriptions', () => {
         url: `/businesses/${business.id}/subscription/trial`,
       });
 
-      expect(res.statusCode).toBe(403);
+      expect(res.statusCode).toBe(404);
     });
   });
 
