@@ -1,1 +1,0 @@
-DROP INDEX "subscriptions_business_id_idx";
