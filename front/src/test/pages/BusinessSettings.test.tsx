@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Route, Routes } from 'react-router-dom';
-import { BusinessSettings } from '../../pages/BusinessSettings';
+import { BusinessSettingsSection } from '../../pages/BusinessSettings';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
@@ -27,13 +26,8 @@ import { activeBusinessStub } from '../utils/businessStubs';
 
 // ── helpers ──
 
-function renderSettings() {
-  return renderWithProviders(
-    <Routes>
-      <Route path="/businesses/:businessId/settings" element={<BusinessSettings />} />
-    </Routes>,
-    { router: { initialEntries: ['/businesses/biz-1/settings'] } }
-  );
+function renderSection() {
+  return renderWithProviders(<BusinessSettingsSection />);
 }
 
 const mockBusiness = {
@@ -57,7 +51,7 @@ const mockBusiness = {
   updatedAt: '2024-01-01T00:00:00.000Z',
 };
 
-describe('BusinessSettings page', () => {
+describe('BusinessSettingsSection', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(useBusiness).mockReturnValue({
@@ -74,7 +68,7 @@ describe('BusinessSettings page', () => {
     vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
   });
 
-  it('shows "לא נבחר עסק" when activeBusiness is null', () => {
+  it('renders nothing when activeBusiness is null', () => {
     vi.mocked(useBusiness).mockReturnValue({
       activeBusiness: null,
       businesses: [],
@@ -82,15 +76,16 @@ describe('BusinessSettings page', () => {
       isLoading: false,
     });
 
-    renderSettings();
+    const { container } = renderSection();
 
-    expect(screen.getByText('לא נבחר עסק')).toBeInTheDocument();
+    expect(container.querySelector('form')).not.toBeInTheDocument();
+    expect(container.querySelector('[data-testid="form-skeleton"]')).not.toBeInTheDocument();
   });
 
   it('shows loading skeleton while fetching', async () => {
     vi.mocked(businessesApi.fetchBusiness).mockReturnValue(new Promise(() => {}));
 
-    renderSettings();
+    renderSection();
 
     expect(screen.getByTestId('form-skeleton')).toBeInTheDocument();
   });
@@ -101,7 +96,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -111,7 +106,7 @@ describe('BusinessSettings page', () => {
   it('shows error state when fetchBusiness rejects', async () => {
     vi.mocked(businessesApi.fetchBusiness).mockRejectedValue(new Error('Network error'));
 
-    renderSettings();
+    renderSection();
 
     expect(await screen.findByText('לא הצלחנו לטעון את נתוני העסק')).toBeInTheDocument();
   });
@@ -126,7 +121,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
     await screen.findByRole('textbox', { name: /שם העסק/ });
@@ -148,7 +143,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -170,7 +165,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -198,7 +193,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -212,7 +207,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     expect(await screen.findByText('עוסק מורשה')).toBeInTheDocument();
   });
@@ -223,7 +218,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -244,7 +239,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -264,7 +259,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -277,7 +272,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -299,7 +294,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -317,7 +312,7 @@ describe('BusinessSettings page', () => {
       role: 'owner' as const,
     });
 
-    renderSettings();
+    renderSection();
 
     await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
 
@@ -336,7 +331,7 @@ describe('BusinessSettings page', () => {
     vi.mocked(businessesApi.fetchBusiness).mockRejectedValue(new Error('Network error'));
     const user = userEvent.setup();
 
-    renderSettings();
+    renderSection();
 
     const retryBtn = await screen.findByRole('button', { name: 'נסה שוב' });
     vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
@@ -348,24 +343,5 @@ describe('BusinessSettings page', () => {
     await waitFor(() => {
       expect(businessesApi.fetchBusiness).toHaveBeenCalledTimes(2);
     });
-  });
-
-  it('clicking ביטול calls navigate(-1) without errors', async () => {
-    vi.mocked(businessesApi.fetchBusiness).mockResolvedValue({
-      business: mockBusiness,
-      role: 'owner' as const,
-    });
-    const user = userEvent.setup();
-
-    renderSettings();
-
-    await screen.findByRole('textbox', { name: /שם העסק/ });
-
-    // Clicking ביטול triggers navigate(-1). With MemoryRouter having no prior history
-    // it is a no-op navigation, but the onClick handler is still invoked (covering line 240).
-    await user.click(screen.getByRole('button', { name: 'ביטול' }));
-
-    // Component should still be in the DOM (no prior history to go back to)
-    expect(screen.getByRole('button', { name: 'ביטול' })).toBeInTheDocument();
   });
 });

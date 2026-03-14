@@ -1,22 +1,10 @@
 import { useEffect } from 'react';
-import {
-  Button,
-  Container,
-  Divider,
-  Group,
-  NumberInput,
-  Paper,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { Button, Divider, Group, NumberInput, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { PageTitle } from '../components/PageTitle';
 import { FormSkeleton } from '../components/FormSkeleton';
 import { StatusCard } from '../components/StatusCard';
 import { useApiMutation } from '../lib/useApiMutation';
 import { fetchBusiness, updateBusiness } from '../api/businesses';
-import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
@@ -60,11 +48,10 @@ function businessTypeLabel(type: string): string {
   }
 }
 
-export function BusinessSettings() {
-  const navigate = useNavigate();
+export function BusinessSettingsSection() {
   const queryClient = useQueryClient();
   const { activeBusiness } = useBusiness();
-  const { businessId = '' } = useParams<{ businessId: string }>();
+  const businessId = activeBusiness?.id ?? '';
 
   const businessQuery = useQuery({
     queryKey: queryKeys.business(businessId),
@@ -140,39 +127,26 @@ export function BusinessSettings() {
   });
 
   if (!activeBusiness) {
-    return (
-      <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-        <StatusCard status="error" title="לא נבחר עסק" description="אנא בחר עסק מהתפריט העליון" />
-      </Container>
-    );
+    return null;
   }
 
   if (businessQuery.isPending) {
-    return (
-      <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-        <Stack gap="md">
-          <PageTitle order={3}>הגדרות עסק</PageTitle>
-          <FormSkeleton rows={6} />
-        </Stack>
-      </Container>
-    );
+    return <FormSkeleton rows={6} />;
   }
 
   if (businessQuery.error) {
     const message = extractErrorMessage(businessQuery.error, 'לא הצלחנו לטעון את נתוני העסק');
     return (
-      <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-        <StatusCard
-          status="error"
-          title="לא הצלחנו לטעון את נתוני העסק"
-          description={message}
-          primaryAction={{
-            label: 'נסה שוב',
-            onClick: () => businessQuery.refetch(),
-            loading: businessQuery.isFetching,
-          }}
-        />
-      </Container>
+      <StatusCard
+        status="error"
+        title="לא הצלחנו לטעון את נתוני העסק"
+        description={message}
+        primaryAction={{
+          label: 'נסה שוב',
+          onClick: () => businessQuery.refetch(),
+          loading: businessQuery.isFetching,
+        }}
+      />
     );
   }
 
@@ -194,87 +168,85 @@ export function BusinessSettings() {
   const initialStreetAddress = businessQuery.data?.business.streetAddress ?? '';
 
   return (
-    <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-      <Stack gap="md">
-        <PageTitle order={3}>הגדרות עסק</PageTitle>
-        <Paper component="form" onSubmit={onSubmit} noValidate withBorder radius="lg" p="lg">
+    <>
+      <Paper component="form" onSubmit={onSubmit} noValidate withBorder radius="lg" p="lg">
+        <Stack gap="md">
+          <Text size="lg" fw={600}>
+            הגדרות עסק
+          </Text>
+
+          <Stack gap={4}>
+            <Text size="sm" fw={500}>
+              סוג עסק
+            </Text>
+            <Text size="sm" c="dimmed">
+              {businessTypeLabel(activeBusiness.businessType)}
+            </Text>
+          </Stack>
+
+          <TextInput label="שם העסק" required {...form.getInputProps('name')} />
+
+          <TextInput label="מספר רישום" disabled {...form.getInputProps('registrationNumber')} />
+
+          {activeBusiness.businessType !== 'exempt_dealer' && (
+            <TextInput
+              label={getVatLabel(activeBusiness.businessType as BusinessType)}
+              description={getVatDescription(activeBusiness.businessType as BusinessType)}
+              placeholder="123456789"
+              maxLength={9}
+              {...form.getInputProps('vatNumber')}
+            />
+          )}
+
+          <Divider label="כתובת" labelPosition="center" />
+
+          <AddressAutocomplete
+            key={`addr-${initialCity}`}
+            form={form}
+            disabled={updateMutation.isPending}
+            initialCity={initialCity}
+            initialStreetAddress={initialStreetAddress}
+          />
+
+          <Divider label="פרטי קשר" labelPosition="center" />
+
+          <TextInput label="טלפון" placeholder="05XXXXXXXX" {...form.getInputProps('phone')} />
+
+          <TextInput label="אימייל" type="email" {...form.getInputProps('email')} />
+
+          <Divider label="הגדרות חשבוניות" labelPosition="center" />
+
+          <TextInput label="קידומת מספר חשבונית" {...form.getInputProps('invoiceNumberPrefix')} />
+
+          <NumberInput
+            label='שיעור מע"מ'
+            description='בנקודות בסיס — 1700 = 17%, 0 = פטור ממע"מ'
+            min={0}
+            max={10000}
+            {...form.getInputProps('defaultVatRate')}
+          />
+
+          <Group justify="flex-end">
+            <Button type="submit" loading={updateMutation.isPending}>
+              שמור שינויים
+            </Button>
+          </Group>
+        </Stack>
+      </Paper>
+
+      {activeBusiness.role === 'owner' && (
+        <Paper withBorder radius="lg" p="lg">
           <Stack gap="md">
-            <Stack gap={4}>
-              <Text size="sm" fw={500}>
-                סוג עסק
-              </Text>
-              <Text size="sm" c="dimmed">
-                {businessTypeLabel(activeBusiness.businessType)}
-              </Text>
-            </Stack>
-
-            <TextInput label="שם העסק" required {...form.getInputProps('name')} />
-
-            <TextInput label="מספר רישום" disabled {...form.getInputProps('registrationNumber')} />
-
-            {activeBusiness.businessType !== 'exempt_dealer' && (
-              <TextInput
-                label={getVatLabel(activeBusiness.businessType as BusinessType)}
-                description={getVatDescription(activeBusiness.businessType as BusinessType)}
-                placeholder="123456789"
-                maxLength={9}
-                {...form.getInputProps('vatNumber')}
-              />
-            )}
-
-            <Divider label="כתובת" labelPosition="center" />
-
-            <AddressAutocomplete
-              key={`addr-${initialCity}`}
-              form={form}
-              disabled={updateMutation.isPending}
-              initialCity={initialCity}
-              initialStreetAddress={initialStreetAddress}
-            />
-
-            <Divider label="פרטי קשר" labelPosition="center" />
-
-            <TextInput label="טלפון" placeholder="05XXXXXXXX" {...form.getInputProps('phone')} />
-
-            <TextInput label="אימייל" type="email" {...form.getInputProps('email')} />
-
-            <Divider label="הגדרות חשבוניות" labelPosition="center" />
-
-            <TextInput label="קידומת מספר חשבונית" {...form.getInputProps('invoiceNumberPrefix')} />
-
-            <NumberInput
-              label='שיעור מע"מ'
-              description='בנקודות בסיס — 1700 = 17%, 0 = פטור ממע"מ'
-              min={0}
-              max={10000}
-              {...form.getInputProps('defaultVatRate')}
-            />
-
-            <Group justify="space-between">
-              <Button variant="subtle" onClick={() => navigate(-1)}>
-                ביטול
-              </Button>
-              <Button type="submit" loading={updateMutation.isPending}>
-                שמור שינויים
-              </Button>
-            </Group>
+            <Text size="lg" fw={600}>
+              מספרי חירום שע״מ
+            </Text>
+            <Text size="sm" c="dimmed">
+              מספרי הקצאה לשימוש כאשר מערכת שע״מ אינה זמינה. המספרים מתקבלים ישירות מרשות המסים.
+            </Text>
+            <EmergencyNumbersSection businessId={businessId} />
           </Stack>
         </Paper>
-
-        {activeBusiness.role === 'owner' && (
-          <Paper withBorder radius="lg" p="lg">
-            <Stack gap="md">
-              <Text size="lg" fw={600}>
-                מספרי חירום שע״מ
-              </Text>
-              <Text size="sm" c="dimmed">
-                מספרי הקצאה לשימוש כאשר מערכת שע״מ אינה זמינה. המספרים מתקבלים ישירות מרשות המסים.
-              </Text>
-              <EmergencyNumbersSection businessId={businessId} />
-            </Stack>
-          </Paper>
-        )}
-      </Stack>
-    </Container>
+      )}
+    </>
   );
 }

@@ -97,7 +97,7 @@ function AllocationRejectedBanner(
             variant="light"
             color="orange"
             leftSection={<IconSettings size={14} />}
-            onClick={() => navigate(`/businesses/${props.businessId}/settings`)}
+            onClick={() => navigate('/settings')}
           >
             חבר מחדש
           </Button>
@@ -115,12 +115,7 @@ function AllocationRejectedBanner(
             <IconAlertTriangle size={18} color="var(--mantine-color-red-7)" />
             <Text fw={600}>{props.allocationError}</Text>
           </Group>
-          <Button
-            size="xs"
-            variant="light"
-            color="red"
-            onClick={() => navigate(`/businesses/${props.businessId}/settings`)}
-          >
+          <Button size="xs" variant="light" color="red" onClick={() => navigate('/settings')}>
             הזן מספרי חירום
           </Button>
         </Group>
@@ -142,7 +137,7 @@ function AllocationRejectedBanner(
             variant="light"
             color="red"
             leftSection={<IconSettings size={14} />}
-            onClick={() => navigate(`/businesses/${props.businessId}/settings`)}
+            onClick={() => navigate('/settings')}
           >
             עבור להגדרות
           </Button>

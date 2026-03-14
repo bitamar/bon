@@ -18,6 +18,9 @@ import * as authApi from '../../auth/api';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 vi.mock('../../auth/api');
+vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
+
+import { useBusiness } from '../../contexts/BusinessContext';
 
 describe('Settings page', () => {
   const getSettingsMock = vi.mocked(authApi.getSettings);
@@ -25,6 +28,12 @@ describe('Settings page', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: null,
+      businesses: [],
+      switchBusiness: vi.fn(),
+      isLoading: false,
+    });
     getSettingsMock.mockResolvedValue({
       user: {
         id: 'u1',
@@ -49,7 +58,7 @@ describe('Settings page', () => {
 
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
-    expect(await screen.findByRole('heading', { name: 'הגדרות פרופיל' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'הגדרות' })).toBeInTheDocument();
     expect(await screen.findByLabelText(/שם/)).toHaveValue('User Test');
     expect(await screen.findByLabelText(/טלפון/)).toHaveValue('050-9999999');
   });
