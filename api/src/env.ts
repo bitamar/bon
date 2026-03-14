@@ -75,6 +75,13 @@ const Env = z
           path: ['MESHULAM_USER_ID'],
         });
       }
+      if (!data.MESHULAM_WEBHOOK_SECRET) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'MESHULAM_WEBHOOK_SECRET is required when MESHULAM_MODE is not mock',
+          path: ['MESHULAM_WEBHOOK_SECRET'],
+        });
+      }
     }
   });
 
