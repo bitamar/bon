@@ -1,10 +1,33 @@
-import { Alert, Stack } from '@mantine/core';
+import { Alert, Skeleton, Stack } from '@mantine/core';
 import { IconAlertTriangle, IconFileInvoice } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
 import type { DashboardKpis } from '@bon/types/dashboard';
 
-export function DashboardAlerts({ kpis }: Readonly<{ kpis: DashboardKpis }>) {
+export function DashboardAlerts({
+  kpis,
+  isLoading,
+  error,
+}: Readonly<{
+  kpis?: DashboardKpis | undefined;
+  isLoading?: boolean;
+  error?: Error | string;
+}>) {
   const { businessId } = useParams<{ businessId: string }>();
+
+  if (isLoading) {
+    return <Skeleton height={40} radius="md" />;
+  }
+
+  if (error) {
+    return (
+      <Alert color="red" icon={<IconAlertTriangle size={18} />} radius="md" variant="light">
+        {typeof error === 'string' ? error : 'שגיאה בטעינת התראות'}
+      </Alert>
+    );
+  }
+
+  if (!kpis) return null;
+
   const alerts: { color: string; icon: typeof IconAlertTriangle; message: string; to: string }[] =
     [];
 

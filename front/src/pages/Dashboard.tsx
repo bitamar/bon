@@ -98,7 +98,7 @@ export function Dashboard() {
     return (
       <Container size="lg" mt="xl">
         <Stack gap="lg">
-          <PageTitle order={3}>דאשבורד</PageTitle>
+          <PageTitle order={3}>סקירה</PageTitle>
           <WelcomeState />
         </Stack>
       </Container>
@@ -108,9 +108,9 @@ export function Dashboard() {
   return (
     <Container size="lg" mt="xl">
       <Stack gap="lg">
-        <PageTitle order={3}>דאשבורד</PageTitle>
+        <PageTitle order={3}>סקירה</PageTitle>
 
-        {data ? <DashboardAlerts kpis={data.kpis} /> : null}
+        <DashboardAlerts kpis={data?.kpis} isLoading={isLoading} />
 
         <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }}>
           <KpiCards kpis={data?.kpis ?? null} isLoading={isLoading} />

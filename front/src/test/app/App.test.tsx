@@ -108,7 +108,7 @@ describe('App routing', () => {
     renderApp('/');
 
     // After businesses load, OnboardingGuard allows through → HomeRedirect runs and
-    // navigates to /businesses/biz-1/dashboard → Dashboard renders with a heading 'דאשבורד'
-    await screen.findByRole('heading', { name: 'דאשבורד' });
+    // navigates to /businesses/biz-1/dashboard → Dashboard renders with a heading 'סקירה'
+    await screen.findByRole('heading', { name: 'סקירה' });
   });
 });

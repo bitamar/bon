@@ -78,9 +78,11 @@ describe('RecentInvoicesTable', () => {
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
-  it('renders "show all" link', () => {
+  it('renders "show all" link with correct href', () => {
     renderTable(mockInvoices);
 
-    expect(screen.getByText('הצג הכל')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'הצג הכל' });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/businesses/biz-1/invoices');
   });
 });
