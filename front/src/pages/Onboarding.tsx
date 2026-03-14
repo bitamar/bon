@@ -41,7 +41,7 @@ type OnboardingFormValues = {
 export function Onboarding() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { businesses, switchBusiness } = useBusiness();
+  const { businesses, setActiveBusiness } = useBusiness();
   const [typeModalOpen, setTypeModalOpen] = useState(false);
 
   const form = useForm<OnboardingFormValues>({
@@ -82,7 +82,7 @@ export function Onboarding() {
           },
         ],
       }));
-      switchBusiness(data.business.id);
+      setActiveBusiness(data.business.id);
       navigate('/settings');
     },
     onError: (error) => {

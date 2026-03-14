@@ -37,6 +37,18 @@ function mockLoadedBusiness(overrides: Record<string, unknown> = {}) {
   });
 }
 
+async function renderLoadedSection(overrides: Record<string, unknown> = {}) {
+  mockLoadedBusiness(overrides);
+  renderSection();
+  await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+}
+
+function submitSettingsForm() {
+  fireEvent.submit(
+    screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
+  );
+}
+
 const mockBusiness = {
   id: 'biz-1',
   name: 'Test Co',
@@ -65,6 +77,7 @@ describe('BusinessSettingsSection', () => {
       activeBusiness: activeBusinessStub,
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
     // fetchBusiness returns a never-resolving promise by default so tests that don't
@@ -80,6 +93,7 @@ describe('BusinessSettingsSection', () => {
       activeBusiness: null,
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
 
@@ -98,11 +112,7 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('shows form with business name when loaded', async () => {
-    mockLoadedBusiness();
-
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
 
     expect(await screen.findByRole('textbox', { name: /שם העסק/ })).toHaveValue('Test Co');
   });
@@ -116,20 +126,15 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('submitting form calls updateBusiness without registrationNumber', async () => {
-    mockLoadedBusiness();
     vi.mocked(businessesApi.updateBusiness).mockResolvedValue({
       business: mockBusiness,
       role: 'owner' as const,
     });
 
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
     await screen.findByRole('textbox', { name: /שם העסק/ });
 
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
-    );
+    submitSettingsForm();
 
     await waitFor(() => expect(businessesApi.updateBusiness).toHaveBeenCalled());
 
@@ -139,18 +144,12 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('shows phone validation error when phone is invalid', async () => {
-    mockLoadedBusiness();
-
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
 
     fireEvent.change(await screen.findByRole('textbox', { name: /טלפון/ }), {
       target: { value: '12345' },
     });
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
-    );
+    submitSettingsForm();
 
     await waitFor(() => {
       expect(screen.getByText('מספר טלפון לא תקין')).toBeInTheDocument();
@@ -158,18 +157,12 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('shows email validation error when email is invalid', async () => {
-    mockLoadedBusiness();
-
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
 
     fireEvent.change(await screen.findByRole('textbox', { name: /אימייל/ }), {
       target: { value: 'not-an-email' },
     });
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
-    );
+    submitSettingsForm();
 
     await waitFor(() => {
       expect(screen.getByText('כתובת אימייל לא תקינה')).toBeInTheDocument();
@@ -177,35 +170,25 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('populates form from fetched business with null optional fields', async () => {
-    mockLoadedBusiness({
+    await renderLoadedSection({
       postalCode: null,
       phone: null,
       email: null,
       invoiceNumberPrefix: null,
     });
 
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
-
     expect(await screen.findByRole('textbox', { name: /שם העסק/ })).toHaveValue('Test Co');
     expect(screen.getByRole('textbox', { name: /טלפון/ })).toHaveValue('');
   });
 
   it('shows business type label', async () => {
-    mockLoadedBusiness();
-
-    renderSection();
+    await renderLoadedSection();
 
     expect(await screen.findByText('עוסק מורשה')).toBeInTheDocument();
   });
 
   it('shows vatNumber field for licensed_dealer and populates from API', async () => {
-    mockLoadedBusiness({ vatNumber: '987654321' });
-
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection({ vatNumber: '987654321' });
 
     expect(await screen.findByRole('textbox', { name: /מספר רישום מע״מ/ })).toHaveValue(
       '987654321'
@@ -217,13 +200,10 @@ describe('BusinessSettingsSection', () => {
       activeBusiness: { ...activeBusinessStub, businessType: 'exempt_dealer' },
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
-    mockLoadedBusiness({ businessType: 'exempt_dealer' as const });
-
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection({ businessType: 'exempt_dealer' as const });
 
     expect(screen.queryByRole('textbox', { name: /מספר רישום מע״מ/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: /מספר מע"מ/ })).not.toBeInTheDocument();
@@ -234,30 +214,21 @@ describe('BusinessSettingsSection', () => {
       activeBusiness: { ...activeBusinessStub, businessType: 'limited_company' },
       businesses: [],
       switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
       isLoading: false,
     });
-    mockLoadedBusiness({ businessType: 'limited_company' as const });
-
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection({ businessType: 'limited_company' as const });
 
     expect(await screen.findByText('חברה בע״מ')).toBeInTheDocument();
   });
 
   it('shows vatNumber validation error when value is not 9 digits', async () => {
-    mockLoadedBusiness();
-
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
 
     fireEvent.change(await screen.findByRole('textbox', { name: /מספר רישום מע״מ/ }), {
       target: { value: '12345' },
     });
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
-    );
+    submitSettingsForm();
 
     await waitFor(() => {
       expect(screen.getByText('מספר רישום חייב להיות 9 ספרות')).toBeInTheDocument();
@@ -265,33 +236,24 @@ describe('BusinessSettingsSection', () => {
   });
 
   it('pre-populates city and street from existing business data', async () => {
-    mockLoadedBusiness({ city: 'TLV', streetAddress: '1 Main' });
-
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection({ city: 'TLV', streetAddress: '1 Main' });
 
     expect(await screen.findByRole('textbox', { name: /^עיר/ })).toHaveValue('TLV');
     expect(screen.getByRole('textbox', { name: /^רחוב/ })).toHaveValue('1 Main');
   });
 
   it('accepts a valid 9-digit vatNumber without showing a validation error', async () => {
-    mockLoadedBusiness();
     vi.mocked(businessesApi.updateBusiness).mockResolvedValue({
       business: mockBusiness,
       role: 'owner' as const,
     });
 
-    renderSection();
-
-    await waitFor(() => expect(businessesApi.fetchBusiness).toHaveBeenCalled());
+    await renderLoadedSection();
 
     fireEvent.change(await screen.findByRole('textbox', { name: /מספר רישום מע״מ/ }), {
       target: { value: '123456789' },
     });
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'שמור שינויים' }).closest('form') as HTMLFormElement
-    );
+    submitSettingsForm();
 
     await waitFor(() => expect(businessesApi.updateBusiness).toHaveBeenCalled());
     expect(screen.queryByText('מספר רישום חייב להיות 9 ספרות')).not.toBeInTheDocument();

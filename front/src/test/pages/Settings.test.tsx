@@ -44,6 +44,7 @@ function mockUseBusinessWith(
     activeBusiness,
     businesses: [],
     switchBusiness: vi.fn(),
+    setActiveBusiness: vi.fn(),
     isLoading: false,
   });
 }

@@ -122,7 +122,13 @@ function AllocationRejectedBanner(props: Readonly<{ allocationError: string | nu
             <Text fw={600}>{props.allocationError}</Text>
           </Group>
           {isOwner ? (
-            <Button size="xs" variant="light" color="red" onClick={() => navigate('/settings')}>
+            <Button
+              size="xs"
+              variant="light"
+              color="red"
+              leftSection={<IconSettings size={14} />}
+              onClick={() => navigate('/settings')}
+            >
               הזן מספרי חירום
             </Button>
           ) : (
