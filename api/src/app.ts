@@ -22,6 +22,7 @@ import { emergencyNumberRoutes } from './routes/emergency-numbers.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { pcn874Routes } from './routes/pcn874.js';
 import { subscriptionRoutes } from './routes/subscriptions.js';
+import { reportRoutes } from './routes/reports.js';
 import { authPlugin } from './plugins/auth.js';
 import { businessContextPlugin } from './plugins/business-context.js';
 import { errorPlugin } from './plugins/errors.js';
@@ -86,6 +87,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
         { name: 'Dashboard', description: 'Business dashboard aggregates' },
         { name: 'Reports', description: 'Business reports and exports' },
         { name: 'Subscriptions', description: 'Subscription & payment management' },
+        { name: 'Reports', description: 'Reporting & compliance exports' },
       ],
     },
     transform: jsonSchemaTransform,
@@ -143,6 +145,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(dashboardRoutes);
   await app.register(pcn874Routes);
   await app.register(subscriptionRoutes);
+  await app.register(reportRoutes);
   app.get('/health', async () => ({ ok: true }));
   app.get('/', async (_request, reply) => reply.redirect('/docs'));
 

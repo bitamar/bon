@@ -1,13 +1,33 @@
-import { Alert, Card, Container, Grid, Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import { IconAlertTriangle, IconCash, IconClock, IconFileInvoice } from '@tabler/icons-react';
+import {
+  Alert,
+  Button,
+  Card,
+  Container,
+  Grid,
+  Group,
+  NumberInput,
+  SimpleGrid,
+  Stack,
+  Text,
+} from '@mantine/core';
+import {
+  IconAlertTriangle,
+  IconCash,
+  IconClock,
+  IconFileDownload,
+  IconFileInvoice,
+} from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { PageTitle } from '../components/PageTitle';
 import { KpiCard } from '../components/KpiCard';
 import { RecentInvoicesTable } from '../components/RecentInvoicesTable';
 import { QuickActions } from '../components/QuickActions';
 import { fetchDashboard } from '../api/dashboard';
+import { downloadUniformFile } from '../api/reports';
 import { queryKeys } from '../lib/queryKeys';
+import { useApiMutation } from '../lib/useApiMutation';
 import { formatMinorUnits } from '@bon/types/formatting';
 import type { DashboardResponse } from '@bon/types/dashboard';
 
@@ -75,6 +95,44 @@ function buildKpis(data: DashboardResponse, businessId: string) {
       color: data.overdueCount > 0 ? 'red' : undefined,
     },
   ];
+}
+
+function UniformFileCard({ businessId }: Readonly<{ businessId: string }>) {
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState<number>(currentYear);
+
+  const exportMutation = useApiMutation({
+    mutationFn: () => downloadUniformFile(businessId, year),
+    successToast: { message: 'הקובץ הורד בהצלחה' },
+    errorToast: { fallbackMessage: 'שגיאה בהפקת הקובץ' },
+  });
+
+  return (
+    <Card withBorder radius="lg" p="lg">
+      <Text fw={600} mb="md">
+        ייצוא קובץ במבנה אחיד
+      </Text>
+      <Stack gap="sm">
+        <NumberInput
+          label="שנת מס"
+          value={year}
+          onChange={(val: string | number) => setYear(typeof val === 'number' ? val : currentYear)}
+          min={2020}
+          max={2099}
+          allowDecimal={false}
+        />
+        <Button
+          variant="light"
+          leftSection={<IconFileDownload size={16} />}
+          loading={exportMutation.isPending}
+          onClick={() => exportMutation.mutate()}
+          fullWidth
+        >
+          הורד קובץ במבנה אחיד
+        </Button>
+      </Stack>
+    </Card>
+  );
 }
 
 function ShaamStatusCard({
@@ -174,6 +232,7 @@ export function Dashboard() {
           <Grid.Col span={{ base: 12, md: 4 }}>
             <Stack gap="lg">
               <QuickActions />
+              <UniformFileCard businessId={businessId} />
               {data && (
                 <ShaamStatusCard
                   pendingCount={data.shaamPendingCount}
