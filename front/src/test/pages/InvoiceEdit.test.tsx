@@ -396,11 +396,12 @@ describe('InvoiceEdit page', () => {
     const dueDateButton = dateInputs[1] as HTMLElement;
     expect(dueDateButton).toBeInTheDocument();
 
-    const inputRoot = dueDateButton.closest('[class*="mantine-Input-root"]');
-    const buttons = inputRoot ? Array.from(inputRoot.querySelectorAll('button')) : [];
-    const clearBtn = buttons.find((b) => b !== dueDateButton);
+    // The clear button sits inside the Input wrapper div (alongside the date picker button)
+    // Mantine renders it in a div[data-position="right"] within the wrapper
+    const inputWrapper = dueDateButton.closest('[data-with-right-section]');
+    const clearBtn = inputWrapper?.querySelector('[data-position="right"] button');
     expect(clearBtn).toBeDefined();
-    await user.click(clearBtn!);
+    await user.click(clearBtn as HTMLElement);
 
     // Save — the dueDate should now be null in the payload (covers L487 onChange)
     await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
