@@ -1,8 +1,8 @@
 # T20 — Uniform File Export (קובץ במבנה אחיד / BKMV)
 
-**Status**: 🔒 Blocked (T19 must merge first)
+**Status**: 🔄 In progress
 **Phase**: 6 — Reporting
-**Requires**: T19 merged, T15 (payments) merged, T16 (credit notes) merged
+**Requires**: T15 (payments) merged ✅, T16 (credit notes) merged ✅
 **Blocks**: T21
 
 ---
