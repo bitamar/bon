@@ -46,15 +46,13 @@ const mockInvoices: InvoiceListItem[] = [
   }),
 ];
 
+function mockNavigate() {
+  const navigateFn = vi.fn();
+  vi.mocked(useNavigate).mockReturnValue(navigateFn);
+  return navigateFn;
+}
+
 describe('RecentInvoicesTable', () => {
-  // ── helpers ──
-
-  function mockNavigate() {
-    const navigateFn = vi.fn();
-    vi.mocked(useNavigate).mockReturnValue(navigateFn);
-    return navigateFn;
-  }
-
   it('renders table headers and invoice rows', () => {
     renderWithProviders(<RecentInvoicesTable invoices={mockInvoices} businessId="biz-1" />);
 

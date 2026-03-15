@@ -19,29 +19,29 @@ function renderSubscription() {
   );
 }
 
+// ── helpers ──
+function makeSubscription(overrides: Partial<SubscriptionType> = {}): SubscriptionType {
+  return {
+    id: 'sub-1',
+    businessId: 'biz-1',
+    plan: 'monthly',
+    status: 'active',
+    meshulamCustomerId: null,
+    currentPeriodStart: new Date().toISOString(),
+    currentPeriodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
+    trialEndsAt: null,
+    cancelledAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
 describe('Subscription page', () => {
   const fetchSubscriptionMock = vi.mocked(subscriptionsApi.fetchSubscription);
   const startTrialMock = vi.mocked(subscriptionsApi.startTrial);
   const createCheckoutMock = vi.mocked(subscriptionsApi.createCheckout);
   const cancelSubscriptionMock = vi.mocked(subscriptionsApi.cancelSubscription);
-
-  // ── helpers ──
-  function makeSubscription(overrides: Partial<SubscriptionType> = {}): SubscriptionType {
-    return {
-      id: 'sub-1',
-      businessId: 'biz-1',
-      plan: 'monthly',
-      status: 'active',
-      meshulamCustomerId: null,
-      currentPeriodStart: new Date().toISOString(),
-      currentPeriodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
-      trialEndsAt: null,
-      cancelledAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ...overrides,
-    };
-  }
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -219,6 +219,73 @@ describe('Subscription page', () => {
     renderSubscription();
 
     expect(await screen.findByRole('button', { name: 'עברו לתשלום' })).toBeInTheDocument();
+  });
+
+  it('clicking trial button calls startTrial', async () => {
+    fetchSubscriptionMock.mockResolvedValue({
+      subscription: null,
+      canCreateInvoices: false,
+      daysRemaining: null,
+    });
+    startTrialMock.mockResolvedValue({
+      subscription: makeSubscription({ status: 'trialing' }),
+      canCreateInvoices: true,
+      daysRemaining: 14,
+    });
+
+    const user = userEvent.setup();
+    renderSubscription();
+
+    await screen.findByText('בחרו תוכנית');
+    await user.click(screen.getByRole('button', { name: /ימי ניסיון חינם/ }));
+
+    expect(startTrialMock).toHaveBeenCalledWith('biz-1');
+  });
+
+  it('selecting yearly plan updates the checkout button text', async () => {
+    fetchSubscriptionMock.mockResolvedValue({
+      subscription: null,
+      canCreateInvoices: false,
+      daysRemaining: null,
+    });
+
+    const user = userEvent.setup();
+    renderSubscription();
+
+    await screen.findByText('בחרו תוכנית');
+    expect(screen.getByRole('button', { name: /לחודש/ })).toBeInTheDocument();
+
+    await user.click(screen.getByText('שנתי'));
+
+    expect(screen.getByRole('button', { name: /לשנה/ })).toBeInTheDocument();
+  });
+
+  it('clicking checkout in trial upgrade card calls createCheckout', async () => {
+    fetchSubscriptionMock.mockResolvedValue({
+      subscription: makeSubscription({
+        status: 'trialing',
+        trialEndsAt: new Date(Date.now() + 14 * 86400000).toISOString(),
+        currentPeriodEnd: new Date(Date.now() + 14 * 86400000).toISOString(),
+      }),
+      canCreateInvoices: true,
+      daysRemaining: 14,
+    });
+    createCheckoutMock.mockResolvedValue({
+      paymentUrl: 'https://example.com',
+      processId: 'proc-1',
+    });
+
+    const user = userEvent.setup();
+    renderSubscription();
+
+    await user.click(await screen.findByRole('button', { name: 'עברו לתשלום' }));
+
+    expect(createCheckoutMock).toHaveBeenCalledWith(
+      'biz-1',
+      'monthly',
+      expect.stringContaining('success=true'),
+      expect.stringContaining('cancelled=true')
+    );
   });
 
   it('shows yearly plan label in active subscription', async () => {

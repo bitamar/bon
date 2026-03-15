@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { UserEvent } from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
@@ -496,5 +496,48 @@ describe('InvoiceDetail credit notes', () => {
     renderDetail();
 
     expect(await screen.findByTestId('credited-invoice-link')).toBeInTheDocument();
+  });
+
+  // ── helpers ──
+  async function openCreditNoteModal(user: UserEvent) {
+    await user.click(await screen.findByRole('button', { name: 'הפק חשבונית זיכוי' }));
+    await screen.findByText('הפקת חשבונית זיכוי');
+  }
+
+  it('updates credit note item quantity via NumberInput', async () => {
+    renderWithInvoice();
+    const user = userEvent.setup();
+
+    await openCreditNoteModal(user);
+
+    const quantityInput = screen.getByTestId('credit-note-quantity-0');
+    fireEvent.change(quantityInput, { target: { value: '3' } });
+
+    expect(quantityInput).toHaveValue('3');
+  });
+
+  it('updates credit note item price via NumberInput', async () => {
+    renderWithInvoice();
+    const user = userEvent.setup();
+
+    await openCreditNoteModal(user);
+
+    const priceInput = screen.getByTestId('credit-note-price-0');
+    fireEvent.change(priceInput, { target: { value: '500' } });
+
+    expect(priceInput).toHaveValue('500');
+  });
+
+  it('closes credit note modal when cancel button is clicked', async () => {
+    renderWithInvoice();
+    const user = userEvent.setup();
+
+    await openCreditNoteModal(user);
+
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('הפקת חשבונית זיכוי')).not.toBeInTheDocument();
+    });
   });
 });
