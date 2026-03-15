@@ -226,7 +226,8 @@ export function InvoiceList() {
     enabled: !!businessId && !!activeBusiness,
   });
 
-  const canCreateInvoices = subscriptionQuery.data?.canCreateInvoices ?? true;
+  const subscriptionLoaded = subscriptionQuery.isSuccess;
+  const canCreateInvoices = subscriptionQuery.data?.canCreateInvoices === true;
 
   // ── Filter update helpers ──
   function updateFilters(updates: Record<string, string | null>) {
@@ -324,10 +325,17 @@ export function InvoiceList() {
         <StatusCard
           status="empty"
           title="עדיין לא הפקת חשבוניות"
-          description="לחצו 'חשבונית חדשה' כדי להתחיל."
+          description={
+            canCreateInvoices
+              ? "לחצו 'חשבונית חדשה' כדי להתחיל."
+              : 'כדי ליצור חשבוניות יש להפעיל מנוי.'
+          }
           primaryAction={{
-            label: 'חשבונית חדשה',
-            onClick: () => navigate(`${bizPrefix}/invoices/new`),
+            label: canCreateInvoices ? 'חשבונית חדשה' : 'מעבר לעמוד מנויים',
+            onClick: () =>
+              navigate(
+                canCreateInvoices ? `${bizPrefix}/invoices/new` : `${bizPrefix}/subscription`
+              ),
           }}
         />
       );
@@ -379,12 +387,13 @@ export function InvoiceList() {
               חשבונית חדשה
             </Button>
           ) : (
-            <Tooltip label="נדרש מנוי פעיל כדי ליצור חשבוניות">
+            <Tooltip label="נדרש מנוי פעיל כדי ליצור חשבוניות" disabled={!subscriptionLoaded}>
               <Button
                 leftSection={<IconPlus size={18} />}
                 component={Link}
                 to={`${bizPrefix}/subscription`}
                 variant="light"
+                loading={!subscriptionLoaded}
               >
                 חשבונית חדשה
               </Button>

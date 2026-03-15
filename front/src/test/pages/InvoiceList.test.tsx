@@ -52,6 +52,18 @@ const mockListResponse = (
 
 // ── helpers ──
 
+const ACTIVE_SUBSCRIPTION_RESPONSE = {
+  subscription: null,
+  canCreateInvoices: true,
+  daysRemaining: null,
+};
+
+const INACTIVE_SUBSCRIPTION_RESPONSE = {
+  subscription: null,
+  canCreateInvoices: false,
+  daysRemaining: null,
+};
+
 function renderInvoiceList(initialPath = '/businesses/biz-1/invoices') {
   return renderWithProviders(
     <Routes>
@@ -76,11 +88,7 @@ describe('InvoiceList page', () => {
     vi.resetAllMocks();
     mockActiveBusiness(useBusiness);
     vi.mocked(customersApi.fetchCustomers).mockResolvedValue({ customers: [] });
-    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue({
-      subscription: null,
-      canCreateInvoices: true,
-      daysRemaining: null,
-    });
+    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue(ACTIVE_SUBSCRIPTION_RESPONSE);
   });
 
   it('shows error when no active business', () => {
@@ -210,11 +218,7 @@ describe('InvoiceList page', () => {
   });
 
   it('links new invoice button to subscription page when no active subscription', async () => {
-    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue({
-      subscription: null,
-      canCreateInvoices: false,
-      daysRemaining: null,
-    });
+    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue(INACTIVE_SUBSCRIPTION_RESPONSE);
     await renderWithInvoices();
 
     const newButton = screen.getByRole('link', { name: /חשבונית חדשה/ });
