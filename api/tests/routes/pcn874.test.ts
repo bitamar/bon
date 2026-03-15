@@ -153,6 +153,18 @@ describe('routes/pcn874', () => {
     expect(lines).toHaveLength(2); // only opening + closing — draft excluded
   });
 
+  it('returns 401 when unauthenticated', async () => {
+    const owner = await createUser();
+    const business = await createTestBusiness(owner.id);
+
+    const res = await ctx.app.inject({
+      method: 'GET',
+      url: `/businesses/${business.id}/reports/pcn874?year=2026&month=3`,
+    });
+
+    expect(res.statusCode).toBe(401);
+  });
+
   it('rejects non-member with 404', async () => {
     const { sessionId } = await createAuthedUser();
     const owner = await createUser();
