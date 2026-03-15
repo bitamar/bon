@@ -129,7 +129,7 @@ describe('routes/pcn874', () => {
 
     const res = await getPcn874(ctx.app, sessionId, business.id, 2026, 3);
     expect(res.statusCode).toBe(422);
-    expect(res.json()).toMatchObject({ code: 'exempt_dealer_no_vat' });
+    expect(res.json()).toMatchObject({ error: 'exempt_dealer_no_vat' });
   });
 
   it('returns 400 for invalid month', async () => {
