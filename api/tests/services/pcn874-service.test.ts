@@ -98,12 +98,12 @@ describe('pcn874-service', () => {
     // Tax invoice detail — positive amounts
     expect(lines[1]).toMatch(/^S01/);
     expect(lines[1]).toContain('+00000050000');
-    expect(lines[1]).toContain('+008500');
+    expect(lines[1]).toContain('+000008500');
 
     // Credit note detail — negative amounts
     expect(lines[2]).toMatch(/^S11/);
     expect(lines[2]).toContain('-00000010000');
-    expect(lines[2]).toContain('-001700');
+    expect(lines[2]).toContain('-000001700');
 
     // Closing record
     expect(lines[3]).toBe('X000000002');
@@ -155,7 +155,7 @@ describe('pcn874-service', () => {
 
     // Net taxable: 50000 - 20000 = 30000, Net VAT: 8500 - 3400 = 5100
     expect(opening).toContain('+00000030000'); // taxable amount
-    expect(opening).toContain('+005100'); // taxable VAT
+    expect(opening).toContain('+000005100'); // taxable VAT
   });
 
   it('formats allocation number as right 9 digits', async () => {
