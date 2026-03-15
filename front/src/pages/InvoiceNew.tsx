@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { Center, Container, Loader, Stack, Text } from '@mantine/core';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Button, Center, Container, Loader, Stack, Text } from '@mantine/core';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { StatusCard } from '../components/StatusCard';
 import { useApiMutation } from '../lib/useApiMutation';
 import { createInvoiceDraft } from '../api/invoices';
 import { useBusiness } from '../contexts/BusinessContext';
+import { HttpError } from '../lib/http';
 import type { InvoiceResponse } from '@bon/types/invoices';
 
 export function InvoiceNew() {
@@ -41,18 +42,39 @@ export function InvoiceNew() {
   }
 
   if (createMutation.isError) {
+    const isSubscriptionError =
+      createMutation.error instanceof HttpError &&
+      createMutation.error.code === 'subscription_required';
+
     return (
       <Container size="sm" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
-        <StatusCard
-          status="error"
-          title="לא הצלחנו ליצור טיוטה"
-          description="אירעה שגיאה ביצירת הטיוטה"
-          primaryAction={{
-            label: 'נסה שוב',
-            onClick: () => createMutation.mutate(),
-            loading: createMutation.isPending,
-          }}
-        />
+        {isSubscriptionError ? (
+          <StatusCard
+            status="error"
+            title="נדרש מנוי פעיל"
+            description="כדי ליצור חשבוניות יש להפעיל מנוי. ניתן להתחיל עם תקופת ניסיון חינמית."
+            primaryAction={{
+              label: 'מעבר לעמוד מנויים',
+              onClick: () => navigate(`/businesses/${businessId}/subscription`),
+            }}
+            secondaryAction={
+              <Button variant="subtle" component={Link} to={`/businesses/${businessId}/invoices`}>
+                חזרה לחשבוניות
+              </Button>
+            }
+          />
+        ) : (
+          <StatusCard
+            status="error"
+            title="לא הצלחנו ליצור טיוטה"
+            description="אירעה שגיאה ביצירת הטיוטה"
+            primaryAction={{
+              label: 'נסה שוב',
+              onClick: () => createMutation.mutate(),
+              loading: createMutation.isPending,
+            }}
+          />
+        )}
       </Container>
     );
   }

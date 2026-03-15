@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { InvoiceNew } from '../../pages/InvoiceNew';
 import { renderWithProviders } from '../utils/renderWithProviders';
+import { HttpError } from '../../lib/http';
 
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/invoices', () => ({
@@ -65,6 +66,7 @@ function renderNew() {
         path="/businesses/:businessId/invoices/:invoiceId/edit"
         element={<div>edit page</div>}
       />
+      <Route path="/businesses/:businessId/subscription" element={<div>subscription page</div>} />
     </Routes>,
     { router: { initialEntries: ['/businesses/biz-1/invoices/new'] } }
   );
@@ -109,5 +111,19 @@ describe('InvoiceNew page', () => {
     await waitFor(() => {
       expect(invoicesApi.createInvoiceDraft).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('shows subscription required message and links to subscription page', async () => {
+    const error = new HttpError(403, 'נדרש מנוי פעיל', { error: 'subscription_required' });
+    vi.mocked(invoicesApi.createInvoiceDraft).mockRejectedValue(error);
+    renderNew();
+
+    expect(await screen.findByText('נדרש מנוי פעיל')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'מעבר לעמוד מנויים' })).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'מעבר לעמוד מנויים' }));
+
+    expect(await screen.findByText('subscription page')).toBeInTheDocument();
   });
 });

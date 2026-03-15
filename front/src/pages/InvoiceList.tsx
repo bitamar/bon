@@ -13,6 +13,7 @@ import {
   Stack,
   Table,
   Text,
+  Tooltip,
 } from '@mantine/core';
 import { DatePickerInput, type DateValue } from '@mantine/dates';
 import { IconPlus } from '@tabler/icons-react';
@@ -23,6 +24,7 @@ import { PageTitle } from '../components/PageTitle';
 import { StatusCard } from '../components/StatusCard';
 import { CustomerSelect } from '../components/CustomerSelect';
 import { fetchInvoices } from '../api/invoices';
+import { fetchSubscription } from '../api/subscriptions';
 import { queryKeys } from '../lib/queryKeys';
 import { useBusiness } from '../contexts/BusinessContext';
 import { INVOICE_STATUS_CONFIG } from '../lib/invoiceStatus';
@@ -218,6 +220,15 @@ export function InvoiceList() {
     placeholderData: (prev) => prev,
   });
 
+  const subscriptionQuery = useQuery({
+    queryKey: queryKeys.subscription(businessId),
+    queryFn: () => fetchSubscription(businessId),
+    enabled: !!businessId && !!activeBusiness,
+  });
+
+  const subscriptionLoaded = subscriptionQuery.isSuccess;
+  const canCreateInvoices = subscriptionQuery.data?.canCreateInvoices === true;
+
   // ── Filter update helpers ──
   function updateFilters(updates: Record<string, string | null>) {
     setSearchParams((prev) => {
@@ -314,10 +325,17 @@ export function InvoiceList() {
         <StatusCard
           status="empty"
           title="עדיין לא הפקת חשבוניות"
-          description="לחצו 'חשבונית חדשה' כדי להתחיל."
+          description={
+            canCreateInvoices
+              ? "לחצו 'חשבונית חדשה' כדי להתחיל."
+              : 'כדי ליצור חשבוניות יש להפעיל מנוי.'
+          }
           primaryAction={{
-            label: 'חשבונית חדשה',
-            onClick: () => navigate(`${bizPrefix}/invoices/new`),
+            label: canCreateInvoices ? 'חשבונית חדשה' : 'מעבר לעמוד מנויים',
+            onClick: () =>
+              navigate(
+                canCreateInvoices ? `${bizPrefix}/invoices/new` : `${bizPrefix}/subscription`
+              ),
           }}
         />
       );
@@ -360,13 +378,27 @@ export function InvoiceList() {
         {/* Header */}
         <Group justify="space-between">
           <PageTitle order={3}>חשבוניות</PageTitle>
-          <Button
-            leftSection={<IconPlus size={18} />}
-            component={Link}
-            to={`${bizPrefix}/invoices/new`}
-          >
-            חשבונית חדשה
-          </Button>
+          {canCreateInvoices ? (
+            <Button
+              leftSection={<IconPlus size={18} />}
+              component={Link}
+              to={`${bizPrefix}/invoices/new`}
+            >
+              חשבונית חדשה
+            </Button>
+          ) : (
+            <Tooltip label="נדרש מנוי פעיל כדי ליצור חשבוניות" disabled={!subscriptionLoaded}>
+              <Button
+                leftSection={<IconPlus size={18} />}
+                component={Link}
+                to={`${bizPrefix}/subscription`}
+                variant="light"
+                loading={!subscriptionLoaded}
+              >
+                חשבונית חדשה
+              </Button>
+            </Tooltip>
+          )}
         </Group>
 
         {/* Filters */}
