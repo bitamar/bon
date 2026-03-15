@@ -318,6 +318,103 @@ describe('InvoiceEdit page', () => {
     expect(screen.getByRole('button', { name: 'נסה שוב' })).toBeInTheDocument();
   });
 
+  it('retry button refetches invoice and business on error state', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockRejectedValue(new Error('network error'));
+    vi.mocked(businessApi.fetchBusiness).mockResolvedValue(mockBusinessResponse);
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByText('לא הצלחנו לטעון את החשבונית');
+
+    const callsBefore = vi.mocked(invoicesApi.fetchInvoice).mock.calls.length;
+
+    await user.click(screen.getByRole('button', { name: 'נסה שוב' }));
+
+    await waitFor(() => {
+      expect(vi.mocked(invoicesApi.fetchInvoice).mock.calls.length).toBeGreaterThan(callsBefore);
+    });
+  });
+
+  it('changing customer in CustomerSelect updates form', async () => {
+    vi.mocked(customersApi.fetchCustomers).mockResolvedValue({
+      customers: [
+        {
+          id: 'cust-2',
+          name: 'לקוח חדש',
+          taxId: '987654321',
+          taxIdType: 'company_id' as const,
+          isLicensedDealer: true,
+          email: null,
+          streetAddress: null,
+          city: null,
+          isActive: true,
+        },
+      ],
+    });
+    setupDraftMocks();
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(
+      makeDraftInvoice({ customerId: 'cust-2' })
+    );
+    const user = userEvent.setup();
+    renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    // Open the customer Select by clicking the placeholder input
+    const customerInput = screen.getByPlaceholderText('חיפוש לקוח...');
+    await user.click(customerInput);
+
+    // Wait for option and click it (options are pre-rendered hidden in the DOM)
+    const option = await screen.findByRole('option', { name: /לקוח חדש.*987654321/, hidden: true });
+    await user.click(option);
+
+    // Save to confirm the customerId is set in the payload
+    await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
+
+    await waitFor(() => {
+      expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalledWith(
+        'biz-1',
+        'inv-1',
+        expect.objectContaining({ customerId: 'cust-2' })
+      );
+    });
+  });
+
+  it('clearing due date via DatePickerInput clearable triggers onChange', async () => {
+    // Render with a draft that has a dueDate so the clear button appears
+    setupDraftMocks({ dueDate: '2026-03-31' });
+    vi.mocked(invoicesApi.updateInvoiceDraft).mockResolvedValue(makeDraftInvoice());
+    const user = userEvent.setup();
+    const { container } = renderEdit();
+
+    await screen.findByRole('heading', { name: 'עריכת חשבונית' });
+
+    // The dueDate DatePickerInput is clearable. When it has a value, Mantine renders a
+    // CloseButton alongside the main date picker button. Find the wrapper of the second
+    // [data-dates-input] (dueDate) and click the other button inside it.
+    const dateInputs = container.querySelectorAll('[data-dates-input]');
+    const dueDateButton = dateInputs[1] as HTMLElement;
+    expect(dueDateButton).toBeInTheDocument();
+
+    // The clear button sits inside the Input wrapper div (alongside the date picker button)
+    // Mantine renders it in a div[data-position="right"] within the wrapper
+    const inputWrapper = dueDateButton.closest('[data-with-right-section]');
+    const clearBtn = inputWrapper?.querySelector('[data-position="right"] button');
+    expect(clearBtn).toBeDefined();
+    await user.click(clearBtn as HTMLElement);
+
+    // Save — the dueDate should now be null in the payload (covers L487 onChange)
+    await user.click(screen.getByRole('button', { name: 'שמור טיוטה' }));
+
+    await waitFor(() => {
+      expect(invoicesApi.updateInvoiceDraft).toHaveBeenCalledWith(
+        'biz-1',
+        'inv-1',
+        expect.objectContaining({ dueDate: null })
+      );
+    });
+  });
+
   it('locks VAT to 0 when document type is receipt', async () => {
     const receiptInvoice = makeDraftInvoice({ documentType: 'receipt' });
     receiptInvoice.items = [{ ...receiptInvoice.items[0]!, vatRateBasisPoints: 1700 }];

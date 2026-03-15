@@ -224,4 +224,74 @@ describe('InvoiceList page', () => {
     const newButton = screen.getByRole('link', { name: /חשבונית חדשה/ });
     expect(newButton).toHaveAttribute('href', '/businesses/biz-1/subscription');
   });
+
+  it('clicking outstanding chip sends correct status and sort params', async () => {
+    const user = userEvent.setup();
+    await renderWithInvoices();
+
+    await user.click(screen.getByText('ממתינות לתשלום'));
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).toMatchObject({
+      status: 'finalized,sent,partially_paid',
+      sort: 'dueDate:asc',
+    });
+  });
+
+  it('shows clear all filters button when filters are present', async () => {
+    mockDefaultInvoices(mockListResponse([mockInvoice()]));
+    renderInvoiceList('/businesses/biz-1/invoices?status=draft');
+    await screen.findByText('INV-001');
+
+    expect(screen.getByRole('button', { name: 'נקה הכל' })).toBeInTheDocument();
+  });
+
+  it('does not show clear button when no filters active', async () => {
+    await renderWithInvoices();
+
+    expect(screen.queryByRole('button', { name: 'נקה הכל' })).not.toBeInTheDocument();
+  });
+
+  it('clicking page 2 passes page param to fetchInvoices', async () => {
+    const user = userEvent.setup();
+    await renderWithInvoices(mockListResponse([mockInvoice()], 40));
+
+    await user.click(screen.getByRole('button', { name: '2' }));
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).toMatchObject({ page: '2' });
+  });
+
+  it('does not show overdue indicator for paid invoices', async () => {
+    const invoice = mockInvoice({ dueDate: '2000-01-01', status: 'paid' });
+    await renderWithInvoices(mockListResponse([invoice]));
+
+    expect(screen.queryByText(/באיחור/)).not.toBeInTheDocument();
+  });
+
+  it('date filter in URL is passed to fetchInvoices as dateFrom param', async () => {
+    mockDefaultInvoices();
+    renderInvoiceList('/businesses/biz-1/invoices?dateFrom=2026-01-01');
+    await screen.findByText('INV-001');
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).toMatchObject({ dateFrom: '2026-01-01' });
+  });
+
+  it('clear all button resets all filters', async () => {
+    const user = userEvent.setup();
+    mockDefaultInvoices();
+    renderInvoiceList('/businesses/biz-1/invoices?status=draft&dateFrom=2026-01-01');
+    await screen.findByText('INV-001');
+
+    await user.click(screen.getByRole('button', { name: 'נקה הכל' }));
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).not.toHaveProperty('status');
+    expect(lastCall?.[1]).not.toHaveProperty('dateFrom');
+  });
 });

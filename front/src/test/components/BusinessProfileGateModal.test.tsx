@@ -92,6 +92,63 @@ describe('BusinessProfileGateModal', () => {
     });
   });
 
+  it('submits address fields when address is missing', async () => {
+    vi.mocked(addressApi.fetchAllCities).mockRejectedValue(new Error('api down'));
+    vi.mocked(businessApi.updateBusiness).mockResolvedValue({
+      business: makeTestBusiness({ streetAddress: 'הרצל 1', city: 'תל אביב' }),
+      role: 'owner',
+    });
+    const user = userEvent.setup();
+    renderModal({ streetAddress: null, city: null });
+
+    // Wait for the API error state to settle so fields become free-text inputs
+    await waitFor(() => {
+      expect(screen.getByLabelText(/עיר \/ ישוב/)).not.toBeDisabled();
+    });
+
+    await user.type(screen.getByLabelText(/עיר \/ ישוב/), 'תל אביב');
+    await user.type(screen.getByLabelText(/רחוב/), 'הרצל');
+    await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
+
+    await waitFor(() => {
+      expect(businessApi.updateBusiness).toHaveBeenCalledWith(
+        'biz-1',
+        expect.objectContaining({ streetAddress: 'הרצל', city: 'תל אביב' })
+      );
+      expect(defaultProps.onSaved).toHaveBeenCalled();
+    });
+  });
+
+  it('includes postalCode in payload when provided with address', async () => {
+    vi.mocked(addressApi.fetchAllCities).mockRejectedValue(new Error('api down'));
+    vi.mocked(businessApi.updateBusiness).mockResolvedValue({
+      business: makeTestBusiness({
+        streetAddress: 'הרצל 1',
+        city: 'תל אביב',
+        postalCode: '6100000',
+      }),
+      role: 'owner',
+    });
+    const user = userEvent.setup();
+    renderModal({ streetAddress: null, city: null, postalCode: null });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/עיר \/ ישוב/)).not.toBeDisabled();
+    });
+
+    await user.type(screen.getByLabelText(/עיר \/ ישוב/), 'תל אביב');
+    await user.type(screen.getByLabelText(/רחוב/), 'הרצל');
+    await user.type(screen.getByLabelText(/מיקוד/), '6100000');
+    await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
+
+    await waitFor(() => {
+      expect(businessApi.updateBusiness).toHaveBeenCalledWith(
+        'biz-1',
+        expect.objectContaining({ streetAddress: 'הרצל', city: 'תל אביב', postalCode: '6100000' })
+      );
+    });
+  });
+
   it('calls onClose when clicking ביטול', async () => {
     const user = userEvent.setup();
     renderModal({ name: '' });

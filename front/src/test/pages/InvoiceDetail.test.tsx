@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { UserEvent } from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
@@ -21,6 +21,26 @@ import { useBusiness } from '../../contexts/BusinessContext';
 import * as invoicesApi from '../../api/invoices';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 import { makeFinalizedInvoice, makeCreditNoteInvoice } from '../utils/invoiceStubs';
+
+function makeInvoiceWithPayments() {
+  return {
+    ...makeFinalizedInvoice(),
+    payments: [
+      {
+        id: 'pay-1',
+        invoiceId: 'inv-1',
+        amountMinorUnits: 5000,
+        paidAt: '2026-03-01',
+        method: 'transfer' as const,
+        reference: 'REF-001',
+        notes: null,
+        recordedByUserId: 'user-1',
+        createdAt: '2026-03-01T00:00:00.000Z',
+      },
+    ],
+    remainingBalanceMinorUnits: 6700,
+  };
+}
 
 function renderDetail() {
   return renderWithProviders(
@@ -199,6 +219,23 @@ describe('InvoiceDetail page', () => {
     expect(await screen.findByText('ייצוא שירותים §30(א)(5)')).toBeInTheDocument();
     expect(screen.getByText(/סיבת פטור ממע"מ/)).toBeInTheDocument();
   });
+
+  it('shows remaining balance when > 0', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeInvoiceWithPayments());
+    renderDetail();
+
+    expect(await screen.findByTestId('remaining-balance')).toBeInTheDocument();
+    expect(screen.getByText('יתרה לתשלום:')).toBeInTheDocument();
+  });
+
+  it('shows due date and timeline dates', async () => {
+    renderWithInvoice();
+
+    await screen.findByText('INV-0001');
+    expect(screen.getByText(/תאריך תשלום:/)).toBeInTheDocument();
+    expect(screen.getByText(/נוצרה:/)).toBeInTheDocument();
+    expect(screen.getAllByText(/הופקה:/).length).toBeGreaterThan(0);
+  });
 });
 
 describe('InvoiceDetail PDF download', () => {
@@ -360,6 +397,32 @@ describe('InvoiceDetail payments', () => {
     expect(await screen.findByTestId('no-payments')).toBeInTheDocument();
     expect(screen.getByText('לא נרשמו תשלומים')).toBeInTheDocument();
   });
+
+  it('shows payment rows when payments exist', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeInvoiceWithPayments());
+    renderDetail();
+
+    const rows = await screen.findAllByTestId('payment-row');
+    expect(rows).toHaveLength(1);
+    expect(screen.getByText('REF-001')).toBeInTheDocument();
+  });
+
+  it('deletes a payment after confirmation', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeInvoiceWithPayments());
+    vi.mocked(invoicesApi.deletePayment).mockResolvedValue(makeFinalizedInvoice());
+    renderDetail();
+    const user = userEvent.setup();
+
+    const deleteBtn = await screen.findByTestId('delete-payment-pay-1');
+    await user.click(deleteBtn);
+
+    expect(await screen.findByText('מחיקת תשלום')).toBeInTheDocument();
+    await user.click(screen.getByTestId('confirm-delete-payment'));
+
+    await waitFor(() => {
+      expect(invoicesApi.deletePayment).toHaveBeenCalledWith('biz-1', 'inv-1', 'pay-1');
+    });
+  });
 });
 
 describe('InvoiceDetail credit notes', () => {
@@ -433,5 +496,48 @@ describe('InvoiceDetail credit notes', () => {
     renderDetail();
 
     expect(await screen.findByTestId('credited-invoice-link')).toBeInTheDocument();
+  });
+
+  // ── helpers ──
+  async function openCreditNoteModal(user: UserEvent) {
+    await user.click(await screen.findByRole('button', { name: 'הפק חשבונית זיכוי' }));
+    await screen.findByText('הפקת חשבונית זיכוי');
+  }
+
+  it('updates credit note item quantity via NumberInput', async () => {
+    renderWithInvoice();
+    const user = userEvent.setup();
+
+    await openCreditNoteModal(user);
+
+    const quantityInput = screen.getByTestId('credit-note-quantity-0');
+    fireEvent.change(quantityInput, { target: { value: '3' } });
+
+    expect(quantityInput).toHaveValue('3');
+  });
+
+  it('updates credit note item price via NumberInput', async () => {
+    renderWithInvoice();
+    const user = userEvent.setup();
+
+    await openCreditNoteModal(user);
+
+    const priceInput = screen.getByTestId('credit-note-price-0');
+    fireEvent.change(priceInput, { target: { value: '500' } });
+
+    expect(priceInput).toHaveValue('500');
+  });
+
+  it('closes credit note modal when cancel button is clicked', async () => {
+    renderWithInvoice();
+    const user = userEvent.setup();
+
+    await openCreditNoteModal(user);
+
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('הפקת חשבונית זיכוי')).not.toBeInTheDocument();
+    });
   });
 });
