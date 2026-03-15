@@ -270,4 +270,28 @@ describe('InvoiceList page', () => {
 
     expect(screen.queryByText(/באיחור/)).not.toBeInTheDocument();
   });
+
+  it('date filter in URL is passed to fetchInvoices as dateFrom param', async () => {
+    mockDefaultInvoices();
+    renderInvoiceList('/businesses/biz-1/invoices?dateFrom=2026-01-01');
+    await screen.findByText('INV-001');
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).toMatchObject({ dateFrom: '2026-01-01' });
+  });
+
+  it('clear all button resets all filters', async () => {
+    const user = userEvent.setup();
+    mockDefaultInvoices();
+    renderInvoiceList('/businesses/biz-1/invoices?status=draft&dateFrom=2026-01-01');
+    await screen.findByText('INV-001');
+
+    await user.click(screen.getByRole('button', { name: 'נקה הכל' }));
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).not.toHaveProperty('status');
+    expect(lastCall?.[1]).not.toHaveProperty('dateFrom');
+  });
 });

@@ -1,8 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { RecentInvoicesTable } from '../../components/RecentInvoicesTable';
 import { renderWithProviders } from '../utils/renderWithProviders';
 import type { InvoiceListItem } from '@bon/types/invoices';
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: vi.fn() };
+});
+
+import { useNavigate } from 'react-router-dom';
 
 // ── helpers ──
 
@@ -39,6 +47,14 @@ const mockInvoices: InvoiceListItem[] = [
 ];
 
 describe('RecentInvoicesTable', () => {
+  // ── helpers ──
+
+  function mockNavigate() {
+    const navigateFn = vi.fn();
+    vi.mocked(useNavigate).mockReturnValue(navigateFn);
+    return navigateFn;
+  }
+
   it('renders table headers and invoice rows', () => {
     renderWithProviders(<RecentInvoicesTable invoices={mockInvoices} businessId="biz-1" />);
 
@@ -84,5 +100,40 @@ describe('RecentInvoicesTable', () => {
     const link = screen.getByRole('link', { name: 'הצג הכל' });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute('href', '/businesses/biz-1/invoices');
+  });
+
+  it('navigates to invoice detail on row click', async () => {
+    const user = userEvent.setup();
+    const navigateFn = mockNavigate();
+    renderWithProviders(<RecentInvoicesTable invoices={mockInvoices} businessId="biz-1" />);
+
+    await user.click(screen.getByText('INV-001'));
+
+    expect(navigateFn).toHaveBeenCalledWith('/businesses/biz-1/invoices/inv-1');
+  });
+
+  it('navigates to invoice detail on Enter keypress', async () => {
+    const user = userEvent.setup();
+    const navigateFn = mockNavigate();
+    renderWithProviders(<RecentInvoicesTable invoices={mockInvoices} businessId="biz-1" />);
+
+    const rows = screen.getAllByRole('row');
+    await user.type(rows[1]!, '{Enter}');
+
+    expect(navigateFn).toHaveBeenCalledWith('/businesses/biz-1/invoices/inv-1');
+  });
+
+  it('renders dash for missing document number', () => {
+    const invoice = makeInvoice({ documentNumber: null });
+    renderWithProviders(<RecentInvoicesTable invoices={[invoice]} businessId="biz-1" />);
+
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('renders dash for missing customer name', () => {
+    const invoice = makeInvoice({ customerName: null });
+    renderWithProviders(<RecentInvoicesTable invoices={[invoice]} businessId="biz-1" />);
+
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 });

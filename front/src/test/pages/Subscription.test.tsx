@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 
 vi.mock('../../api/subscriptions');
@@ -21,6 +22,8 @@ function renderSubscription() {
 describe('Subscription page', () => {
   const fetchSubscriptionMock = vi.mocked(subscriptionsApi.fetchSubscription);
   const startTrialMock = vi.mocked(subscriptionsApi.startTrial);
+  const createCheckoutMock = vi.mocked(subscriptionsApi.createCheckout);
+  const cancelSubscriptionMock = vi.mocked(subscriptionsApi.cancelSubscription);
 
   // ── helpers ──
   function makeSubscription(overrides: Partial<SubscriptionType> = {}): SubscriptionType {
@@ -84,7 +87,11 @@ describe('Subscription page', () => {
       canCreateInvoices: false,
       daysRemaining: null,
     });
-    startTrialMock.mockResolvedValue(undefined as never);
+    startTrialMock.mockResolvedValue({
+      subscription: makeSubscription({ status: 'trialing' }),
+      canCreateInvoices: true,
+      daysRemaining: 14,
+    });
 
     renderSubscription();
 
@@ -142,5 +149,91 @@ describe('Subscription page', () => {
 
     expect(await screen.findByText('שגיאה בטעינת נתוני המנוי')).toBeInTheDocument();
     expect(screen.getByText('נסו שוב')).toBeInTheDocument();
+  });
+
+  it('shows yearly savings badge on plan card', async () => {
+    fetchSubscriptionMock.mockResolvedValue({
+      subscription: null,
+      canCreateInvoices: false,
+      daysRemaining: null,
+    });
+
+    renderSubscription();
+
+    await screen.findByText('בחרו תוכנית');
+    expect(screen.getByText(/חיסכון/)).toBeInTheDocument();
+  });
+
+  it('calls createCheckout when pricing checkout button is clicked', async () => {
+    fetchSubscriptionMock.mockResolvedValue({
+      subscription: null,
+      canCreateInvoices: false,
+      daysRemaining: null,
+    });
+    createCheckoutMock.mockResolvedValue({
+      paymentUrl: 'https://example.com',
+      processId: 'proc-1',
+    });
+
+    const user = userEvent.setup();
+    renderSubscription();
+
+    await screen.findByText('בחרו תוכנית');
+    await user.click(screen.getByRole('button', { name: /התחילו עם/ }));
+
+    expect(createCheckoutMock).toHaveBeenCalledWith(
+      'biz-1',
+      'monthly',
+      expect.stringContaining('success=true'),
+      expect.stringContaining('cancelled=true')
+    );
+  });
+
+  it('calls cancelSubscription when cancel button is clicked on active subscription', async () => {
+    fetchSubscriptionMock.mockResolvedValue({
+      subscription: makeSubscription({ status: 'active', meshulamCustomerId: 'cust-1' }),
+      canCreateInvoices: true,
+      daysRemaining: 30,
+    });
+    cancelSubscriptionMock.mockResolvedValue({ ok: true as const });
+
+    const user = userEvent.setup();
+    renderSubscription();
+
+    await user.click(await screen.findByRole('button', { name: 'ביטול מנוי' }));
+
+    expect(cancelSubscriptionMock).toHaveBeenCalledWith('biz-1');
+  });
+
+  it('shows checkout button in trial upgrade card', async () => {
+    fetchSubscriptionMock.mockResolvedValue({
+      subscription: makeSubscription({
+        status: 'trialing',
+        trialEndsAt: new Date(Date.now() + 14 * 86400000).toISOString(),
+        currentPeriodEnd: new Date(Date.now() + 14 * 86400000).toISOString(),
+      }),
+      canCreateInvoices: true,
+      daysRemaining: 14,
+    });
+
+    renderSubscription();
+
+    expect(await screen.findByRole('button', { name: 'עברו לתשלום' })).toBeInTheDocument();
+  });
+
+  it('shows yearly plan label in active subscription', async () => {
+    fetchSubscriptionMock.mockResolvedValue({
+      subscription: makeSubscription({
+        plan: 'yearly',
+        status: 'active',
+        meshulamCustomerId: 'cust-1',
+      }),
+      canCreateInvoices: true,
+      daysRemaining: 30,
+    });
+
+    renderSubscription();
+
+    expect(await screen.findByText('מנוי שנתי')).toBeInTheDocument();
   });
 });

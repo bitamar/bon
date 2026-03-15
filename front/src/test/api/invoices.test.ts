@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createInvoiceDraft,
   createCreditNote,
@@ -13,9 +13,7 @@ import {
   updateInvoiceDraft,
 } from '../../api/invoices';
 import { HttpError } from '../../lib/http';
-
-const fetchMock = vi.fn();
-const originalFetch = globalThis.fetch;
+import { useFetchMock } from './fetch-mock';
 
 const BIZ_ID = '00000000-0000-4000-8000-000000000001';
 const INV_ID = '00000000-0000-4000-8000-000000000002';
@@ -63,37 +61,8 @@ const minimalInvoiceResponse = {
   remainingBalanceMinorUnits: 0,
 };
 
-// ── helpers ──
-
-function mockOk(body: unknown, status = 200) {
-  fetchMock.mockResolvedValueOnce({
-    ok: true,
-    status,
-    json: vi.fn().mockResolvedValueOnce(body),
-  });
-}
-
-function mockFail(status: number) {
-  fetchMock.mockResolvedValueOnce({
-    ok: false,
-    status,
-    json: vi.fn().mockResolvedValueOnce({ message: 'error' }),
-  });
-}
-
 describe('invoices api', () => {
-  beforeEach(() => {
-    fetchMock.mockReset();
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  afterAll(() => {
-    fetchMock.mockReset();
-  });
+  const { fetchMock, mockOk, mockFail } = useFetchMock();
 
   describe('createInvoiceDraft', () => {
     it('calls POST with correct body and returns InvoiceResponse', async () => {
@@ -342,6 +311,12 @@ describe('invoices api', () => {
   });
 
   describe('downloadInvoicePdf', () => {
+    const ORIGINAL_URL = globalThis.URL;
+
+    afterEach(() => {
+      globalThis.URL = ORIGINAL_URL;
+    });
+
     it('fetches the PDF, creates a download link with the Content-Disposition filename, and revokes the object URL', async () => {
       const fakeBlob = new Blob(['%PDF'], { type: 'application/pdf' });
       const fakeObjectUrl = 'blob:http://localhost/fake-pdf-url';

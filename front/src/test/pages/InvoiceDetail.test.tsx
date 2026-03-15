@@ -23,22 +23,23 @@ import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 import { makeFinalizedInvoice, makeCreditNoteInvoice } from '../utils/invoiceStubs';
 
 function makeInvoiceWithPayments() {
-  const stub = makeFinalizedInvoice();
-  stub.payments = [
-    {
-      id: 'pay-1',
-      invoiceId: 'inv-1',
-      amountMinorUnits: 5000,
-      paidAt: '2026-03-01',
-      method: 'transfer' as const,
-      reference: 'REF-001',
-      notes: null,
-      recordedByUserId: 'user-1',
-      createdAt: '2026-03-01T00:00:00.000Z',
-    },
-  ];
-  stub.remainingBalanceMinorUnits = 6700;
-  return stub;
+  return {
+    ...makeFinalizedInvoice(),
+    payments: [
+      {
+        id: 'pay-1',
+        invoiceId: 'inv-1',
+        amountMinorUnits: 5000,
+        paidAt: '2026-03-01',
+        method: 'transfer' as const,
+        reference: 'REF-001',
+        notes: null,
+        recordedByUserId: 'user-1',
+        createdAt: '2026-03-01T00:00:00.000Z',
+      },
+    ],
+    remainingBalanceMinorUnits: 6700,
+  };
 }
 
 function renderDetail() {
