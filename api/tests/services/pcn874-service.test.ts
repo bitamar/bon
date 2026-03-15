@@ -206,6 +206,15 @@ describe('pcn874-service', () => {
     expect(opening).toContain('+00000000000+000000000+00000030000');
   });
 
+  it('throws 404 when business is not found', async () => {
+    vi.mocked(findBusinessById).mockResolvedValue(null as never);
+
+    await expect(generatePcn874('non-existent', 2026, 3)).rejects.toThrow(AppError);
+    await expect(generatePcn874('non-existent', 2026, 3)).rejects.toMatchObject({
+      statusCode: 404,
+    });
+  });
+
   it('falls back to registrationNumber when vatNumber is null', async () => {
     vi.mocked(findBusinessById).mockResolvedValue(
       makeBusiness({ vatNumber: null, registrationNumber: '987654321' }) as never

@@ -6,9 +6,11 @@ import { VatReport } from '../../pages/VatReport';
 import { renderWithProviders } from '../utils/renderWithProviders';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { downloadPcn874 } from '../../api/reports';
+import { notifications } from '@mantine/notifications';
 
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/reports', () => ({ downloadPcn874: vi.fn() }));
+vi.mock('@mantine/notifications', () => ({ notifications: { show: vi.fn() } }));
 
 // ── helpers ──
 
@@ -62,6 +64,19 @@ describe('VatReport page', () => {
     await user.click(button);
 
     expect(downloadPcn874).toHaveBeenCalledWith('biz-1', expect.any(Number), expect.any(Number));
+  });
+
+  it('shows error notification when download fails', async () => {
+    vi.mocked(downloadPcn874).mockRejectedValue(new Error('network error'));
+    const user = userEvent.setup();
+    renderVatReport();
+
+    const button = screen.getByRole('button', { name: /הורד דוח מע"מ/ });
+    await user.click(button);
+
+    expect(notifications.show).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'שגיאה', color: 'red' })
+    );
   });
 
   it('shows not-relevant alert for exempt_dealer', () => {
