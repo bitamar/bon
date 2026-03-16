@@ -195,4 +195,79 @@ describe('EmergencyNumbersSection', () => {
     const deleteButtons = screen.getAllByTitle('הסר מספר');
     expect(deleteButtons).toHaveLength(1);
   });
+
+  it('handleAdd submits parsed numbers filtering empty lines', async () => {
+    const user = userEvent.setup();
+    vi.mocked(emergencyNumbersApi.fetchEmergencyNumbers).mockResolvedValue(
+      makeResponse({ numbers: [], availableCount: 0, usedCount: 0 })
+    );
+    vi.mocked(emergencyNumbersApi.addEmergencyNumbers).mockResolvedValue(
+      makeResponse({ numbers: [], availableCount: 0, usedCount: 0 })
+    );
+    renderSection();
+
+    await screen.findByText('לא הוזנו מספרי חירום עדיין');
+
+    const textarea = screen.getByPlaceholderText('הזן מספר חירום בכל שורה');
+    await user.type(textarea, 'E-100{Enter}E-200{Enter}{Enter}E-300');
+
+    await user.click(screen.getByRole('button', { name: 'הוסף מספרים' }));
+
+    expect(vi.mocked(emergencyNumbersApi.addEmergencyNumbers)).toHaveBeenCalledWith('biz-1', {
+      numbers: ['E-100', 'E-200', 'E-300'],
+    });
+  });
+
+  it('handleAdd does not call mutation when input is only whitespace', async () => {
+    const user = userEvent.setup();
+    vi.mocked(emergencyNumbersApi.fetchEmergencyNumbers).mockResolvedValue(
+      makeResponse({ numbers: [], availableCount: 0, usedCount: 0 })
+    );
+    renderSection();
+
+    await screen.findByText('לא הוזנו מספרי חירום עדיין');
+
+    const addButton = screen.getByRole('button', { name: 'הוסף מספרים' });
+    // Button disabled when only whitespace — Mantine disables based on !numbersInput.trim()
+    const textarea = screen.getByPlaceholderText('הזן מספר חירום בכל שורה');
+    await user.type(textarea, '   ');
+
+    expect(addButton).toBeDisabled();
+    expect(vi.mocked(emergencyNumbersApi.addEmergencyNumbers)).not.toHaveBeenCalled();
+  });
+
+  it('retry button calls refetch on error', async () => {
+    const user = userEvent.setup();
+    vi.mocked(emergencyNumbersApi.fetchEmergencyNumbers)
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValue(makeResponse({ numbers: [], availableCount: 0, usedCount: 0 }));
+    renderSection();
+
+    expect(await screen.findByText('לא הצלחנו לטעון מספרי חירום')).toBeInTheDocument();
+    const retryButton = screen.getByRole('button', { name: 'נסה שוב' });
+
+    await user.click(retryButton);
+
+    expect(vi.mocked(emergencyNumbersApi.fetchEmergencyNumbers)).toHaveBeenCalledTimes(2);
+  });
+
+  it('delete button calls deleteEmergencyNumber with the number id', async () => {
+    const user = userEvent.setup();
+    const availableNumber = makeNumber({ id: 'num-42', number: 'E-042', used: false });
+    vi.mocked(emergencyNumbersApi.fetchEmergencyNumbers).mockResolvedValue(
+      makeResponse({ numbers: [availableNumber], availableCount: 1, usedCount: 0 })
+    );
+    vi.mocked(emergencyNumbersApi.deleteEmergencyNumber).mockResolvedValue({ ok: true });
+    renderSection();
+
+    await screen.findByText('E-042');
+
+    const deleteButton = screen.getByTitle('הסר מספר');
+    await user.click(deleteButton);
+
+    expect(vi.mocked(emergencyNumbersApi.deleteEmergencyNumber)).toHaveBeenCalledWith(
+      'biz-1',
+      'num-42'
+    );
+  });
 });

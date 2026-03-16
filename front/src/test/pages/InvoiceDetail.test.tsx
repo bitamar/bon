@@ -5,7 +5,7 @@ import type { UserEvent } from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { InvoiceDetail } from '../../pages/InvoiceDetail';
 import { renderWithProviders } from '../utils/renderWithProviders';
-import type { Invoice, InvoiceStatus } from '@bon/types/invoices';
+import type { Invoice, InvoiceStatus, LineItem } from '@bon/types/invoices';
 
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/invoices', () => ({
@@ -21,6 +21,7 @@ import { useBusiness } from '../../contexts/BusinessContext';
 import * as invoicesApi from '../../api/invoices';
 import { mockActiveBusiness, mockNoBusiness } from '../utils/businessStubs';
 import { makeFinalizedInvoice, makeCreditNoteInvoice } from '../utils/invoiceStubs';
+import { ITA_ERROR_MAP, EMERGENCY_POOL_EMPTY_MESSAGE } from '@bon/types/shaam';
 
 function makeInvoiceWithPayments() {
   return {
@@ -539,5 +540,424 @@ describe('InvoiceDetail credit notes', () => {
     await waitFor(() => {
       expect(screen.queryByText('הפקת חשבונית זיכוי')).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('InvoiceDetail allocation rejected banners', () => {
+  // ── helpers ──
+  function mockOwner() {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer',
+        role: 'owner',
+      },
+      businesses: [],
+      switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
+      isLoading: false,
+    });
+  }
+
+  function mockNonOwner() {
+    vi.mocked(useBusiness).mockReturnValue({
+      activeBusiness: {
+        id: 'biz-1',
+        name: 'Test Co',
+        businessType: 'licensed_dealer',
+        role: 'member',
+      },
+      businesses: [],
+      switchBusiness: vi.fn(),
+      setActiveBusiness: vi.fn(),
+      isLoading: false,
+    });
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockOwner();
+  });
+
+  it('shows E001 banner with settings button for owner', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        allocationStatus: 'rejected',
+        allocationError: ITA_ERROR_MAP.E001.hebrewMessage,
+      })
+    );
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+
+    expect(await screen.findByTestId('allocation-rejected-e001')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'עבור להגדרות' })).toBeInTheDocument();
+  });
+
+  it('shows E001 banner with disabled button for non-owner', async () => {
+    mockNonOwner();
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        allocationStatus: 'rejected',
+        allocationError: ITA_ERROR_MAP.E001.hebrewMessage,
+      })
+    );
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+
+    expect(await screen.findByTestId('allocation-rejected-e001')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'פנה לבעל העסק' })).toBeDisabled();
+  });
+
+  it('shows E010 banner with reconnect button for owner', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        allocationStatus: 'rejected',
+        allocationError: ITA_ERROR_MAP.E010.hebrewMessage,
+      })
+    );
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+
+    expect(await screen.findByTestId('allocation-rejected-e010')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'חבר מחדש' })).toBeInTheDocument();
+  });
+
+  it('shows E010 banner with disabled button for non-owner', async () => {
+    mockNonOwner();
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        allocationStatus: 'rejected',
+        allocationError: ITA_ERROR_MAP.E010.hebrewMessage,
+      })
+    );
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+
+    expect(await screen.findByTestId('allocation-rejected-e010')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'פנה לבעל העסק' })).toBeDisabled();
+  });
+
+  it('shows E099-empty banner with emergency numbers button for owner', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        allocationStatus: 'rejected',
+        allocationError: EMERGENCY_POOL_EMPTY_MESSAGE,
+      })
+    );
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+
+    expect(await screen.findByTestId('allocation-rejected-e099-empty')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'הזן מספרי חירום' })).toBeInTheDocument();
+  });
+
+  it('shows E099-empty banner with disabled button for non-owner', async () => {
+    mockNonOwner();
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        allocationStatus: 'rejected',
+        allocationError: EMERGENCY_POOL_EMPTY_MESSAGE,
+      })
+    );
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+
+    expect(await screen.findByTestId('allocation-rejected-e099-empty')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'פנה לבעל העסק' })).toBeDisabled();
+  });
+
+  it('shows default rejected banner when error does not match any known code', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        allocationStatus: 'rejected',
+        allocationError: null,
+      })
+    );
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+
+    expect(await screen.findByTestId('allocation-rejected')).toBeInTheDocument();
+    expect(screen.getByText('הקצאת SHAAM נדחתה')).toBeInTheDocument();
+  });
+
+  it('shows E099 (non-empty pool) banner as default rejected', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        allocationStatus: 'rejected',
+        allocationError: `שגיאה: ${ITA_ERROR_MAP.E099.hebrewMessage}`,
+      })
+    );
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+
+    // E099 (non-empty) falls through to default banner
+    expect(await screen.findByTestId('allocation-rejected')).toBeInTheDocument();
+  });
+});
+
+describe('InvoiceDetail modal close actions', () => {
+  // ── helpers ──
+  function renderDetailPage() {
+    return renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+  }
+
+  function makePaymentsStub() {
+    return {
+      ...makeFinalizedInvoice(),
+      payments: [
+        {
+          id: 'pay-1',
+          invoiceId: 'inv-1',
+          amountMinorUnits: 5000,
+          paidAt: '2026-03-01',
+          method: 'transfer' as const,
+          reference: 'REF-001',
+          notes: null,
+          recordedByUserId: 'user-1',
+          createdAt: '2026-03-01T00:00:00.000Z',
+        },
+      ],
+      remainingBalanceMinorUnits: 6700,
+    };
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockActiveBusiness(useBusiness);
+  });
+
+  it('closes send modal via cancel button', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
+    renderDetailPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'שלח במייל' }));
+    await screen.findByText('שליחת חשבונית במייל');
+
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('שליחת חשבונית במייל')).not.toBeInTheDocument();
+    });
+  });
+
+  it('closes payment modal via cancel button', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
+    renderDetailPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'סמן כשולם' }));
+    await screen.findByText('רישום תשלום');
+
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('רישום תשלום')).not.toBeInTheDocument();
+    });
+  });
+
+  it('closes delete payment modal via cancel button', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makePaymentsStub());
+    renderDetailPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByTestId('delete-payment-pay-1'));
+    expect(await screen.findByText('מחיקת תשלום')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('מחיקת תשלום')).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe('InvoiceDetail payment modal interactions', () => {
+  // ── helpers ──
+  function renderDetailPage() {
+    return renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockActiveBusiness(useBusiness);
+  });
+
+  it('shows payment amount input pre-filled with remaining balance', async () => {
+    const stub = makeFinalizedInvoice();
+    stub.remainingBalanceMinorUnits = 5000; // ₪50.00 remaining
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(stub);
+    renderDetailPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'סמן כשולם' }));
+    await screen.findByText('רישום תשלום');
+
+    const amountInput = screen.getByTestId('payment-amount-input');
+    // Pre-filled with the remaining balance (50.00)
+    expect(amountInput).toHaveValue('₪50.00');
+  });
+
+  it('updates reference and notes fields in payment modal', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
+    renderDetailPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'סמן כשולם' }));
+    await screen.findByText('רישום תשלום');
+
+    const referenceInput = screen.getByTestId('payment-reference-input');
+    await user.type(referenceInput, 'CHK-123');
+    expect(referenceInput).toHaveValue('CHK-123');
+
+    const notesInput = screen.getByTestId('payment-notes-input');
+    await user.type(notesInput, 'test note');
+    expect(notesInput).toHaveValue('test note');
+  });
+});
+
+describe('InvoiceDetail extra rendering branches', () => {
+  // ── helpers ──
+  function renderDetailPage() {
+    return renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices/:invoiceId" element={<InvoiceDetail />} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices/inv-1'] } }
+    );
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockActiveBusiness(useBusiness);
+  });
+
+  it('retries invoice fetch when retry button is clicked', async () => {
+    vi.mocked(invoicesApi.fetchInvoice)
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValue(makeFinalizedInvoice());
+    renderDetailPage();
+    const user = userEvent.setup();
+
+    const retryBtn = await screen.findByRole('button', { name: 'נסה שוב' });
+    await user.click(retryBtn);
+
+    expect(await screen.findByText('INV-0001')).toBeInTheDocument();
+  });
+
+  it('renders invoice without customer name (no customer section)', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        customerName: null,
+        customerTaxId: null,
+        customerAddress: null,
+        customerEmail: null,
+      })
+    );
+    renderDetailPage();
+
+    await screen.findByText('INV-0001');
+    expect(screen.queryByText('לכבוד:')).not.toBeInTheDocument();
+  });
+
+  it('shows sentAt in audit timeline when present', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        status: 'sent',
+        sentAt: '2026-03-02T14:00:00.000Z',
+      })
+    );
+    renderDetailPage();
+
+    await screen.findByText('INV-0001');
+    expect(screen.getByText(/נשלחה:/)).toBeInTheDocument();
+  });
+
+  it('shows paidAt in audit timeline when present', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({
+        status: 'paid',
+        paidAt: '2026-03-05T09:00:00.000Z',
+      })
+    );
+    renderDetailPage();
+
+    await screen.findByText('INV-0001');
+    expect(screen.getByText(/שולמה:/)).toBeInTheDocument();
+  });
+
+  it('shows discount percent in line item when > 0', async () => {
+    const stub = makeFinalizedInvoice();
+    stub.items = [{ ...(stub.items[0] as LineItem), discountPercent: 10 }];
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(stub);
+    renderDetailPage();
+
+    await screen.findByText('INV-0001');
+    expect(screen.getByText('10%')).toBeInTheDocument();
+  });
+
+  it('shows document type label when documentNumber is null', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({ documentNumber: null })
+    );
+    renderDetailPage();
+
+    // When documentNumber is null, header shows documentTypeLabel
+    await screen.findByText('הופקה');
+    // חשבונית מס appears both as the page title and document type sub-label
+    expect(screen.getAllByText('חשבונית מס').length).toBeGreaterThan(0);
+  });
+
+  it('shows no-payment credit note button not shown for credit_note doc type', async () => {
+    vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(
+      makeFinalizedInvoice({ status: 'sent', documentType: 'credit_note' as const })
+    );
+    renderDetailPage();
+
+    await screen.findByText('נשלחה');
+    expect(screen.queryByRole('button', { name: 'הפק חשבונית זיכוי' })).not.toBeInTheDocument();
   });
 });

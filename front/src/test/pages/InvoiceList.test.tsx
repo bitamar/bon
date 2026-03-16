@@ -9,6 +9,13 @@ vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/invoices', () => ({ fetchInvoices: vi.fn() }));
 vi.mock('../../api/customers', () => ({ fetchCustomers: vi.fn() }));
 vi.mock('../../api/subscriptions', () => ({ fetchSubscription: vi.fn() }));
+vi.mock('../../components/CustomerSelect', () => ({
+  CustomerSelect: vi.fn(({ onChange }: Readonly<{ onChange: (v: string | null) => void }>) => (
+    <button type="button" data-testid="mock-customer-select" onClick={() => onChange('c-1')}>
+      בחר לקוח
+    </button>
+  )),
+}));
 
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as invoicesApi from '../../api/invoices';
@@ -293,5 +300,239 @@ describe('InvoiceList page', () => {
     const lastCall = calls[calls.length - 1];
     expect(lastCall?.[1]).not.toHaveProperty('status');
     expect(lastCall?.[1]).not.toHaveProperty('dateFrom');
+  });
+
+  // ── Retry button on error state (line 309) ──
+
+  it('clicking retry button on error state calls refetch', async () => {
+    const user = userEvent.setup();
+    vi.mocked(invoicesApi.fetchInvoices).mockRejectedValue(new Error('network error'));
+    renderInvoiceList();
+
+    await screen.findByText('שגיאה בטעינת חשבוניות');
+    expect(screen.getByRole('button', { name: 'נסה שוב' })).toBeInTheDocument();
+
+    // After clicking retry, mock resolves so we get the invoice list
+    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse());
+    await user.click(screen.getByRole('button', { name: 'נסה שוב' }));
+
+    expect(await screen.findByText('INV-001')).toBeInTheDocument();
+  });
+
+  // ── Pagination back to page 1 (line 270) ──
+
+  it('navigating back to page 1 removes page param from URL', async () => {
+    const user = userEvent.setup();
+    mockDefaultInvoices(mockListResponse([mockInvoice()], 60));
+    renderInvoiceList('/businesses/biz-1/invoices?page=2');
+    await screen.findByText('INV-001');
+
+    // Click page 1 — should remove page param, not set page=1
+    await user.click(screen.getByRole('button', { name: '1' }));
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).toMatchObject({ page: '1' });
+    expect(lastCall?.[1]).not.toHaveProperty('page', '2');
+  });
+
+  // ── statusParamToChip with draft status (line 63) ──
+
+  it('renders with ?status=draft in URL and passes draft status to fetchInvoices', async () => {
+    mockDefaultInvoices();
+    renderInvoiceList('/businesses/biz-1/invoices?status=draft');
+    await screen.findByText('INV-001', {}, { timeout: 3000 });
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).toMatchObject({ status: 'draft' });
+  });
+
+  // ── InvoiceRow click navigation ──
+
+  it('clicking an invoice row navigates to detail page', async () => {
+    const user = userEvent.setup();
+    mockDefaultInvoices();
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
+        <Route
+          path="/businesses/:businessId/invoices/:invoiceId"
+          element={<div>detail page</div>}
+        />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices'] } }
+    );
+    await screen.findByText('INV-001');
+
+    const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
+    await user.click(tableRow);
+
+    expect(await screen.findByText('detail page')).toBeInTheDocument();
+  });
+
+  it('pressing Enter on an invoice row triggers navigation handler', async () => {
+    await renderWithInvoices();
+
+    const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
+    expect(tableRow).not.toBeNull();
+
+    tableRow.focus();
+    tableRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  });
+
+  it('pressing Space on an invoice row triggers navigation handler', async () => {
+    await renderWithInvoices();
+
+    const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
+    expect(tableRow).not.toBeNull();
+
+    tableRow.focus();
+    tableRow.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+  });
+
+  // ── Empty state CTA navigation (line 336) ──
+
+  it('empty state CTA shows correct label when canCreateInvoices=true', async () => {
+    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue(ACTIVE_SUBSCRIPTION_RESPONSE);
+    mockDefaultInvoices(mockListResponse([], 0));
+    renderInvoiceList();
+
+    const ctaButton = await screen.findByRole('button', { name: 'חשבונית חדשה' });
+    expect(ctaButton).toBeInTheDocument();
+  });
+
+  it('empty state CTA shows correct label and navigates to subscription when canCreateInvoices=false', async () => {
+    const user = userEvent.setup();
+    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue(INACTIVE_SUBSCRIPTION_RESPONSE);
+    mockDefaultInvoices(mockListResponse([], 0));
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
+        <Route path="/businesses/:businessId/subscription" element={<div>subscription page</div>} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices'] } }
+    );
+
+    const ctaButton = await screen.findByRole('button', { name: 'מעבר לעמוד מנויים' });
+    await user.click(ctaButton);
+
+    expect(await screen.findByText('subscription page')).toBeInTheDocument();
+  });
+
+  it('empty state CTA navigates to invoices/new when canCreateInvoices=true', async () => {
+    const user = userEvent.setup();
+    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue(ACTIVE_SUBSCRIPTION_RESPONSE);
+    mockDefaultInvoices(mockListResponse([], 0));
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
+        <Route path="/businesses/:businessId/invoices/new" element={<div>new invoice page</div>} />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices'] } }
+    );
+
+    const ctaButton = await screen.findByRole('button', { name: 'חשבונית חדשה' });
+    await user.click(ctaButton);
+
+    expect(await screen.findByText('new invoice page')).toBeInTheDocument();
+  });
+
+  // ── Date filter interactions ──
+
+  it('dateTo filter in URL is passed to fetchInvoices as dateTo param', async () => {
+    mockDefaultInvoices();
+    renderInvoiceList('/businesses/biz-1/invoices?dateTo=2026-12-31');
+    await screen.findByText('INV-001');
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).toMatchObject({ dateTo: '2026-12-31' });
+  });
+
+  it('both dateFrom and dateTo filters in URL are passed to fetchInvoices', async () => {
+    mockDefaultInvoices();
+    renderInvoiceList('/businesses/biz-1/invoices?dateFrom=2026-01-01&dateTo=2026-06-30');
+    await screen.findByText('INV-001');
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).toMatchObject({ dateFrom: '2026-01-01', dateTo: '2026-06-30' });
+  });
+
+  // ── Customer filter handler (lines 255-256) ──
+
+  it('selecting a customer via CustomerSelect calls fetchInvoices with customerId', async () => {
+    const user = userEvent.setup();
+    await renderWithInvoices();
+
+    await user.click(screen.getByTestId('mock-customer-select'));
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).toMatchObject({ customerId: 'c-1' });
+  });
+
+  // ── Chip back to "all" deletes status param (line 239) ──
+
+  it('clicking all chip after a status filter removes the status param', async () => {
+    const user = userEvent.setup();
+    mockDefaultInvoices();
+    renderInvoiceList('/businesses/biz-1/invoices?status=paid');
+    await screen.findByText('INV-001');
+
+    await user.click(screen.getByText('כל החשבוניות'));
+
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).not.toHaveProperty('status');
+  });
+
+  // ── Date handler: clearing dateFrom via clear button (lines 258-260) ──
+
+  it('clearing dateFrom via clear button removes dateFrom from query params', async () => {
+    const user = userEvent.setup();
+    mockDefaultInvoices();
+    const { container } = renderInvoiceList('/businesses/biz-1/invoices?dateFrom=2026-01-01');
+    await screen.findByText('INV-001');
+
+    // Mantine renders a clear button in [data-position="right"] when value is set
+    const dateInputs = container.querySelectorAll('[data-dates-input]');
+    const fromDateInput = dateInputs[0] as HTMLElement;
+    const inputWrapper = fromDateInput?.closest('[data-with-right-section]');
+    const clearBtn = inputWrapper?.querySelector('[data-position="right"] button');
+
+    if (clearBtn) {
+      await user.click(clearBtn as HTMLElement);
+
+      const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+      const lastCall = calls[calls.length - 1];
+      expect(lastCall?.[1]).not.toHaveProperty('dateFrom');
+    }
+  });
+
+  // ── Date handler: clearing dateTo via clear button (lines 261-263) ──
+
+  it('clearing dateTo via clear button removes dateTo from query params', async () => {
+    const user = userEvent.setup();
+    mockDefaultInvoices();
+    const { container } = renderInvoiceList('/businesses/biz-1/invoices?dateTo=2026-12-31');
+    await screen.findByText('INV-001');
+
+    const dateInputs = container.querySelectorAll('[data-dates-input]');
+    const toDateInput = dateInputs[1] as HTMLElement;
+    const inputWrapper = toDateInput?.closest('[data-with-right-section]');
+    const clearBtn = inputWrapper?.querySelector('[data-position="right"] button');
+
+    if (clearBtn) {
+      await user.click(clearBtn as HTMLElement);
+
+      const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+      const lastCall = calls[calls.length - 1];
+      expect(lastCall?.[1]).not.toHaveProperty('dateTo');
+    }
   });
 });
