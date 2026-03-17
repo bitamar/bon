@@ -23,6 +23,13 @@ function renderVatReport() {
   );
 }
 
+async function clickDownloadButton() {
+  const user = userEvent.setup();
+  renderVatReport();
+  const button = screen.getByRole('button', { name: /הורד דוח מע"מ/ });
+  await user.click(button);
+}
+
 const defaultBusiness = {
   activeBusiness: {
     id: 'biz-1',
@@ -57,22 +64,16 @@ describe('VatReport page', () => {
 
   it('calls downloadPcn874 with correct params on button click', async () => {
     vi.mocked(downloadPcn874).mockResolvedValue(undefined);
-    const user = userEvent.setup();
-    renderVatReport();
 
-    const button = screen.getByRole('button', { name: /הורד דוח מע"מ/ });
-    await user.click(button);
+    await clickDownloadButton();
 
     expect(downloadPcn874).toHaveBeenCalledWith('biz-1', expect.any(Number), expect.any(Number));
   });
 
   it('shows error notification when download fails', async () => {
     vi.mocked(downloadPcn874).mockRejectedValue(new Error('network error'));
-    const user = userEvent.setup();
-    renderVatReport();
 
-    const button = screen.getByRole('button', { name: /הורד דוח מע"מ/ });
-    await user.click(button);
+    await clickDownloadButton();
 
     expect(notifications.show).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'שגיאה', color: 'red' })

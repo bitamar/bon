@@ -360,13 +360,7 @@ export async function aggregateShaamStatus(
 
 // ── PCN874 report ──
 
-const REPORT_STATUSES: InvoiceRecord['status'][] = [
-  'finalized',
-  'sent',
-  'paid',
-  'partially_paid',
-  'credited',
-];
+const REPORT_STATUSES = REVENUE_STATUSES;
 
 export async function findInvoicesForReport(
   businessId: string,

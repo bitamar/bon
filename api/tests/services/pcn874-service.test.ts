@@ -52,6 +52,17 @@ function makeInvoice(overrides: Partial<InvoiceRecord> = {}): InvoiceRecord {
   } as InvoiceRecord;
 }
 
+function setupMocks(invoices: InvoiceRecord[], businessOverrides?: Record<string, unknown>) {
+  vi.mocked(findBusinessById).mockResolvedValue(makeBusiness(businessOverrides) as never);
+  vi.mocked(findInvoicesForReport).mockResolvedValue(invoices);
+}
+
+async function generateAndParseLines(bizId = 'biz-1', year = 2026, month = 3) {
+  const result = await generatePcn874(bizId, year, month);
+  const lines = result.buffer.toString().split('\r\n').filter(Boolean);
+  return { ...result, lines };
+}
+
 // ── tests ──
 
 describe('pcn874-service', () => {
@@ -60,8 +71,7 @@ describe('pcn874-service', () => {
   });
 
   it('generates valid PCN874 file with tax_invoice and credit_note', async () => {
-    vi.mocked(findBusinessById).mockResolvedValue(makeBusiness() as never);
-    vi.mocked(findInvoicesForReport).mockResolvedValue([
+    setupMocks([
       makeInvoice({
         id: 'inv-1',
         documentType: 'tax_invoice',
@@ -83,9 +93,7 @@ describe('pcn874-service', () => {
       }),
     ]);
 
-    const { buffer, filename } = await generatePcn874('biz-1', 2026, 3);
-    const content = buffer.toString();
-    const lines = content.split('\r\n').filter(Boolean);
+    const { filename, lines } = await generateAndParseLines();
 
     expect(filename).toBe('PCN874_515036694_202603.txt');
     expect(lines).toHaveLength(4);
@@ -110,11 +118,9 @@ describe('pcn874-service', () => {
   });
 
   it('generates valid file with zero invoices', async () => {
-    vi.mocked(findBusinessById).mockResolvedValue(makeBusiness() as never);
-    vi.mocked(findInvoicesForReport).mockResolvedValue([]);
+    setupMocks([]);
 
-    const { buffer } = await generatePcn874('biz-1', 2026, 3);
-    const lines = buffer.toString().split('\r\n').filter(Boolean);
+    const { lines } = await generateAndParseLines();
 
     expect(lines).toHaveLength(2); // opening + closing
     expect(lines[0]).toMatch(/^O/);
@@ -123,9 +129,7 @@ describe('pcn874-service', () => {
   });
 
   it('throws 422 for exempt_dealer business', async () => {
-    vi.mocked(findBusinessById).mockResolvedValue(
-      makeBusiness({ businessType: 'exempt_dealer' }) as never
-    );
+    setupMocks([], { businessType: 'exempt_dealer' });
 
     await expect(generatePcn874('biz-1', 2026, 3)).rejects.toThrow(AppError);
     await expect(generatePcn874('biz-1', 2026, 3)).rejects.toMatchObject({
@@ -135,8 +139,7 @@ describe('pcn874-service', () => {
   });
 
   it('handles credit note sign correctly in opening record totals', async () => {
-    vi.mocked(findBusinessById).mockResolvedValue(makeBusiness() as never);
-    vi.mocked(findInvoicesForReport).mockResolvedValue([
+    setupMocks([
       makeInvoice({
         documentType: 'tax_invoice',
         totalExclVatMinorUnits: 50000,
@@ -150,48 +153,42 @@ describe('pcn874-service', () => {
       }),
     ]);
 
-    const { buffer } = await generatePcn874('biz-1', 2026, 3);
-    const opening = buffer.toString().split('\r\n')[0]!;
+    const { lines } = await generateAndParseLines();
 
     // Net taxable: 50000 - 20000 = 30000, Net VAT: 8500 - 3400 = 5100
-    expect(opening).toContain('+00000030000'); // taxable amount
-    expect(opening).toContain('+000005100'); // taxable VAT
+    expect(lines[0]).toContain('+00000030000'); // taxable amount
+    expect(lines[0]).toContain('+000005100'); // taxable VAT
   });
 
   it('formats allocation number as right 9 digits', async () => {
-    vi.mocked(findBusinessById).mockResolvedValue(makeBusiness() as never);
-    vi.mocked(findInvoicesForReport).mockResolvedValue([
+    setupMocks([
       makeInvoice({
         allocationStatus: 'approved',
         allocationNumber: '12345678901234',
       }),
     ]);
 
-    const { buffer } = await generatePcn874('biz-1', 2026, 3);
-    const detail = buffer.toString().split('\r\n')[1]!;
+    const { lines } = await generateAndParseLines();
 
     // Right 9 digits of '12345678901234' = '678901234'
-    expect(detail).toContain('678901234');
+    expect(lines[1]).toContain('678901234');
   });
 
   it('uses zeros for allocation when status is not approved/emergency', async () => {
-    vi.mocked(findBusinessById).mockResolvedValue(makeBusiness() as never);
-    vi.mocked(findInvoicesForReport).mockResolvedValue([
+    setupMocks([
       makeInvoice({
         allocationStatus: 'pending',
         allocationNumber: '12345678901234',
       }),
     ]);
 
-    const { buffer } = await generatePcn874('biz-1', 2026, 3);
-    const detail = buffer.toString().split('\r\n')[1]!;
+    const { lines } = await generateAndParseLines();
 
-    expect(detail).toContain('000000000');
+    expect(lines[1]).toContain('000000000');
   });
 
   it('puts zero-VAT invoices into exempt totals', async () => {
-    vi.mocked(findBusinessById).mockResolvedValue(makeBusiness() as never);
-    vi.mocked(findInvoicesForReport).mockResolvedValue([
+    setupMocks([
       makeInvoice({
         totalExclVatMinorUnits: 30000,
         vatMinorUnits: 0,
@@ -199,11 +196,10 @@ describe('pcn874-service', () => {
       }),
     ]);
 
-    const { buffer } = await generatePcn874('biz-1', 2026, 3);
-    const opening = buffer.toString().split('\r\n')[0]!;
+    const { lines } = await generateAndParseLines();
 
     // Taxable should be zero, exempt should be 30000
-    expect(opening).toContain('+00000000000+000000000+00000030000');
+    expect(lines[0]).toContain('+00000000000+000000000+00000030000');
   });
 
   it('throws 404 when business is not found', async () => {
@@ -216,13 +212,19 @@ describe('pcn874-service', () => {
   });
 
   it('falls back to registrationNumber when vatNumber is null', async () => {
-    vi.mocked(findBusinessById).mockResolvedValue(
-      makeBusiness({ vatNumber: null, registrationNumber: '987654321' }) as never
-    );
-    vi.mocked(findInvoicesForReport).mockResolvedValue([]);
+    setupMocks([], { vatNumber: null, registrationNumber: '987654321' });
 
-    const { filename } = await generatePcn874('biz-1', 2026, 3);
+    const { filename } = await generateAndParseLines();
 
     expect(filename).toContain('987654321');
+  });
+
+  it('strips non-digit characters from vatNumber', async () => {
+    setupMocks([], { vatNumber: '51-503-6694', registrationNumber: '000000000' });
+
+    const { filename, lines } = await generateAndParseLines();
+
+    expect(filename).toBe('PCN874_515036694_202603.txt');
+    expect(lines[0]).toContain('515036694');
   });
 });

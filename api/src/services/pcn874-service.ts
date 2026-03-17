@@ -136,7 +136,7 @@ export async function generatePcn874(
     });
   }
 
-  const vatNumber = business.vatNumber ?? business.registrationNumber;
+  const vatNumber = (business.vatNumber ?? business.registrationNumber).replaceAll(/\D/g, '');
 
   // Query invoices for the period
   const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`;
