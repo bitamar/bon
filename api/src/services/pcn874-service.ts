@@ -95,6 +95,15 @@ function buildOpeningRecord(
   ].join('');
 }
 
+function invoiceSequenceNumber(invoice: InvoiceRecord): string {
+  if (invoice.sequenceNumber == null) {
+    throw new Error(
+      `Invoice ${invoice.id} has no sequence number — cannot emit PCN874 detail record`
+    );
+  }
+  return padNum(invoice.sequenceNumber, 9);
+}
+
 function buildDetailRecord(invoice: InvoiceRecord): string {
   const credit = isCreditNote(invoice);
   const amountSign = credit ? '-' : '+';
@@ -105,7 +114,7 @@ function buildDetailRecord(invoice: InvoiceRecord): string {
     'S', // 1: record type (sales)
     ENTRY_TYPE_CODES[invoice.documentType], // 2: entry type
     customerVatNumber(invoice), // 3: counterparty VAT number
-    padNum(invoice.sequenceNumber ?? 0, 9), // 4: invoice number
+    invoiceSequenceNumber(invoice), // 4: invoice number
     formatDate(invoice.invoiceDate), // 5: invoice date
     amountSign, // 6: amount sign
     padNum(amount, 11), // 7: amount excl. VAT
