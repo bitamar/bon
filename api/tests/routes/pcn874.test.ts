@@ -27,6 +27,19 @@ async function getPcn874(
   });
 }
 
+async function fetchAndParseLines(
+  app: FastifyInstance,
+  sessionId: string,
+  businessId: string,
+  year: number,
+  month: number
+) {
+  const res = await getPcn874(app, sessionId, businessId, year, month);
+  expect(res.statusCode).toBe(200);
+  const lines = res.body.split('\r\n').filter(Boolean);
+  return { res, lines };
+}
+
 async function createFinalized(
   businessId: string,
   overrides: Partial<typeof invoices.$inferInsert> = {}
@@ -50,7 +63,8 @@ async function createFinalized(
       ...overrides,
     })
     .returning();
-  return inv!;
+  if (!inv) throw new Error('Failed to insert invoice fixture');
+  return inv;
 }
 
 describe('routes/pcn874', () => {
@@ -60,16 +74,13 @@ describe('routes/pcn874', () => {
 
   it('returns PCN874 file with correct headers for empty period', async () => {
     const { sessionId, business } = await createOwnerWithBusiness();
-    const res = await getPcn874(ctx.app, sessionId, business.id, 2026, 3);
+    const { res, lines } = await fetchAndParseLines(ctx.app, sessionId, business.id, 2026, 3);
 
-    expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toContain('text/plain');
     expect(res.headers['content-type']).toContain('charset=windows-1255');
     expect(res.headers['content-disposition']).toContain('PCN874_');
     expect(res.headers['content-disposition']).toContain('_202603.txt');
 
-    const body = res.body;
-    const lines = body.split('\r\n').filter(Boolean);
     expect(lines).toHaveLength(2); // opening + closing
     expect(lines[0]).toMatch(/^O/);
     expect(lines[1]).toMatch(/^X000000000/);
@@ -99,10 +110,7 @@ describe('routes/pcn874', () => {
       totalInclVatMinorUnits: 11700,
     });
 
-    const res = await getPcn874(ctx.app, sessionId, business.id, 2026, 2);
-    expect(res.statusCode).toBe(200);
-
-    const lines = res.body.split('\r\n').filter(Boolean);
+    const { lines } = await fetchAndParseLines(ctx.app, sessionId, business.id, 2026, 2);
     expect(lines).toHaveLength(4); // opening + 2 detail + closing
 
     // Opening record: check record count
@@ -146,10 +154,7 @@ describe('routes/pcn874', () => {
       invoiceDate: '2026-03-10',
     });
 
-    const res = await getPcn874(ctx.app, sessionId, business.id, 2026, 3);
-    expect(res.statusCode).toBe(200);
-
-    const lines = res.body.split('\r\n').filter(Boolean);
+    const { lines } = await fetchAndParseLines(ctx.app, sessionId, business.id, 2026, 3);
     expect(lines).toHaveLength(2); // only opening + closing — draft excluded
   });
 

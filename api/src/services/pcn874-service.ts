@@ -77,7 +77,7 @@ function buildOpeningRecord(
 
   return [
     'O', // 1: record type
-    vatNumber.padStart(9, '0'), // 2: VAT number
+    vatNumber, // 2: VAT number (already 9 digits)
     period, // 3: reporting period YYYYMM
     '1', // 4: report type (regular)
     creationDate, // 5: file creation date
@@ -136,7 +136,10 @@ export async function generatePcn874(
     });
   }
 
-  const vatNumber = (business.vatNumber ?? business.registrationNumber).replaceAll(/\D/g, '');
+  const vatNumber = (business.vatNumber ?? business.registrationNumber)
+    .replaceAll(/\D/g, '')
+    .slice(-9)
+    .padStart(9, '0');
 
   // Query invoices for the period
   const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -183,7 +186,7 @@ export async function generatePcn874(
   const content = lines.join(CRLF) + CRLF;
   const buffer = iconv.encode(content, 'windows-1255');
   const period = `${year}${String(month).padStart(2, '0')}`;
-  const filename = `PCN874_${vatNumber.padStart(9, '0')}_${period}.txt`;
+  const filename = `PCN874_${vatNumber}_${period}.txt`;
 
   return { buffer, filename };
 }

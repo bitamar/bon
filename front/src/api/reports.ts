@@ -12,7 +12,7 @@ export async function downloadPcn874(
   );
   const blob = await res.blob();
   const disposition = res.headers.get('content-disposition') ?? '';
-  const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+  const filenameMatch = /filename="?([^"]+)"?/.exec(disposition);
   const filename =
     filenameMatch?.[1] ?? `PCN874_${validated.year}${String(validated.month).padStart(2, '0')}.txt`;
 
