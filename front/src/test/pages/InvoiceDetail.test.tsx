@@ -599,34 +599,28 @@ describe('InvoiceDetail', () => {
   });
 
   describe('modal close actions', () => {
-    it('closes send modal via cancel button', async () => {
-      vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
+    // ── helpers ──
+    async function openAndCancelModal(
+      openFn: (user: UserEvent) => Promise<void>,
+      modalTitle: string
+    ) {
       renderDetail();
       const user = userEvent.setup();
-
-      await user.click(await screen.findByRole('button', { name: 'שלח במייל' }));
-      await screen.findByText('שליחת חשבונית במייל');
-
+      await openFn(user);
       await user.click(screen.getByRole('button', { name: 'ביטול' }));
-
       await waitFor(() => {
-        expect(screen.queryByText('שליחת חשבונית במייל')).not.toBeInTheDocument();
+        expect(screen.queryByText(modalTitle)).not.toBeInTheDocument();
       });
+    }
+
+    it('closes send modal via cancel button', async () => {
+      vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
+      await openAndCancelModal((user) => openSendModal(user), 'שליחת חשבונית במייל');
     });
 
     it('closes payment modal via cancel button', async () => {
       vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
-      renderDetail();
-      const user = userEvent.setup();
-
-      await user.click(await screen.findByRole('button', { name: 'סמן כשולם' }));
-      await screen.findByText('רישום תשלום');
-
-      await user.click(screen.getByRole('button', { name: 'ביטול' }));
-
-      await waitFor(() => {
-        expect(screen.queryByText('רישום תשלום')).not.toBeInTheDocument();
-      });
+      await openAndCancelModal((user) => openPaymentModal(user), 'רישום תשלום');
     });
 
     it('closes delete payment modal via cancel button', async () => {
@@ -646,28 +640,28 @@ describe('InvoiceDetail', () => {
   });
 
   describe('payment modal interactions', () => {
+    // ── helpers ──
+    async function renderAndOpenPaymentModal(invoiceOverrides: Partial<Invoice> = {}) {
+      renderWithInvoice(invoiceOverrides);
+      const user = userEvent.setup();
+      await openPaymentModal(user);
+      return user;
+    }
+
     it('shows payment amount input pre-filled with remaining balance', async () => {
       const stub = makeFinalizedInvoice();
       stub.remainingBalanceMinorUnits = 5000; // ₪50.00 remaining
       vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(stub);
       renderDetail();
       const user = userEvent.setup();
-
-      await user.click(await screen.findByRole('button', { name: 'סמן כשולם' }));
-      await screen.findByText('רישום תשלום');
+      await openPaymentModal(user);
 
       const amountInput = screen.getByTestId('payment-amount-input');
-      // Pre-filled with the remaining balance (50.00)
       expect(amountInput).toHaveValue('₪50.00');
     });
 
     it('updates reference and notes fields in payment modal', async () => {
-      vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
-      renderDetail();
-      const user = userEvent.setup();
-
-      await user.click(await screen.findByRole('button', { name: 'סמן כשולם' }));
-      await screen.findByText('רישום תשלום');
+      const user = await renderAndOpenPaymentModal();
 
       const referenceInput = screen.getByTestId('payment-reference-input');
       await user.type(referenceInput, 'CHK-123');

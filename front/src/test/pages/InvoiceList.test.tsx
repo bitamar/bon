@@ -90,6 +90,32 @@ async function renderWithInvoices(response = mockListResponse()) {
   await screen.findByText('INV-001');
 }
 
+function getLastFetchParams() {
+  const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+  return calls[calls.length - 1]?.[1];
+}
+
+function renderListWithRoutes(
+  targetPath: string,
+  targetElement: React.ReactNode,
+  initialPath = '/businesses/biz-1/invoices'
+) {
+  return renderWithProviders(
+    <Routes>
+      <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
+      <Route path={targetPath} element={targetElement} />
+    </Routes>,
+    { router: { initialEntries: [initialPath] } }
+  );
+}
+
+function findDateClearButton(container: HTMLElement, index: number) {
+  const dateInputs = container.querySelectorAll('[data-dates-input]');
+  const dateInput = dateInputs[index] as HTMLElement;
+  const inputWrapper = dateInput?.closest('[data-with-right-section]');
+  return inputWrapper?.querySelector('[data-position="right"] button') as HTMLElement | null;
+}
+
 describe('InvoiceList page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -177,9 +203,7 @@ describe('InvoiceList page', () => {
     const draftChip = screen.getByText('טיוטות');
     await user.click(draftChip);
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).toMatchObject({ status: 'draft' });
+    expect(getLastFetchParams()).toMatchObject({ status: 'draft' });
   });
 
   it('shows pagination when total exceeds page size', async () => {
@@ -238,9 +262,7 @@ describe('InvoiceList page', () => {
 
     await user.click(screen.getByText('ממתינות לתשלום'));
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).toMatchObject({
+    expect(getLastFetchParams()).toMatchObject({
       status: 'finalized,sent,partially_paid',
       sort: 'dueDate:asc',
     });
@@ -266,9 +288,7 @@ describe('InvoiceList page', () => {
 
     await user.click(screen.getByRole('button', { name: '2' }));
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).toMatchObject({ page: '2' });
+    expect(getLastFetchParams()).toMatchObject({ page: '2' });
   });
 
   it('does not show overdue indicator for paid invoices', async () => {
@@ -283,9 +303,7 @@ describe('InvoiceList page', () => {
     renderInvoiceList('/businesses/biz-1/invoices?dateFrom=2026-01-01');
     await screen.findByText('INV-001');
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).toMatchObject({ dateFrom: '2026-01-01' });
+    expect(getLastFetchParams()).toMatchObject({ dateFrom: '2026-01-01' });
   });
 
   it('clear all button resets all filters', async () => {
@@ -296,10 +314,8 @@ describe('InvoiceList page', () => {
 
     await user.click(screen.getByRole('button', { name: 'נקה הכל' }));
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).not.toHaveProperty('status');
-    expect(lastCall?.[1]).not.toHaveProperty('dateFrom');
+    expect(getLastFetchParams()).not.toHaveProperty('status');
+    expect(getLastFetchParams()).not.toHaveProperty('dateFrom');
   });
 
   // ── Retry button on error state (line 309) ──
@@ -329,9 +345,7 @@ describe('InvoiceList page', () => {
 
     await user.click(screen.getByRole('button', { name: '1' }));
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).not.toHaveProperty('page', '2');
+    expect(getLastFetchParams()).toMatchObject({ page: '1' });
   });
 
   // ── statusParamToChip with draft status (line 63) ──
@@ -341,9 +355,7 @@ describe('InvoiceList page', () => {
     renderInvoiceList('/businesses/biz-1/invoices?status=draft');
     await screen.findByText('INV-001', {}, { timeout: 3000 });
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).toMatchObject({ status: 'draft' });
+    expect(getLastFetchParams()).toMatchObject({ status: 'draft' });
   });
 
   // ── InvoiceRow click navigation ──
@@ -351,17 +363,7 @@ describe('InvoiceList page', () => {
   it('clicking an invoice row navigates to detail page', async () => {
     const user = userEvent.setup();
     mockDefaultInvoices();
-
-    renderWithProviders(
-      <Routes>
-        <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
-        <Route
-          path="/businesses/:businessId/invoices/:invoiceId"
-          element={<div>detail page</div>}
-        />
-      </Routes>,
-      { router: { initialEntries: ['/businesses/biz-1/invoices'] } }
-    );
+    renderListWithRoutes('/businesses/:businessId/invoices/:invoiceId', <div>detail page</div>);
     await screen.findByText('INV-001');
 
     const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
@@ -372,16 +374,7 @@ describe('InvoiceList page', () => {
 
   it('pressing Enter on an invoice row navigates to detail page', async () => {
     mockDefaultInvoices();
-    renderWithProviders(
-      <Routes>
-        <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
-        <Route
-          path="/businesses/:businessId/invoices/:invoiceId"
-          element={<div>detail page</div>}
-        />
-      </Routes>,
-      { router: { initialEntries: ['/businesses/biz-1/invoices'] } }
-    );
+    renderListWithRoutes('/businesses/:businessId/invoices/:invoiceId', <div>detail page</div>);
     await screen.findByText('INV-001');
 
     const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
@@ -393,16 +386,7 @@ describe('InvoiceList page', () => {
 
   it('pressing Space on an invoice row navigates to detail page', async () => {
     mockDefaultInvoices();
-    renderWithProviders(
-      <Routes>
-        <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
-        <Route
-          path="/businesses/:businessId/invoices/:invoiceId"
-          element={<div>detail page</div>}
-        />
-      </Routes>,
-      { router: { initialEntries: ['/businesses/biz-1/invoices'] } }
-    );
+    renderListWithRoutes('/businesses/:businessId/invoices/:invoiceId', <div>detail page</div>);
     await screen.findByText('INV-001');
 
     const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
@@ -427,14 +411,7 @@ describe('InvoiceList page', () => {
     const user = userEvent.setup();
     vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue(INACTIVE_SUBSCRIPTION_RESPONSE);
     mockDefaultInvoices(mockListResponse([], 0));
-
-    renderWithProviders(
-      <Routes>
-        <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
-        <Route path="/businesses/:businessId/subscription" element={<div>subscription page</div>} />
-      </Routes>,
-      { router: { initialEntries: ['/businesses/biz-1/invoices'] } }
-    );
+    renderListWithRoutes('/businesses/:businessId/subscription', <div>subscription page</div>);
 
     const ctaButton = await screen.findByRole('button', { name: 'מעבר לעמוד מנויים' });
     await user.click(ctaButton);
@@ -446,14 +423,7 @@ describe('InvoiceList page', () => {
     const user = userEvent.setup();
     vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue(ACTIVE_SUBSCRIPTION_RESPONSE);
     mockDefaultInvoices(mockListResponse([], 0));
-
-    renderWithProviders(
-      <Routes>
-        <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
-        <Route path="/businesses/:businessId/invoices/new" element={<div>new invoice page</div>} />
-      </Routes>,
-      { router: { initialEntries: ['/businesses/biz-1/invoices'] } }
-    );
+    renderListWithRoutes('/businesses/:businessId/invoices/new', <div>new invoice page</div>);
 
     const ctaButton = await screen.findByRole('button', { name: 'חשבונית חדשה' });
     await user.click(ctaButton);
@@ -468,9 +438,7 @@ describe('InvoiceList page', () => {
     renderInvoiceList('/businesses/biz-1/invoices?dateTo=2026-12-31');
     await screen.findByText('INV-001');
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).toMatchObject({ dateTo: '2026-12-31' });
+    expect(getLastFetchParams()).toMatchObject({ dateTo: '2026-12-31' });
   });
 
   it('both dateFrom and dateTo filters in URL are passed to fetchInvoices', async () => {
@@ -478,9 +446,7 @@ describe('InvoiceList page', () => {
     renderInvoiceList('/businesses/biz-1/invoices?dateFrom=2026-01-01&dateTo=2026-06-30');
     await screen.findByText('INV-001');
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).toMatchObject({ dateFrom: '2026-01-01', dateTo: '2026-06-30' });
+    expect(getLastFetchParams()).toMatchObject({ dateFrom: '2026-01-01', dateTo: '2026-06-30' });
   });
 
   // ── Customer filter handler (lines 255-256) ──
@@ -491,9 +457,7 @@ describe('InvoiceList page', () => {
 
     await user.click(screen.getByTestId('mock-customer-select'));
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).toMatchObject({ customerId: 'c-1' });
+    expect(getLastFetchParams()).toMatchObject({ customerId: 'c-1' });
   });
 
   // ── Chip back to "all" deletes status param (line 239) ──
@@ -506,9 +470,7 @@ describe('InvoiceList page', () => {
 
     await user.click(screen.getByText('כל החשבוניות'));
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).not.toHaveProperty('status');
+    expect(getLastFetchParams()).not.toHaveProperty('status');
   });
 
   // ── Date handler: clearing dateFrom via clear button (lines 258-260) ──
@@ -519,18 +481,11 @@ describe('InvoiceList page', () => {
     const { container } = renderInvoiceList('/businesses/biz-1/invoices?dateFrom=2026-01-01');
     await screen.findByText('INV-001');
 
-    // Mantine renders a clear button in [data-position="right"] when value is set
-    const dateInputs = container.querySelectorAll('[data-dates-input]');
-    const fromDateInput = dateInputs[0] as HTMLElement;
-    const inputWrapper = fromDateInput?.closest('[data-with-right-section]');
-    const clearBtn = inputWrapper?.querySelector('[data-position="right"] button');
-
+    const clearBtn = findDateClearButton(container, 0);
     expect(clearBtn).toBeTruthy();
-    await user.click(clearBtn as HTMLElement);
+    await user.click(clearBtn!);
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).not.toHaveProperty('dateFrom');
+    expect(getLastFetchParams()).not.toHaveProperty('dateFrom');
   });
 
   // ── Date handler: clearing dateTo via clear button (lines 261-263) ──
@@ -541,16 +496,10 @@ describe('InvoiceList page', () => {
     const { container } = renderInvoiceList('/businesses/biz-1/invoices?dateTo=2026-12-31');
     await screen.findByText('INV-001');
 
-    const dateInputs = container.querySelectorAll('[data-dates-input]');
-    const toDateInput = dateInputs[1] as HTMLElement;
-    const inputWrapper = toDateInput?.closest('[data-with-right-section]');
-    const clearBtn = inputWrapper?.querySelector('[data-position="right"] button');
-
+    const clearBtn = findDateClearButton(container, 1);
     expect(clearBtn).toBeTruthy();
-    await user.click(clearBtn as HTMLElement);
+    await user.click(clearBtn!);
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).not.toHaveProperty('dateTo');
+    expect(getLastFetchParams()).not.toHaveProperty('dateTo');
   });
 });
