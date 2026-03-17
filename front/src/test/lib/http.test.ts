@@ -1,22 +1,9 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fetchJson, fetchBlob, HttpError } from '../../lib/http';
-
-const fetchMock = vi.fn();
-const originalFetch = globalThis.fetch;
+import { useFetchMock } from '../api/fetch-mock';
 
 describe('fetchJson', () => {
-  beforeEach(() => {
-    fetchMock.mockReset();
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  afterAll(() => {
-    fetchMock.mockReset();
-  });
+  const { fetchMock } = useFetchMock();
 
   it('performs request with default options and parses response', async () => {
     const responseJson = { data: 42 };
@@ -80,18 +67,7 @@ describe('fetchJson', () => {
 });
 
 describe('fetchBlob', () => {
-  beforeEach(() => {
-    fetchMock.mockReset();
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  afterAll(() => {
-    fetchMock.mockReset();
-  });
+  const { fetchMock } = useFetchMock();
 
   it('returns response on success', async () => {
     const mockResponse = { ok: true, status: 200 };

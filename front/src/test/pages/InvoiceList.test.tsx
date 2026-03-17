@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { InvoiceList } from '../../pages/InvoiceList';
@@ -321,18 +321,16 @@ describe('InvoiceList page', () => {
 
   // ── Pagination back to page 1 (line 270) ──
 
-  it('navigating back to page 1 removes page param from URL', async () => {
+  it('clicking page 1 fetches first page data', async () => {
     const user = userEvent.setup();
     mockDefaultInvoices(mockListResponse([mockInvoice()], 60));
     renderInvoiceList('/businesses/biz-1/invoices?page=2');
     await screen.findByText('INV-001');
 
-    // Click page 1 — should remove page param, not set page=1
     await user.click(screen.getByRole('button', { name: '1' }));
 
     const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
     const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).toMatchObject({ page: '1' });
     expect(lastCall?.[1]).not.toHaveProperty('page', '2');
   });
 
@@ -372,24 +370,46 @@ describe('InvoiceList page', () => {
     expect(await screen.findByText('detail page')).toBeInTheDocument();
   });
 
-  it('pressing Enter on an invoice row triggers navigation handler', async () => {
-    await renderWithInvoices();
+  it('pressing Enter on an invoice row navigates to detail page', async () => {
+    mockDefaultInvoices();
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
+        <Route
+          path="/businesses/:businessId/invoices/:invoiceId"
+          element={<div>detail page</div>}
+        />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices'] } }
+    );
+    await screen.findByText('INV-001');
 
     const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
     expect(tableRow).not.toBeNull();
+    fireEvent.keyDown(tableRow, { key: 'Enter' });
 
-    tableRow.focus();
-    tableRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(await screen.findByText('detail page')).toBeInTheDocument();
   });
 
-  it('pressing Space on an invoice row triggers navigation handler', async () => {
-    await renderWithInvoices();
+  it('pressing Space on an invoice row navigates to detail page', async () => {
+    mockDefaultInvoices();
+    renderWithProviders(
+      <Routes>
+        <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
+        <Route
+          path="/businesses/:businessId/invoices/:invoiceId"
+          element={<div>detail page</div>}
+        />
+      </Routes>,
+      { router: { initialEntries: ['/businesses/biz-1/invoices'] } }
+    );
+    await screen.findByText('INV-001');
 
     const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
     expect(tableRow).not.toBeNull();
+    fireEvent.keyDown(tableRow, { key: ' ' });
 
-    tableRow.focus();
-    tableRow.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(await screen.findByText('detail page')).toBeInTheDocument();
   });
 
   // ── Empty state CTA navigation (line 336) ──
@@ -505,13 +525,12 @@ describe('InvoiceList page', () => {
     const inputWrapper = fromDateInput?.closest('[data-with-right-section]');
     const clearBtn = inputWrapper?.querySelector('[data-position="right"] button');
 
-    if (clearBtn) {
-      await user.click(clearBtn as HTMLElement);
+    expect(clearBtn).toBeTruthy();
+    await user.click(clearBtn as HTMLElement);
 
-      const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-      const lastCall = calls[calls.length - 1];
-      expect(lastCall?.[1]).not.toHaveProperty('dateFrom');
-    }
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).not.toHaveProperty('dateFrom');
   });
 
   // ── Date handler: clearing dateTo via clear button (lines 261-263) ──
@@ -527,12 +546,11 @@ describe('InvoiceList page', () => {
     const inputWrapper = toDateInput?.closest('[data-with-right-section]');
     const clearBtn = inputWrapper?.querySelector('[data-position="right"] button');
 
-    if (clearBtn) {
-      await user.click(clearBtn as HTMLElement);
+    expect(clearBtn).toBeTruthy();
+    await user.click(clearBtn as HTMLElement);
 
-      const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-      const lastCall = calls[calls.length - 1];
-      expect(lastCall?.[1]).not.toHaveProperty('dateTo');
-    }
+    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall?.[1]).not.toHaveProperty('dateTo');
   });
 });

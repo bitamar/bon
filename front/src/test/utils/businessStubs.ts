@@ -43,9 +43,9 @@ export function mockActiveBusiness(useBusinessFn: typeof useBusiness) {
   });
 }
 
-export function mockMemberBusiness(useBusinessFn: typeof useBusiness) {
+export function mockNonOwnerBusiness(useBusinessFn: typeof useBusiness) {
   vi.mocked(useBusinessFn).mockReturnValue({
-    activeBusiness: { ...activeBusinessStub, role: 'member' },
+    activeBusiness: { ...activeBusinessStub, role: 'user' },
     businesses: [],
     switchBusiness: vi.fn(),
     setActiveBusiness: vi.fn(),

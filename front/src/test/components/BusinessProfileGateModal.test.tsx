@@ -49,6 +49,26 @@ describe('BusinessProfileGateModal', () => {
     vi.mocked(addressApi.filterOptions).mockReturnValue([]);
   });
 
+  // ── helpers ──
+  async function setupAddressForm(
+    businessOverrides: Partial<Business> = {},
+    updateResponse: Partial<Business> = {}
+  ) {
+    vi.mocked(addressApi.fetchAllCities).mockRejectedValue(new Error('api down'));
+    vi.mocked(businessApi.updateBusiness).mockResolvedValue({
+      business: makeTestBusiness(updateResponse),
+      role: 'owner',
+    });
+    const user = userEvent.setup();
+    renderModal({ streetAddress: null, city: null, ...businessOverrides });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/רחוב/)).not.toBeDisabled();
+    });
+
+    return user;
+  }
+
   it('shows address fields when address is missing', () => {
     renderModal({ streetAddress: null, city: null });
 
@@ -93,18 +113,7 @@ describe('BusinessProfileGateModal', () => {
   });
 
   it('submits address fields when address is missing', async () => {
-    vi.mocked(addressApi.fetchAllCities).mockRejectedValue(new Error('api down'));
-    vi.mocked(businessApi.updateBusiness).mockResolvedValue({
-      business: makeTestBusiness({ streetAddress: 'הרצל 1', city: 'תל אביב' }),
-      role: 'owner',
-    });
-    const user = userEvent.setup();
-    renderModal({ streetAddress: null, city: null });
-
-    // Wait for the API error state to settle so fields become free-text inputs
-    await waitFor(() => {
-      expect(screen.getByLabelText(/עיר \/ ישוב/)).not.toBeDisabled();
-    });
+    const user = await setupAddressForm({}, { streetAddress: 'הרצל 1', city: 'תל אביב' });
 
     await user.type(screen.getByLabelText(/עיר \/ ישוב/), 'תל אביב');
     await user.type(screen.getByLabelText(/רחוב/), 'הרצל');
@@ -120,21 +129,10 @@ describe('BusinessProfileGateModal', () => {
   });
 
   it('includes postalCode in payload when provided with address', async () => {
-    vi.mocked(addressApi.fetchAllCities).mockRejectedValue(new Error('api down'));
-    vi.mocked(businessApi.updateBusiness).mockResolvedValue({
-      business: makeTestBusiness({
-        streetAddress: 'הרצל 1',
-        city: 'תל אביב',
-        postalCode: '6100000',
-      }),
-      role: 'owner',
-    });
-    const user = userEvent.setup();
-    renderModal({ streetAddress: null, city: null, postalCode: null });
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/עיר \/ ישוב/)).not.toBeDisabled();
-    });
+    const user = await setupAddressForm(
+      { postalCode: null },
+      { streetAddress: 'הרצל 1', city: 'תל אביב', postalCode: '6100000' }
+    );
 
     await user.type(screen.getByLabelText(/עיר \/ ישוב/), 'תל אביב');
     await user.type(screen.getByLabelText(/רחוב/), 'הרצל');

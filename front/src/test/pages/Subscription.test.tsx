@@ -43,6 +43,23 @@ describe('Subscription page', () => {
   const createCheckoutMock = vi.mocked(subscriptionsApi.createCheckout);
   const cancelSubscriptionMock = vi.mocked(subscriptionsApi.cancelSubscription);
 
+  // ── helpers ──
+  const NO_SUBSCRIPTION_RESPONSE = {
+    subscription: null,
+    canCreateInvoices: false,
+    daysRemaining: null,
+  };
+
+  function mockNoSubscription() {
+    fetchSubscriptionMock.mockResolvedValue(NO_SUBSCRIPTION_RESPONSE);
+  }
+
+  async function renderPricingView() {
+    mockNoSubscription();
+    renderSubscription();
+    await screen.findByText('בחרו תוכנית');
+  }
+
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -54,48 +71,28 @@ describe('Subscription page', () => {
   });
 
   it('shows pricing plans when no subscription exists', async () => {
-    fetchSubscriptionMock.mockResolvedValue({
-      subscription: null,
-      canCreateInvoices: false,
-      daysRemaining: null,
-    });
+    await renderPricingView();
 
-    renderSubscription();
-
-    expect(await screen.findByText('בחרו תוכנית')).toBeInTheDocument();
     expect(screen.getByText('חודשי')).toBeInTheDocument();
     expect(screen.getByText('שנתי')).toBeInTheDocument();
   });
 
   it('shows plan features in pricing view', async () => {
-    fetchSubscriptionMock.mockResolvedValue({
-      subscription: null,
-      canCreateInvoices: false,
-      daysRemaining: null,
-    });
+    await renderPricingView();
 
-    renderSubscription();
-
-    await screen.findByText('בחרו תוכנית');
     expect(screen.getAllByText('חשבוניות ללא הגבלה')).toHaveLength(2);
     expect(screen.getAllByText('ניהול לקוחות')).toHaveLength(2);
   });
 
   it('shows start trial button when no subscription exists', async () => {
-    fetchSubscriptionMock.mockResolvedValue({
-      subscription: null,
-      canCreateInvoices: false,
-      daysRemaining: null,
-    });
     startTrialMock.mockResolvedValue({
       subscription: makeSubscription({ status: 'trialing' }),
       canCreateInvoices: true,
       daysRemaining: 14,
     });
 
-    renderSubscription();
+    await renderPricingView();
 
-    await screen.findByText('בחרו תוכנית');
     expect(screen.getByRole('button', { name: /ימי ניסיון חינם/ })).toBeInTheDocument();
   });
 
@@ -152,33 +149,20 @@ describe('Subscription page', () => {
   });
 
   it('shows yearly savings badge on plan card', async () => {
-    fetchSubscriptionMock.mockResolvedValue({
-      subscription: null,
-      canCreateInvoices: false,
-      daysRemaining: null,
-    });
+    await renderPricingView();
 
-    renderSubscription();
-
-    await screen.findByText('בחרו תוכנית');
     expect(screen.getByText(/חיסכון/)).toBeInTheDocument();
   });
 
   it('calls createCheckout when pricing checkout button is clicked', async () => {
-    fetchSubscriptionMock.mockResolvedValue({
-      subscription: null,
-      canCreateInvoices: false,
-      daysRemaining: null,
-    });
     createCheckoutMock.mockResolvedValue({
       paymentUrl: 'https://example.com',
       processId: 'proc-1',
     });
 
     const user = userEvent.setup();
-    renderSubscription();
+    await renderPricingView();
 
-    await screen.findByText('בחרו תוכנית');
     await user.click(screen.getByRole('button', { name: /התחילו עם/ }));
 
     expect(createCheckoutMock).toHaveBeenCalledWith(
@@ -222,11 +206,6 @@ describe('Subscription page', () => {
   });
 
   it('clicking trial button calls startTrial', async () => {
-    fetchSubscriptionMock.mockResolvedValue({
-      subscription: null,
-      canCreateInvoices: false,
-      daysRemaining: null,
-    });
     startTrialMock.mockResolvedValue({
       subscription: makeSubscription({ status: 'trialing' }),
       canCreateInvoices: true,
@@ -234,25 +213,17 @@ describe('Subscription page', () => {
     });
 
     const user = userEvent.setup();
-    renderSubscription();
+    await renderPricingView();
 
-    await screen.findByText('בחרו תוכנית');
     await user.click(screen.getByRole('button', { name: /ימי ניסיון חינם/ }));
 
     expect(startTrialMock).toHaveBeenCalledWith('biz-1');
   });
 
   it('selecting yearly plan updates the checkout button text', async () => {
-    fetchSubscriptionMock.mockResolvedValue({
-      subscription: null,
-      canCreateInvoices: false,
-      daysRemaining: null,
-    });
-
     const user = userEvent.setup();
-    renderSubscription();
+    await renderPricingView();
 
-    await screen.findByText('בחרו תוכנית');
     expect(screen.getByRole('button', { name: /לחודש/ })).toBeInTheDocument();
 
     await user.click(screen.getByText('שנתי'));

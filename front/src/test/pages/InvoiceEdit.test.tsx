@@ -326,12 +326,18 @@ describe('InvoiceEdit page', () => {
 
     await screen.findByText('לא הצלחנו לטעון את החשבונית');
 
-    const callsBefore = vi.mocked(invoicesApi.fetchInvoice).mock.calls.length;
+    const invoiceCallsBefore = vi.mocked(invoicesApi.fetchInvoice).mock.calls.length;
+    const businessCallsBefore = vi.mocked(businessApi.fetchBusiness).mock.calls.length;
 
     await user.click(screen.getByRole('button', { name: 'נסה שוב' }));
 
     await waitFor(() => {
-      expect(vi.mocked(invoicesApi.fetchInvoice).mock.calls.length).toBeGreaterThan(callsBefore);
+      expect(vi.mocked(invoicesApi.fetchInvoice).mock.calls.length).toBeGreaterThan(
+        invoiceCallsBefore
+      );
+      expect(vi.mocked(businessApi.fetchBusiness).mock.calls.length).toBeGreaterThan(
+        businessCallsBefore
+      );
     });
   });
 
