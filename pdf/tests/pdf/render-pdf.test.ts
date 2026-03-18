@@ -85,7 +85,7 @@ describe('isBlockedAfterDns', () => {
   });
 
   it('allows public URLs that resolve to public IPs', async () => {
-    mockLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
+    mockLookup.mockResolvedValue([{ address: '192.0.2.1', family: 4 }]);
 
     expect(await isBlockedAfterDns('https://example.com/logo.png')).toBe(false);
   });
