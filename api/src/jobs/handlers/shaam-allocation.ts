@@ -14,6 +14,7 @@ import { consumeNext } from '../../repositories/emergency-allocation-repository.
 import { markNeedsReauth } from '../../repositories/shaam-credentials-repository.js';
 import { buildItaPayload } from '../../services/shaam/build-ita-payload.js';
 import { toNumber } from '../../lib/numeric.js';
+import { env } from '../../env.js';
 import { ITA_ERROR_MAP, EMERGENCY_POOL_EMPTY_MESSAGE, type ItaErrorCode } from '@bon/types/shaam';
 import type {
   AllocationRequest,
@@ -121,7 +122,10 @@ export function createShaamAllocationHandler(
           currency: invoice.currency,
         },
         lineItemsData,
-        { vatNumber: business.vatNumber }
+        {
+          vatNumber: business.vatNumber,
+          softwareRegistrationNumber: env.SHAAM_REGISTRATION_NUMBER,
+        }
       );
 
       result = await shaamService.requestAllocationNumber(request);

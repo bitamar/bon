@@ -32,6 +32,7 @@ export interface BuildItaLineItemData {
 
 export interface BuildItaBusinessData {
   readonly vatNumber: string | null;
+  readonly softwareRegistrationNumber?: string | undefined;
 }
 
 /**
@@ -95,6 +96,10 @@ export function buildItaPayload(
 
   if (invoice.customerTaxId) {
     payload.ClientVatNumber = invoice.customerTaxId;
+  }
+
+  if (business.softwareRegistrationNumber) {
+    payload.AccountingSoftwareNumber = business.softwareRegistrationNumber;
   }
 
   return payload;

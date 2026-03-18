@@ -107,6 +107,7 @@ export const itaRequestPayloadSchema = z.object({
   TotalAmount: z.number(),
   Currency: z.string(),
   LineItems: z.array(itaLineItemSchema),
+  AccountingSoftwareNumber: z.string().optional(),
 });
 
 export type ItaLineItem = z.infer<typeof itaLineItemSchema>;

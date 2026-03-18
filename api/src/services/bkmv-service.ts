@@ -9,6 +9,7 @@ import type { InvoiceRecord, InvoiceItemRecord } from '../repositories/invoice-r
 import { findPaymentsByInvoiceIds } from '../repositories/payment-repository.js';
 import type { PaymentRecord } from '../repositories/payment-repository.js';
 import { badRequest, notFound } from '../lib/app-error.js';
+import { env } from '../env.js';
 
 // Document type → C100 subsection code
 const SUBSECTION_CODES: Record<string, string> = {
@@ -179,7 +180,7 @@ function buildIniContent(business: BusinessRecord, year: number, counts: Busines
     `1003|${business.city ?? ''}`,
     `1004|${year}0101`,
     `1005|${year}1231`,
-    `1006|`,
+    `1006|${env.SHAAM_REGISTRATION_NUMBER ?? ''}`,
     `1007|BON`,
     `1008|1.0`,
     `1009|${timestamp}`,
