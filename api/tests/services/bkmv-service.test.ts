@@ -2,7 +2,10 @@ import * as iconv from 'iconv-lite';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppError } from '../../src/lib/app-error.js';
 import { generateBkmvExport } from '../../src/services/bkmv-service.js';
-import type { InvoiceRecord, InvoiceItemRecord } from '../../src/repositories/invoice-repository.js';
+import type {
+  InvoiceRecord,
+  InvoiceItemRecord,
+} from '../../src/repositories/invoice-repository.js';
 import type { PaymentRecord } from '../../src/repositories/payment-repository.js';
 
 vi.mock('../../src/repositories/business-repository.js');
@@ -10,12 +13,9 @@ vi.mock('../../src/repositories/invoice-repository.js');
 vi.mock('../../src/repositories/payment-repository.js');
 
 const { findBusinessById } = await import('../../src/repositories/business-repository.js');
-const { findInvoicesForReport, findItemsByInvoiceIds } = await import(
-  '../../src/repositories/invoice-repository.js'
-);
-const { findPaymentsByInvoiceIds } = await import(
-  '../../src/repositories/payment-repository.js'
-);
+const { findInvoicesForReport, findItemsByInvoiceIds } =
+  await import('../../src/repositories/invoice-repository.js');
+const { findPaymentsByInvoiceIds } = await import('../../src/repositories/payment-repository.js');
 
 // ── helpers ──
 
@@ -215,15 +215,15 @@ describe('bkmv-service', () => {
       expect(fields[3]!.length).toBe(20);
       // Date formatted as YYYYMMDD
       expect(fields[4]).toBe('20250615');
-      // Customer name, 50 chars
-      expect(fields[6]).toContain('Test Customer Ltd');
-      expect(fields[6]!.length).toBe(50);
+      // Customer name, 50 chars (index 7: after two date fields and cancel flag 'S')
+      expect(fields[7]).toContain('Test Customer Ltd');
+      expect(fields[7]!.length).toBe(50);
       // Customer tax ID, 9 chars padded
-      expect(fields[10]).toBe('123456789');
+      expect(fields[11]).toBe('123456789');
       // Amounts, 15 chars each
-      expect(fields[13]).toBe('000000000010000'); // totalExclVat
-      expect(fields[14]).toBe('000000000001700'); // vat
-      expect(fields[15]).toBe('000000000011700'); // totalInclVat
+      expect(fields[14]).toBe('000000000010000'); // totalExclVat
+      expect(fields[15]).toBe('000000000001700'); // vat
+      expect(fields[16]).toBe('000000000011700'); // totalInclVat
     });
 
     it('maps credit_note to subsection 330', async () => {
@@ -368,9 +368,9 @@ describe('bkmv-service', () => {
       expect(lines.some((l) => l.startsWith('1004|20250101'))).toBe(true);
       expect(lines.some((l) => l.startsWith('1005|20251231'))).toBe(true);
       // Counts: 1 C100, 1 D110, 1 D120
-      expect(lines.some((l) => l === '1010|1')).toBe(true);
-      expect(lines.some((l) => l === '1011|1')).toBe(true);
-      expect(lines.some((l) => l === '1012|1')).toBe(true);
+      expect(lines.includes('1010|1')).toBe(true);
+      expect(lines.includes('1011|1')).toBe(true);
+      expect(lines.includes('1012|1')).toBe(true);
     });
   });
 });

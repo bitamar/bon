@@ -20,6 +20,6 @@ export async function createZip(files: Record<string, Buffer | string>): Promise
     for (const [name, content] of Object.entries(files)) {
       archive.append(content, { name });
     }
-    void archive.finalize();
+    archive.finalize();
   });
 }

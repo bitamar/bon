@@ -11,6 +11,7 @@ import {
   insertItems,
   deleteItemsByInvoiceId,
   findItemsByInvoiceId,
+  findItemsByInvoiceIds,
   findInvoices,
   countInvoices,
   aggregateOutstanding,
@@ -244,6 +245,39 @@ describe('invoice-repository', () => {
       const invoice = await createTestInvoice(businessId);
       const items = await findItemsByInvoiceId(invoice!.id);
       expect(items).toHaveLength(0);
+    });
+  });
+
+  // ── findItemsByInvoiceIds ──
+
+  describe('findItemsByInvoiceIds', () => {
+    it('returns empty array when given empty input', async () => {
+      const items = await findItemsByInvoiceIds([]);
+      expect(items).toHaveLength(0);
+    });
+
+    it('returns items for multiple invoices ordered by invoiceId then position', async () => {
+      const inv1 = await createTestInvoice(businessId);
+      const inv2 = await createTestInvoice(businessId);
+      await insertItems([
+        makeItem(inv1!.id, 2),
+        makeItem(inv1!.id, 1),
+        makeItem(inv2!.id, 1),
+        makeItem(inv2!.id, 2),
+      ]);
+
+      const items = await findItemsByInvoiceIds([inv1!.id, inv2!.id]);
+
+      expect(items).toHaveLength(4);
+      // Items should be grouped by invoiceId and ordered by position within each group
+      const inv1Items = items.filter((i) => i.invoiceId === inv1!.id);
+      const inv2Items = items.filter((i) => i.invoiceId === inv2!.id);
+      expect(inv1Items).toHaveLength(2);
+      expect(inv1Items[0]!.position).toBe(1);
+      expect(inv1Items[1]!.position).toBe(2);
+      expect(inv2Items).toHaveLength(2);
+      expect(inv2Items[0]!.position).toBe(1);
+      expect(inv2Items[1]!.position).toBe(2);
     });
   });
 

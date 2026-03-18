@@ -299,10 +299,12 @@ export async function generateBkmvExport(
     }
   }
 
-  bkmvLines.push(buildZ900('A100', 1));
-  bkmvLines.push(buildZ900('C100', c100Count));
-  bkmvLines.push(buildZ900('D110', d110Count));
-  bkmvLines.push(buildZ900('D120', d120Count));
+  bkmvLines.push(
+    buildZ900('A100', 1),
+    buildZ900('C100', c100Count),
+    buildZ900('D110', d110Count),
+    buildZ900('D120', d120Count)
+  );
 
   const counts: BusinessCounts = { c100: c100Count, d110: d110Count, d120: d120Count };
 

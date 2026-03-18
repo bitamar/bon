@@ -139,7 +139,7 @@ BON is a single-entry invoicing system, not a double-entry bookkeeping system. H
 
 ### Implementation Structure
 
-```
+```text
 api/src/services/bkmv/
 ├── bkmv-service.ts          — orchestrates file generation
 ├── ini-generator.ts         — generates INI.TXT content

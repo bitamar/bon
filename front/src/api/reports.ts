@@ -1,4 +1,5 @@
 import { pcn874QuerySchema } from '@bon/types/pcn874';
+import { uniformFileQuerySchema } from '@bon/types/reports';
 import { fetchBlob } from '../lib/http';
 
 function triggerBlobDownload(blob: Blob, filename: string): void {
@@ -35,7 +36,10 @@ export async function downloadPcn874(
 }
 
 export async function downloadUniformFile(businessId: string, year: number): Promise<void> {
-  const res = await fetchBlob(`/businesses/${businessId}/reports/uniform-file?year=${year}`);
+  const validated = uniformFileQuerySchema.parse({ year });
+  const res = await fetchBlob(
+    `/businesses/${businessId}/reports/uniform-file?year=${validated.year}`
+  );
   const blob = await res.blob();
   triggerBlobDownload(blob, extractFilename(res, `BKMV_${year}.zip`));
 }
