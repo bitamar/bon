@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { InvoiceList } from '../../pages/InvoiceList';
@@ -9,6 +9,13 @@ vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
 vi.mock('../../api/invoices', () => ({ fetchInvoices: vi.fn() }));
 vi.mock('../../api/customers', () => ({ fetchCustomers: vi.fn() }));
 vi.mock('../../api/subscriptions', () => ({ fetchSubscription: vi.fn() }));
+vi.mock('../../components/CustomerSelect', () => ({
+  CustomerSelect: vi.fn(({ onChange }: Readonly<{ onChange: (v: string | null) => void }>) => (
+    <button type="button" data-testid="mock-customer-select" onClick={() => onChange('c-1')}>
+      בחר לקוח
+    </button>
+  )),
+}));
 
 import { useBusiness } from '../../contexts/BusinessContext';
 import * as invoicesApi from '../../api/invoices';
@@ -81,6 +88,48 @@ async function renderWithInvoices(response = mockListResponse()) {
   mockDefaultInvoices(response);
   renderInvoiceList();
   await screen.findByText('INV-001');
+}
+
+function getLastFetchParams() {
+  const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
+  return calls[calls.length - 1]?.[1];
+}
+
+function renderListWithRoutes(
+  targetPath: string,
+  targetElement: React.ReactNode,
+  initialPath = '/businesses/biz-1/invoices'
+) {
+  return renderWithProviders(
+    <Routes>
+      <Route path="/businesses/:businessId/invoices" element={<InvoiceList />} />
+      <Route path={targetPath} element={targetElement} />
+    </Routes>,
+    { router: { initialEntries: [initialPath] } }
+  );
+}
+
+function findDateClearButton(container: HTMLElement, index: number) {
+  const dateInputs = container.querySelectorAll('[data-dates-input]');
+  const dateInput = dateInputs[index] as HTMLElement;
+  const inputWrapper = dateInput?.closest('[data-with-right-section]');
+  return inputWrapper?.querySelector('[data-position="right"] button') as HTMLElement | null;
+}
+
+async function renderListWithDefaults(query?: string) {
+  mockDefaultInvoices();
+  const result = renderInvoiceList(query ? `/businesses/biz-1/invoices?${query}` : undefined);
+  await screen.findByText('INV-001');
+  return result;
+}
+
+async function setupInvoiceRowNavigation() {
+  mockDefaultInvoices();
+  renderListWithRoutes('/businesses/:businessId/invoices/:invoiceId', <div>detail page</div>);
+  await screen.findByText('INV-001');
+  const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
+  expect(tableRow).not.toBeNull();
+  return tableRow;
 }
 
 describe('InvoiceList page', () => {
@@ -170,9 +219,7 @@ describe('InvoiceList page', () => {
     const draftChip = screen.getByText('טיוטות');
     await user.click(draftChip);
 
-    const calls = vi.mocked(invoicesApi.fetchInvoices).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    expect(lastCall?.[1]).toMatchObject({ status: 'draft' });
+    expect(getLastFetchParams()).toMatchObject({ status: 'draft' });
   });
 
   it('shows pagination when total exceeds page size', async () => {
@@ -224,4 +271,208 @@ describe('InvoiceList page', () => {
     const newButton = screen.getByRole('link', { name: /חשבונית חדשה/ });
     expect(newButton).toHaveAttribute('href', '/businesses/biz-1/subscription');
   });
+
+  it('clicking outstanding chip sends correct status and sort params', async () => {
+    const user = userEvent.setup();
+    await renderWithInvoices();
+
+    await user.click(screen.getByText('ממתינות לתשלום'));
+
+    expect(getLastFetchParams()).toMatchObject({
+      status: 'finalized,sent,partially_paid',
+      sort: 'dueDate:asc',
+    });
+  });
+
+  it('shows clear all filters button when filters are present', async () => {
+    await renderListWithDefaults('status=draft');
+
+    expect(screen.getByRole('button', { name: 'נקה הכל' })).toBeInTheDocument();
+  });
+
+  it('does not show clear button when no filters active', async () => {
+    await renderWithInvoices();
+
+    expect(screen.queryByRole('button', { name: 'נקה הכל' })).not.toBeInTheDocument();
+  });
+
+  it('clicking page 2 passes page param to fetchInvoices', async () => {
+    const user = userEvent.setup();
+    await renderWithInvoices(mockListResponse([mockInvoice()], 40));
+
+    await user.click(screen.getByRole('button', { name: '2' }));
+
+    expect(getLastFetchParams()).toMatchObject({ page: '2' });
+  });
+
+  it('does not show overdue indicator for paid invoices', async () => {
+    const invoice = mockInvoice({ dueDate: '2000-01-01', status: 'paid' });
+    await renderWithInvoices(mockListResponse([invoice]));
+
+    expect(screen.queryByText(/באיחור/)).not.toBeInTheDocument();
+  });
+
+  it('date filter in URL is passed to fetchInvoices as dateFrom param', async () => {
+    await renderListWithDefaults('dateFrom=2026-01-01');
+
+    expect(getLastFetchParams()).toMatchObject({ dateFrom: '2026-01-01' });
+  });
+
+  it('clear all button resets all filters', async () => {
+    const user = userEvent.setup();
+    await renderListWithDefaults('status=draft&dateFrom=2026-01-01');
+
+    await user.click(screen.getByRole('button', { name: 'נקה הכל' }));
+
+    expect(getLastFetchParams()).not.toHaveProperty('status');
+    expect(getLastFetchParams()).not.toHaveProperty('dateFrom');
+  });
+
+  // ── Retry button on error state (line 309) ──
+
+  it('clicking retry button on error state calls refetch', async () => {
+    const user = userEvent.setup();
+    vi.mocked(invoicesApi.fetchInvoices).mockRejectedValue(new Error('network error'));
+    renderInvoiceList();
+
+    await screen.findByText('שגיאה בטעינת חשבוניות');
+    expect(screen.getByRole('button', { name: 'נסה שוב' })).toBeInTheDocument();
+
+    // After clicking retry, mock resolves so we get the invoice list
+    vi.mocked(invoicesApi.fetchInvoices).mockResolvedValue(mockListResponse());
+    await user.click(screen.getByRole('button', { name: 'נסה שוב' }));
+
+    expect(await screen.findByText('INV-001')).toBeInTheDocument();
+  });
+
+  // ── Pagination back to page 1 (line 270) ──
+
+  it('clicking page 1 fetches first page data', async () => {
+    const user = userEvent.setup();
+    mockDefaultInvoices(mockListResponse([mockInvoice()], 60));
+    renderInvoiceList('/businesses/biz-1/invoices?page=2');
+    await screen.findByText('INV-001');
+
+    await user.click(screen.getByRole('button', { name: '1' }));
+
+    expect(getLastFetchParams()).toMatchObject({ page: '1' });
+  });
+
+  // ── statusParamToChip with draft status (line 63) ──
+
+  it('renders with ?status=draft in URL and passes draft status to fetchInvoices', async () => {
+    await renderListWithDefaults('status=draft');
+
+    expect(getLastFetchParams()).toMatchObject({ status: 'draft' });
+  });
+
+  // ── InvoiceRow click navigation ──
+
+  it('clicking an invoice row navigates to detail page', async () => {
+    const user = userEvent.setup();
+    const tableRow = await setupInvoiceRowNavigation();
+    await user.click(tableRow);
+
+    expect(await screen.findByText('detail page')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['Enter', 'Enter'],
+    ['Space', ' '],
+  ])('pressing %s on an invoice row navigates to detail page', async (_label, key) => {
+    const tableRow = await setupInvoiceRowNavigation();
+    fireEvent.keyDown(tableRow, { key });
+
+    expect(await screen.findByText('detail page')).toBeInTheDocument();
+  });
+
+  // ── Empty state CTA navigation (line 336) ──
+
+  it('empty state CTA shows correct label when canCreateInvoices=true', async () => {
+    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue(ACTIVE_SUBSCRIPTION_RESPONSE);
+    mockDefaultInvoices(mockListResponse([], 0));
+    renderInvoiceList();
+
+    const ctaButton = await screen.findByRole('button', { name: 'חשבונית חדשה' });
+    expect(ctaButton).toBeInTheDocument();
+  });
+
+  it('empty state CTA shows correct label and navigates to subscription when canCreateInvoices=false', async () => {
+    const user = userEvent.setup();
+    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue(INACTIVE_SUBSCRIPTION_RESPONSE);
+    mockDefaultInvoices(mockListResponse([], 0));
+    renderListWithRoutes('/businesses/:businessId/subscription', <div>subscription page</div>);
+
+    const ctaButton = await screen.findByRole('button', { name: 'מעבר לעמוד מנויים' });
+    await user.click(ctaButton);
+
+    expect(await screen.findByText('subscription page')).toBeInTheDocument();
+  });
+
+  it('empty state CTA navigates to invoices/new when canCreateInvoices=true', async () => {
+    const user = userEvent.setup();
+    vi.mocked(subscriptionsApi.fetchSubscription).mockResolvedValue(ACTIVE_SUBSCRIPTION_RESPONSE);
+    mockDefaultInvoices(mockListResponse([], 0));
+    renderListWithRoutes('/businesses/:businessId/invoices/new', <div>new invoice page</div>);
+
+    const ctaButton = await screen.findByRole('button', { name: 'חשבונית חדשה' });
+    await user.click(ctaButton);
+
+    expect(await screen.findByText('new invoice page')).toBeInTheDocument();
+  });
+
+  // ── Date filter interactions ──
+
+  it('dateTo filter in URL is passed to fetchInvoices as dateTo param', async () => {
+    await renderListWithDefaults('dateTo=2026-12-31');
+
+    expect(getLastFetchParams()).toMatchObject({ dateTo: '2026-12-31' });
+  });
+
+  it('both dateFrom and dateTo filters in URL are passed to fetchInvoices', async () => {
+    await renderListWithDefaults('dateFrom=2026-01-01&dateTo=2026-06-30');
+
+    expect(getLastFetchParams()).toMatchObject({ dateFrom: '2026-01-01', dateTo: '2026-06-30' });
+  });
+
+  // ── Customer filter handler (lines 255-256) ──
+
+  it('selecting a customer via CustomerSelect calls fetchInvoices with customerId', async () => {
+    const user = userEvent.setup();
+    await renderWithInvoices();
+
+    await user.click(screen.getByTestId('mock-customer-select'));
+
+    expect(getLastFetchParams()).toMatchObject({ customerId: 'c-1' });
+  });
+
+  // ── Chip back to "all" deletes status param (line 239) ──
+
+  it('clicking all chip after a status filter removes the status param', async () => {
+    const user = userEvent.setup();
+    await renderListWithDefaults('status=paid');
+
+    await user.click(screen.getByText('כל החשבוניות'));
+
+    expect(getLastFetchParams()).not.toHaveProperty('status');
+  });
+
+  // ── Date handler: clearing date via clear button ──
+
+  it.each([
+    { param: 'dateFrom', query: 'dateFrom=2026-01-01', index: 0 },
+    { param: 'dateTo', query: 'dateTo=2026-12-31', index: 1 },
+  ])(
+    'clearing $param via clear button removes it from query params',
+    async ({ param, query, index }) => {
+      const user = userEvent.setup();
+      const { container } = await renderListWithDefaults(query);
+
+      const clearBtn = findDateClearButton(container, index);
+      expect(clearBtn).toBeTruthy();
+      await user.click(clearBtn!);
+
+      expect(getLastFetchParams()).not.toHaveProperty(param);
+    }
+  );
 });

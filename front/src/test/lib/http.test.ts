@@ -1,22 +1,17 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchJson, HttpError } from '../../lib/http';
+import { describe, expect, it, vi } from 'vitest';
+import { fetchJson, fetchBlob, HttpError } from '../../lib/http';
+import { useFetchMock } from '../api/fetch-mock';
 
-const fetchMock = vi.fn();
-const originalFetch = globalThis.fetch;
+function mockNonJsonError(fetchMock: ReturnType<typeof useFetchMock>['fetchMock']) {
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status: 500,
+    json: vi.fn().mockRejectedValueOnce(new Error('bad json')),
+  });
+}
 
 describe('fetchJson', () => {
-  beforeEach(() => {
-    fetchMock.mockReset();
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  afterAll(() => {
-    fetchMock.mockReset();
-  });
+  const { fetchMock } = useFetchMock();
 
   it('performs request with default options and parses response', async () => {
     const responseJson = { data: 42 };
@@ -36,11 +31,12 @@ describe('fetchJson', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(expectedUrl, {
       credentials: 'include',
-      headers: {
-        'X-Test': 'yes',
-      },
       method: 'POST',
       body: JSON.stringify({ foo: 'bar' }),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Test': 'yes',
+      },
     });
     expect(result).toEqual(responseJson);
   });
@@ -63,18 +59,54 @@ describe('fetchJson', () => {
   });
 
   it('throws HttpError with fallback message when body not json', async () => {
+    mockNonJsonError(fetchMock);
+
+    await expect(fetchJson('/broken')).rejects.toMatchObject({
+      status: 500,
+      message: 'Request failed: 500',
+      body: undefined,
+    });
+  });
+});
+
+describe('fetchBlob', () => {
+  const { fetchMock } = useFetchMock();
+
+  it('returns response on success', async () => {
+    const mockResponse = { ok: true, status: 200 };
+    fetchMock.mockResolvedValueOnce(mockResponse);
+
+    const result = await fetchBlob('/files/invoice.pdf');
+
+    const expectedUrl = `${import.meta.env.VITE_API_BASE_URL}/files/invoice.pdf`;
+    expect(fetchMock).toHaveBeenCalledWith(expectedUrl, { credentials: 'include' });
+    expect(result).toBe(mockResponse);
+  });
+
+  it('throws HttpError with parsed body on failure', async () => {
+    const errorBody = { error: 'Internal Server Error' };
     fetchMock.mockResolvedValueOnce({
       ok: false,
       status: 500,
-      json: vi.fn().mockRejectedValueOnce(new Error('bad json')),
+      json: vi.fn().mockResolvedValueOnce(errorBody),
     });
 
     const expectedError: Partial<HttpError> = {
       status: 500,
-      message: 'Request failed: 500',
-      body: undefined,
+      message: 'Internal Server Error',
+      body: errorBody,
     };
 
-    await expect(fetchJson('/broken')).rejects.toMatchObject(expectedError);
+    await expect(fetchBlob('/files/invoice.pdf')).rejects.toMatchObject(expectedError);
+  });
+
+  it('throws HttpError with fallback message when body not json', async () => {
+    mockNonJsonError(fetchMock);
+
+    await expect(fetchBlob('/files/broken')).rejects.toMatchObject({
+      status: 500,
+      message: 'Request failed: 500',
+      body: undefined,
+    });
   });
 });

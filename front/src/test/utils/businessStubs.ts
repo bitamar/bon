@@ -43,6 +43,16 @@ export function mockActiveBusiness(useBusinessFn: typeof useBusiness) {
   });
 }
 
+export function mockNonOwnerBusiness(useBusinessFn: typeof useBusiness) {
+  vi.mocked(useBusinessFn).mockReturnValue({
+    activeBusiness: { ...activeBusinessStub, role: 'user' },
+    businesses: [],
+    switchBusiness: vi.fn(),
+    setActiveBusiness: vi.fn(),
+    isLoading: false,
+  });
+}
+
 export function mockNoBusiness(useBusinessFn: typeof useBusiness) {
   vi.mocked(useBusinessFn).mockReturnValue({
     activeBusiness: null,
