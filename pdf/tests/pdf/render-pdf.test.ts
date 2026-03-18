@@ -79,9 +79,12 @@ describe('isBlockedAfterDns', () => {
     mockLookup.mockReset();
   });
 
-  it('blocks URLs already blocked by isBlockedRequest', async () => {
+  it('blocks URLs already blocked by isBlockedRequest without invoking DNS', async () => {
     expect(await isBlockedAfterDns('https://127.0.0.1/logo.png')).toBe(true);
+    expect(mockLookup).not.toHaveBeenCalled();
+
     expect(await isBlockedAfterDns('file:///etc/passwd')).toBe(true);
+    expect(mockLookup).not.toHaveBeenCalled();
   });
 
   it('allows public URLs that resolve to public IPs', async () => {
