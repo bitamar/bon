@@ -9,51 +9,68 @@ vi.mock('node:dns/promises', () => ({
   lookup: mockLookup,
 }));
 
+// ── helpers ──
+
+function expectBlocked(urls: string[]) {
+  for (const url of urls) {
+    expect(isBlockedRequest(url), `expected blocked: ${url}`).toBe(true);
+  }
+}
+
+function expectAllowed(urls: string[]) {
+  for (const url of urls) {
+    expect(isBlockedRequest(url), `expected allowed: ${url}`).toBe(false);
+  }
+}
+
 describe('isBlockedRequest', () => {
   it('blocks non-http protocols', () => {
-    expect(isBlockedRequest('file:///etc/passwd')).toBe(true);
-    expect(isBlockedRequest('ftp://example.com/file')).toBe(true);
+    expectBlocked(['file:///etc/passwd', 'ftp://example.com/file']);
   });
 
   it('blocks private IPv4 ranges', () => {
-    expect(isBlockedRequest('https://10.0.0.1/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://172.16.0.1/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://192.168.1.1/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://127.0.0.1/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://0.0.0.0/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://169.254.1.1/logo.png')).toBe(true);
+    expectBlocked([
+      'https://10.0.0.1/logo.png',
+      'https://172.16.0.1/logo.png',
+      'https://192.168.1.1/logo.png',
+      'https://127.0.0.1/logo.png',
+      'https://0.0.0.0/logo.png',
+      'https://169.254.1.1/logo.png',
+    ]);
   });
 
   it('blocks known hostnames', () => {
-    expect(isBlockedRequest('https://localhost/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://metadata.google.internal/v1')).toBe(true);
-    expect(isBlockedRequest('https://metadata.internal/v1')).toBe(true);
+    expectBlocked([
+      'https://localhost/logo.png',
+      'https://metadata.google.internal/v1',
+      'https://metadata.internal/v1',
+    ]);
   });
 
   it('blocks IPv6 loopback and private ranges', () => {
-    expect(isBlockedRequest('https://[::1]/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://[::]/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://[fc00::1]/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://[fd00::1]/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://[fe80::1]/logo.png')).toBe(true);
+    expectBlocked([
+      'https://[::1]/logo.png',
+      'https://[::]/logo.png',
+      'https://[fc00::1]/logo.png',
+      'https://[fd00::1]/logo.png',
+      'https://[fe80::1]/logo.png',
+    ]);
   });
 
   it('allows public URLs', () => {
-    expect(isBlockedRequest('https://example.com/logo.png')).toBe(false);
-    expect(isBlockedRequest('https://cdn.example.com/image.jpg')).toBe(false);
+    expectAllowed(['https://example.com/logo.png', 'https://cdn.example.com/image.jpg']);
   });
 
   it('blocks invalid URLs', () => {
-    expect(isBlockedRequest('not-a-url')).toBe(true);
+    expectBlocked(['not-a-url']);
   });
 
   it('handles trailing dots in hostnames', () => {
-    expect(isBlockedRequest('https://localhost./logo.png')).toBe(true);
+    expectBlocked(['https://localhost./logo.png']);
   });
 
   it('blocks all 172.16-31.x.x ranges', () => {
-    expect(isBlockedRequest('https://172.20.0.1/logo.png')).toBe(true);
-    expect(isBlockedRequest('https://172.31.255.255/logo.png')).toBe(true);
+    expectBlocked(['https://172.20.0.1/logo.png', 'https://172.31.255.255/logo.png']);
   });
 });
 
@@ -86,7 +103,6 @@ describe('isBlockedAfterDns', () => {
   });
 
   it('skips DNS for literal IP addresses', async () => {
-    // Public IP — should be allowed without DNS lookup
     expect(await isBlockedAfterDns('https://93.184.216.34/logo.png')).toBe(false);
     expect(mockLookup).not.toHaveBeenCalled();
   });
