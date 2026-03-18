@@ -9,6 +9,14 @@ export default defineConfig({
     globals: true,
     setupFiles: './src/test/setup.ts',
     testTimeout: 10000,
-    coverage: { reporter: ['text', 'lcov', 'json-summary'] },
+    coverage: {
+      reporter: ['text', 'lcov', 'json-summary'],
+      thresholds: {
+        lines: 96,
+        statements: 95,
+        functions: 95,
+        branches: 85,
+      },
+    },
   },
 });
