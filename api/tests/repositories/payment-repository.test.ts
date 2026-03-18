@@ -2,7 +2,10 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { db } from '../../src/db/client.js';
 import { businesses, invoices, invoicePayments, users } from '../../src/db/schema.js';
 import { randomInt, randomUUID } from 'node:crypto';
-import { sumPaymentsForPeriod } from '../../src/repositories/payment-repository.js';
+import {
+  findPaymentsByInvoiceIds,
+  sumPaymentsForPeriod,
+} from '../../src/repositories/payment-repository.js';
 import { resetDb } from '../utils/db.js';
 
 // ── helpers ──
@@ -109,5 +112,51 @@ describe('sumPaymentsForPeriod', () => {
   it('returns 0 when no payments match', async () => {
     const total = await sumPaymentsForPeriod(businessId, '2026-03-01', '2026-04-01');
     expect(total).toBe(0);
+  });
+});
+
+describe('findPaymentsByInvoiceIds', () => {
+  let businessId: string;
+  let userId: string;
+
+  beforeEach(async () => {
+    await resetDb();
+    const { user, business } = await seedBusinessWithUser();
+    businessId = business.id;
+    userId = user.id;
+  });
+
+  it('returns empty array when given empty input', async () => {
+    const payments = await findPaymentsByInvoiceIds([]);
+    expect(payments).toHaveLength(0);
+  });
+
+  it('returns payments for requested invoices ordered by invoiceId then paidAt desc', async () => {
+    const inv1 = await createInvoice(businessId);
+    const inv2 = await createInvoice(businessId);
+    await createPayment(inv1.id, userId, '2026-03-01', 1000);
+    await createPayment(inv1.id, userId, '2026-03-15', 2000);
+    await createPayment(inv2.id, userId, '2026-03-10', 3000);
+
+    const payments = await findPaymentsByInvoiceIds([inv1.id, inv2.id]);
+
+    expect(payments).toHaveLength(3);
+    // Within the same invoiceId, newer paidAt comes first
+    const inv1Payments = payments.filter((p) => p.invoiceId === inv1.id);
+    expect(inv1Payments).toHaveLength(2);
+    expect(inv1Payments[0]!.amountMinorUnits).toBe(2000); // 2026-03-15
+    expect(inv1Payments[1]!.amountMinorUnits).toBe(1000); // 2026-03-01
+  });
+
+  it('excludes payments for non-requested invoices', async () => {
+    const inv1 = await createInvoice(businessId);
+    const inv2 = await createInvoice(businessId);
+    await createPayment(inv1.id, userId, '2026-03-05', 1000);
+    await createPayment(inv2.id, userId, '2026-03-05', 2000);
+
+    const payments = await findPaymentsByInvoiceIds([inv1.id]);
+
+    expect(payments).toHaveLength(1);
+    expect(payments[0]!.invoiceId).toBe(inv1.id);
   });
 });

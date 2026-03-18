@@ -1,4 +1,4 @@
-import { desc, eq, and, gte, lt, sum, sql } from 'drizzle-orm';
+import { desc, eq, and, gte, inArray, lt, sum, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { invoicePayments, invoices } from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
@@ -28,6 +28,20 @@ export async function findPaymentsByInvoiceId(invoiceId: string, txOrDb: DbOrTx 
       desc(invoicePayments.paidAt),
       desc(invoicePayments.createdAt),
       desc(invoicePayments.id)
+    );
+}
+
+export async function findPaymentsByInvoiceIds(invoiceIds: string[], txOrDb: DbOrTx = db) {
+  if (invoiceIds.length === 0) return [];
+  return txOrDb
+    .select()
+    .from(invoicePayments)
+    .where(inArray(invoicePayments.invoiceId, invoiceIds))
+    .orderBy(
+      invoicePayments.invoiceId,
+      desc(invoicePayments.paidAt),
+      desc(invoicePayments.createdAt),
+      invoicePayments.id
     );
 }
 
