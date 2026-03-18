@@ -84,6 +84,15 @@ export async function findItemsByInvoiceId(invoiceId: string, txOrDb: DbOrTx = d
     .orderBy(invoiceItems.position);
 }
 
+export async function findItemsByInvoiceIds(invoiceIds: string[], txOrDb: DbOrTx = db) {
+  if (invoiceIds.length === 0) return [];
+  return txOrDb
+    .select()
+    .from(invoiceItems)
+    .where(inArray(invoiceItems.invoiceId, invoiceIds))
+    .orderBy(invoiceItems.invoiceId, invoiceItems.position);
+}
+
 export async function findCreditNotesBySourceInvoiceId(
   sourceInvoiceId: string,
   businessId: string,

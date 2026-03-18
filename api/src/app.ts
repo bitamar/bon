@@ -87,7 +87,6 @@ export async function buildServer(options: FastifyServerOptions = {}) {
         { name: 'Dashboard', description: 'Business dashboard aggregates' },
         { name: 'Reports', description: 'Business reports and exports' },
         { name: 'Subscriptions', description: 'Subscription & payment management' },
-        { name: 'Reports', description: 'Reporting & compliance exports' },
       ],
     },
     transform: jsonSchemaTransform,

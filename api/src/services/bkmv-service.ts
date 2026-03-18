@@ -1,12 +1,11 @@
-// TODO: Output is currently UTF-8. ITA specification requires Windows-1255 (Hebrew) encoding.
-// Add iconv-lite conversion in a follow-up ticket (T21).
-import { and, eq, gte, inArray, lt } from 'drizzle-orm';
-import { db } from '../db/client.js';
-import { businesses, invoiceItems, invoicePayments, invoices } from '../db/schema.js';
+import * as iconv from 'iconv-lite';
+import { findBusinessById } from '../repositories/business-repository.js';
+import type { BusinessRecord } from '../repositories/business-repository.js';
+import { findInvoicesForReport, findItemsByInvoiceIds } from '../repositories/invoice-repository.js';
+import type { InvoiceRecord, InvoiceItemRecord } from '../repositories/invoice-repository.js';
+import { findPaymentsByInvoiceIds } from '../repositories/payment-repository.js';
+import type { PaymentRecord } from '../repositories/payment-repository.js';
 import { badRequest, notFound } from '../lib/app-error.js';
-import type { DbOrTx } from '../db/types.js';
-
-const FINALIZED_STATUSES = ['finalized', 'sent', 'paid', 'partially_paid', 'credited'] as const;
 
 // Document type → C100 subsection code
 const SUBSECTION_CODES: Record<string, string> = {
@@ -60,11 +59,33 @@ function formatDiscountPercent(pct: string | number): string {
 
 // ── Record builders ──
 
-type InvoiceRow = typeof invoices.$inferSelect;
-type InvoiceItemRow = typeof invoiceItems.$inferSelect;
-type InvoicePaymentRow = typeof invoicePayments.$inferSelect;
+function buildA100(business: BusinessRecord, year: number): string {
+  const now = new Date();
+  const timestamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0'),
+  ].join('');
 
-function buildC100(invoice: InvoiceRow, runningNumber: number): string {
+  const fields = [
+    padRight('A100', 4),
+    padRight(business.registrationNumber, 15),
+    padRight(business.name, 50),
+    padRight(business.streetAddress ?? '', 50),
+    padRight(business.city ?? '', 30),
+    `${year}0101`,
+    `${year}1231`,
+    padRight('BON', 20),
+    padRight('1.0', 10),
+    timestamp,
+  ];
+  return fields.join('|');
+}
+
+function buildC100(invoice: InvoiceRecord, runningNumber: number): string {
   const subsection = SUBSECTION_CODES[invoice.documentType] ?? '305';
   const fields = [
     padRight('C100', 4),
@@ -91,7 +112,7 @@ function buildC100(invoice: InvoiceRow, runningNumber: number): string {
   return fields.join('|');
 }
 
-function buildD110(item: InvoiceItemRow, subsection: string, runningNumber: number): string {
+function buildD110(item: InvoiceItemRecord, subsection: string, runningNumber: number): string {
   const discountPct = Number(item.discountPercent);
   const gross = Number(item.quantity) * item.unitPriceMinorUnits;
   const discountAmount = Math.round((gross * discountPct) / 100);
@@ -115,7 +136,7 @@ function buildD110(item: InvoiceItemRow, subsection: string, runningNumber: numb
   return fields.join('|');
 }
 
-function buildD120(payment: InvoicePaymentRow, subsection: string, runningNumber: number): string {
+function buildD120(payment: PaymentRecord, subsection: string, runningNumber: number): string {
   const methodCode = PAYMENT_METHOD_CODES[payment.method] ?? '5';
   const fields = [
     padRight('D120', 4),
@@ -139,9 +160,8 @@ function buildZ900(recordType: string, count: number): string {
 // ── INI.TXT builder ──
 
 type BusinessCounts = { c100: number; d110: number; d120: number };
-type BusinessRow = typeof businesses.$inferSelect;
 
-function buildIniContent(business: BusinessRow, year: number, counts: BusinessCounts): string {
+function buildIniContent(business: BusinessRecord, year: number, counts: BusinessCounts): string {
   const now = new Date();
   const timestamp = [
     now.getFullYear(),
@@ -172,7 +192,7 @@ function buildIniContent(business: BusinessRow, year: number, counts: BusinessCo
 
 // ── README.TXT builder ──
 
-function buildReadmeContent(business: BusinessRow, year: number, counts: BusinessCounts): string {
+function buildReadmeContent(business: BusinessRecord, year: number, counts: BusinessCounts): string {
   const now = new Date();
   const dateStr = now.toLocaleDateString('he-IL');
   const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
@@ -199,36 +219,24 @@ function buildReadmeContent(business: BusinessRow, year: number, counts: Busines
 // ── Main export function ──
 
 export interface BkmvExportResult {
-  iniContent: string;
-  bkmvdataContent: string;
-  readmeContent: string;
+  iniBuffer: Buffer;
+  bkmvdataBuffer: Buffer;
+  readmeBuffer: Buffer;
   filename: string;
 }
 
 export async function generateBkmvExport(
   businessId: string,
-  year: number,
-  txOrDb: DbOrTx = db
+  year: number
 ): Promise<BkmvExportResult> {
-  const [business] = await txOrDb.select().from(businesses).where(eq(businesses.id, businessId));
+  const business = await findBusinessById(businessId);
 
   if (!business) throw notFound({ message: 'Business not found' });
 
-  const yearStart = `${year}-01-01`;
-  const yearEnd = `${year + 1}-01-01`;
+  const dateFrom = `${year}-01-01`;
+  const dateTo = `${year}-12-31`;
 
-  const invoiceRecords = await txOrDb
-    .select()
-    .from(invoices)
-    .where(
-      and(
-        eq(invoices.businessId, businessId),
-        inArray(invoices.status, [...FINALIZED_STATUSES]),
-        gte(invoices.invoiceDate, yearStart),
-        lt(invoices.invoiceDate, yearEnd)
-      )
-    )
-    .orderBy(invoices.invoiceDate, invoices.sequenceNumber);
+  const invoiceRecords = await findInvoicesForReport(businessId, dateFrom, dateTo);
 
   if (invoiceRecords.length === 0) {
     throw badRequest({
@@ -239,24 +247,17 @@ export async function generateBkmvExport(
 
   const invoiceIds = invoiceRecords.map((inv) => inv.id);
 
-  const itemRecords = await txOrDb
-    .select()
-    .from(invoiceItems)
-    .where(inArray(invoiceItems.invoiceId, invoiceIds));
+  const itemRecords = await findItemsByInvoiceIds(invoiceIds);
+  const paymentRecords = await findPaymentsByInvoiceIds(invoiceIds);
 
-  const paymentRecords = await txOrDb
-    .select()
-    .from(invoicePayments)
-    .where(inArray(invoicePayments.invoiceId, invoiceIds));
-
-  const itemsByInvoice = new Map<string, InvoiceItemRow[]>();
+  const itemsByInvoice = new Map<string, InvoiceItemRecord[]>();
   for (const item of itemRecords) {
     const existing = itemsByInvoice.get(item.invoiceId) ?? [];
     existing.push(item);
     itemsByInvoice.set(item.invoiceId, existing);
   }
 
-  const paymentsByInvoice = new Map<string, InvoicePaymentRow[]>();
+  const paymentsByInvoice = new Map<string, PaymentRecord[]>();
   for (const payment of paymentRecords) {
     const existing = paymentsByInvoice.get(payment.invoiceId) ?? [];
     existing.push(payment);
@@ -268,6 +269,8 @@ export async function generateBkmvExport(
   let d110Count = 0;
   let d120Count = 0;
 
+  bkmvLines.push(buildA100(business, year));
+
   for (const invoice of invoiceRecords) {
     c100Count++;
     const runningNumber = c100Count;
@@ -275,7 +278,8 @@ export async function generateBkmvExport(
 
     bkmvLines.push(buildC100(invoice, runningNumber));
 
-    const items = (itemsByInvoice.get(invoice.id) ?? []).sort((a, b) => a.position - b.position);
+    // Items are already ordered by invoiceId, position from repository
+    const items = itemsByInvoice.get(invoice.id) ?? [];
     for (const item of items) {
       d110Count++;
       bkmvLines.push(buildD110(item, subsection, runningNumber));
@@ -288,6 +292,7 @@ export async function generateBkmvExport(
     }
   }
 
+  bkmvLines.push(buildZ900('A100', 1));
   bkmvLines.push(buildZ900('C100', c100Count));
   bkmvLines.push(buildZ900('D110', d110Count));
   bkmvLines.push(buildZ900('D120', d120Count));
@@ -295,9 +300,9 @@ export async function generateBkmvExport(
   const counts: BusinessCounts = { c100: c100Count, d110: d110Count, d120: d120Count };
 
   return {
-    iniContent: buildIniContent(business, year, counts),
-    bkmvdataContent: bkmvLines.join('\r\n') + '\r\n',
-    readmeContent: buildReadmeContent(business, year, counts),
+    iniBuffer: iconv.encode(buildIniContent(business, year, counts), 'windows-1255'),
+    bkmvdataBuffer: iconv.encode(bkmvLines.join('\r\n') + '\r\n', 'windows-1255'),
+    readmeBuffer: iconv.encode(buildReadmeContent(business, year, counts), 'windows-1255'),
     filename: `BKMV_${business.registrationNumber}_${year}.zip`,
   };
 }

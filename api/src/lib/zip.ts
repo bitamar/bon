@@ -2,7 +2,7 @@ import archiver from 'archiver';
 import { Buffer } from 'node:buffer';
 import { Writable } from 'node:stream';
 
-export async function createZip(files: Record<string, string>): Promise<Buffer> {
+export async function createZip(files: Record<string, Buffer | string>): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     const writable = new Writable({
