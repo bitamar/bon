@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { injectAuthed } from '../utils/inject.js';
 import {
@@ -60,12 +61,22 @@ describe('routes/subscriptions', () => {
     });
   }
 
+  function computeWebhookSignature(payload: Record<string, unknown>): string {
+    const rawBody = JSON.stringify(payload);
+    return createHmac('sha256', 'test-webhook-secret-for-hmac-verification')
+      .update(rawBody)
+      .digest('hex');
+  }
+
   async function postWebhook(payload: Record<string, unknown>, headers?: Record<string, string>) {
+    const finalHeaders = headers ?? {
+      'x-meshulam-signature': computeWebhookSignature(payload),
+    };
     return ctx.app.inject({
       method: 'POST',
       url: '/webhooks/meshulam',
       payload,
-      headers,
+      headers: finalHeaders,
     });
   }
 
@@ -252,6 +263,31 @@ describe('routes/subscriptions', () => {
       expect(res.statusCode).toBe(400);
       const body = res.json() as { error: string };
       expect(body.error).toBe('missing_business_id');
+    });
+
+    it('returns 401 when webhook signature header is missing', async () => {
+      const res = await postWebhook(
+        buildWebhookPayload({
+          customFields: { businessId: 'some-id', plan: 'monthly' },
+        }),
+        {} // Empty headers — no signature
+      );
+
+      expect(res.statusCode).toBe(401);
+      expect(res.json()).toMatchObject({ error: 'Missing webhook signature' });
+    });
+
+    it('returns 401 when webhook signature is invalid', async () => {
+      const payload = buildWebhookPayload({
+        customFields: { businessId: 'some-id', plan: 'monthly' },
+      });
+
+      const res = await postWebhook(payload, {
+        'x-meshulam-signature': 'deadbeef'.repeat(8),
+      });
+
+      expect(res.statusCode).toBe(401);
+      expect(res.json()).toMatchObject({ error: 'Invalid webhook signature' });
     });
 
     it('returns 400 when payment amount does not match plan price', async () => {

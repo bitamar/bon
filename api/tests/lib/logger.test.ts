@@ -38,6 +38,20 @@ describe('createLogger', () => {
     expect(logger.level).toBe('trace');
   });
 
+  it('provides default level and bindings formatters when none are given', async () => {
+    const createLogger = await loadCreateLogger({ NODE_ENV: 'production' });
+    const logger = createLogger();
+
+    expect(logger.formatters?.level).toBeDefined();
+    expect(logger.formatters?.level!('info')).toEqual({ level: 'info' });
+
+    expect(logger.formatters?.bindings).toBeDefined();
+    expect(logger.formatters?.bindings!({ pid: 1, hostname: 'h' })).toEqual({
+      pid: 1,
+      hostname: 'h',
+    });
+  });
+
   it('merges custom formatter functions without overriding', async () => {
     const levelFormatter = vi.fn();
     const bindingsFormatter = vi.fn();

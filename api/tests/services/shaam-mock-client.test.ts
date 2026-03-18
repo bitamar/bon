@@ -59,4 +59,24 @@ describe('ShaamMockClient', () => {
     const elapsed = Date.now() - start;
     expect(elapsed).toBeLessThan(50);
   });
+
+  it('applies delay when delayMs > 0 for requestAllocationNumber', async () => {
+    const delayedClient = new ShaamMockClient(20);
+    const start = Date.now();
+    await delayedClient.requestAllocationNumber(makeRequest());
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeGreaterThanOrEqual(15);
+  });
+
+  it('applies delay when delayMs > 0 for reportEmergencyUsage', async () => {
+    const delayedClient = new ShaamMockClient(20);
+    const start = Date.now();
+    await delayedClient.reportEmergencyUsage('biz-1', []);
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeGreaterThanOrEqual(15);
+  });
+
+  it('reportEmergencyUsage resolves without error', async () => {
+    await expect(client.reportEmergencyUsage('biz-1', [])).resolves.toBeUndefined();
+  });
 });

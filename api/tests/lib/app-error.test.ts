@@ -3,9 +3,12 @@ import {
   AppError,
   badRequest,
   conflict,
+  extractConstraintName,
+  forbidden,
   normalizeError,
   notFound,
   unauthorized,
+  unprocessableEntity,
 } from '../../src/lib/app-error.js';
 
 describe('normalizeError', () => {
@@ -67,5 +70,76 @@ describe('factory helpers', () => {
       statusCode: 409,
       code: 'duplicate',
     });
+  });
+
+  it('forbidden returns 403 error', () => {
+    expect(forbidden()).toMatchObject({ statusCode: 403, code: 'forbidden' });
+  });
+
+  it('unprocessableEntity returns 422 error', () => {
+    expect(unprocessableEntity({ code: 'no_items' })).toMatchObject({
+      statusCode: 422,
+      code: 'no_items',
+    });
+  });
+});
+
+describe('normalizeError edge cases', () => {
+  it('wraps a non-Error non-object as a generic AppError', () => {
+    const normalized = normalizeError('just a string');
+    expect(normalized).toBeInstanceOf(AppError);
+    expect(normalized.statusCode).toBe(500);
+    expect(normalized.code).toBe('internal_server_error');
+  });
+
+  it('normalizes FastifyError without explicit code to status-based code', () => {
+    const err = { statusCode: 409, message: 'Conflict happened' };
+    const normalized = normalizeError(err);
+    expect(normalized.code).toBe('conflict');
+    expect(normalized.statusCode).toBe(409);
+  });
+
+  it('normalizes FastifyError with validation array', () => {
+    const err = { statusCode: 400, message: 'Validation error', validation: [{ keyword: 'type' }] };
+    const normalized = normalizeError(err);
+    expect(normalized.statusCode).toBe(400);
+    expect(normalized.details).toEqual([{ keyword: 'type' }]);
+  });
+
+  it('normalizes FastifyError with status 422 without code', () => {
+    const err = { statusCode: 422, message: 'Bad entity' };
+    expect(normalizeError(err).code).toBe('unprocessable_entity');
+  });
+
+  it('falls back to "error" for unknown status codes without code', () => {
+    const err = { statusCode: 418, message: 'Teapot' };
+    expect(normalizeError(err).code).toBe('error');
+  });
+
+  it('hides message for 5xx FastifyErrors', () => {
+    const err = { statusCode: 500, message: 'secret error details' };
+    const normalized = normalizeError(err);
+    expect(normalized.message).toBe('Internal Server Error');
+    expect(normalized.expose).toBe(false);
+  });
+});
+
+describe('extractConstraintName', () => {
+  it('extracts constraint from top-level object', () => {
+    expect(extractConstraintName({ constraint: 'unique_email' })).toBe('unique_email');
+  });
+
+  it('extracts constraint from nested cause', () => {
+    const err = { cause: { constraint: 'fk_business_id' } };
+    expect(extractConstraintName(err)).toBe('fk_business_id');
+  });
+
+  it('returns undefined for non-objects', () => {
+    expect(extractConstraintName(null)).toBeUndefined();
+    expect(extractConstraintName('string')).toBeUndefined();
+  });
+
+  it('returns undefined when no constraint exists', () => {
+    expect(extractConstraintName({ other: 'value' })).toBeUndefined();
   });
 });

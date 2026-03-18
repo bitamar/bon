@@ -127,5 +127,20 @@ describe('renderRoutes', () => {
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({ error: 'invalid_input' });
     });
+
+    it('returns 500 when renderInvoiceHtml throws', async () => {
+      vi.mocked(renderInvoiceHtml).mockImplementation(() => {
+        throw new Error('template error');
+      });
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/render-html',
+        payload: VALID_INPUT,
+      });
+
+      expect(res.statusCode).toBe(500);
+      expect(res.json()).toEqual({ error: 'render_failed' });
+    });
   });
 });

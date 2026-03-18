@@ -57,6 +57,10 @@ describe('isBlockedRequest', () => {
     ]);
   });
 
+  it('blocks IPv6 multicast (ff prefix)', () => {
+    expectBlocked(['https://[ff02::1]/logo.png']);
+  });
+
   it('allows public URLs', () => {
     expectAllowed(['https://example.com/logo.png', 'https://cdn.example.com/image.jpg']);
   });
@@ -108,5 +112,17 @@ describe('isBlockedAfterDns', () => {
   it('skips DNS for literal IP addresses', async () => {
     expect(await isBlockedAfterDns('https://93.184.216.34/logo.png')).toBe(false);
     expect(mockLookup).not.toHaveBeenCalled();
+  });
+
+  it('blocks IPv4-mapped IPv6 DNS results with private IPs', async () => {
+    mockLookup.mockResolvedValue([{ address: '::ffff:127.0.0.1', family: 6 }]);
+
+    expect(await isBlockedAfterDns('https://evil.com/logo.png')).toBe(true);
+  });
+
+  it('allows IPv4-mapped IPv6 DNS results with public IPs', async () => {
+    mockLookup.mockResolvedValue([{ address: '::ffff:93.184.216.34', family: 6 }]);
+
+    expect(await isBlockedAfterDns('https://example.com/logo.png')).toBe(false);
   });
 });

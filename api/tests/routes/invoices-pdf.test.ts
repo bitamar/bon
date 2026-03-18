@@ -106,6 +106,50 @@ describe('GET /businesses/:businessId/invoices/:invoiceId/pdf', () => {
     expect(res.statusCode).toBe(404);
   });
 
+  it('returns 504 when PDF service times out', async () => {
+    const abortError = new DOMException('The operation was aborted', 'AbortError');
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(abortError);
+
+    const { sessionId, business } = await createOwnerWithBusiness();
+    const customer = await createCustomer(ctx.app, sessionId, business.id);
+    const { invoice } = await createDraftWithItems(ctx.app, sessionId, business.id, customer.id);
+
+    const res = await getPdf(sessionId, business.id, invoice.id);
+
+    expect(res.statusCode).toBe(504);
+  });
+
+  it('returns 502 when PDF service returns non-ok status', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('Internal Server Error', { status: 500 })
+    );
+
+    const { sessionId, business } = await createOwnerWithBusiness();
+    const customer = await createCustomer(ctx.app, sessionId, business.id);
+    const { invoice } = await createDraftWithItems(ctx.app, sessionId, business.id, customer.id);
+
+    const res = await getPdf(sessionId, business.id, invoice.id);
+
+    expect(res.statusCode).toBe(502);
+  });
+
+  it('returns 502 when PDF service returns wrong content-type', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<html>Error</html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      })
+    );
+
+    const { sessionId, business } = await createOwnerWithBusiness();
+    const customer = await createCustomer(ctx.app, sessionId, business.id);
+    const { invoice } = await createDraftWithItems(ctx.app, sessionId, business.id, customer.id);
+
+    const res = await getPdf(sessionId, business.id, invoice.id);
+
+    expect(res.statusCode).toBe(502);
+  });
+
   it('returns 401 when unauthenticated', async () => {
     const ownerUser = await createUser();
     const business = await createTestBusiness(ownerUser.id);

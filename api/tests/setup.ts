@@ -14,6 +14,7 @@ process.env.URL = 'http://localhost:3000';
 process.env.PDF_SERVICE_URL = 'http://localhost:3001';
 process.env.RATE_LIMIT_MAX = '100';
 process.env.RATE_LIMIT_TIME_WINDOW = '1000';
+process.env.MESHULAM_WEBHOOK_SECRET = 'test-webhook-secret-for-hmac-verification';
 
 // ── Provision a real PostgreSQL database for tests ──
 
