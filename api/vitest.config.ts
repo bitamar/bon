@@ -19,6 +19,12 @@ export default defineConfig({
         'drizzle.config.ts',
         'src/server.ts',
       ],
+      thresholds: {
+        lines: 80,
+        statements: 80,
+        functions: 80,
+        branches: 70,
+      },
     },
   },
 });
