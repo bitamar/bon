@@ -1,3 +1,4 @@
+import AdmZip from 'adm-zip';
 import { describe, expect, it } from 'vitest';
 import { injectAuthed } from '../utils/inject.js';
 import {
@@ -95,6 +96,13 @@ async function getUniformFile(
   });
 }
 
+function extractBkmvData(zipBuffer: Buffer): string {
+  const zip = new AdmZip(zipBuffer);
+  const entry = zip.getEntry('BKMVDATA.TXT');
+  if (!entry) throw new Error('BKMVDATA.TXT not found in ZIP');
+  return entry.getData().toString('utf-8');
+}
+
 // ── tests ──
 
 describe('routes/reports', () => {
@@ -161,25 +169,47 @@ describe('routes/reports', () => {
   });
 
   it('includes invoices from the requested year only', async () => {
-    const { sessionId, business } = await createOwnerWithBusiness();
+    const { sessionId, business, user } = await createOwnerWithBusiness();
 
     // Invoice in target year
-    await createFinalizedInvoice(business.id, {
+    const inv2025 = await createFinalizedInvoice(business.id, {
       invoiceDate: '2025-08-01',
       documentNumber: 'INV-2025',
     });
-    // Invoice in different year — should be excluded
-    await createFinalizedInvoice(business.id, {
+    await createInvoiceItem(inv2025.id);
+    await createInvoicePayment(inv2025.id, user.id);
+
+    // Invoice in different year — should be excluded from 2025 report
+    const inv2024 = await createFinalizedInvoice(business.id, {
       invoiceDate: '2024-12-31',
       documentNumber: 'INV-2024',
     });
+    await createInvoiceItem(inv2024.id);
+    await createInvoicePayment(inv2024.id, user.id);
 
     const res = await getUniformFile(ctx.app, sessionId, business.id, 2025);
 
     expect(res.statusCode).toBe(200);
-    // ZIP returned — the 2024-only request should yield no data
-    const res2024 = await getUniformFile(ctx.app, sessionId, business.id, 2024);
-    expect(res2024.statusCode).toBe(200);
+    const bkmvData = extractBkmvData(res.rawPayload);
+    expect(bkmvData).toContain('INV-2025');
+    expect(bkmvData).not.toContain('INV-2024');
+  });
+
+  it('returns data for the other year separately', async () => {
+    const { sessionId, business, user } = await createOwnerWithBusiness();
+
+    const inv2024 = await createFinalizedInvoice(business.id, {
+      invoiceDate: '2024-06-15',
+      documentNumber: 'INV-2024-ONLY',
+    });
+    await createInvoiceItem(inv2024.id);
+    await createInvoicePayment(inv2024.id, user.id);
+
+    const res = await getUniformFile(ctx.app, sessionId, business.id, 2024);
+
+    expect(res.statusCode).toBe(200);
+    const bkmvData = extractBkmvData(res.rawPayload);
+    expect(bkmvData).toContain('INV-2024-ONLY');
   });
 
   it('excludes draft invoices', async () => {
