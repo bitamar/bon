@@ -60,11 +60,10 @@ function formatDiscountPercent(pct: string | number): string {
   return padLeft(num.toFixed(2), 6);
 }
 
-// ── Record builders ──
-
-function buildA100(business: BusinessRecord, year: number): string {
-  const now = new Date();
-  const timestamp = [
+// ITA does not mandate a specific timezone for the generation timestamp.
+// We use server-local time (expected to be Asia/Jerusalem in production).
+function formatTimestamp(now: Date = new Date()): string {
+  return [
     now.getFullYear(),
     String(now.getMonth() + 1).padStart(2, '0'),
     String(now.getDate()).padStart(2, '0'),
@@ -72,6 +71,12 @@ function buildA100(business: BusinessRecord, year: number): string {
     String(now.getMinutes()).padStart(2, '0'),
     String(now.getSeconds()).padStart(2, '0'),
   ].join('');
+}
+
+// ── Record builders ──
+
+function buildA100(business: BusinessRecord, year: number): string {
+  const timestamp = formatTimestamp();
 
   const fields = [
     padRight('A100', 4),
@@ -165,15 +170,7 @@ function buildZ900(recordType: string, count: number): string {
 type BusinessCounts = { c100: number; d110: number; d120: number };
 
 function buildIniContent(business: BusinessRecord, year: number, counts: BusinessCounts): string {
-  const now = new Date();
-  const timestamp = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-    String(now.getHours()).padStart(2, '0'),
-    String(now.getMinutes()).padStart(2, '0'),
-    String(now.getSeconds()).padStart(2, '0'),
-  ].join('');
+  const timestamp = formatTimestamp();
 
   const lines = [
     `1000|${business.registrationNumber}`,

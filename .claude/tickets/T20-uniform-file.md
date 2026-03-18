@@ -24,7 +24,7 @@ This is **not** the same as PCN874 (T19). PCN874 is the monthly/bi-monthly VAT r
 - [ ] Response content-type: `application/zip`
 - [ ] ZIP contains exactly 3 files: `INI.TXT`, `BKMVDATA.TXT`, `README.TXT`
 - [ ] All files encoded in **Windows-1255** (ITA requirement — not UTF-8)
-- [ ] Fixed-width format — no delimiters; fields defined by character positions per ITA spec
+- [ ] Pipe-delimited (`|`) field separator in BKMVDATA.TXT and INI.TXT (per ITA spec for newer format versions)
 - [ ] Only includes finalized invoices (drafts and cancelled excluded from financial records)
 - [ ] Credit notes (type 330) included with correct sign semantics
 - [ ] Payments included where applicable (D120 records)
@@ -37,9 +37,9 @@ This is **not** the same as PCN874 (T19). PCN874 is the monthly/bi-monthly VAT r
   - `400` — Receipt (קבלה)
 - [ ] **D110** — Document line items: one per invoice line, with description, quantity, unit price, VAT rate, line total
 - [ ] **D120** — Receipt/payment details: one per payment record (from `invoice_payments`)
-- [ ] **B100** — Journal entry headers (one per accounting transaction — derived from invoices + payments)
-- [ ] **B110** — Account balances (trial balance: opening balance, debit, credit, closing balance per account)
-- [ ] **M100** — Inventory records (empty / zero-count — BON does not track inventory)
+- [ ] **B100** — Journal entry headers _(out of scope for this PR — see Open Questions #1; requires Architect decision on synthetic double-entry mapping)_
+- [ ] **B110** — Account balances / trial balance _(out of scope for this PR — depends on B100 decision)_
+- [ ] **M100** — Inventory records _(out of scope for this PR — see Open Questions #2; BON does not track inventory)_
 - [ ] **Z900** — Footer/summary: count per record type (must match INI.TXT counts exactly)
 
 ### INI.TXT
@@ -69,7 +69,7 @@ This is **not** the same as PCN874 (T19). PCN874 is the monthly/bi-monthly VAT r
 - [ ] Downloaded file named `BKMV_{businessRegNumber}_{year}.zip`
 
 ### Testing
-- [ ] Service unit tests: correct record generation for each type (C100, D110, D120, B100, B110)
+- [ ] Service unit tests: correct record generation for each implemented type (A100, C100, D110, D120, Z900; B100/B110 deferred — see Open Questions)
 - [ ] Service unit tests: Windows-1255 encoding output
 - [ ] Service unit tests: record counts match between INI.TXT, Z900, and actual data
 - [ ] Service unit tests: credit notes produce correct subsection code (330)
@@ -103,7 +103,7 @@ The export produces a ZIP with 3 text files:
 | File | Purpose |
 |------|---------|
 | `INI.TXT` | Metadata: business info, software info, record counts, generation timestamp |
-| `BKMVDATA.TXT` | All data: fixed-width records, one per line, ordered by record type |
+| `BKMVDATA.TXT` | All data: pipe-delimited records, one per line, ordered by record type |
 | `README.TXT` | Human-readable summary for the accountant |
 
 ### Record Type Mapping to BON Data
