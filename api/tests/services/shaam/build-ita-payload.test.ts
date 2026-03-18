@@ -92,6 +92,19 @@ describe('buildItaPayload', () => {
     );
   });
 
+  it('includes AccountingSoftwareNumber when softwareRegistrationNumber is provided', () => {
+    const businessWithReg = { vatNumber: '987654321', softwareRegistrationNumber: '12345' };
+    const payload = buildItaPayload(SAMPLE_INVOICE, SAMPLE_LINE_ITEMS, businessWithReg);
+
+    expect(payload.AccountingSoftwareNumber).toBe('12345');
+  });
+
+  it('omits AccountingSoftwareNumber when softwareRegistrationNumber is not provided', () => {
+    const payload = buildItaPayload(SAMPLE_INVOICE, SAMPLE_LINE_ITEMS, SAMPLE_BUSINESS);
+
+    expect(payload.AccountingSoftwareNumber).toBeUndefined();
+  });
+
   it('handles multiple line items with sequential numbering', () => {
     const items = [
       { ...SAMPLE_LINE_ITEMS[0]!, position: 1 },
