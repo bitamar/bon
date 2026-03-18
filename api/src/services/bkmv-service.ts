@@ -1,7 +1,10 @@
 import * as iconv from 'iconv-lite';
 import { findBusinessById } from '../repositories/business-repository.js';
 import type { BusinessRecord } from '../repositories/business-repository.js';
-import { findInvoicesForReport, findItemsByInvoiceIds } from '../repositories/invoice-repository.js';
+import {
+  findInvoicesForReport,
+  findItemsByInvoiceIds,
+} from '../repositories/invoice-repository.js';
 import type { InvoiceRecord, InvoiceItemRecord } from '../repositories/invoice-repository.js';
 import { findPaymentsByInvoiceIds } from '../repositories/payment-repository.js';
 import type { PaymentRecord } from '../repositories/payment-repository.js';
@@ -192,7 +195,11 @@ function buildIniContent(business: BusinessRecord, year: number, counts: Busines
 
 // ── README.TXT builder ──
 
-function buildReadmeContent(business: BusinessRecord, year: number, counts: BusinessCounts): string {
+function buildReadmeContent(
+  business: BusinessRecord,
+  year: number,
+  counts: BusinessCounts
+): string {
   const now = new Date();
   const dateStr = now.toLocaleDateString('he-IL');
   const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });

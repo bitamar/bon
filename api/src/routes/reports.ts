@@ -22,9 +22,9 @@ const reportRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       const result = await generateBkmvExport(req.businessContext.businessId, year);
 
       const zipBuffer = await createZip({
-        'INI.TXT': result.iniContent,
-        'BKMVDATA.TXT': result.bkmvdataContent,
-        'README.TXT': result.readmeContent,
+        'INI.TXT': result.iniBuffer,
+        'BKMVDATA.TXT': result.bkmvdataBuffer,
+        'README.TXT': result.readmeBuffer,
       });
 
       const safeFilename = result.filename.replaceAll(/[^\w.-]/g, '_');
