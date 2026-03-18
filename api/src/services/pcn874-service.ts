@@ -97,9 +97,10 @@ function buildOpeningRecord(
 
 function invoiceSequenceNumber(invoice: InvoiceRecord): string {
   if (invoice.sequenceNumber == null) {
-    throw new Error(
-      `Invoice ${invoice.id} has no sequence number — cannot emit PCN874 detail record`
-    );
+    throw unprocessableEntity({
+      message: `Invoice ${invoice.id} has no sequence number`,
+      code: 'missing_sequence_number',
+    });
   }
   return padNum(invoice.sequenceNumber, 9);
 }

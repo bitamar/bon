@@ -128,12 +128,14 @@ describe('pcn874-service', () => {
     expect(lines[1]).toBe('X000000000');
   });
 
-  it('throws when invoice has null sequenceNumber', async () => {
+  it('throws 422 when invoice has null sequenceNumber', async () => {
     setupMocks([makeInvoice({ sequenceNumber: null as unknown as number })]);
 
-    await expect(generatePcn874('biz-1', 2026, 3)).rejects.toThrow(
-      /has no sequence number/
-    );
+    await expect(generatePcn874('biz-1', 2026, 3)).rejects.toThrow(AppError);
+    await expect(generatePcn874('biz-1', 2026, 3)).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'missing_sequence_number',
+    });
   });
 
   it('throws 422 for exempt_dealer business', async () => {
