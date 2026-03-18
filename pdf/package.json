@@ -13,7 +13,8 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\" --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@bon/types": "file:../types",
@@ -34,6 +35,7 @@
     "globals": "^17.3.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
+    "@vitest/coverage-v8": "^4.0.18",
     "vitest": "^4.0.18"
   }
 }

@@ -69,6 +69,52 @@ jobs:
           header: API Coverage
           path: api-coverage.md
 
+  pdf:
+    name: PDF - Build, Lint & Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript compilation
+        run: npm run type-check --workspace pdf
+
+      - name: Lint
+        run: npm run lint --workspace pdf
+
+      - name: Run tests
+        run: npm run coverage --workspace pdf
+
+      - name: PDF coverage summary
+        if: always()
+        run: |
+          node .github/scripts/coverage-summary.js pdf "PDF Coverage" > pdf-coverage.md || true
+          cat pdf-coverage.md >> $GITHUB_STEP_SUMMARY || true
+
+      - name: PDF coverage comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: PDF Coverage
+          path: pdf-coverage.md
+
   frontend:
     name: Frontend - Build, Lint & Test
     runs-on: ubuntu-latest
