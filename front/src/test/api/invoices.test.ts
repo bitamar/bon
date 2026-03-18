@@ -61,6 +61,24 @@ const minimalInvoiceResponse = {
   remainingBalanceMinorUnits: 0,
 };
 
+// ── helpers ──
+
+function setupDownloadAnchorMock(objectUrl = 'blob:http://localhost/fake-pdf-url') {
+  const createObjectURL = vi.fn().mockReturnValue(objectUrl);
+  const revokeObjectURL = vi.fn();
+  vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
+
+  const mockAnchor = { href: '', download: '', click: vi.fn(), remove: vi.fn() };
+  const createElementSpy = vi
+    .spyOn(document, 'createElement')
+    .mockReturnValue(mockAnchor as unknown as HTMLElement);
+  const appendChildSpy = vi
+    .spyOn(document.body, 'appendChild')
+    .mockReturnValue(mockAnchor as unknown as Node);
+
+  return { mockAnchor, createObjectURL, revokeObjectURL, createElementSpy, appendChildSpy };
+}
+
 describe('invoices api', () => {
   const { fetchMock, mockOk, mockFail } = useFetchMock();
 
@@ -312,23 +330,6 @@ describe('invoices api', () => {
 
   describe('downloadInvoicePdf', () => {
     const ORIGINAL_URL = globalThis.URL;
-
-    // ── helpers ──
-    function setupDownloadAnchorMock(objectUrl = 'blob:http://localhost/fake-pdf-url') {
-      const createObjectURL = vi.fn().mockReturnValue(objectUrl);
-      const revokeObjectURL = vi.fn();
-      vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
-
-      const mockAnchor = { href: '', download: '', click: vi.fn(), remove: vi.fn() };
-      const createElementSpy = vi
-        .spyOn(document, 'createElement')
-        .mockReturnValue(mockAnchor as unknown as HTMLElement);
-      const appendChildSpy = vi
-        .spyOn(document.body, 'appendChild')
-        .mockReturnValue(mockAnchor as unknown as Node);
-
-      return { mockAnchor, createObjectURL, revokeObjectURL, createElementSpy, appendChildSpy };
-    }
 
     afterEach(() => {
       globalThis.URL = ORIGINAL_URL;

@@ -94,6 +94,23 @@ function renderRejected(allocationError: string | null) {
   return renderDetail();
 }
 
+async function openAndCancelModal(openFn: (user: UserEvent) => Promise<void>, modalTitle: string) {
+  renderDetail();
+  const user = userEvent.setup();
+  await openFn(user);
+  await user.click(screen.getByRole('button', { name: 'ביטול' }));
+  await waitFor(() => {
+    expect(screen.queryByText(modalTitle)).not.toBeInTheDocument();
+  });
+}
+
+async function renderAndOpenPaymentModal(overrides: Partial<Invoice> = {}) {
+  renderWithInvoice(overrides);
+  const user = userEvent.setup();
+  await openPaymentModal(user);
+  return user;
+}
+
 describe('InvoiceDetail', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -599,20 +616,6 @@ describe('InvoiceDetail', () => {
   });
 
   describe('modal close actions', () => {
-    // ── helpers ──
-    async function openAndCancelModal(
-      openFn: (user: UserEvent) => Promise<void>,
-      modalTitle: string
-    ) {
-      renderDetail();
-      const user = userEvent.setup();
-      await openFn(user);
-      await user.click(screen.getByRole('button', { name: 'ביטול' }));
-      await waitFor(() => {
-        expect(screen.queryByText(modalTitle)).not.toBeInTheDocument();
-      });
-    }
-
     it('closes send modal via cancel button', async () => {
       vi.mocked(invoicesApi.fetchInvoice).mockResolvedValue(makeFinalizedInvoice());
       await openAndCancelModal((user) => openSendModal(user), 'שליחת חשבונית במייל');
@@ -640,14 +643,6 @@ describe('InvoiceDetail', () => {
   });
 
   describe('payment modal interactions', () => {
-    // ── helpers ──
-    async function renderAndOpenPaymentModal(invoiceOverrides: Partial<Invoice> = {}) {
-      renderWithInvoice(invoiceOverrides);
-      const user = userEvent.setup();
-      await openPaymentModal(user);
-      return user;
-    }
-
     it('shows payment amount input pre-filled with remaining balance', async () => {
       const stub = makeFinalizedInvoice();
       stub.remainingBalanceMinorUnits = 5000; // ₪50.00 remaining

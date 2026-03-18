@@ -406,7 +406,7 @@ describe('InvoiceEdit page', () => {
     // Mantine renders it in a div[data-position="right"] within the wrapper
     const inputWrapper = dueDateButton.closest('[data-with-right-section]');
     const clearBtn = inputWrapper?.querySelector('[data-position="right"] button');
-    expect(clearBtn).toBeDefined();
+    expect(clearBtn).toBeTruthy();
     await user.click(clearBtn as HTMLElement);
 
     // Save — the dueDate should now be null in the payload (covers L487 onChange)

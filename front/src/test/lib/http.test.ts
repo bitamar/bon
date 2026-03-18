@@ -2,6 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { fetchJson, fetchBlob, HttpError } from '../../lib/http';
 import { useFetchMock } from '../api/fetch-mock';
 
+function mockNonJsonError(fetchMock: ReturnType<typeof useFetchMock>['fetchMock']) {
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status: 500,
+    json: vi.fn().mockRejectedValueOnce(new Error('bad json')),
+  });
+}
+
 describe('fetchJson', () => {
   const { fetchMock } = useFetchMock();
 
@@ -23,11 +31,12 @@ describe('fetchJson', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(expectedUrl, {
       credentials: 'include',
-      headers: {
-        'X-Test': 'yes',
-      },
       method: 'POST',
       body: JSON.stringify({ foo: 'bar' }),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Test': 'yes',
+      },
     });
     expect(result).toEqual(responseJson);
   });
@@ -50,19 +59,13 @@ describe('fetchJson', () => {
   });
 
   it('throws HttpError with fallback message when body not json', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: vi.fn().mockRejectedValueOnce(new Error('bad json')),
-    });
+    mockNonJsonError(fetchMock);
 
-    const expectedError: Partial<HttpError> = {
+    await expect(fetchJson('/broken')).rejects.toMatchObject({
       status: 500,
       message: 'Request failed: 500',
       body: undefined,
-    };
-
-    await expect(fetchJson('/broken')).rejects.toMatchObject(expectedError);
+    });
   });
 });
 
@@ -98,18 +101,12 @@ describe('fetchBlob', () => {
   });
 
   it('throws HttpError with fallback message when body not json', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: vi.fn().mockRejectedValueOnce(new Error('bad json')),
-    });
+    mockNonJsonError(fetchMock);
 
-    const expectedError: Partial<HttpError> = {
+    await expect(fetchBlob('/files/broken')).rejects.toMatchObject({
       status: 500,
       message: 'Request failed: 500',
       body: undefined,
-    };
-
-    await expect(fetchBlob('/files/broken')).rejects.toMatchObject(expectedError);
+    });
   });
 });

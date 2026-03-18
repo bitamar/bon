@@ -40,6 +40,37 @@ function renderModal(businessOverrides: Partial<Business> = {}) {
   );
 }
 
+async function fillAndSubmitAddress(
+  user: Awaited<ReturnType<typeof userEvent.setup>>,
+  postalCode?: string
+) {
+  await user.type(screen.getByLabelText(/עיר \/ ישוב/), 'תל אביב');
+  await user.type(screen.getByLabelText(/רחוב/), 'הרצל');
+  if (postalCode) {
+    await user.type(screen.getByLabelText(/מיקוד/), postalCode);
+  }
+  await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
+}
+
+async function setupAddressForm(
+  businessOverrides: Partial<Business> = {},
+  updateResponse: Partial<Business> = {}
+) {
+  vi.mocked(addressApi.fetchAllCities).mockRejectedValue(new Error('api down'));
+  vi.mocked(businessApi.updateBusiness).mockResolvedValue({
+    business: makeTestBusiness(updateResponse),
+    role: 'owner',
+  });
+  const user = userEvent.setup();
+  renderModal({ streetAddress: null, city: null, ...businessOverrides });
+
+  await waitFor(() => {
+    expect(screen.getByLabelText(/רחוב/)).not.toBeDisabled();
+  });
+
+  return user;
+}
+
 describe('BusinessProfileGateModal', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -48,26 +79,6 @@ describe('BusinessProfileGateModal', () => {
     vi.mocked(addressApi.fetchAllStreetsForCity).mockResolvedValue([]);
     vi.mocked(addressApi.filterOptions).mockReturnValue([]);
   });
-
-  // ── helpers ──
-  async function setupAddressForm(
-    businessOverrides: Partial<Business> = {},
-    updateResponse: Partial<Business> = {}
-  ) {
-    vi.mocked(addressApi.fetchAllCities).mockRejectedValue(new Error('api down'));
-    vi.mocked(businessApi.updateBusiness).mockResolvedValue({
-      business: makeTestBusiness(updateResponse),
-      role: 'owner',
-    });
-    const user = userEvent.setup();
-    renderModal({ streetAddress: null, city: null, ...businessOverrides });
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/רחוב/)).not.toBeDisabled();
-    });
-
-    return user;
-  }
 
   it('shows address fields when address is missing', () => {
     renderModal({ streetAddress: null, city: null });
@@ -114,10 +125,7 @@ describe('BusinessProfileGateModal', () => {
 
   it('submits address fields when address is missing', async () => {
     const user = await setupAddressForm({}, { streetAddress: 'הרצל 1', city: 'תל אביב' });
-
-    await user.type(screen.getByLabelText(/עיר \/ ישוב/), 'תל אביב');
-    await user.type(screen.getByLabelText(/רחוב/), 'הרצל');
-    await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
+    await fillAndSubmitAddress(user);
 
     await waitFor(() => {
       expect(businessApi.updateBusiness).toHaveBeenCalledWith(
@@ -134,10 +142,7 @@ describe('BusinessProfileGateModal', () => {
       { streetAddress: 'הרצל 1', city: 'תל אביב', postalCode: '6100000' }
     );
 
-    await user.type(screen.getByLabelText(/עיר \/ ישוב/), 'תל אביב');
-    await user.type(screen.getByLabelText(/רחוב/), 'הרצל');
-    await user.type(screen.getByLabelText(/מיקוד/), '6100000');
-    await user.click(screen.getByRole('button', { name: 'שמור והמשך' }));
+    await fillAndSubmitAddress(user, '6100000');
 
     await waitFor(() => {
       expect(businessApi.updateBusiness).toHaveBeenCalledWith(

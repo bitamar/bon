@@ -116,6 +116,22 @@ function findDateClearButton(container: HTMLElement, index: number) {
   return inputWrapper?.querySelector('[data-position="right"] button') as HTMLElement | null;
 }
 
+async function renderListWithDefaults(query?: string) {
+  mockDefaultInvoices();
+  const result = renderInvoiceList(query ? `/businesses/biz-1/invoices?${query}` : undefined);
+  await screen.findByText('INV-001');
+  return result;
+}
+
+async function setupInvoiceRowNavigation() {
+  mockDefaultInvoices();
+  renderListWithRoutes('/businesses/:businessId/invoices/:invoiceId', <div>detail page</div>);
+  await screen.findByText('INV-001');
+  const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
+  expect(tableRow).not.toBeNull();
+  return tableRow;
+}
+
 describe('InvoiceList page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -269,9 +285,7 @@ describe('InvoiceList page', () => {
   });
 
   it('shows clear all filters button when filters are present', async () => {
-    mockDefaultInvoices(mockListResponse([mockInvoice()]));
-    renderInvoiceList('/businesses/biz-1/invoices?status=draft');
-    await screen.findByText('INV-001');
+    await renderListWithDefaults('status=draft');
 
     expect(screen.getByRole('button', { name: 'נקה הכל' })).toBeInTheDocument();
   });
@@ -299,18 +313,14 @@ describe('InvoiceList page', () => {
   });
 
   it('date filter in URL is passed to fetchInvoices as dateFrom param', async () => {
-    mockDefaultInvoices();
-    renderInvoiceList('/businesses/biz-1/invoices?dateFrom=2026-01-01');
-    await screen.findByText('INV-001');
+    await renderListWithDefaults('dateFrom=2026-01-01');
 
     expect(getLastFetchParams()).toMatchObject({ dateFrom: '2026-01-01' });
   });
 
   it('clear all button resets all filters', async () => {
     const user = userEvent.setup();
-    mockDefaultInvoices();
-    renderInvoiceList('/businesses/biz-1/invoices?status=draft&dateFrom=2026-01-01');
-    await screen.findByText('INV-001');
+    await renderListWithDefaults('status=draft&dateFrom=2026-01-01');
 
     await user.click(screen.getByRole('button', { name: 'נקה הכל' }));
 
@@ -351,9 +361,7 @@ describe('InvoiceList page', () => {
   // ── statusParamToChip with draft status (line 63) ──
 
   it('renders with ?status=draft in URL and passes draft status to fetchInvoices', async () => {
-    mockDefaultInvoices();
-    renderInvoiceList('/businesses/biz-1/invoices?status=draft');
-    await screen.findByText('INV-001', {}, { timeout: 3000 });
+    await renderListWithDefaults('status=draft');
 
     expect(getLastFetchParams()).toMatchObject({ status: 'draft' });
   });
@@ -362,36 +370,18 @@ describe('InvoiceList page', () => {
 
   it('clicking an invoice row navigates to detail page', async () => {
     const user = userEvent.setup();
-    mockDefaultInvoices();
-    renderListWithRoutes('/businesses/:businessId/invoices/:invoiceId', <div>detail page</div>);
-    await screen.findByText('INV-001');
-
-    const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
+    const tableRow = await setupInvoiceRowNavigation();
     await user.click(tableRow);
 
     expect(await screen.findByText('detail page')).toBeInTheDocument();
   });
 
-  it('pressing Enter on an invoice row navigates to detail page', async () => {
-    mockDefaultInvoices();
-    renderListWithRoutes('/businesses/:businessId/invoices/:invoiceId', <div>detail page</div>);
-    await screen.findByText('INV-001');
-
-    const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
-    expect(tableRow).not.toBeNull();
-    fireEvent.keyDown(tableRow, { key: 'Enter' });
-
-    expect(await screen.findByText('detail page')).toBeInTheDocument();
-  });
-
-  it('pressing Space on an invoice row navigates to detail page', async () => {
-    mockDefaultInvoices();
-    renderListWithRoutes('/businesses/:businessId/invoices/:invoiceId', <div>detail page</div>);
-    await screen.findByText('INV-001');
-
-    const tableRow = document.querySelector('tr[role="link"]') as HTMLElement;
-    expect(tableRow).not.toBeNull();
-    fireEvent.keyDown(tableRow, { key: ' ' });
+  it.each([
+    ['Enter', 'Enter'],
+    ['Space', ' '],
+  ])('pressing %s on an invoice row navigates to detail page', async (_label, key) => {
+    const tableRow = await setupInvoiceRowNavigation();
+    fireEvent.keyDown(tableRow, { key });
 
     expect(await screen.findByText('detail page')).toBeInTheDocument();
   });
@@ -434,17 +424,13 @@ describe('InvoiceList page', () => {
   // ── Date filter interactions ──
 
   it('dateTo filter in URL is passed to fetchInvoices as dateTo param', async () => {
-    mockDefaultInvoices();
-    renderInvoiceList('/businesses/biz-1/invoices?dateTo=2026-12-31');
-    await screen.findByText('INV-001');
+    await renderListWithDefaults('dateTo=2026-12-31');
 
     expect(getLastFetchParams()).toMatchObject({ dateTo: '2026-12-31' });
   });
 
   it('both dateFrom and dateTo filters in URL are passed to fetchInvoices', async () => {
-    mockDefaultInvoices();
-    renderInvoiceList('/businesses/biz-1/invoices?dateFrom=2026-01-01&dateTo=2026-06-30');
-    await screen.findByText('INV-001');
+    await renderListWithDefaults('dateFrom=2026-01-01&dateTo=2026-06-30');
 
     expect(getLastFetchParams()).toMatchObject({ dateFrom: '2026-01-01', dateTo: '2026-06-30' });
   });
@@ -464,42 +450,29 @@ describe('InvoiceList page', () => {
 
   it('clicking all chip after a status filter removes the status param', async () => {
     const user = userEvent.setup();
-    mockDefaultInvoices();
-    renderInvoiceList('/businesses/biz-1/invoices?status=paid');
-    await screen.findByText('INV-001');
+    await renderListWithDefaults('status=paid');
 
     await user.click(screen.getByText('כל החשבוניות'));
 
     expect(getLastFetchParams()).not.toHaveProperty('status');
   });
 
-  // ── Date handler: clearing dateFrom via clear button (lines 258-260) ──
+  // ── Date handler: clearing date via clear button ──
 
-  it('clearing dateFrom via clear button removes dateFrom from query params', async () => {
-    const user = userEvent.setup();
-    mockDefaultInvoices();
-    const { container } = renderInvoiceList('/businesses/biz-1/invoices?dateFrom=2026-01-01');
-    await screen.findByText('INV-001');
+  it.each([
+    { param: 'dateFrom', query: 'dateFrom=2026-01-01', index: 0 },
+    { param: 'dateTo', query: 'dateTo=2026-12-31', index: 1 },
+  ])(
+    'clearing $param via clear button removes it from query params',
+    async ({ param, query, index }) => {
+      const user = userEvent.setup();
+      const { container } = await renderListWithDefaults(query);
 
-    const clearBtn = findDateClearButton(container, 0);
-    expect(clearBtn).toBeTruthy();
-    await user.click(clearBtn!);
+      const clearBtn = findDateClearButton(container, index);
+      expect(clearBtn).toBeTruthy();
+      await user.click(clearBtn!);
 
-    expect(getLastFetchParams()).not.toHaveProperty('dateFrom');
-  });
-
-  // ── Date handler: clearing dateTo via clear button (lines 261-263) ──
-
-  it('clearing dateTo via clear button removes dateTo from query params', async () => {
-    const user = userEvent.setup();
-    mockDefaultInvoices();
-    const { container } = renderInvoiceList('/businesses/biz-1/invoices?dateTo=2026-12-31');
-    await screen.findByText('INV-001');
-
-    const clearBtn = findDateClearButton(container, 1);
-    expect(clearBtn).toBeTruthy();
-    await user.click(clearBtn!);
-
-    expect(getLastFetchParams()).not.toHaveProperty('dateTo');
-  });
+      expect(getLastFetchParams()).not.toHaveProperty(param);
+    }
+  );
 });

@@ -16,13 +16,14 @@ export class HttpError extends Error {
 
 export async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const hasBody = init.body != null;
+  const { headers: initHeaders, ...rest } = init;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: 'include',
+    ...rest,
     headers: {
       ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-      ...init.headers,
+      ...(initHeaders as Record<string, string>),
     },
-    ...init,
   });
 
   if (!response.ok) {
