@@ -17,6 +17,7 @@ import { InvoiceNew } from './pages/InvoiceNew';
 import { InvoiceEdit } from './pages/InvoiceEdit';
 import { InvoiceDetail } from './pages/InvoiceDetail';
 import { Subscription } from './pages/Subscription';
+import { VatReport } from './pages/VatReport';
 import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 import { AppSplash } from './components/AppSplash';
@@ -140,6 +141,7 @@ export default function AppRoutes() {
               <Route path="invoices/new" element={<InvoiceNew />} />
               <Route path="invoices/:invoiceId" element={<InvoiceDetail />} />
               <Route path="invoices/:invoiceId/edit" element={<InvoiceEdit />} />
+              <Route path="reports/vat" element={<VatReport />} />
               <Route path="subscription" element={<Subscription />} />
             </Route>
             <Route path="/business/*" element={<LegacyRedirect />} />

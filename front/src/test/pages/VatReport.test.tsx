@@ -1,0 +1,97 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { Route, Routes } from 'react-router-dom';
+import { VatReport } from '../../pages/VatReport';
+import { renderWithProviders } from '../utils/renderWithProviders';
+import { useBusiness } from '../../contexts/BusinessContext';
+import { downloadPcn874 } from '../../api/reports';
+import { notifications } from '@mantine/notifications';
+
+vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: vi.fn() }));
+vi.mock('../../api/reports', () => ({ downloadPcn874: vi.fn() }));
+vi.mock('@mantine/notifications', () => ({ notifications: { show: vi.fn() } }));
+
+// ── helpers ──
+
+function renderVatReport() {
+  return renderWithProviders(
+    <Routes>
+      <Route path="/businesses/:businessId/reports/vat" element={<VatReport />} />
+    </Routes>,
+    { router: { initialEntries: ['/businesses/biz-1/reports/vat'] } }
+  );
+}
+
+async function clickDownloadButton() {
+  const user = userEvent.setup();
+  renderVatReport();
+  const button = screen.getByRole('button', { name: /הורד דוח מע"מ/ });
+  await user.click(button);
+}
+
+const defaultBusiness = {
+  activeBusiness: {
+    id: 'biz-1',
+    name: 'Test Business',
+    businessType: 'licensed_dealer',
+    role: 'owner' as const,
+  },
+  businesses: [],
+  switchBusiness: vi.fn(),
+  setActiveBusiness: vi.fn(),
+  isLoading: false,
+};
+
+describe('VatReport page', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(useBusiness).mockReturnValue(defaultBusiness);
+  });
+
+  it('renders title and download button for licensed dealer', () => {
+    renderVatReport();
+
+    expect(screen.getByText(/דוח מע"מ מפורט/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /הורד דוח מע"מ/ })).toBeInTheDocument();
+  });
+
+  it('renders month picker input', () => {
+    renderVatReport();
+
+    expect(screen.getByLabelText('תקופת דיווח')).toBeInTheDocument();
+  });
+
+  it('calls downloadPcn874 with correct params on button click', async () => {
+    vi.mocked(downloadPcn874).mockResolvedValue(undefined);
+
+    await clickDownloadButton();
+
+    expect(downloadPcn874).toHaveBeenCalledWith('biz-1', expect.any(Number), expect.any(Number));
+  });
+
+  it('shows error notification when download fails', async () => {
+    vi.mocked(downloadPcn874).mockRejectedValue(new Error('network error'));
+
+    await clickDownloadButton();
+
+    expect(notifications.show).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'שגיאה', color: 'red' })
+    );
+  });
+
+  it('shows not-relevant alert for exempt_dealer', () => {
+    vi.mocked(useBusiness).mockReturnValue({
+      ...defaultBusiness,
+      activeBusiness: {
+        ...defaultBusiness.activeBusiness,
+        businessType: 'exempt_dealer',
+      },
+    });
+
+    renderVatReport();
+
+    expect(screen.getByText(/עסק פטור אינו מדווח/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /הורד/ })).not.toBeInTheDocument();
+  });
+});
