@@ -195,7 +195,6 @@ const CREDIT_NOTE_ELIGIBLE: readonly InvoiceStatus[] = [
 ] as const;
 
 const SENDABLE_STATUSES = new Set<InvoiceStatus>(['finalized', 'sent', 'partially_paid']);
-const SEND_DISABLED_STATUSES = new Set<InvoiceStatus>(['sending']);
 const PAYABLE_STATUSES = new Set<InvoiceStatus>(['finalized', 'sent', 'partially_paid']);
 const PAYMENT_DELETABLE_STATUSES = new Set<InvoiceStatus>([
   'finalized',
@@ -384,8 +383,7 @@ export function InvoiceDetail() {
   const statusConfig = INVOICE_STATUS_CONFIG[invoice.status];
   const documentTypeLabel = DOCUMENT_TYPE_LABELS[invoice.documentType] ?? invoice.documentType;
   const showCreditNote = CREDIT_NOTE_ELIGIBLE.includes(invoice.status);
-  const canSend =
-    SENDABLE_STATUSES.has(invoice.status) && !SEND_DISABLED_STATUSES.has(invoice.status);
+  const canSend = SENDABLE_STATUSES.has(invoice.status);
   const canPay = PAYABLE_STATUSES.has(invoice.status);
   const vatLabel = computeVatLabel(items.map((i) => i.vatRateBasisPoints));
   const remainingDisplay = remainingBalanceMinorUnits / 100;

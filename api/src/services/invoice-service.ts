@@ -41,8 +41,7 @@ import { calculateLine, calculateInvoiceTotals, STANDARD_VAT_RATE_BP } from '@bo
 import { sendJob, withTransactionalJob } from '../jobs/boss.js';
 import type { PgBoss } from 'pg-boss';
 import type { FastifyBaseLogger } from 'fastify';
-import { db } from '../db/client.js';
-import { pool } from '../db/client.js';
+import { db, pool } from '../db/client.js';
 import type {
   InvoiceResponse,
   InvoiceListQuery,
@@ -463,13 +462,7 @@ export async function sendInvoice(
 
   // Atomically set status to 'sending' and enqueue the email job
   await withTransactionalJob(pool, boss, async (tx, jobDb) => {
-    const { invoices } = await import('../db/schema.js');
-    const { eq, and } = await import('drizzle-orm');
-
-    await tx
-      .update(invoices)
-      .set({ status: 'sending', updatedAt: new Date() })
-      .where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId)));
+    await updateInvoice(invoiceId, businessId, { status: 'sending', updatedAt: new Date() }, tx);
 
     await boss.send(
       'send-invoice-email',

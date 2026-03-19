@@ -30,6 +30,9 @@ export function createSendInvoiceEmailHandler(
   return async (job) => {
     const { invoiceId, businessId, recipientEmail } = job.data;
     const meta = job as Partial<JobWithMetadata<JobPayloads['send-invoice-email']>>;
+    // retryCount is 0-based, so attempt 1 = first try. With retryLimit: 3 there
+    // are 4 total attempts (1 initial + 3 retries). The final retry is when
+    // attemptNumber (retryCount + 1) exceeds retryLimit.
     const attemptNumber = (meta.retryCount ?? 0) + 1;
     const isLastAttempt = attemptNumber > (meta.retryLimit ?? 3);
 
@@ -86,11 +89,21 @@ export function createSendInvoiceEmailHandler(
 
       // On last attempt, revert status so the user can retry
       if (isLastAttempt) {
-        await updateInvoice(invoiceId, businessId, {
-          status: 'finalized',
-          updatedAt: new Date(),
-        });
-        logger.warn({ invoiceId }, 'send-invoice-email: retries exhausted, reverted to finalized');
+        try {
+          await updateInvoice(invoiceId, businessId, {
+            status: 'finalized',
+            updatedAt: new Date(),
+          });
+          logger.warn(
+            { invoiceId },
+            'send-invoice-email: retries exhausted, reverted to finalized'
+          );
+        } catch (revertErr: unknown) {
+          logger.error(
+            { err: revertErr, invoiceId, businessId, isLastAttempt, attemptNumber },
+            'send-invoice-email: failed to revert status to finalized'
+          );
+        }
       }
 
       throw err; // let pg-boss handle retry

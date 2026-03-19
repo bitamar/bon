@@ -64,6 +64,15 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
     expect(body.ok).toBe(true);
     expect(body.status).toBe('sending');
 
+    // Verify pg-boss job was enqueued
+    const boss = (ctx.app as unknown as { boss: PgBoss }).boss;
+    expect(boss.send).toHaveBeenCalledOnce();
+    expect(boss.send).toHaveBeenCalledWith(
+      'send-invoice-email',
+      expect.objectContaining({ invoiceId: invoice.id, businessId: business.id }),
+      expect.objectContaining({ singletonKey: invoice.id })
+    );
+
     // Verify invoice status changed to 'sending'
     const detailRes = await injectAuthed(ctx.app, sessionId, {
       method: 'GET',
