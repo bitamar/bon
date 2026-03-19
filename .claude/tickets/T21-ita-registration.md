@@ -49,13 +49,13 @@ Finalized invoices are already protected — only drafts can be deleted (`DELETE
 
 After receiving the תעודת רישום, the registration number must be embedded in:
 
-| Location      | File                                          | What to change                                                                           |
+| Location      | File                                          | Changes made                                                                             |
 | ------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Env config    | `api/src/env.ts`                              | Add `SHAAM_REGISTRATION_NUMBER` (optional string, required when `SHAAM_MODE=production`) |
-| ITA payload   | `api/src/services/shaam/build-ita-payload.ts` | Add `AccountingSoftwareNumber` field (field 1006) to the payload                         |
-| PDF footer    | `pdf/src/pdf/InvoiceTemplate.tsx`             | Add registration number to footer (currently: "מסמך זה הופק על ידי BON v1.0")            |
-| BKMV export   | `api/src/services/bkmv-service.ts`            | Include software registration number in the INI.TXT header record                        |
-| PCN874 export | `api/src/services/pcn874-service.ts`          | Include software registration number in the opening record if required by spec           |
+| Env config    | `api/src/env.ts`                              | ✅ Added `SHAAM_REGISTRATION_NUMBER` (optional string, empty-string normalized)          |
+| ITA payload   | `api/src/services/shaam/build-ita-payload.ts` | ✅ Added `AccountingSoftwareNumber` field (field 1006) to the payload                    |
+| PDF footer    | `pdf/src/pdf/InvoiceTemplate.tsx`             | ✅ Conditionally shows "רישום בית תוכנה מס' XXXXX" in footer                              |
+| BKMV export   | `api/src/services/bkmv-service.ts`            | ✅ Included software registration number in INI.TXT header field 1006                    |
+| PCN874 export | `api/src/services/pcn874-service.ts`          | ✅ No software ID field in ITA spec; no change needed                                    |
 
 ### 3. ITA Simulator Validation (manual testing)
 
