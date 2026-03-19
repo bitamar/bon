@@ -1,6 +1,6 @@
 # T21 — ITA Software Registration (רישום כבית תוכנה)
 
-**Status**: ⬜ Ready to start (all blocking tickets merged)
+**Status**: 🟡 In progress — code changes implemented, pending registration
 **Phase**: 7 — ITA Registration
 **Requires**: T20 merged ✅
 **Blocks**: nothing — this is the finish line
@@ -49,13 +49,13 @@ Finalized invoices are already protected — only drafts can be deleted (`DELETE
 
 After receiving the תעודת רישום, the registration number must be embedded in:
 
-| Location | File | What to change |
-|----------|------|----------------|
-| Env config | `api/src/env.ts` | Add `SHAAM_REGISTRATION_NUMBER` (optional string, required when `SHAAM_MODE=production`) |
-| ITA payload | `api/src/services/shaam/build-ita-payload.ts` | Add `AccountingSoftwareNumber` field (field 1006) to the payload |
-| PDF footer | `pdf/src/pdf/InvoiceTemplate.tsx` | Add registration number to footer (currently: "מסמך זה הופק על ידי BON v1.0") |
-| BKMV export | `api/src/services/bkmv-service.ts` | Include software registration number in the INI.TXT header record |
-| PCN874 export | `api/src/services/pcn874-service.ts` | Include software registration number in the opening record if required by spec |
+| Location      | File                                          | What to change                                                                           |
+| ------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Env config    | `api/src/env.ts`                              | Add `SHAAM_REGISTRATION_NUMBER` (optional string, required when `SHAAM_MODE=production`) |
+| ITA payload   | `api/src/services/shaam/build-ita-payload.ts` | Add `AccountingSoftwareNumber` field (field 1006) to the payload                         |
+| PDF footer    | `pdf/src/pdf/InvoiceTemplate.tsx`             | Add registration number to footer (currently: "מסמך זה הופק על ידי BON v1.0")            |
+| BKMV export   | `api/src/services/bkmv-service.ts`            | Include software registration number in the INI.TXT header record                        |
+| PCN874 export | `api/src/services/pcn874-service.ts`          | Include software registration number in the opening record if required by spec           |
 
 ### 3. ITA Simulator Validation (manual testing)
 
@@ -88,30 +88,34 @@ After receiving the תעודת רישום, the registration number must be embed
 
 ## Code Changes After Approval
 
-- [ ] Add `SHAAM_REGISTRATION_NUMBER` env var to `api/src/env.ts`
-- [ ] Embed in ITA payload (`AccountingSoftwareNumber` field 1006) in `api/src/services/shaam/build-ita-payload.ts`
-- [ ] Update PDF footer in `pdf/src/pdf/InvoiceTemplate.tsx` — change from "מסמך זה הופק על ידי BON v1.0" to include the registration number
-- [ ] Update BKMV INI.TXT header in `api/src/services/bkmv-service.ts`
-- [ ] Verify PCN874 opening record includes software ID in `api/src/services/pcn874-service.ts`
-- [ ] Update Terms of Service / customer agreements
+- [x] Add `SHAAM_REGISTRATION_NUMBER` env var to `api/src/env.ts` (with empty-string normalization)
+- [x] Embed in ITA payload (`AccountingSoftwareNumber` field 1006) in `api/src/services/shaam/build-ita-payload.ts`
+- [x] Update PDF footer in `pdf/src/pdf/InvoiceTemplate.tsx` — conditionally shows "רישום בית תוכנה מס' XXXXX"
+- [x] Update BKMV INI.TXT header field 1006 in `api/src/services/bkmv-service.ts`
+- [x] PCN874 opening record — no software ID field in ITA spec; no change needed
+- [ ] Update Terms of Service / customer agreements (manual task, post-approval)
 
 ---
 
 ## Architecture Notes
 
 **Current SHAAM env vars** (in `api/src/env.ts`):
+
 - `SHAAM_MODE`: 'mock' | 'sandbox' | 'production' (default: 'mock')
 - `SHAAM_ENCRYPTION_KEY`: Required 64-char hex when mode ≠ mock
 
 **ITA payload builder** (`api/src/services/shaam/build-ita-payload.ts`):
+
 - Currently builds ~26 fields for allocation requests
 - `AccountingSoftwareNumber` (field 1006) is not yet included — add after registration
 
 **PDF footer** (`pdf/src/pdf/InvoiceTemplate.tsx` lines 234-241):
+
 - Current text: "מסמך זה הופק על ידי BON v1.0"
 - Post-registration: "מסמך זה הופק על ידי BON v1.0 | רישום בית תוכנה מס' XXXXX"
 
 **Invoice deletion safety**:
+
 - `DELETE /businesses/:businessId/invoices/:invoiceId` only allows draft status
 - Finalized invoices have no delete path — this is the de facto 7-year retention
 
