@@ -90,6 +90,13 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
     });
 
     expect(res.statusCode).toBe(202);
+
+    const boss = (ctx.app as unknown as { boss: PgBoss }).boss;
+    expect(boss.send).toHaveBeenCalledWith(
+      'send-invoice-email',
+      expect.objectContaining({ recipientEmail: 'other@example.com' }),
+      expect.any(Object)
+    );
   });
 
   it('returns 422 when trying to send a draft invoice', async () => {

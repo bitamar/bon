@@ -36,10 +36,7 @@ export function createSendInvoiceEmailHandler(
     const attemptNumber = (meta.retryCount ?? 0) + 1;
     const isLastAttempt = attemptNumber > (meta.retryLimit ?? 3);
 
-    logger.info(
-      { invoiceId, businessId, attemptNumber, recipientEmail },
-      'send-invoice-email started'
-    );
+    logger.info({ invoiceId, businessId, attemptNumber }, 'send-invoice-email started');
 
     // 1. Load invoice — it must still be in 'sending' state
     const invoice = await findInvoiceById(invoiceId, businessId);
@@ -83,7 +80,7 @@ export function createSendInvoiceEmailHandler(
         updatedAt: now,
       });
 
-      logger.info({ invoiceId, recipientEmail }, 'send-invoice-email: sent successfully');
+      logger.info({ invoiceId }, 'send-invoice-email: sent successfully');
     } catch (err: unknown) {
       logger.error({ err, invoiceId, attemptNumber }, 'send-invoice-email: delivery failed');
 
