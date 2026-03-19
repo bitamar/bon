@@ -59,6 +59,15 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T-ARCH-07](./T-ARCH-07-address-error-handling.md) | Address API Error Handling | ✅ | main |
 | [T-ARCH-08](./T-ARCH-08-idempotent-email-send.md) | Async Email Delivery via pg-boss (outbox pattern) | ⬜ | — |
 
+### Ops / Registration Prerequisites
+
+| Ticket | Name | Status | Branch |
+|--------|------|--------|--------|
+| [T13.5](./T13.5-shaam-http-integration.md) | SHAAM HTTP Integration (real ITA API calls) | ⬜ | — |
+| [T-OPS-01](./T-OPS-01-ita-simulator-validation.md) | ITA Simulator Validation (BKMV + PCN874) | ⬜ | — |
+| [T-OPS-02](./T-OPS-02-retention-policy.md) | Data Retention Policy (7-year requirement) | ⬜ | — |
+| [T-OPS-03](./T-OPS-03-user-manual.md) | User Manual / Software Documentation | ⬜ | — |
+
 ### Phase 1 — Customers
 
 | Ticket | Name | Status | Branch |
