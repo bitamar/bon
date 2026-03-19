@@ -8,6 +8,13 @@
       "when": 1773517408976,
       "tag": "0000_free_namorita",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773944027546,
+      "tag": "0001_lame_kat_farrell",
+      "breakpoints": true
     }
   ]
 }

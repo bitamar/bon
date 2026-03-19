@@ -224,7 +224,7 @@ describe('invoices api', () => {
   });
 
   describe('sendInvoiceByEmail', () => {
-    const sendResponse = { ok: true, sentAt: '2026-03-01T12:00:00.000Z' };
+    const sendResponse = { ok: true, status: 'sending' };
 
     it('calls POST to /send and returns send response', async () => {
       mockOk(sendResponse);

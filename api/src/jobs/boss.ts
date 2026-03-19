@@ -14,7 +14,7 @@ import * as schema from '../db/schema.js';
 //   4. Enqueue with sendJob(boss, 'name', payload, { singletonKey, retryLimit, ... })
 export interface JobPayloads {
   // On-demand jobs (enqueued by features)
-  'send-invoice-email': { invoiceId: string };
+  'send-invoice-email': { invoiceId: string; businessId: string; recipientEmail: string };
   'shaam-allocation-request': { invoiceId: string; businessId: string };
   'shaam-emergency-report': { businessId: string };
 

@@ -38,12 +38,11 @@ import {
 } from '../lib/invoice-serializers.js';
 import { toNumber } from '../lib/numeric.js';
 import { calculateLine, calculateInvoiceTotals, STANDARD_VAT_RATE_BP } from '@bon/types/vat';
-import { generateInvoicePdf } from './pdf-service.js';
-import { emailService, buildInvoiceEmailSubject, buildInvoiceEmailHtml } from './email-service.js';
-import { sendJob } from '../jobs/boss.js';
+import { sendJob, withTransactionalJob } from '../jobs/boss.js';
 import type { PgBoss } from 'pg-boss';
 import type { FastifyBaseLogger } from 'fastify';
 import { db } from '../db/client.js';
+import { pool } from '../db/client.js';
 import type {
   InvoiceResponse,
   InvoiceListQuery,
@@ -439,8 +438,9 @@ const SENDABLE_STATUSES = new Set(['finalized', 'sent', 'partially_paid']);
 export async function sendInvoice(
   businessId: string,
   invoiceId: string,
-  body: { recipientEmail?: string | undefined }
-): Promise<{ sentAt: string }> {
+  body: { recipientEmail?: string | undefined },
+  boss: PgBoss | undefined
+): Promise<{ status: 'sending' | 'sent' }> {
   const invoice = await findInvoiceById(invoiceId, businessId);
   if (!invoice) throw notFound();
 
@@ -453,39 +453,39 @@ export async function sendInvoice(
     throw unprocessableEntity({ code: 'missing_email' });
   }
 
-  const business = await findBusinessById(businessId);
-  if (!business) throw notFound();
-
-  const { pdf, filename } = await generateInvoicePdf(businessId, invoiceId);
-
-  const serializedInvoice = serializeInvoice(invoice);
-
-  try {
-    await emailService.send({
-      to: recipientEmail,
-      subject: buildInvoiceEmailSubject(serializedInvoice, business.name),
-      html: buildInvoiceEmailHtml(serializedInvoice, business.name),
-      attachments: [{ filename, content: pdf }],
-    });
-  } catch (err: unknown) {
-    if (err instanceof AppError) throw err;
+  if (!boss) {
     throw new AppError({
-      statusCode: 502,
-      code: 'email_delivery_failed',
-      message: 'Failed to send email',
-      cause: err,
+      statusCode: 503,
+      code: 'job_queue_unavailable',
+      message: 'Background job queue is not available',
     });
   }
 
-  const now = new Date();
-  const updated = await updateInvoice(invoiceId, businessId, {
-    status: 'sent',
-    sentAt: now,
-    updatedAt: now,
-  });
-  if (!updated) throw notFound();
+  // Atomically set status to 'sending' and enqueue the email job
+  await withTransactionalJob(pool, boss, async (tx, jobDb) => {
+    const { invoices } = await import('../db/schema.js');
+    const { eq, and } = await import('drizzle-orm');
 
-  return { sentAt: now.toISOString() };
+    await tx
+      .update(invoices)
+      .set({ status: 'sending', updatedAt: new Date() })
+      .where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId)));
+
+    await boss.send(
+      'send-invoice-email',
+      { invoiceId, businessId, recipientEmail },
+      {
+        db: jobDb,
+        singletonKey: invoiceId,
+        retryLimit: 3,
+        retryDelay: 30,
+        retryBackoff: true,
+        expireInSeconds: 600,
+      }
+    );
+  });
+
+  return { status: 'sending' };
 }
 
 export async function listInvoices(

@@ -186,18 +186,19 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         params: invoiceIdParamSchema,
         body: sendInvoiceBodySchema,
         response: {
-          200: sendInvoiceResponseSchema,
+          202: sendInvoiceResponseSchema,
         },
       },
     },
-    async (req) => {
+    async (req, reply) => {
       ensureBusinessContext(req);
-      const { sentAt } = await sendInvoice(
+      const result = await sendInvoice(
         req.businessContext.businessId,
         req.params.invoiceId,
-        req.body
+        req.body,
+        app.boss
       );
-      return { ok: true as const, sentAt };
+      return reply.status(202).send({ ok: true as const, status: result.status });
     }
   );
 

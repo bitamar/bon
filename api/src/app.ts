@@ -33,6 +33,7 @@ import { jobsPlugin } from './plugins/jobs.js';
 import { createLogger } from './lib/logger.js';
 import { isHostAllowed, parseOriginHeader } from './lib/origin.js';
 import { createShaamAllocationHandler } from './jobs/handlers/shaam-allocation.js';
+import { createSendInvoiceEmailHandler } from './jobs/handlers/send-invoice-email.js';
 import { runJob } from './jobs/boss.js';
 
 export async function buildServer(options: FastifyServerOptions = {}) {
@@ -116,15 +117,25 @@ export async function buildServer(options: FastifyServerOptions = {}) {
 
   // Register job handlers when pg-boss is available (skipped in test mode)
   if (app.boss) {
+    // Email delivery job
+    await app.boss.createQueue('send-invoice-email');
+    const emailHandler = createSendInvoiceEmailHandler(app.log);
+    await app.boss.work(
+      'send-invoice-email',
+      { includeMetadata: true },
+      runJob('send-invoice-email', emailHandler, app.log)
+    );
+
+    // SHAAM allocation job
     await app.boss.createQueue('shaam-allocation-request');
-    const handler = createShaamAllocationHandler(app.shaamService, app.log, app.boss);
+    const allocationHandler = createShaamAllocationHandler(app.shaamService, app.log, app.boss);
     await app.boss.work(
       'shaam-allocation-request',
       { includeMetadata: true },
-      runJob('shaam-allocation-request', handler, app.log)
+      runJob('shaam-allocation-request', allocationHandler, app.log)
     );
 
-    // Register emergency report job handler
+    // SHAAM emergency report job
     await app.boss.createQueue('shaam-emergency-report');
     const { createShaamEmergencyReportHandler } =
       await import('./jobs/handlers/shaam-emergency-report.js');

@@ -26,6 +26,7 @@ export const SEQUENCE_GROUPS = ['tax_document', 'credit_note', 'receipt'] as con
 export const INVOICE_STATUSES = [
   'draft',
   'finalized',
+  'sending',
   'sent',
   'paid',
   'partially_paid',
@@ -94,7 +95,8 @@ export const sendInvoiceBodySchema = z
 
 export const sendInvoiceResponseSchema = z.object({
   ok: z.literal(true),
-  sentAt: isoDateTime,
+  status: z.enum(['sending', 'sent']),
+  sentAt: isoDateTime.optional(),
 });
 
 export const createCreditNoteBodySchema = z
