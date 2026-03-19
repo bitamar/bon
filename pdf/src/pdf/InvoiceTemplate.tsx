@@ -237,8 +237,14 @@ export function InvoiceTemplate(props: Readonly<PdfRenderInput>) {
             {
               '\u05DE\u05E1\u05DE\u05DA \u05D6\u05D4 \u05D4\u05D5\u05E4\u05E7 \u05E2\u05DC \u05D9\u05D3\u05D9 BON v1.0'
             }
-            {softwareRegistrationNumber &&
-              ` | \u05E8\u05D9\u05E9\u05D5\u05DD \u05D1\u05D9\u05EA \u05EA\u05D5\u05DB\u05E0\u05D4 \u05DE\u05E1' ${softwareRegistrationNumber}`}
+            {softwareRegistrationNumber && (
+              <>
+                {
+                  ' | \u05E8\u05D9\u05E9\u05D5\u05DD \u05D1\u05D9\u05EA \u05EA\u05D5\u05DB\u05E0\u05D4 \u05DE\u05E1\u0027 '
+                }
+                <span dir="ltr">{softwareRegistrationNumber}</span>
+              </>
+            )}
           </div>
         </footer>
       </body>

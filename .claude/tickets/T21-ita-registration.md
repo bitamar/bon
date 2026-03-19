@@ -107,7 +107,7 @@ After receiving the תעודת רישום, the registration number must be embed
 **ITA payload builder** (`api/src/services/shaam/build-ita-payload.ts`):
 
 - Currently builds ~26 fields for allocation requests
-- `AccountingSoftwareNumber` (field 1006) is not yet included — add after registration
+- `AccountingSoftwareNumber` (field 1006) is implemented and included when `SHAAM_REGISTRATION_NUMBER` is set
 
 **PDF footer** (`pdf/src/pdf/InvoiceTemplate.tsx` lines 234-241):
 

@@ -117,7 +117,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 
 | Ticket | Name | Status | Branch |
 |--------|------|--------|--------|
-| [T21](./T21-ita-registration.md) | ITA Software Registration | ⬜ | — |
+| [T21](./T21-ita-registration.md) | ITA Software Registration | 🟡 | — |
 
 ---
 

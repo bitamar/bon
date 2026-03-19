@@ -99,6 +99,7 @@ export function createShaamAllocationHandler(
         vatMinorUnits: invoice.vatMinorUnits,
         totalInclVatMinorUnits: invoice.totalInclVatMinorUnits,
         customerTaxId: invoice.customerTaxId,
+        softwareRegistrationNumber: env.SHAAM_REGISTRATION_NUMBER,
         items: lineItemsData.map((item) => ({
           description: item.description,
           quantity: item.quantity,

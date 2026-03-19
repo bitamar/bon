@@ -14,6 +14,7 @@ export interface AllocationRequest {
   readonly vatMinorUnits: number;
   readonly totalInclVatMinorUnits: number;
   readonly customerTaxId: string | null;
+  readonly softwareRegistrationNumber?: string | undefined;
   readonly items: ReadonlyArray<{
     readonly description: string;
     readonly quantity: number;
