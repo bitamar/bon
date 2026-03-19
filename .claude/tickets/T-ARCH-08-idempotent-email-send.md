@@ -1,9 +1,9 @@
 # T-ARCH-08 — Async Email Delivery via Job Queue
 
-**Status**: 🔒 Blocked (T-CRON-01 must merge first)
+**Status**: 🔄 In review (implementation complete, PR pending)
 **Phase**: Cross-cutting
-**Requires**: T-CRON-01 merged (pg-boss infrastructure)
-**Blocks**: nothing (but should ship before T12 to prove the on-demand job pattern)
+**Requires**: T-CRON-01 merged ✅
+**Blocks**: nothing (nice-to-have improvement)
 
 ---
 

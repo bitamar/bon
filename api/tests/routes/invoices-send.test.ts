@@ -16,6 +16,15 @@ import {
   setupFinalizedInvoice,
 } from '../utils/invoices.js';
 import type { InvoiceResponse } from '@bon/types/invoices';
+import type { PgBoss } from 'pg-boss';
+
+// ── helpers ──
+
+function createMockBoss(): PgBoss {
+  return {
+    send: vi.fn().mockResolvedValue('mock-job-id'),
+  } as unknown as PgBoss;
+}
 
 async function sendInvoice(
   app: FastifyInstance,
@@ -41,26 +50,36 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    // Mock pg-boss on the app instance for all send tests
+    (ctx.app as unknown as { boss: PgBoss }).boss = createMockBoss();
   });
 
-  it('sends a finalized invoice and returns sentAt', async () => {
+  it('returns 202 and enqueues a send-invoice-email job', async () => {
     const { sessionId, business, invoice } = await prepareFinalizedInvoice(ctx.app);
 
     const res = await sendInvoice(ctx.app, sessionId, business.id, invoice.id);
 
-    expect(res.statusCode).toBe(200);
-    const body = res.json() as { ok: true; sentAt: string };
+    expect(res.statusCode).toBe(202);
+    const body = res.json() as { ok: true; status: string };
     expect(body.ok).toBe(true);
-    expect(body.sentAt).toBeTruthy();
+    expect(body.status).toBe('sending');
 
-    // Verify invoice status changed to 'sent'
+    // Verify pg-boss job was enqueued
+    const boss = (ctx.app as unknown as { boss: PgBoss }).boss;
+    expect(boss.send).toHaveBeenCalledOnce();
+    expect(boss.send).toHaveBeenCalledWith(
+      'send-invoice-email',
+      expect.objectContaining({ invoiceId: invoice.id, businessId: business.id }),
+      expect.objectContaining({ singletonKey: invoice.id })
+    );
+
+    // Verify invoice status changed to 'sending'
     const detailRes = await injectAuthed(ctx.app, sessionId, {
       method: 'GET',
       url: `/businesses/${business.id}/invoices/${invoice.id}`,
     });
     const detail = detailRes.json() as InvoiceResponse;
-    expect(detail.invoice.status).toBe('sent');
-    expect(detail.invoice.sentAt).toBeTruthy();
+    expect(detail.invoice.status).toBe('sending');
   });
 
   it('sends to custom email when recipientEmail is provided', async () => {
@@ -70,19 +89,14 @@ describe('POST /businesses/:businessId/invoices/:invoiceId/send', () => {
       recipientEmail: 'other@example.com',
     });
 
-    expect(res.statusCode).toBe(200);
-  });
+    expect(res.statusCode).toBe(202);
 
-  it('allows re-sending an already sent invoice', async () => {
-    const { sessionId, business, invoice } = await prepareFinalizedInvoice(ctx.app);
-
-    // Send first time
-    const first = await sendInvoice(ctx.app, sessionId, business.id, invoice.id);
-    expect(first.statusCode).toBe(200);
-
-    // Send again
-    const second = await sendInvoice(ctx.app, sessionId, business.id, invoice.id);
-    expect(second.statusCode).toBe(200);
+    const boss = (ctx.app as unknown as { boss: PgBoss }).boss;
+    expect(boss.send).toHaveBeenCalledWith(
+      'send-invoice-email',
+      expect.objectContaining({ recipientEmail: 'other@example.com' }),
+      expect.any(Object)
+    );
   });
 
   it('returns 422 when trying to send a draft invoice', async () => {

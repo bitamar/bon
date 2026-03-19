@@ -282,7 +282,7 @@ export function InvoiceDetail() {
       sendInvoiceByEmail(businessId, invoiceId, {
         recipientEmail: recipientEmail?.trim() || undefined,
       }),
-    successToast: { message: 'החשבונית נשלחה בהצלחה' },
+    successToast: { message: 'החשבונית נשלחת ברקע' },
     onSuccess: () => {
       setSendModalOpen(false);
       invalidateInvoiceQueries();

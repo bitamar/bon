@@ -38,12 +38,10 @@ import {
 } from '../lib/invoice-serializers.js';
 import { toNumber } from '../lib/numeric.js';
 import { calculateLine, calculateInvoiceTotals, STANDARD_VAT_RATE_BP } from '@bon/types/vat';
-import { generateInvoicePdf } from './pdf-service.js';
-import { emailService, buildInvoiceEmailSubject, buildInvoiceEmailHtml } from './email-service.js';
-import { sendJob } from '../jobs/boss.js';
+import { sendJob, withTransactionalJob } from '../jobs/boss.js';
 import type { PgBoss } from 'pg-boss';
 import type { FastifyBaseLogger } from 'fastify';
-import { db } from '../db/client.js';
+import { db, pool } from '../db/client.js';
 import type {
   InvoiceResponse,
   InvoiceListQuery,
@@ -439,53 +437,50 @@ const SENDABLE_STATUSES = new Set(['finalized', 'sent', 'partially_paid']);
 export async function sendInvoice(
   businessId: string,
   invoiceId: string,
-  body: { recipientEmail?: string | undefined }
-): Promise<{ sentAt: string }> {
-  const invoice = await findInvoiceById(invoiceId, businessId);
-  if (!invoice) throw notFound();
-
-  if (!SENDABLE_STATUSES.has(invoice.status)) {
-    throw unprocessableEntity({ code: 'not_sendable' });
-  }
-
-  const recipientEmail = (body.recipientEmail ?? invoice.customerEmail)?.trim();
-  if (!recipientEmail) {
-    throw unprocessableEntity({ code: 'missing_email' });
-  }
-
-  const business = await findBusinessById(businessId);
-  if (!business) throw notFound();
-
-  const { pdf, filename } = await generateInvoicePdf(businessId, invoiceId);
-
-  const serializedInvoice = serializeInvoice(invoice);
-
-  try {
-    await emailService.send({
-      to: recipientEmail,
-      subject: buildInvoiceEmailSubject(serializedInvoice, business.name),
-      html: buildInvoiceEmailHtml(serializedInvoice, business.name),
-      attachments: [{ filename, content: pdf }],
-    });
-  } catch (err: unknown) {
-    if (err instanceof AppError) throw err;
+  body: { recipientEmail?: string | undefined },
+  boss: PgBoss | undefined
+): Promise<{ status: 'sending' | 'sent' }> {
+  if (!boss) {
     throw new AppError({
-      statusCode: 502,
-      code: 'email_delivery_failed',
-      message: 'Failed to send email',
-      cause: err,
+      statusCode: 503,
+      code: 'job_queue_unavailable',
+      message: 'Background job queue is not available',
     });
   }
 
-  const now = new Date();
-  const updated = await updateInvoice(invoiceId, businessId, {
-    status: 'sent',
-    sentAt: now,
-    updatedAt: now,
-  });
-  if (!updated) throw notFound();
+  // Atomically validate, set status to 'sending', and enqueue the email job
+  let recipientEmail!: string;
+  await withTransactionalJob(pool, boss, async (tx, jobDb) => {
+    const invoice = await findInvoiceByIdForUpdate(invoiceId, businessId, tx);
+    if (!invoice) throw notFound();
 
-  return { sentAt: now.toISOString() };
+    if (!SENDABLE_STATUSES.has(invoice.status)) {
+      throw unprocessableEntity({ code: 'not_sendable' });
+    }
+
+    const email = (body.recipientEmail ?? invoice.customerEmail)?.trim();
+    if (!email) {
+      throw unprocessableEntity({ code: 'missing_email' });
+    }
+    recipientEmail = email;
+
+    await updateInvoice(invoiceId, businessId, { status: 'sending', updatedAt: new Date() }, tx);
+
+    await boss.send(
+      'send-invoice-email',
+      { invoiceId, businessId, recipientEmail },
+      {
+        db: jobDb,
+        singletonKey: invoiceId,
+        retryLimit: 3,
+        retryDelay: 30,
+        retryBackoff: true,
+        expireInSeconds: 600,
+      }
+    );
+  });
+
+  return { status: 'sending' };
 }
 
 export async function listInvoices(

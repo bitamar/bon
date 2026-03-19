@@ -317,7 +317,7 @@ describe('InvoiceDetail', () => {
       );
       vi.mocked(invoicesApi.sendInvoiceByEmail).mockResolvedValue({
         ok: true,
-        sentAt: '2026-03-03T12:00:00.000Z',
+        status: 'sending',
       });
       renderDetail();
       const user = userEvent.setup();
@@ -338,7 +338,7 @@ describe('InvoiceDetail', () => {
       );
       vi.mocked(invoicesApi.sendInvoiceByEmail).mockResolvedValue({
         ok: true,
-        sentAt: '2026-03-03T12:00:00.000Z',
+        status: 'sending',
       });
       renderDetail();
       const user = userEvent.setup();
