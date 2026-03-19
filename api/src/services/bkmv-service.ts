@@ -9,6 +9,7 @@ import type { InvoiceRecord, InvoiceItemRecord } from '../repositories/invoice-r
 import { findPaymentsByInvoiceIds } from '../repositories/payment-repository.js';
 import type { PaymentRecord } from '../repositories/payment-repository.js';
 import { badRequest, notFound } from '../lib/app-error.js';
+import { env } from '../env.js';
 
 // Document type → C100 subsection code
 const SUBSECTION_CODES: Record<string, string> = {
@@ -165,6 +166,10 @@ function buildZ900(recordType: string, count: number): string {
   return ['Z900', padRight(recordType, 4), padLeft(String(count), 9)].join('|');
 }
 
+function sanitizeIniValue(value: string): string {
+  return value.replaceAll(/[|\r\n]/g, '').trim();
+}
+
 // ── INI.TXT builder ──
 
 type BusinessCounts = { c100: number; d110: number; d120: number };
@@ -179,7 +184,7 @@ function buildIniContent(business: BusinessRecord, year: number, counts: Busines
     `1003|${business.city ?? ''}`,
     `1004|${year}0101`,
     `1005|${year}1231`,
-    `1006|`,
+    `1006|${sanitizeIniValue(env.SHAAM_REGISTRATION_NUMBER ?? '')}`,
     `1007|BON`,
     `1008|1.0`,
     `1009|${timestamp}`,

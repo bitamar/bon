@@ -121,6 +121,7 @@ export async function generateInvoicePdf(
     invoice: serializeInvoice(invoice),
     items: itemRecords.map(serializeInvoiceItem),
     isDraft,
+    softwareRegistrationNumber: env.SHAAM_REGISTRATION_NUMBER,
   };
 
   const pdfBuffer = await callPdfService(renderInput);

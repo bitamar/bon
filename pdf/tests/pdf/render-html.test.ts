@@ -98,6 +98,21 @@ describe('renderInvoiceHtml', () => {
     expect(html).toContain('BON v1.0');
   });
 
+  it('shows software registration number in footer when provided', () => {
+    const html = renderDefault({ softwareRegistrationNumber: 'REG99999' });
+    expect(html).toContain('REG99999');
+    expect(html).toContain(
+      '\u05E8\u05D9\u05E9\u05D5\u05DD \u05D1\u05D9\u05EA \u05EA\u05D5\u05DB\u05E0\u05D4'
+    );
+  });
+
+  it('does not show registration number in footer when not provided', () => {
+    const html = renderDefault();
+    expect(html).not.toContain(
+      '\u05E8\u05D9\u05E9\u05D5\u05DD \u05D1\u05D9\u05EA \u05EA\u05D5\u05DB\u05E0\u05D4'
+    );
+  });
+
   it('renders credit note with correct label', () => {
     const html = renderDefault({
       invoice: makeInvoice({ documentType: 'credit_note' }),

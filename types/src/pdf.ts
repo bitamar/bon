@@ -27,6 +27,7 @@ export const pdfRenderInputSchema = z.object({
   invoice: invoiceSchema,
   items: z.array(lineItemSchema),
   isDraft: z.boolean(),
+  softwareRegistrationNumber: z.string().optional(),
 });
 
 /** Full payload sent to the PDF service to render an invoice. */

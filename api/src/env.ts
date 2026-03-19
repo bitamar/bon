@@ -38,6 +38,10 @@ const Env = z
       .length(64)
       .regex(/^[0-9a-fA-F]+$/, 'Must be a hex string')
       .optional(),
+    SHAAM_REGISTRATION_NUMBER: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
     MESHULAM_MODE: z.enum(MESHULAM_MODES).default('mock'),
     MESHULAM_PAGE_CODE: z.preprocess(
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),

@@ -11,6 +11,12 @@ import type { PaymentRecord } from '../../src/repositories/payment-repository.js
 vi.mock('../../src/repositories/business-repository.js');
 vi.mock('../../src/repositories/invoice-repository.js');
 vi.mock('../../src/repositories/payment-repository.js');
+vi.mock('../../src/env.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/env.js')>('../../src/env.js');
+  return { env: { ...actual.env } };
+});
+
+const { env } = await import('../../src/env.js');
 
 const { findBusinessById } = await import('../../src/repositories/business-repository.js');
 const { findInvoicesForReport, findItemsByInvoiceIds } =
@@ -112,6 +118,10 @@ function setupMocks(
 
 function decodeBkmvLines(result: { bkmvdataBuffer: Buffer }): string[] {
   return iconv.decode(result.bkmvdataBuffer, 'windows-1255').split('\r\n').filter(Boolean);
+}
+
+function prepareDefaultMocks() {
+  setupMocks([makeInvoice()], [makeItem()], [makePayment()]);
 }
 
 // ── tests ──
@@ -356,8 +366,12 @@ describe('bkmv-service', () => {
   });
 
   describe('INI.TXT content', () => {
+    beforeEach(() => {
+      env.SHAAM_REGISTRATION_NUMBER = undefined;
+    });
+
     it('includes business info and record counts', async () => {
-      setupMocks([makeInvoice()], [makeItem()], [makePayment()]);
+      prepareDefaultMocks();
 
       const result = await generateBkmvExport('biz-1', 2025);
       const ini = iconv.decode(result.iniBuffer, 'windows-1255');
@@ -371,6 +385,26 @@ describe('bkmv-service', () => {
       expect(lines.includes('1010|1')).toBe(true);
       expect(lines.includes('1011|1')).toBe(true);
       expect(lines.includes('1012|1')).toBe(true);
+    });
+
+    it('field 1006 is empty when SHAAM_REGISTRATION_NUMBER is not set', async () => {
+      prepareDefaultMocks();
+
+      const result = await generateBkmvExport('biz-1', 2025);
+      const ini = iconv.decode(result.iniBuffer, 'windows-1255');
+
+      expect(ini).toContain('1006|');
+      expect(ini).not.toContain('1006|REG');
+    });
+
+    it('field 1006 contains registration number when set', async () => {
+      env.SHAAM_REGISTRATION_NUMBER = 'REG12345';
+      prepareDefaultMocks();
+
+      const result = await generateBkmvExport('biz-1', 2025);
+      const ini = iconv.decode(result.iniBuffer, 'windows-1255');
+
+      expect(ini).toContain('1006|REG12345');
     });
   });
 });
