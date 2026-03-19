@@ -120,6 +120,10 @@ function decodeBkmvLines(result: { bkmvdataBuffer: Buffer }): string[] {
   return iconv.decode(result.bkmvdataBuffer, 'windows-1255').split('\r\n').filter(Boolean);
 }
 
+function prepareDefaultMocks() {
+  setupMocks([makeInvoice()], [makeItem()], [makePayment()]);
+}
+
 // ── tests ──
 
 describe('bkmv-service', () => {
@@ -362,17 +366,12 @@ describe('bkmv-service', () => {
   });
 
   describe('INI.TXT content', () => {
-    // ── helpers ──
-    function prepareIniTest() {
-      setupMocks([makeInvoice()], [makeItem()], [makePayment()]);
-    }
-
     beforeEach(() => {
       env.SHAAM_REGISTRATION_NUMBER = undefined;
     });
 
     it('includes business info and record counts', async () => {
-      prepareIniTest();
+      prepareDefaultMocks();
 
       const result = await generateBkmvExport('biz-1', 2025);
       const ini = iconv.decode(result.iniBuffer, 'windows-1255');
@@ -389,7 +388,7 @@ describe('bkmv-service', () => {
     });
 
     it('field 1006 is empty when SHAAM_REGISTRATION_NUMBER is not set', async () => {
-      prepareIniTest();
+      prepareDefaultMocks();
 
       const result = await generateBkmvExport('biz-1', 2025);
       const ini = iconv.decode(result.iniBuffer, 'windows-1255');
@@ -400,7 +399,7 @@ describe('bkmv-service', () => {
 
     it('field 1006 contains registration number when set', async () => {
       env.SHAAM_REGISTRATION_NUMBER = 'REG12345';
-      prepareIniTest();
+      prepareDefaultMocks();
 
       const result = await generateBkmvExport('biz-1', 2025);
       const ini = iconv.decode(result.iniBuffer, 'windows-1255');
