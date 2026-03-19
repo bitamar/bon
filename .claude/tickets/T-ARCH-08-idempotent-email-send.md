@@ -1,6 +1,6 @@
 # T-ARCH-08 — Async Email Delivery via Job Queue
 
-**Status**: ⬜ Not started (unblocked — T-CRON-01 merged ✅)
+**Status**: 🔄 In review (implementation complete, PR pending)
 **Phase**: Cross-cutting
 **Requires**: T-CRON-01 merged ✅
 **Blocks**: nothing (nice-to-have improvement)
