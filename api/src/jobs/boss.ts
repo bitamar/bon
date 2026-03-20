@@ -17,6 +17,8 @@ export interface JobPayloads {
   'send-invoice-email': { invoiceId: string; businessId: string; recipientEmail: string };
   'shaam-allocation-request': { invoiceId: string; businessId: string };
   'shaam-emergency-report': { businessId: string };
+  'process-whatsapp-message': { conversationId: string; messageId: string };
+  'send-whatsapp-reply': { conversationId: string; body: string; to: string };
 
   // Cron jobs (scheduled, no payload)
   'overdue-detection': Record<string, never>;
