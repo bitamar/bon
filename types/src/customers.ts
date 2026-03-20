@@ -46,7 +46,7 @@ export const createCustomerBodySchema = z
     city: nonEmptyString.optional(),
     postalCode: postalCodeSchema.optional(),
     contactName: nonEmptyString.optional(),
-    notes: z.string().trim().optional(),
+    notes: z.string().trim().max(2000).optional(),
   })
   .strict()
   .refine((data) => !data.isLicensedDealer || !!data.taxId, {
@@ -75,7 +75,7 @@ export const updateCustomerBodySchema = z
     city: optionalNullableString,
     postalCode: z.union([postalCodeSchema, z.literal(null)]).optional(),
     contactName: optionalNullableString,
-    notes: z.union([z.string().trim(), z.literal(null)]).optional(),
+    notes: z.union([z.string().trim().max(2000), z.literal(null)]).optional(),
   })
   .strict()
   .refine((data) => !data.isLicensedDealer || data.taxId !== null, {

@@ -195,15 +195,21 @@ export const CustomerForm = forwardRef<CustomerFormHandle, Readonly<CustomerForm
             initialStreetAddress={initialStreetAddress ?? ''}
           />
 
-          <TextInput label="שם איש קשר" {...form.getInputProps('contactName')} />
+          <TextInput label="שם איש קשר" maxLength={255} {...form.getInputProps('contactName')} />
 
           <TextInput label="אימייל" type="email" {...form.getInputProps('email')} />
 
-          <TextInput label="טלפון" placeholder="05X-XXXXXXX" {...form.getInputProps('phone')} />
+          <TextInput
+            label="טלפון"
+            placeholder="05X-XXXXXXX"
+            maxLength={10}
+            {...form.getInputProps('phone')}
+          />
 
           <Textarea
             label="הערות פנימיות"
             description="לא יופיע בחשבונית"
+            maxLength={2000}
             styles={{ input: { backgroundColor: 'var(--mantine-color-gray-0)' } }}
             {...form.getInputProps('notes')}
           />

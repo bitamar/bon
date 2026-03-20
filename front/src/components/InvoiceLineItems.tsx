@@ -84,6 +84,7 @@ export function InvoiceLineItems({
             value={row.description}
             onChange={(e) => updateRow(index, { description: e.currentTarget.value })}
             required
+            maxLength={255}
             style={{ flex: 1 }}
           />
           <NumberInput

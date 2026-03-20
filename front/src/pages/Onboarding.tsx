@@ -234,6 +234,7 @@ export function Onboarding() {
                       <TextInput
                         label={getNameLabel()}
                         required
+                        maxLength={255}
                         {...form.getInputProps('name')}
                         disabled={isPending}
                       />

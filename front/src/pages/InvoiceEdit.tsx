@@ -508,6 +508,7 @@ export function InvoiceEdit() {
                 onChange={(e) => form.setFieldValue('notes', e.currentTarget.value)}
                 autosize
                 minRows={2}
+                maxLength={2000}
               />
 
               <Textarea
@@ -516,6 +517,7 @@ export function InvoiceEdit() {
                 onChange={(e) => form.setFieldValue('internalNotes', e.currentTarget.value)}
                 autosize
                 minRows={2}
+                maxLength={2000}
                 styles={{ input: { backgroundColor: 'var(--mantine-color-gray-0)' } }}
               />
             </Stack>
