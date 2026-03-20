@@ -78,7 +78,16 @@ The LLM needs conversation history to maintain context. Pending actions table pr
      - `llmRole = 'assistant'` → `{ role: 'assistant', content: body }`
      - `llmRole = 'tool_call'` → `{ role: 'assistant', content: [{ type: 'tool_use', id: toolCallId, name: toolName, input: JSON.parse(body) }] }`
      - `llmRole = 'tool_result'` → `{ role: 'user', content: [{ type: 'tool_result', tool_use_id: toolCallId, content: body }] }`
-   - Adjacent same-role messages are merged into multi-content blocks (Claude API requirement)
+   - Adjacent same-role messages are merged into multi-content blocks (Claude API requirement).
+     **Edge case**: `tool_result` messages have `role: 'user'` in the Claude API. If a real user message immediately follows a `tool_result`, they're adjacent `role: 'user'` messages and must be merged into a single message with multiple content blocks:
+     ```typescript
+     // tool_result (role: user) + user text (role: user) → single message:
+     { role: 'user', content: [
+       { type: 'tool_result', tool_use_id: '...', content: '...' },
+       { type: 'text', text: '...' }
+     ]}
+     ```
+     Test this case explicitly — it occurs when the user sends a message while a tool loop is in progress (their new inbound arrives as the next row after a tool_result).
    - `trimToTokenBudget(messages: ClaudeMessage[], maxTokens: number): ClaudeMessage[]` — Drops oldest user+assistant pairs. Never drops mid-turn (tool_call without its tool_result). Logs warning when trimming. Uses character count heuristic: `Math.ceil(totalChars / 3.5)`.
 
 ### Zod Schemas (types/)

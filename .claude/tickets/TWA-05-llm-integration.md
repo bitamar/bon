@@ -50,6 +50,7 @@ This is the core of the WhatsApp experience. The tool loop is the most complex p
      businessId: string;
      conversationId: string;
      logger: FastifyBaseLogger;
+     boss?: PgBoss;  // Needed by tools that enqueue jobs (e.g., finalize_invoice → SHAAM allocation)
    }
 
    class ToolRegistry {

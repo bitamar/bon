@@ -42,21 +42,23 @@ Proactive notifications are the "push" side of WhatsApp. Business owners shouldn
 
 ### Integration Points (existing code, small additions)
 
-3. **Invoice send** (`api/src/services/invoice-service.ts` — `sendInvoice` function):
-   After successfully sending email, call:
+3. **Invoice send** — `sendInvoice()` in `invoice-service.ts` is **synchronous** (email sent inline, not queued via pg-boss). The notification must be triggered from the **route handler** in `api/src/routes/invoices.ts`, after `sendInvoice()` returns successfully:
    ```typescript
+   // In the route handler, after: const result = await sendInvoice(...)
    await notifyBusinessViaWhatsApp(businessId, 'invoice_sent', {
      documentNumber: invoice.documentNumber,
      customerName: invoice.customerName,
-   }, boss);
+   }, app.boss);
    ```
+   Do NOT add the notification inside the service function — keep it in the route to avoid coupling the service to WhatsApp.
 
-4. **Payment recorded** (`api/src/services/payment-service.ts` — after recording payment):
+4. **Payment recorded** — There is no `payment-service.ts`. Payment recording lives in `invoice-service.ts` as `recordPayment()`. The notification must be triggered from the **route handler** in `api/src/routes/invoices.ts`, after `recordPayment()` returns:
    ```typescript
+   // In the route handler, after: const result = await recordPayment(...)
    await notifyBusinessViaWhatsApp(businessId, 'payment_received', {
      amount: formatCurrency(payment.amountMinorUnits),
-     documentNumber: invoice.documentNumber,
-   }, boss);
+     documentNumber: result.invoice.documentNumber,
+   }, app.boss);
    ```
 
 5. **Overdue detection** (`api/src/jobs/handlers/overdue-detection.ts`):

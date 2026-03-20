@@ -125,6 +125,7 @@ interface ToolContext {
   businessId: string;
   conversationId: string;
   logger: FastifyBaseLogger;
+  boss?: PgBoss;  // Needed by tools that enqueue jobs (e.g., SHAAM allocation after finalize)
 }
 
 type ToolRegistry = Map<string, { definition: ToolDefinition; handler: ToolHandler }>;
@@ -194,6 +195,32 @@ TWA-07: Proactive outbound notifications      (invoice sent, payment received, o
 ```
 
 Each ticket is independently mergeable. TWA-02→03→04→05 must be sequential. TWA-06 depends on TWA-05. TWA-07 is independent after TWA-02.
+
+## Known codebase constraints
+
+These were discovered during a deep review of the existing codebase. Every ticket implementer must be aware:
+
+1. **Line items are full replacement, not incremental.** `updateDraft()` deletes ALL existing items and inserts the provided array. Any tool that adds/removes items must load existing items, modify the array, and pass the complete set. See `invoice-service.ts` lines 251–269.
+
+2. **`lineItemInputSchema` requires `vatRateBasisPoints` and `position`.** These are not optional. Tools must auto-set `vatRateBasisPoints` from the business's `defaultVatRateBasisPoints` and `position` from the item index.
+
+3. **`finalize()` does NOT enqueue SHAAM jobs.** It returns `{ needsAllocation: boolean }` — the caller must call `enqueueShaamAllocation()` if true. This is the existing pattern in `routes/invoices.ts`.
+
+4. **`finalize()` can require a `vatExemptionReason`.** If VAT total is zero and the business is not an exempt dealer, it throws `unprocessableEntity` with code `missing_vat_exemption_reason`.
+
+5. **`businesses.phone` is nullable with no unique constraint.** Multiple businesses could share the same phone. The webhook handler must handle ambiguity (zero, one, or multiple matches).
+
+6. **Rate limiting only excludes `/health`.** The Meshulam webhook is NOT excluded from rate limiting despite what some comments suggest. The `allowList` function in `app.ts` must be updated to exclude webhook routes.
+
+7. **`sendInvoice()` is synchronous.** Email delivery blocks the HTTP request. It is NOT queued via pg-boss. Notifications must be triggered from route handlers, not from the service.
+
+8. **No `payment-service.ts` exists.** Payment recording is in `invoice-service.ts` as `recordPayment()`. After recording, there are no event hooks — notifications must be triggered from the route handler.
+
+9. **`recordPayment()` has no event/callback mechanism.** The route handler must explicitly trigger any post-payment actions (WhatsApp notifications, etc.).
+
+10. **`overdue-detection` enqueues `overdue-digest` as follow-up.** The digest job runs after detection, not as an independent cron. If adding WhatsApp overdue notifications, hook into the detection handler (which already iterates newly-overdue invoices).
+
+11. **`createDraft()` requires `documentType`.** It's not optional in `CreateDraftInput`. Tools must always pass it explicitly (default to `'tax_invoice'` in the tool handler).
 
 ## Out of scope (for now)
 

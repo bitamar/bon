@@ -21,13 +21,13 @@ All tools registered in `api/src/services/whatsapp/tools/invoice-tools.ts` and a
    - Input: `{ query: string }`
    - Implementation: Calls existing `searchCustomers(businessId, query)` from customer repository
    - Returns: JSON array of matches: `[{ id, name, taxId, city }]` (max 5 results)
-   - Empty results: Returns `"לא נמצאו לקוחות. אפשר ליצור לקוח חדש עם הכלי create_customer."` (but `create_customer` is a future tool — for now just say no results)
+   - Empty results: Returns `"לא נמצאו לקוחות. נסו לחפש עם שם אחר, או צרו לקוח חדש דרך האפליקציה."` (no `create_customer` tool exists in this scope — don't reference it)
 
 2. **`create_draft_invoice`**
    - Description: `"צור טיוטת חשבונית חדשה"`
    - Input: `{ customerId: string, documentType?: 'tax_invoice' | 'tax_invoice_receipt' | 'receipt' }`
    - Default `documentType`: `'tax_invoice'`
-   - Implementation: Calls `createDraft(businessId, { customerId, documentType })` from invoice service
+   - Implementation: Calls `createDraft(businessId, { customerId, documentType: input.documentType ?? 'tax_invoice' })` from invoice service. Note: `documentType` is required in `CreateDraftInput` — always pass it explicitly.
    - Returns: `{ invoiceId: string, documentType: string }`
    - Error: Customer not found → return error string
 
@@ -35,8 +35,11 @@ All tools registered in `api/src/services/whatsapp/tools/invoice-tools.ts` and a
    - Description: `"הוסף פריט לחשבונית"`
    - Input: `{ invoiceId: string, description: string, quantity: number, unitPrice: number, discountPercent?: number }`
    - `unitPrice` is in shekels (not minor units) — the tool converts: `Math.round(unitPrice * 100)`
-   - Implementation: Calls `updateInvoiceDraft(businessId, invoiceId, { items: [...existingItems, newItem] })`
-   - Loads existing items first, appends the new one
+   - **Hidden fields the tool must auto-set** (NOT exposed to the LLM):
+     - `vatRateBasisPoints` — Look up the business's `defaultVatRateBasisPoints` from the business record. Required by `lineItemInputSchema`.
+     - `position` — Set to `existingItems.length` (0-indexed). Required by `lineItemInputSchema`.
+   - Implementation: Calls `updateDraft(businessId, invoiceId, { items: [...existingItems, newItem] })`
+   - **Critical**: `updateDraft` does FULL REPLACEMENT of line items — it deletes ALL existing items and inserts the new array. The tool MUST load existing items first (via `getInvoiceById` or equivalent), map them back to `LineItemInput` format, append the new one, and pass the complete array.
    - Returns: Updated totals: `"נוסף: {description} × {quantity} = ₪{total}\nסה\"כ כולל מע\"מ: ₪{totalInclVat}"`
 
 4. **`get_draft_summary`**
@@ -61,8 +64,14 @@ All tools registered in `api/src/services/whatsapp/tools/invoice-tools.ts` and a
      a. Check `whatsapp_pending_actions` for a non-expired row with `actionType: 'finalize_invoice'` and matching `invoiceId` in payload
      b. If not found → return `"לא נמצא אישור תקף. יש לבקש אישור מחדש."`
      c. If found → call `finalize(businessId, invoiceId, {})` from invoice service
-     d. Delete the pending action row
-     e. Return: `"חשבונית {documentNumber} הופקה בהצלחה! ✓\nסכום: ₪{totalInclVat}"`
+     d. **SHAAM enqueuing**: `finalize()` returns `{ needsAllocation: boolean }` but does NOT enqueue the SHAAM job — that's the caller's responsibility (same pattern as the route handler in `invoices.ts`). If `result.needsAllocation && boss`:
+        ```typescript
+        enqueueShaamAllocation(boss, businessId, invoiceId, logger);
+        ```
+        The tool handler needs access to `boss` via `ToolContext` (extend `ToolContext` to include `boss?: PgBoss`).
+     e. Delete the pending action row
+     f. Return: `"חשבונית {documentNumber} הופקה בהצלחה! ✓\nסכום: ₪{totalInclVat}"`
+   - **VAT exemption edge case**: If the invoice has zero VAT and the business is not an exempt dealer, `finalize()` throws `unprocessableEntity` with code `missing_vat_exemption_reason`. The tool should catch this specific error and return a Hebrew message asking the user for the reason: `"החשבונית ללא מע\"מ — נדרשת סיבת פטור. מה הסיבה?"` Then re-finalize with the reason in a follow-up call. Consider adding `vatExemptionReason?: string` to the tool input.
    - Error from finalize (validation, missing customer, etc.) → return error string in Hebrew
 
 ### Confirmation Flow (end-to-end)
@@ -106,11 +115,13 @@ Claude sends to user: "חשבונית INV-0001 הופקה בהצלחה! ✓ סכ
 7. **`api/tests/services/whatsapp/tools/invoice-tools.test.ts`**:
    - `find_customer` — returns matches, handles empty results
    - `create_draft_invoice` — creates draft, returns ID
-   - `add_line_item` — converts shekel to minor units, appends item
+   - `add_line_item` — converts shekel to minor units, auto-sets `vatRateBasisPoints` and `position`, appends item
+   - `add_line_item` — loads existing items and sends full array (not just the new item)
    - `request_confirmation` — inserts pending action, returns summary
-   - `finalize_invoice` — with valid pending action → finalizes
+   - `finalize_invoice` — with valid pending action → finalizes + enqueues SHAAM if needed
    - `finalize_invoice` — without pending action → returns error
    - `finalize_invoice` — with expired pending action → returns error
+   - `finalize_invoice` — zero-VAT invoice without exemption reason → returns Hebrew prompt for reason
    - All tests mock repositories/services (no DB, no real invoices)
 
 8. **`api/tests/jobs/handlers/process-whatsapp-message.integration.test.ts`** — Full flow test (mocked Claude client):
@@ -123,8 +134,12 @@ Claude sends to user: "חשבונית INV-0001 הופקה בהצלחה! ✓ סכ
 - [ ] `find_customer` searches by name and tax ID
 - [ ] `create_draft_invoice` creates a draft via the existing invoice service
 - [ ] `add_line_item` converts shekel input to minor units correctly
+- [ ] `add_line_item` auto-sets `vatRateBasisPoints` from business default and `position` from item count
+- [ ] `add_line_item` loads existing items and sends full replacement array to `updateDraft`
 - [ ] `request_confirmation` creates a pending action with 10-minute expiry
 - [ ] `finalize_invoice` checks for valid pending action before executing
+- [ ] `finalize_invoice` enqueues SHAAM allocation when `needsAllocation` is true
+- [ ] `finalize_invoice` handles `missing_vat_exemption_reason` error with Hebrew prompt
 - [ ] `finalize_invoice` without confirmation returns error (not crash)
 - [ ] Expired pending actions are rejected
 - [ ] Full conversation flow works end-to-end (mocked LLM, real tool execution)

@@ -23,7 +23,11 @@ The webhook must respond in <15 seconds or Twilio retries. All real work happens
    - **Enqueue job**: `boss.send('process-whatsapp-message', { conversationId, messageId }, { singletonKey: conversationId, retryLimit: 3, retryDelay: 30, retryBackoff: true })`
    - **Return 200** with empty body (Twilio ignores the body)
 
-2. **Register route** in `api/src/app.ts`. Exclude `/webhooks/whatsapp` from rate limiting (same pattern as `/webhooks/meshulam` and `/health`).
+2. **Register route** in `api/src/app.ts`. Exclude `/webhooks/whatsapp` from rate limiting by adding it to the `allowList` function in `app.ts` (currently only `/health` is excluded — the Meshulam webhook is NOT excluded, contrary to earlier assumptions). Update the `allowList` to:
+   ```typescript
+   allowList: (req) => req.url === '/health' || req.url.startsWith('/webhooks/'),
+   ```
+   This covers both `/webhooks/whatsapp` and `/webhooks/meshulam` (fixing an existing gap).
 
 ### Job Registration
 
@@ -54,12 +58,18 @@ The webhook must respond in <15 seconds or Twilio retries. All real work happens
    ```
    This searches with both E.164 and local format to avoid format mismatches.
 
+   **Important**: `businesses.phone` is nullable with **no unique constraint** — multiple businesses could have the same phone number. The implementation must handle this:
+   - If exactly one business matches → use it
+   - If multiple businesses match → reply with "מספר זה מחובר ליותר מעסק אחד. אנא פנו לתמיכה." and return 200 (don't process)
+   - If no business matches → reply with the existing "מספר זה לא מחובר לעסק" message
+
 ### Tests
 
 7. **`api/tests/routes/whatsapp.test.ts`**:
    - Valid signature + known phone → 200 + message inserted + job enqueued
    - Invalid signature → 403
    - Unknown phone number → 200 + error reply sent
+   - Multiple businesses with same phone → 200 + ambiguity error reply sent
    - Duplicate `MessageSid` → 200 + no job enqueued (idempotent)
    - Missing `Body` field → 200 (Twilio sends media-only messages; ignore gracefully)
 
