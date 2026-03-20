@@ -71,7 +71,7 @@ All WhatsApp features need a reliable messaging layer. Building the abstraction 
 
 ### CI Compatibility
 
-8. **`.github/workflows/ci.yml`** already has `TWILIO_WHATSAPP_FROM: whatsapp:+15555550100` in env. Verify that `WHATSAPP_MODE` defaults to `mock` in CI so tests don't require real Twilio credentials.
+8. **`.github/workflows/ci.yml`** already sets `TWILIO_WHATSAPP_FROM: whatsapp:+15555550100` as an env var. When `WHATSAPP_MODE` defaults to `mock` (which it does — the Zod schema defaults to `'mock'`), mock mode skips all Twilio API calls and signature validation entirely. The `TWILIO_WHATSAPP_FROM` value is a placeholder that exists in CI but is never used at runtime in mock mode. No CI changes needed — just verify that `WHATSAPP_MODE` is not explicitly set to anything other than `mock` in the workflow.
 
 ### Tests
 

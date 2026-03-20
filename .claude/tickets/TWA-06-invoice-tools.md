@@ -23,15 +23,22 @@ All tools in `api/src/services/whatsapp/tools/invoice-tools.ts`, registered in t
 1. **`find_customer`**
    - Description (Hebrew): `"חפש לקוח לפי שם או מספר מזהה"`
    - Input: `{ query: string }`
-   - Implementation: Calls existing customer search from customer repository. Verify the actual method name and signature before implementing — the repository likely has `findByBusinessId` with a search parameter or a separate search method.
-   - Returns: JSON array of matches: `[{ id, name, taxId, city }]` (max 5 results)
+   - Implementation: Call the existing `searchCustomers(businessId, query, activeOnly, limit)` from `api/src/repositories/customer-repository.ts`. It searches by name and taxId using `ilike()`. Pass `activeOnly: true` and `limit: 5`. Returns an array of `{ id, name, taxId, taxIdType, isLicensedDealer, city, email, streetAddress, isActive }`. Alternatively, use the service wrapper `listCustomers(businessId, query, true, 5)` from `api/src/services/customer-service.ts` which calls the same repository method.
+   - Returns: JSON array of matches: `[{ id, name, taxId, city }]` (max 5 results — project only the fields the LLM needs)
    - Empty results: Returns `"לא נמצאו לקוחות. נסו לחפש עם שם אחר, או צרו לקוח חדש דרך האפליקציה."`
 
 2. **`create_draft_invoice`**
    - Description: `"צור טיוטת חשבונית חדשה"`
    - Input: `{ customerId: string, documentType?: 'tax_invoice' | 'tax_invoice_receipt' | 'receipt' }`
    - Default `documentType`: `'tax_invoice'`
-   - Implementation: Calls `createDraft(businessId, { customerId, documentType: input.documentType ?? 'tax_invoice' })` from invoice service. `documentType` is required in `CreateDraftInput` — always pass it explicitly. Check `CreateDraftInput` for any other required fields and set sensible defaults (e.g., `issuedDate: new Date()`, currency, etc.).
+   - Implementation: Calls `createDraft(businessId, input)` from `api/src/services/invoice-service.ts`. `CreateDraftInput` (defined via `createInvoiceDraftBodySchema` in `types/src/invoices.ts`) has these fields:
+     - `documentType` — **required** (the only required field). Pass `input.documentType ?? 'tax_invoice'`.
+     - `customerId` — optional UUID. Pass `input.customerId`.
+     - `invoiceDate` — optional ISO date string. Omit to let the service default to today via `todayDateString()`.
+     - `dueDate` — optional. Omit (null in DB).
+     - `notes` — optional. Omit.
+     - `internalNotes` — optional. Omit.
+     - `items` — optional `LineItemInput[]`. Omit (items added later via `add_line_item`).
    - Returns: `{ invoiceId: string, documentType: string }`
    - Error: Customer not found → return error string
 
@@ -71,7 +78,7 @@ All tools in `api/src/services/whatsapp/tools/invoice-tools.ts`, registered in t
 7. **`finalize_invoice`**
    - Description: `"הפק חשבונית סופית (רק אחרי אישור המשתמש)"`
    - Input: `{ invoiceId: string, vatExemptionReason?: string }`
-   - `vatExemptionReason` is required when the invoice has zero VAT and the business is not an exempt dealer. The tool always includes it in the input schema so the LLM can provide it in a follow-up call.
+   - The tool's input schema always exposes both `invoiceId` (required) and `vatExemptionReason` (optional), so the LLM can supply the reason in a follow-up call. `vatExemptionReason` is only enforced by backend validation — `finalize()` throws `unprocessableEntity` with code `missing_vat_exemption_reason` when the invoice has zero VAT and the business is not an exempt dealer. The tool catches that specific error and prompts the user/LLM to provide the reason, then retries with `vatExemptionReason` set. In all other cases, `vatExemptionReason` is ignored if provided.
    - Implementation:
      a. **Role check**: If `context.userRole === 'user'` → return `"אין לך הרשאה להפיק חשבוניות. פנה לבעלים או מנהל העסק."` (only `owner` and `admin` can finalize, matching the web app's `requireBusinessRole('owner', 'admin')`)
      b. Check `whatsapp_pending_actions` for a non-expired row with `actionType: 'finalize_invoice'` and matching `invoiceId` in payload **and matching `conversationId`** (prevents cross-conversation action hijacking)
