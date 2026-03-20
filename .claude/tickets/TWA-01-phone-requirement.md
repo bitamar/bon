@@ -32,6 +32,7 @@ The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **u
    - `normalizeIsraeliPhone(input: string): string` — strips spaces/hyphens/dots, validates Israeli mobile format
    - `toE164(localPhone: string): string` — `'0521234567'` → `'+972521234567'`
    - `fromE164(e164Phone: string): string` — `'+972521234567'` → `'0521234567'` (for display only)
+   - **Israeli-only for now.** All validation and normalization assumes Israeli numbers (`+972`). International support would require country-code detection and a library like `libphonenumber-js` — out of scope for WhatsApp MVP.
 
 3. **`api/src/db/schema.ts`**:
    - Add partial unique index on `users.phone` (where phone is not null):
@@ -48,8 +49,9 @@ The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **u
 
 5. **`api/src/routes/users.ts`** — Add/verify a profile update endpoint that accepts phone:
    - Accept any reasonable Israeli format, normalize to E.164 before storing
-   - Reject duplicates (unique constraint will throw → catch and return 409)
+   - Reject duplicates (unique constraint will throw → catch and return 409 with a generic message like `"מספר טלפון זה כבר בשימוש"` — do not echo the phone number in the response)
    - Accept `whatsappEnabled` boolean
+   - **PII handling**: Phone numbers are PII. Never log full phone numbers — mask as `+9725****567` or log only the `userId`. Ensure unique-constraint error handlers don't leak the conflicting phone in error payloads.
 
 6. **Clarify `businesses.phone` as invoice-display-only** — no schema or backend changes needed (column, types, PDF rendering, and service serialization all stay as-is). Only the frontend label needs a tweak:
 
@@ -78,7 +80,9 @@ The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **u
 10. **API test**: profile update with duplicate phone → 409
 11. **API test**: profile update with invalid format → 400
 12. **API test**: profile update with `whatsappEnabled: false` → 200
-13. **Frontend test**: profile page shows phone field with validation
+13. **API test**: partial unique index allows multiple users with `phone = NULL` (no constraint violation)
+14. **API test**: 409 response for duplicate phone contains generic message, not the phone number
+15. **Frontend test**: profile page shows phone field with validation
 
 ## Acceptance Criteria
 
@@ -87,7 +91,7 @@ The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **u
 - [ ] `businesses.phone` remains unchanged — display-only for invoice PDFs
 - [ ] Business settings phone field labeled `טלפון לחשבונית` with tooltip clarifying it's for invoices only
 - [ ] User can set their phone via profile update (accepts formatted input, normalizes)
-- [ ] Duplicate phone is rejected with 409
+- [ ] Duplicate phone is rejected with 409 (generic message, phone not echoed in response)
 - [ ] Phone field uses Israeli format validation and `dir="ltr"`
 - [ ] `whatsappEnabled` boolean exists on user profile
 - [ ] Existing users without phone are unaffected
