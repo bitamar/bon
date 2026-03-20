@@ -64,12 +64,14 @@ Two separate jobs for processing and sending. If Twilio is down, the LLM respons
 
 ## Identity model: phone → user → business
 
+Phone lives **only on `users`** — not on businesses. `businesses.phone` column is removed (TWA-01). WhatsApp identity is always user-level: one phone, one user, potentially many businesses.
+
 ```
 inbound phone (+972521234567)
     │
     ▼
-users.phone (unique index, E.164 normalized)
-    │  → resolves to a specific user
+users.phone (partial unique index, stored as E.164)
+    │  → resolves to a specific user directly (no format conversion)
     │
     ▼
 user_businesses (userId + businessId + role)
@@ -83,6 +85,8 @@ This gives us:
 - **Identity**: `userId` for audit trails (`recordedByUserId` on payments, etc.)
 - **Role enforcement**: check `user_businesses.role` before destructive operations
 - **Multi-tenant**: user picks which business to operate on; can switch mid-conversation
+
+**Stale business guard**: At the start of each `process-whatsapp-message` job, re-check that the user is still a member of `activeBusinessId` (via `user_businesses`). If not (admin removed them), clear `activeBusinessId` and let the LLM prompt for a new selection. This prevents tool calls against a business the user no longer belongs to.
 
 ## Database schema
 
@@ -113,12 +117,14 @@ direction       enum: inbound | outbound
 llmRole         enum: user | assistant | tool_call | tool_result
 toolName        text NULLABLE
 toolCallId      text NULLABLE  -- Claude's tool_use id
-body            text NOT NULL
-metadata        jsonb NULLABLE  -- raw Twilio fields for debugging
+body            text NOT NULL  -- for tool_call: JSON.stringify(input); for tool_result: result string
+metadata        jsonb NULLABLE  -- raw Twilio fields, notification dedup keys, etc.
 createdAt       timestamp with tz
 ```
 
 `llmRole` drives context reconstruction. Select messages ordered by `createdAt`, map each row to its Claude API message shape. `tool_call` rows → `{ role: 'assistant', content: [{ type: 'tool_use', ... }] }`. `tool_result` rows → `{ role: 'user', content: [{ type: 'tool_result', ... }] }`.
+
+**Multi-tool grouping**: Claude can return multiple `tool_use` blocks in a single response. Each is stored as a separate `tool_call` row. The context builder must re-aggregate consecutive `tool_call` rows into a single `assistant` message with multiple `tool_use` content blocks. Similarly, their matching `tool_result` rows must be grouped into a single `user` message.
 
 ### `whatsapp_pending_actions`
 
@@ -129,9 +135,13 @@ actionType      text NOT NULL  -- 'finalize_invoice', 'delete_customer', etc.
 payload         jsonb NOT NULL  -- { invoiceId: string }
 expiresAt       timestamp with tz  -- 10 minutes from creation
 createdAt       timestamp with tz
+
+UNIQUE (conversationId, actionType)  -- one pending action per type per conversation
 ```
 
 Confirmation guard for destructive operations. The LLM calls `request_confirmation` which inserts a row and returns a summary. When the user replies "כן", the worker finds the pending action (if not expired), executes it, clears the row. Prevents LLM hallucinations from accidentally finalizing invoices or deleting data.
+
+The unique constraint ensures only one pending action of each type exists per conversation. A new `request_confirmation` for the same action type replaces the old one (upsert).
 
 ## Tool architecture
 
@@ -170,10 +180,14 @@ Tools call the existing service layer directly (not HTTP). They run in the same 
 ## Context management
 
 - Load last 40 messages from conversation
-- Estimate token count (character count heuristic: chars / 3.5)
+- Estimate token count (character count heuristic: **chars / 2** — conservative for Hebrew, which tokenizes at ~2 chars/token vs ~3.5 for English)
 - If > 100K tokens, drop oldest user+assistant pairs (never mid-turn: tool_call/tool_result pairs are atomic)
 - System prompt is always included, never trimmed
 - Log warning when trimming occurs
+
+## Message cleanup
+
+Old messages accumulate indefinitely. Add a `whatsapp-message-cleanup` cron job (TWA-04, registered alongside existing cleanup jobs) that deletes messages older than 90 days. Conversations themselves are kept (they're lightweight) — only `whatsapp_messages` rows are pruned.
 
 ## System prompt
 
@@ -214,20 +228,25 @@ User name, business name, and role injected at runtime. No data preloaded — to
 | User opted out (Twilio 63032) | Error code check | Mark conversation `blocked`, stop sending |
 | Job exhausts all retries | pg-boss marks `failed` | Best-effort direct apology message via Twilio |
 | DB connection lost | Transaction rolls back | pg-boss retries; all operations idempotent |
+| User sends media (image/voice/PDF) | `NumMedia > 0` | Reply "סליחה, כרגע אני מטפל רק בהודעות טקסט." via direct Twilio send, return 200 |
+| User removed from business after activeBusinessId set | `user_businesses` lookup returns null at job start | Clear `activeBusinessId`, prompt to select new business |
+| Tool loop exceeds 60s | AbortController timeout | Return Hebrew apology, log timeout |
+| User floods messages (>10/min) | Count recent inbound messages per conversation | Drop excess with "לאט לאט 😊 עדיין מעבד את ההודעה הקודמת" |
+| Proactive notification outside 24h window | Check `lastActivityAt` before enqueuing | Skip silently — user must text BON first to reopen the window |
 
 ## Ticket breakdown
 
 ```
-TWA-01: Phone on user profile + unique index  (user identity for WhatsApp)
+TWA-01: Phone on user profile + unique index  (user identity for WhatsApp, remove businesses.phone)
 TWA-02: Twilio infrastructure                 (service layer, plugin, env vars, phone normalization)
 TWA-03: Webhook + job queue wiring            (inbound route, phone→user→business resolution, two job types)
-TWA-04: Conversation state                    (DB migration, repositories, context builder, business selection)
-TWA-05: LLM integration core                  (Claude client, tool loop, system prompt, tool registry)
-TWA-06: Invoice creation tools                (find_customer, create_draft, add_line_item, confirm, finalize + select_business)
-TWA-07: Proactive outbound notifications      (invoice sent, payment received, overdue alerts — sent to user phone)
+TWA-04: Conversation state                    (DB migration, repositories, context builder, message cleanup cron)
+TWA-05: LLM integration core                  (Claude client, tool loop, system prompt, tool registry + select_business)
+TWA-06: Invoice creation tools                (find_customer, create_draft, add/remove_line_item, confirm, finalize)
+TWA-07: Proactive outbound notifications      (invoice sent, payment received, overdue alerts — 24h window only)
 ```
 
-Each ticket is independently mergeable. TWA-02→03→05 must be sequential. TWA-04 can run in parallel with TWA-02/03. TWA-06 depends on TWA-05. TWA-07 is independent after TWA-02+04.
+Each ticket is independently mergeable. TWA-02→03→05 must be sequential. **TWA-04 must complete before TWA-03** (TWA-03 needs the conversation/message tables). TWA-06 depends on TWA-05. TWA-07 is independent after TWA-02+04.
 
 ## Known codebase constraints
 
@@ -241,11 +260,11 @@ These were discovered during a deep review of the existing codebase. Every ticke
 
 4. **`finalize()` can require a `vatExemptionReason`.** If VAT total is zero and the business is not an exempt dealer, it throws `unprocessableEntity` with code `missing_vat_exemption_reason`.
 
-5. **`users.phone` exists but needs a unique index.** Column is nullable text with no constraint. TWA-01 adds a partial unique index (`WHERE phone IS NOT NULL`) to enable unambiguous phone→user lookup.
+5. **`users.phone` exists but needs a unique index and E.164 format.** Column is nullable text with no constraint. TWA-01 adds a partial unique index (`WHERE phone IS NOT NULL`), normalizes to E.164 (`+972521234567`) before storing, and removes `businesses.phone` entirely.
 
 6. **Rate limiting only excludes `/health`.** The Meshulam webhook is NOT excluded from rate limiting despite what some comments suggest. The `allowList` function in `app.ts` must be updated to exclude webhook routes.
 
-7. **`sendInvoice()` is synchronous.** Email delivery blocks the HTTP request. It is NOT queued via pg-boss. Notifications must be triggered from route handlers, not from the service.
+7. **`sendInvoice()` enqueues email via pg-boss (`send-invoice-email` job).** The route handler calls `sendInvoice()` which enqueues the email job. WhatsApp notifications should follow the same pattern: enqueue from the route handler after the primary action succeeds.
 
 8. **No `payment-service.ts` exists.** Payment recording is in `invoice-service.ts` as `recordPayment()`. After recording, there are no event hooks — notifications must be triggered from the route handler.
 
@@ -255,11 +274,43 @@ These were discovered during a deep review of the existing codebase. Every ticke
 
 11. **`createDraft()` requires `documentType`.** It's not optional in `CreateDraftInput`. Tools must always pass it explicitly (default to `'tax_invoice'` in the tool handler).
 
+## WhatsApp 24-hour messaging window
+
+The WhatsApp Business API only allows free-form messages within 24 hours of the user's last inbound message. Outside this window, only pre-approved message templates can be sent.
+
+**MVP approach**: Only send proactive notifications (TWA-07) to users whose `lastActivityAt` is within the last 24 hours. If outside the window, skip silently. This avoids the complexity of Twilio Content Templates for now.
+
+**Future**: Register message templates via Twilio Content API for notifications outside the 24h window (overdue alerts, payment confirmations). This is a separate ticket.
+
+## Operational notes
+
+### Cost estimate
+
+Per-message cost at ~4K tokens (Sonnet):
+- Anthropic: ~$0.016 input + ~$0.06 output = **~$0.08/message**
+- Twilio WhatsApp: ~$0.005/inbound + ~$0.005/outbound = **~$0.01/message**
+- Total: **~$0.09/message**
+
+At 100 DAU × 10 messages/day = 1,000 messages/day = **~$90/day, ~$2,700/month**. Acceptable for B2B SaaS.
+
+### User opt-out
+
+Users can disable WhatsApp via their profile (TWA-01 adds a `whatsappEnabled` boolean, default `true`). When disabled:
+- Inbound messages get: "WhatsApp מושבת בחשבון שלך. הפעל דרך הגדרות הפרופיל."
+- Proactive notifications are skipped
+- Conversation status is not changed (user can re-enable)
+
+### Per-user rate limiting
+
+Enforce max 10 inbound messages per minute per conversation. The webhook handler counts recent inbound messages (last 60 seconds) before enqueuing. If exceeded, reply with "לאט לאט — עדיין מעבד את ההודעה הקודמת" and return 200 without enqueuing.
+
 ## Out of scope (for now)
 
-- Media messages (images, voice, PDFs) from users
+- Media messages (images, voice, PDFs) from users — handled with a polite "text only" reply
 - Group chats
 - Multiple WhatsApp numbers per user
 - Bot persona customization
 - Inline payment via WhatsApp Pay
 - Customer-facing WhatsApp (B2C) — this is B2B only (business owner interacts)
+- WhatsApp message templates (needed for notifications outside 24h window)
+- Monitoring dashboard / cost alerting (add after MVP)

@@ -4,7 +4,7 @@
 
 ## Summary
 
-Database tables for WhatsApp conversations, messages, and pending confirmations. Repositories for CRUD. Context builder that reconstructs Claude message arrays from stored messages.
+Database tables for WhatsApp conversations, messages, and pending confirmations. Repositories for CRUD. Context builder that reconstructs Claude message arrays from stored messages. Message cleanup cron job.
 
 ## Why
 
@@ -22,7 +22,7 @@ The LLM needs conversation history to maintain context. Pending actions table pr
 
    **`whatsapp_conversations`**:
    - `id` uuid PK (default `gen_random_uuid()`)
-   - `userId` uuid FK → users (ON DELETE CASCADE) — the user who owns this conversation
+   - `userId` uuid FK → users (**ON DELETE RESTRICT** — conversations must not vanish if a user is accidentally deleted; matches 7-year retention requirements)
    - `phone` text NOT NULL — E.164 format (`+972521234567`)
    - `activeBusinessId` uuid FK → businesses NULLABLE — the currently selected business (null until user picks or auto-resolved)
    - `status` pgEnum `whatsapp_conversation_status`: `active`, `idle`, `blocked`
@@ -38,8 +38,8 @@ The LLM needs conversation history to maintain context. Pending actions table pr
    - `llmRole` pgEnum `whatsapp_llm_role`: `user`, `assistant`, `tool_call`, `tool_result`
    - `toolName` text NULLABLE
    - `toolCallId` text NULLABLE — Claude's `tool_use` id for matching call→result
-   - `body` text NOT NULL
-   - `metadata` jsonb NULLABLE — raw Twilio fields for debugging
+   - `body` text NOT NULL — for `tool_call` rows: `JSON.stringify(input)`; for `tool_result` rows: result string
+   - `metadata` jsonb NULLABLE — raw Twilio fields, notification dedup keys, etc.
    - `createdAt` timestamp with tz NOT NULL
    - INDEX on `(conversationId, createdAt)`
 
@@ -50,6 +50,7 @@ The LLM needs conversation history to maintain context. Pending actions table pr
    - `payload` jsonb NOT NULL — `{ invoiceId: string }` etc.
    - `expiresAt` timestamp with tz NOT NULL — 10 minutes from creation
    - `createdAt` timestamp with tz NOT NULL
+   - **UNIQUE** constraint on `(conversationId, actionType)` — one pending action per type per conversation. New confirmations for the same action type upsert (replace the old one).
 
 ### Repositories
 
@@ -57,20 +58,23 @@ The LLM needs conversation history to maintain context. Pending actions table pr
    - `findConversationByUserId(userId: string): Promise<ConversationRecord | null>`
    - `insertConversation(data: ConversationInsert): Promise<ConversationRecord>`
    - `updateActiveBusiness(id: string, businessId: string): Promise<void>` — sets `activeBusinessId`
+   - `clearActiveBusiness(id: string): Promise<void>` — sets `activeBusinessId = null` (used when user is removed from a business)
    - `updateConversationStatus(id: string, status: string): Promise<void>`
    - `updateLastActivity(id: string): Promise<void>`
 
 4. **`api/src/repositories/whatsapp-message-repository.ts`**:
    - `insertMessage(data: MessageInsert): Promise<{ inserted: boolean; message: MessageRecord }>` — Returns `inserted: false` when `ON CONFLICT DO NOTHING` (duplicate `twilioSid`)
    - `findRecentMessages(conversationId: string, limit: number): Promise<MessageRecord[]>` — Ordered by `createdAt ASC`, most recent `limit` rows
+   - `countRecentInbound(conversationId: string, sinceSeconds: number): Promise<number>` — For per-user rate limiting in the webhook handler
    - `insertToolCallMessage(conversationId: string, toolName: string, toolCallId: string, body: string): Promise<MessageRecord>`
    - `insertToolResultMessage(conversationId: string, toolName: string, toolCallId: string, body: string): Promise<MessageRecord>`
+   - `deleteOlderThan(days: number): Promise<number>` — For message cleanup cron
 
 5. **`api/src/repositories/whatsapp-pending-action-repository.ts`**:
-   - `insertPendingAction(data: PendingActionInsert): Promise<PendingActionRecord>`
+   - `upsertPendingAction(data: PendingActionInsert): Promise<PendingActionRecord>` — Uses `ON CONFLICT (conversationId, actionType) DO UPDATE` to replace existing pending action
    - `findPendingAction(conversationId: string, actionType: string): Promise<PendingActionRecord | null>` — Only returns non-expired rows (`expiresAt > now()`)
    - `deletePendingAction(id: string): Promise<void>`
-   - `deleteExpiredActions(): Promise<number>` — Cleanup, called by a cron or inline
+   - `deleteExpiredActions(): Promise<number>` — Cleanup, called by cron
 
 ### Context Builder
 
@@ -80,7 +84,10 @@ The LLM needs conversation history to maintain context. Pending actions table pr
      - `llmRole = 'assistant'` → `{ role: 'assistant', content: body }`
      - `llmRole = 'tool_call'` → `{ role: 'assistant', content: [{ type: 'tool_use', id: toolCallId, name: toolName, input: JSON.parse(body) }] }`
      - `llmRole = 'tool_result'` → `{ role: 'user', content: [{ type: 'tool_result', tool_use_id: toolCallId, content: body }] }`
-   - Adjacent same-role messages are merged into multi-content blocks (Claude API requirement).
+
+   **Multi-tool grouping**: Claude can return multiple `tool_use` blocks in a single response. Each is stored as a separate `tool_call` row. The context builder must re-aggregate consecutive `tool_call` rows into a single `assistant` message with multiple `tool_use` content blocks. Similarly, consecutive `tool_result` rows must be grouped into a single `user` message.
+
+   **Adjacent same-role merging**: After grouping, merge any remaining adjacent same-role messages into multi-content blocks (Claude API requirement).
      **Edge case**: `tool_result` messages have `role: 'user'` in the Claude API. If a real user message immediately follows a `tool_result`, they're adjacent `role: 'user'` messages and must be merged into a single message with multiple content blocks:
      ```typescript
      // tool_result (role: user) + user text (role: user) → single message:
@@ -90,11 +97,20 @@ The LLM needs conversation history to maintain context. Pending actions table pr
      ]}
      ```
      Test this case explicitly — it occurs when the user sends a message while a tool loop is in progress (their new inbound arrives as the next row after a tool_result).
-   - `trimToTokenBudget(messages: ClaudeMessage[], maxTokens: number): ClaudeMessage[]` — Drops oldest user+assistant pairs. Never drops mid-turn (tool_call without its tool_result). Logs warning when trimming. Uses character count heuristic: `Math.ceil(totalChars / 3.5)`.
+
+   - `trimToTokenBudget(messages: ClaudeMessage[], maxTokens: number): ClaudeMessage[]` — Drops oldest user+assistant pairs. Never drops mid-turn (tool_call without its tool_result). Logs warning when trimming. Uses character count heuristic: **`Math.ceil(totalChars / 2)`** — conservative for Hebrew text, which tokenizes at ~2 chars/token (vs ~3.5 for English).
+
+### Message Cleanup Cron
+
+7. **`api/src/jobs/handlers/whatsapp-message-cleanup.ts`**:
+   - Deletes `whatsapp_messages` older than 90 days
+   - Deletes expired `whatsapp_pending_actions`
+   - Runs daily (register alongside existing cleanup jobs in boss setup)
+   - Add `'whatsapp-message-cleanup': Record<string, never>` to `JobPayloads`
 
 ### Zod Schemas (types/)
 
-7. **`types/src/whatsapp.ts`** — Shared types:
+8. **`types/src/whatsapp.ts`** — Shared types:
    - `whatsappConversationStatusSchema` — `z.enum(['active', 'idle', 'blocked'])`
    - `whatsappMessageDirectionSchema` — `z.enum(['inbound', 'outbound'])`
    - `whatsappLlmRoleSchema` — `z.enum(['user', 'assistant', 'tool_call', 'tool_result'])`
@@ -102,31 +118,41 @@ The LLM needs conversation history to maintain context. Pending actions table pr
 
 ### Tests
 
-8. **`api/tests/repositories/whatsapp-conversation-repository.test.ts`** — CRUD + userId lookup + active business update
-9. **`api/tests/repositories/whatsapp-message-repository.test.ts`** — Insert, duplicate detection, recent messages ordering
-10. **`api/tests/repositories/whatsapp-pending-action-repository.test.ts`** — Insert, expiry filtering, cleanup
-11. **`api/tests/services/whatsapp/context-builder.test.ts`**:
+9. **`api/tests/repositories/whatsapp-conversation-repository.test.ts`** — CRUD + userId lookup + active business update + clearActiveBusiness
+10. **`api/tests/repositories/whatsapp-message-repository.test.ts`** — Insert, duplicate detection, recent messages ordering, countRecentInbound, deleteOlderThan
+11. **`api/tests/repositories/whatsapp-pending-action-repository.test.ts`** — Upsert (insert + replace), expiry filtering, cleanup, unique constraint behavior
+12. **`api/tests/services/whatsapp/context-builder.test.ts`**:
     - Simple user/assistant alternation
+    - Multi-tool call grouping (consecutive tool_call rows → single assistant message with multiple tool_use blocks)
+    - Consecutive tool_result rows → single user message with multiple tool_result blocks
     - Tool call → tool result pairing
-    - Adjacent same-role merging
-    - Token budget trimming (drops oldest, preserves tool pairs)
+    - Adjacent same-role merging (tool_result + user text → merged user message)
+    - Token budget trimming (drops oldest, preserves tool pairs, uses chars/2 heuristic)
     - Empty conversation
+13. **`api/tests/jobs/handlers/whatsapp-message-cleanup.test.ts`** — Deletes old messages, preserves recent ones
 
 ## Acceptance Criteria
 
 - [ ] Migration creates all three tables with correct constraints
+- [ ] `whatsapp_conversations.userId` uses `ON DELETE RESTRICT` (not CASCADE)
+- [ ] `whatsapp_pending_actions` has unique constraint on `(conversationId, actionType)`
 - [ ] Duplicate `twilioSid` insert returns `inserted: false` (no error)
 - [ ] `findRecentMessages` returns ordered history with configurable limit
+- [ ] `countRecentInbound` counts messages within a time window (for rate limiting)
 - [ ] Context builder produces valid Claude API message format
+- [ ] Context builder correctly groups consecutive `tool_call` rows into single multi-tool assistant messages
+- [ ] Token trimming uses `chars / 2` heuristic for Hebrew
 - [ ] Token trimming never breaks tool_call/tool_result pairs
 - [ ] Expired pending actions are not returned by `findPendingAction`
+- [ ] `upsertPendingAction` replaces existing pending action of same type
+- [ ] Message cleanup cron deletes messages older than 90 days
 - [ ] All repository methods have tests
 - [ ] `npm run check` passes
 
 ## Size
 
-~350 lines production code + ~250 lines tests. Medium-large ticket.
+~400 lines production code + ~300 lines tests. Medium-large ticket.
 
 ## Dependencies
 
-- None (can start in parallel with TWA-02/03, but must be done before TWA-05)
+- None — can start in parallel with TWA-01/02, but **must be done before TWA-03** (TWA-03 inserts into these tables)
