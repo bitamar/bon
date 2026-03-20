@@ -17,6 +17,7 @@ import { FormSkeleton } from '../components/FormSkeleton';
 import { StatusCard } from '../components/StatusCard';
 import { queryKeys } from '../lib/queryKeys';
 import type { SettingsResponse } from '@bon/types/users';
+import { normalizeIsraeliPhone } from '@bon/types/phone';
 import { extractErrorMessage } from '../lib/notifications';
 import { useApiMutation } from '../lib/useApiMutation';
 import { PageTitle } from '../components/PageTitle';
@@ -91,11 +92,12 @@ export function Settings() {
 
   const validatePhone = (value: string): string | null => {
     if (!value.trim()) return null;
-    const digits = Array.from(value)
-      .filter((c) => c >= '0' && c <= '9')
-      .join('');
-    if (!/^0[2-9]\d{7,8}$/.test(digits)) return 'מספר טלפון לא תקין';
-    return null;
+    try {
+      normalizeIsraeliPhone(value);
+      return null;
+    } catch {
+      return 'מספר טלפון לא תקין';
+    }
   };
 
   const onSubmit = async (e: React.FormEvent) => {

@@ -39,7 +39,14 @@ describe('Login page', () => {
 
   it('redirects to dashboard if user exists', () => {
     useAuthMock.mockReturnValue({
-      user: { id: '1', email: 'test@example.com', name: 'Tester', avatarUrl: null, phone: null, whatsappEnabled: true },
+      user: {
+        id: '1',
+        email: 'test@example.com',
+        name: 'Tester',
+        avatarUrl: null,
+        phone: null,
+        whatsappEnabled: true,
+      },
       loginWithGoogle: vi.fn(),
       logout: vi.fn(),
       isHydrated: true,
