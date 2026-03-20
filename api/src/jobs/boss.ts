@@ -26,6 +26,7 @@ export interface JobPayloads {
   'overdue-digest': Record<string, never>;
   'draft-cleanup': Record<string, never>;
   'session-cleanup': Record<string, never>;
+  'whatsapp-message-cleanup': Record<string, never>;
   'shaam-token-refresh': Record<string, never>;
 
   // Test-only (used by integration tests)
