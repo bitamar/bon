@@ -128,7 +128,7 @@ export async function deleteOldMessages(
   const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
   const result = await txOrDb
     .delete(whatsappMessages)
-    .where(sql`${whatsappMessages.createdAt} <= ${cutoff}`)
+    .where(sql`${whatsappMessages.createdAt} < ${cutoff}`)
     .returning({ id: whatsappMessages.id });
   return result.length;
 }

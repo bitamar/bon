@@ -271,10 +271,11 @@ describe('whatsapp-repository', () => {
         direction: 'inbound',
         llmRole: 'user',
         body: 'will be deleted',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
       });
 
-      // olderThanDays=0 means cutoff is now — all existing messages are older
-      const deleted = await deleteOldMessages(0);
+      // olderThanDays=1 means cutoff is 1 day ago — the 2-day-old message qualifies
+      const deleted = await deleteOldMessages(1);
       expect(deleted).toBe(1);
 
       const remaining = await findRecentMessages(conversation.id);
