@@ -259,6 +259,13 @@ describe('BusinessSettingsSection', () => {
     expect(screen.queryByText('מספר רישום חייב להיות 9 ספרות')).not.toBeInTheDocument();
   });
 
+  it('renders phone field labeled "טלפון לחשבונית" with accessible info button', async () => {
+    await renderLoadedSection();
+
+    expect(await screen.findByRole('textbox', { name: /טלפון לחשבונית/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'מידע על טלפון לחשבונית' })).toBeInTheDocument();
+  });
+
   it('clicking "נסה שוב" in error state triggers refetch', async () => {
     vi.mocked(businessesApi.fetchBusiness).mockRejectedValue(new Error('Network error'));
     const user = userEvent.setup();

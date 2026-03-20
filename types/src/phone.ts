@@ -23,7 +23,8 @@ export function normalizeIsraeliPhone(input: string): string {
 
   // Handle 972 prefix: 11-13 digits (8-10 local digits after 972)
   if (digits.startsWith('972') && digits.length >= 11 && digits.length <= 13) {
-    digits = '0' + digits.slice(3);
+    const afterPrefix = digits.slice(3);
+    digits = afterPrefix.startsWith('0') ? afterPrefix : '0' + afterPrefix;
   }
 
   if (!ISRAELI_LOCAL_PATTERN.test(digits)) {

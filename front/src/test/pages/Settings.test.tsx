@@ -246,6 +246,43 @@ describe('Settings page', () => {
     await waitFor(() => expect(screen.getByTestId('form-skeleton')).toBeInTheDocument());
   });
 
+  it('clears phone error when user types after validation failure', async () => {
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    const phoneInput = await screen.findByLabelText(/טלפון נייד/);
+    fireEvent.change(phoneInput, { target: { value: '123' } });
+    fireEvent.blur(phoneInput);
+
+    expect(await screen.findByText('מספר טלפון לא תקין')).toBeInTheDocument();
+
+    fireEvent.change(phoneInput, { target: { value: '050' } });
+
+    expect(screen.queryByText('מספר טלפון לא תקין')).not.toBeInTheDocument();
+  });
+
+  it('phone field has WhatsApp description via aria-describedby', async () => {
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    const phoneInput = await screen.findByLabelText(/טלפון נייד/);
+    const describedById = phoneInput.getAttribute('aria-describedby');
+    expect(describedById).toBeTruthy();
+    const descEl = document.getElementById(describedById!);
+    expect(descEl?.textContent).toContain('WhatsApp');
+  });
+
+  it('renders phone field with LTR direction', async () => {
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    const phoneInput = await screen.findByLabelText(/טלפון נייד/);
+    expect(phoneInput).toHaveAttribute('dir', 'ltr');
+  });
+
   it('hides business settings section for non-owner', async () => {
     mockUseBusinessWith({ role: 'user' });
 
