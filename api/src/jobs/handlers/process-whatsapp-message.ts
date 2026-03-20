@@ -1,6 +1,5 @@
 import type { FastifyBaseLogger } from 'fastify';
-import type { PgBoss } from 'pg-boss';
-import type { Job } from 'pg-boss';
+import type { Job, PgBoss } from 'pg-boss';
 import type { JobPayloads } from '../boss.js';
 import { sendJob } from '../boss.js';
 import { findConversationById } from '../../repositories/whatsapp-repository.js';
