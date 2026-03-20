@@ -19,13 +19,16 @@ const whatsappPluginFn: FastifyPluginAsync = async (app) => {
       service = new MockWhatsAppClient();
       break;
     case 'sandbox':
-    case 'production':
-      service = new TwilioWhatsAppClient(
-        env.TWILIO_ACCOUNT_SID!,
-        env.TWILIO_AUTH_TOKEN!,
-        env.TWILIO_WHATSAPP_FROM!
-      );
+    case 'production': {
+      const sid = env.TWILIO_ACCOUNT_SID;
+      const token = env.TWILIO_AUTH_TOKEN;
+      const from = env.TWILIO_WHATSAPP_FROM;
+      if (!sid || !token || !from) {
+        throw new Error('Twilio credentials required for non-mock WhatsApp mode');
+      }
+      service = new TwilioWhatsAppClient(sid, token, from);
       break;
+    }
   }
 
   app.decorate('whatsapp', service);

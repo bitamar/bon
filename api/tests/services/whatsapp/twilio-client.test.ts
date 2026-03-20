@@ -7,9 +7,9 @@ const mockCreate = vi.fn();
 
 vi.mock('twilio', () => ({
   default: {
-    Twilio: vi.fn().mockImplementation(() => ({
-      messages: { create: mockCreate },
-    })),
+    Twilio: vi.fn().mockImplementation(function () {
+      return { messages: { create: mockCreate } };
+    }),
   },
 }));
 

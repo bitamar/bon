@@ -76,6 +76,19 @@ const Env = z
     ),
   })
   .superRefine((data, ctx) => {
+    function requireFields(mode: string, modeField: string, fields: readonly string[]): void {
+      if (mode === 'mock') return;
+      for (const field of fields) {
+        if (!data[field as keyof typeof data]) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${field} is required when ${modeField} is not mock`,
+            path: [field],
+          });
+        }
+      }
+    }
+
     if (data.SHAAM_MODE !== 'mock' && !data.SHAAM_ENCRYPTION_KEY) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -83,52 +96,18 @@ const Env = z
         path: ['SHAAM_ENCRYPTION_KEY'],
       });
     }
-    if (data.WHATSAPP_MODE !== 'mock') {
-      if (!data.TWILIO_ACCOUNT_SID) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'TWILIO_ACCOUNT_SID is required when WHATSAPP_MODE is not mock',
-          path: ['TWILIO_ACCOUNT_SID'],
-        });
-      }
-      if (!data.TWILIO_AUTH_TOKEN) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'TWILIO_AUTH_TOKEN is required when WHATSAPP_MODE is not mock',
-          path: ['TWILIO_AUTH_TOKEN'],
-        });
-      }
-      if (!data.TWILIO_WHATSAPP_FROM) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'TWILIO_WHATSAPP_FROM is required when WHATSAPP_MODE is not mock',
-          path: ['TWILIO_WHATSAPP_FROM'],
-        });
-      }
-    }
-    if (data.MESHULAM_MODE !== 'mock') {
-      if (!data.MESHULAM_PAGE_CODE) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'MESHULAM_PAGE_CODE is required when MESHULAM_MODE is not mock',
-          path: ['MESHULAM_PAGE_CODE'],
-        });
-      }
-      if (!data.MESHULAM_USER_ID) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'MESHULAM_USER_ID is required when MESHULAM_MODE is not mock',
-          path: ['MESHULAM_USER_ID'],
-        });
-      }
-      if (!data.MESHULAM_WEBHOOK_SECRET) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'MESHULAM_WEBHOOK_SECRET is required when MESHULAM_MODE is not mock',
-          path: ['MESHULAM_WEBHOOK_SECRET'],
-        });
-      }
-    }
+
+    requireFields(data.WHATSAPP_MODE, 'WHATSAPP_MODE', [
+      'TWILIO_ACCOUNT_SID',
+      'TWILIO_AUTH_TOKEN',
+      'TWILIO_WHATSAPP_FROM',
+    ]);
+
+    requireFields(data.MESHULAM_MODE, 'MESHULAM_MODE', [
+      'MESHULAM_PAGE_CODE',
+      'MESHULAM_USER_ID',
+      'MESHULAM_WEBHOOK_SECRET',
+    ]);
   });
 
 const parsed = Env.parse(process.env);
