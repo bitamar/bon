@@ -289,9 +289,7 @@ describe('trimToTokenBudget', () => {
     const messages: ClaudeMessage[] = [
       {
         role: 'assistant',
-        content: [
-          { type: 'tool_use', id: 'tc-1', name: 'tool', input: { x: 'A'.repeat(100) } },
-        ],
+        content: [{ type: 'tool_use', id: 'tc-1', name: 'tool', input: { x: 'A'.repeat(100) } }],
       },
       { role: 'assistant', content: 'fallback' },
     ];

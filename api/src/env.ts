@@ -7,6 +7,9 @@ export type ShaamMode = (typeof SHAAM_MODES)[number];
 export const MESHULAM_MODES = ['mock', 'sandbox', 'production'] as const;
 export type MeshulamMode = (typeof MESHULAM_MODES)[number];
 
+export const WHATSAPP_MODES = ['mock', 'sandbox', 'production'] as const;
+export type WhatsAppMode = (typeof WHATSAPP_MODES)[number];
+
 const Env = z
   .object({
     PORT: z.coerce.number().default(3000),
@@ -55,8 +58,37 @@ const Env = z
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
       z.string().optional()
     ),
+    WHATSAPP_MODE: z.enum(WHATSAPP_MODES).default('mock'),
+    TWILIO_ACCOUNT_SID: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
+    TWILIO_AUTH_TOKEN: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
+    TWILIO_WHATSAPP_FROM: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z
+        .string()
+        .regex(/^whatsapp:\+[1-9]\d{6,14}$/, 'Must be whatsapp:+E.164 format')
+        .optional()
+    ),
   })
   .superRefine((data, ctx) => {
+    function requireFields(mode: string, modeField: string, fields: readonly string[]): void {
+      if (mode === 'mock') return;
+      for (const field of fields) {
+        if (!data[field as keyof typeof data]) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${field} is required when ${modeField} is not mock`,
+            path: [field],
+          });
+        }
+      }
+    }
+
     if (data.SHAAM_MODE !== 'mock' && !data.SHAAM_ENCRYPTION_KEY) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -64,29 +96,18 @@ const Env = z
         path: ['SHAAM_ENCRYPTION_KEY'],
       });
     }
-    if (data.MESHULAM_MODE !== 'mock') {
-      if (!data.MESHULAM_PAGE_CODE) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'MESHULAM_PAGE_CODE is required when MESHULAM_MODE is not mock',
-          path: ['MESHULAM_PAGE_CODE'],
-        });
-      }
-      if (!data.MESHULAM_USER_ID) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'MESHULAM_USER_ID is required when MESHULAM_MODE is not mock',
-          path: ['MESHULAM_USER_ID'],
-        });
-      }
-      if (!data.MESHULAM_WEBHOOK_SECRET) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'MESHULAM_WEBHOOK_SECRET is required when MESHULAM_MODE is not mock',
-          path: ['MESHULAM_WEBHOOK_SECRET'],
-        });
-      }
-    }
+
+    requireFields(data.WHATSAPP_MODE, 'WHATSAPP_MODE', [
+      'TWILIO_ACCOUNT_SID',
+      'TWILIO_AUTH_TOKEN',
+      'TWILIO_WHATSAPP_FROM',
+    ]);
+
+    requireFields(data.MESHULAM_MODE, 'MESHULAM_MODE', [
+      'MESHULAM_PAGE_CODE',
+      'MESHULAM_USER_ID',
+      'MESHULAM_WEBHOOK_SECRET',
+    ]);
   });
 
 const parsed = Env.parse(process.env);

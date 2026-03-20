@@ -28,6 +28,7 @@ import { businessContextPlugin } from './plugins/business-context.js';
 import { errorPlugin } from './plugins/errors.js';
 import { loggingPlugin } from './plugins/logging.js';
 import { shaamPlugin } from './plugins/shaam.js';
+import { whatsappPlugin } from './plugins/whatsapp.js';
 import { maintenanceJobsPlugin } from './plugins/maintenance-jobs.js';
 import { jobsPlugin } from './plugins/jobs.js';
 import { createLogger } from './lib/logger.js';
@@ -114,6 +115,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(jobsPlugin);
   await app.register(shaamPlugin);
   await app.register(maintenanceJobsPlugin);
+  await app.register(whatsappPlugin);
 
   // Register job handlers when pg-boss is available (skipped in test mode)
   if (app.boss) {
