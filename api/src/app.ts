@@ -23,6 +23,7 @@ import { dashboardRoutes } from './routes/dashboard.js';
 import { pcn874Routes } from './routes/pcn874.js';
 import { subscriptionRoutes } from './routes/subscriptions.js';
 import { reportRoutes } from './routes/reports.js';
+import { whatsappWebhookRoutes } from './routes/whatsapp.js';
 import { authPlugin } from './plugins/auth.js';
 import { businessContextPlugin } from './plugins/business-context.js';
 import { errorPlugin } from './plugins/errors.js';
@@ -35,6 +36,8 @@ import { createLogger } from './lib/logger.js';
 import { isHostAllowed, parseOriginHeader } from './lib/origin.js';
 import { createShaamAllocationHandler } from './jobs/handlers/shaam-allocation.js';
 import { createSendInvoiceEmailHandler } from './jobs/handlers/send-invoice-email.js';
+import { createSendWhatsAppReplyHandler } from './jobs/handlers/send-whatsapp-reply.js';
+import { createProcessWhatsAppMessageHandler } from './jobs/handlers/process-whatsapp-message.js';
 import { runJob } from './jobs/boss.js';
 
 export async function buildServer(options: FastifyServerOptions = {}) {
@@ -99,7 +102,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(rateLimit, {
     max: env.RATE_LIMIT_MAX,
     timeWindow: env.RATE_LIMIT_TIME_WINDOW,
-    allowList: (req) => req.url === '/health',
+    allowList: (req) => req.url === '/health' || req.url.startsWith('/webhooks/'),
     errorResponseBuilder: (request, context) => ({
       statusCode: 429,
       error: 'too_many_requests',
@@ -114,6 +117,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(errorPlugin);
   await app.register(jobsPlugin);
   await app.register(shaamPlugin);
+  await app.register(whatsappPlugin);
   await app.register(maintenanceJobsPlugin);
   await app.register(whatsappPlugin);
 
@@ -137,6 +141,24 @@ export async function buildServer(options: FastifyServerOptions = {}) {
       runJob('shaam-allocation-request', allocationHandler, app.log)
     );
 
+    // WhatsApp reply job
+    await app.boss.createQueue('send-whatsapp-reply');
+    const whatsappReplyHandler = createSendWhatsAppReplyHandler(app.whatsapp, app.log);
+    await app.boss.work(
+      'send-whatsapp-reply',
+      { includeMetadata: true },
+      runJob('send-whatsapp-reply', whatsappReplyHandler, app.log)
+    );
+
+    // WhatsApp message processing job
+    await app.boss.createQueue('process-whatsapp-message');
+    const processWhatsappHandler = createProcessWhatsAppMessageHandler(app.log, app.boss);
+    await app.boss.work(
+      'process-whatsapp-message',
+      { includeMetadata: true },
+      runJob('process-whatsapp-message', processWhatsappHandler, app.log)
+    );
+
     // SHAAM emergency report job
     await app.boss.createQueue('shaam-emergency-report');
     const { createShaamEmergencyReportHandler } =
@@ -158,6 +180,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(pcn874Routes);
   await app.register(subscriptionRoutes);
   await app.register(reportRoutes);
+  await app.register(whatsappWebhookRoutes);
   app.get('/health', async () => ({ ok: true }));
   app.get('/', async (_request, reply) => reply.redirect('/docs'));
 

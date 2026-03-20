@@ -4,11 +4,11 @@ import { z } from 'zod';
 export const SHAAM_MODES = ['mock', 'sandbox', 'production'] as const;
 export type ShaamMode = (typeof SHAAM_MODES)[number];
 
+export const WHATSAPP_MODES = ['mock', 'sandbox', 'production'] as const;
+export type WhatsappMode = (typeof WHATSAPP_MODES)[number];
+
 export const MESHULAM_MODES = ['mock', 'sandbox', 'production'] as const;
 export type MeshulamMode = (typeof MESHULAM_MODES)[number];
-
-export const WHATSAPP_MODES = ['mock', 'sandbox', 'production'] as const;
-export type WhatsAppMode = (typeof WHATSAPP_MODES)[number];
 
 const Env = z
   .object({
@@ -45,6 +45,19 @@ const Env = z
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
       z.string().optional()
     ),
+    WHATSAPP_MODE: z.enum(WHATSAPP_MODES).default('mock'),
+    TWILIO_ACCOUNT_SID: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
+    TWILIO_AUTH_TOKEN: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
+    TWILIO_WHATSAPP_FROM: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
     MESHULAM_MODE: z.enum(MESHULAM_MODES).default('mock'),
     MESHULAM_PAGE_CODE: z.preprocess(
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
@@ -57,22 +70,6 @@ const Env = z
     MESHULAM_WEBHOOK_SECRET: z.preprocess(
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
       z.string().optional()
-    ),
-    WHATSAPP_MODE: z.enum(WHATSAPP_MODES).default('mock'),
-    TWILIO_ACCOUNT_SID: z.preprocess(
-      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
-      z.string().optional()
-    ),
-    TWILIO_AUTH_TOKEN: z.preprocess(
-      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
-      z.string().optional()
-    ),
-    TWILIO_WHATSAPP_FROM: z.preprocess(
-      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
-      z
-        .string()
-        .regex(/^whatsapp:\+[1-9]\d{6,14}$/, 'Must be whatsapp:+E.164 format')
-        .optional()
     ),
   })
   .superRefine((data, ctx) => {
