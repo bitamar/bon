@@ -7,6 +7,9 @@ export type ShaamMode = (typeof SHAAM_MODES)[number];
 export const MESHULAM_MODES = ['mock', 'sandbox', 'production'] as const;
 export type MeshulamMode = (typeof MESHULAM_MODES)[number];
 
+export const WHATSAPP_MODES = ['mock', 'sandbox', 'production'] as const;
+export type WhatsAppMode = (typeof WHATSAPP_MODES)[number];
+
 const Env = z
   .object({
     PORT: z.coerce.number().default(3000),
@@ -55,6 +58,22 @@ const Env = z
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
       z.string().optional()
     ),
+    WHATSAPP_MODE: z.enum(WHATSAPP_MODES).default('mock'),
+    TWILIO_ACCOUNT_SID: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
+    TWILIO_AUTH_TOKEN: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
+    TWILIO_WHATSAPP_FROM: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z
+        .string()
+        .regex(/^whatsapp:\+[1-9]\d{6,14}$/, 'Must be whatsapp:+E.164 format')
+        .optional()
+    ),
   })
   .superRefine((data, ctx) => {
     if (data.SHAAM_MODE !== 'mock' && !data.SHAAM_ENCRYPTION_KEY) {
@@ -63,6 +82,29 @@ const Env = z
         message: 'SHAAM_ENCRYPTION_KEY is required when SHAAM_MODE is not mock',
         path: ['SHAAM_ENCRYPTION_KEY'],
       });
+    }
+    if (data.WHATSAPP_MODE !== 'mock') {
+      if (!data.TWILIO_ACCOUNT_SID) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'TWILIO_ACCOUNT_SID is required when WHATSAPP_MODE is not mock',
+          path: ['TWILIO_ACCOUNT_SID'],
+        });
+      }
+      if (!data.TWILIO_AUTH_TOKEN) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'TWILIO_AUTH_TOKEN is required when WHATSAPP_MODE is not mock',
+          path: ['TWILIO_AUTH_TOKEN'],
+        });
+      }
+      if (!data.TWILIO_WHATSAPP_FROM) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'TWILIO_WHATSAPP_FROM is required when WHATSAPP_MODE is not mock',
+          path: ['TWILIO_WHATSAPP_FROM'],
+        });
+      }
     }
     if (data.MESHULAM_MODE !== 'mock') {
       if (!data.MESHULAM_PAGE_CODE) {

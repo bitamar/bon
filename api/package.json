@@ -41,6 +41,7 @@
     "pino": "^10.3.1",
     "resend": "^6.9.3",
     "tsx": "^4.21.0",
+    "twilio": "^5.13.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
