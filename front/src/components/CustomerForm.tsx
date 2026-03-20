@@ -197,7 +197,7 @@ export const CustomerForm = forwardRef<CustomerFormHandle, Readonly<CustomerForm
 
           <TextInput label="שם איש קשר" maxLength={255} {...form.getInputProps('contactName')} />
 
-          <TextInput label="אימייל" type="email" {...form.getInputProps('email')} />
+          <TextInput label="אימייל" type="email" maxLength={255} {...form.getInputProps('email')} />
 
           <TextInput
             label="טלפון"
