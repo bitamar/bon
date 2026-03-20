@@ -19,6 +19,7 @@ Twilio webhook
 POST /webhooks/whatsapp
     │ validate signature (HMAC-SHA1, timingSafeEqual)
     │ parse inbound (From, Body, MessageSid)
+    │ strip "whatsapp:" prefix from From → bare E.164
     │ resolve phone → user (via users.phone unique index)
     │ resolve/create conversation for this user
     │ INSERT whatsapp_messages ON CONFLICT (twilioSid) DO NOTHING
@@ -67,11 +68,12 @@ Two separate jobs for processing and sending. If Twilio is down, the LLM respons
 WhatsApp identity lives on `users.phone` (E.164, unique). `businesses.phone` is a separate, unrelated field — it's display-only text printed on invoice PDFs and has no role in the WhatsApp flow. The two must never be confused.
 
 ```text
-inbound phone (+972521234567)
+inbound message From: "whatsapp:+972521234567"
+    │  strip "whatsapp:" prefix → "+972521234567"
     │
     ▼
 users.phone (partial unique index, stored as E.164)
-    │  → resolves to a specific user directly (no format conversion)
+    │  → exact match on E.164 value, no further normalization needed
     │
     ▼
 user_businesses (userId + businessId + role)
@@ -231,7 +233,7 @@ User name, business name, and role injected at runtime. No data preloaded — to
 | User sends media (image/voice/PDF) | `NumMedia > 0` | Reply "סליחה, כרגע אני מטפל רק בהודעות טקסט." via direct Twilio send, return 200 |
 | User removed from business after activeBusinessId set | `user_businesses` lookup returns null at job start | Clear `activeBusinessId`, prompt to select new business |
 | Tool loop exceeds 60s | AbortController timeout | Return Hebrew apology, log timeout |
-| User floods messages (>10/min) | Count recent inbound messages per conversation | Drop excess with "לאט לאט 😊 עדיין מעבד את ההודעה הקודמת" |
+| User floods messages (>10/min) | Count recent inbound messages per conversation | Drop excess with "לאט לאט — עדיין מעבד את ההודעה הקודמת" |
 | Proactive notification outside 24h window | Check `lastActivityAt` before enqueuing | Skip silently — user must text BON first to reopen the window |
 
 ## Ticket breakdown
