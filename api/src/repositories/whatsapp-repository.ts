@@ -87,9 +87,7 @@ export async function insertMessage(
   const rows = await txOrDb
     .insert(whatsappMessages)
     .values(data)
-    .onConflictDoNothing({
-      target: whatsappMessages.twilioSid,
-    })
+    .onConflictDoNothing()
     .returning();
   return rows[0] ?? null;
 }
