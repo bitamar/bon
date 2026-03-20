@@ -44,6 +44,7 @@ The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **u
    - **`users.phone` storage format**: E.164 (`+972521234567`) — no format conversion needed for WhatsApp lookup
 
 4. **Migration** — `npm run db:generate -w api` to create the migration.
+   - **Pre-migration safety**: The migration must check for existing duplicate non-null `users.phone` values before creating the unique index. If duplicates exist, null them out (or log and fail) so the index creation doesn't error. Add a `DO $$` block that sets duplicate phones to `NULL` before `CREATE UNIQUE INDEX`.
 
 ### Backend Changes
 

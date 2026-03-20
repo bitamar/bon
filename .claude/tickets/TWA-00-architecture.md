@@ -12,7 +12,7 @@ Twilio expects a 200 response within 15 seconds. LLM calls take 3–10 seconds. 
 
 Same outbox pattern used for SHAAM allocation and email sending:
 
-```
+```text
 Twilio webhook
     │
     ▼
@@ -66,7 +66,7 @@ Two separate jobs for processing and sending. If Twilio is down, the LLM respons
 
 WhatsApp identity lives on `users.phone` (E.164, unique). `businesses.phone` is a separate, unrelated field — it's display-only text printed on invoice PDFs and has no role in the WhatsApp flow. The two must never be confused.
 
-```
+```text
 inbound phone (+972521234567)
     │
     ▼
@@ -92,7 +92,7 @@ This gives us:
 
 ### `whatsapp_conversations`
 
-```
+```sql
 id                uuid PK
 userId            uuid FK → users (NOT businesses)
 phone             text NOT NULL (E.164 format)
@@ -109,7 +109,7 @@ INDEX ON (phone)
 
 ### `whatsapp_messages`
 
-```
+```sql
 id              uuid PK
 conversationId  uuid FK → whatsapp_conversations
 twilioSid       text UNIQUE NULLABLE  -- inbound only, idempotency key
@@ -128,7 +128,7 @@ createdAt       timestamp with tz
 
 ### `whatsapp_pending_actions`
 
-```
+```sql
 id              uuid PK
 conversationId  uuid FK
 actionType      text NOT NULL  -- 'finalize_invoice', 'delete_customer', etc.
@@ -191,7 +191,7 @@ Old messages accumulate indefinitely. Add a `whatsapp-message-cleanup` cron job 
 
 ## System prompt
 
-```
+```text
 אתה עוזר BON של {userName}.
 העסק הפעיל: "{businessName}" (תפקיד: {userRole}).
 
@@ -236,7 +236,7 @@ User name, business name, and role injected at runtime. No data preloaded — to
 
 ## Ticket breakdown
 
-```
+```text
 TWA-01: Phone on user profile + unique index  (user identity for WhatsApp)
 TWA-02: Twilio infrastructure                 (service layer, plugin, env vars, phone normalization)
 TWA-03: Webhook + job queue wiring            (inbound route, phone→user→business resolution, two job types)
@@ -246,7 +246,7 @@ TWA-06: Invoice creation tools                (find_customer, create_draft, add/
 TWA-07: Proactive outbound notifications      (invoice sent, payment received, overdue alerts — 24h window only)
 ```
 
-Each ticket is independently mergeable. TWA-02→03→05 must be sequential. **TWA-04 must complete before TWA-03** (TWA-03 needs the conversation/message tables). TWA-06 depends on TWA-05. TWA-07 is independent after TWA-02+04.
+Each ticket is independently mergeable. Build order: **TWA-01 → TWA-02 → TWA-04 → TWA-03 → TWA-05 → TWA-06**. TWA-04 must land before TWA-03 because TWA-03 needs the conversation/message tables that TWA-04 creates. TWA-07 can start after TWA-02 + TWA-04.
 
 ## Known codebase constraints
 
