@@ -18,7 +18,8 @@ The webhook must respond in <15 seconds or Twilio retries. All real work happens
    - **No authentication** (Twilio calls this, not a logged-in user)
    - **Twilio signature verification**: Validate `X-Twilio-Signature` header using HMAC-SHA1 with `TWILIO_AUTH_TOKEN`. Use Twilio SDK's `validateRequest()` which handles URL construction. Must use `timingSafeEqual`. Reject with 403 if invalid. Skip verification when `WHATSAPP_MODE=mock`.
    - **Parse inbound fields**: `From` (phone), `Body` (text), `MessageSid` (idempotency key), `NumMedia` (ignore media for now)
-   - **Resolve conversation**: Lookup `whatsapp_conversations` by phone (stripped of `whatsapp:` prefix, in E.164). If none exists, create one by looking up `businesses.phone` to find the `businessId`. If no business found for this phone → reply with "מספר זה לא מחובר לעסק ב-BON" via direct Twilio send (not a job) and return 200.
+   - **Resolve user**: Strip `whatsapp:` prefix, normalize to E.164. Look up `users.phone` (unique index from TWA-01). If no user found → reply with "מספר זה לא מחובר לחשבון BON. הירשמו באפליקציה והוסיפו מספר טלפון בפרופיל." via direct Twilio send (not a job) and return 200.
+   - **Resolve/create conversation**: Lookup `whatsapp_conversations` by `userId`. If none exists, create one with `userId`, `phone`, `activeBusinessId = null`. The active business is resolved later in the process handler (TWA-05): if the user has exactly one business, auto-set it; if multiple, the LLM asks the user to pick via the `select_business` tool.
    - **Insert message**: `INSERT INTO whatsapp_messages (...) ON CONFLICT (twilioSid) DO NOTHING`. If insert was a no-op (duplicate), return 200 without enqueuing.
    - **Enqueue job**: `boss.send('process-whatsapp-message', { conversationId, messageId }, { singletonKey: conversationId, retryLimit: 3, retryDelay: 30, retryBackoff: true })`
    - **Return 200** with empty body (Twilio ignores the body)
@@ -50,28 +51,23 @@ The webhook must respond in <15 seconds or Twilio retries. All real work happens
    - Enqueue a `send-whatsapp-reply` with a placeholder: "קיבלתי את ההודעה שלך. תכונה זו בפיתוח."
    - This stub makes the full pipeline testable end-to-end before the LLM is wired
 
-### Conversation Lookup
+### User Lookup
 
-6. **Phone → business resolution**: Query `businesses` table for `phone` column matching the inbound E.164 number. The `businesses.phone` column stores local format (`0521234567`), so normalize before comparison. Add a repository function:
+6. **Phone → user resolution**: Query `users` table for `phone` column matching the inbound E.164 number. `users.phone` stores local format (`0521234567`), so search with both E.164 and local format. The unique index (added in TWA-01) guarantees at most one match. Add a repository function:
    ```typescript
-   findBusinessByPhone(e164Phone: string): Promise<BusinessRecord | null>
+   findUserByPhone(e164Phone: string): Promise<UserRecord | null>
    ```
-   This searches with both E.164 and local format to avoid format mismatches.
-
-   **Important**: `businesses.phone` is nullable with **no unique constraint** — multiple businesses could have the same phone number. The implementation must handle this:
-   - If exactly one business matches → use it
-   - If multiple businesses match → reply with "מספר זה מחובר ליותר מעסק אחד. אנא פנו לתמיכה." and return 200 (don't process)
-   - If no business matches → reply with the existing "מספר זה לא מחובר לעסק" message
+   Normalizes E.164 to local format before querying (strip `+972`, prepend `0`).
 
 ### Tests
 
 7. **`api/tests/routes/whatsapp.test.ts`**:
-   - Valid signature + known phone → 200 + message inserted + job enqueued
+   - Valid signature + known phone (registered user) → 200 + message inserted + job enqueued
    - Invalid signature → 403
-   - Unknown phone number → 200 + error reply sent
-   - Multiple businesses with same phone → 200 + ambiguity error reply sent
+   - Unknown phone number (no user with this phone) → 200 + registration prompt reply sent
    - Duplicate `MessageSid` → 200 + no job enqueued (idempotent)
    - Missing `Body` field → 200 (Twilio sends media-only messages; ignore gracefully)
+   - User exists but has no businesses → conversation created with `activeBusinessId = null`
 
 8. **`api/tests/jobs/handlers/send-whatsapp-reply.test.ts`**:
    - Successful send → outbound message stored
@@ -84,7 +80,8 @@ The webhook must respond in <15 seconds or Twilio retries. All real work happens
 - [ ] Signature verification rejects invalid requests with 403
 - [ ] Duplicate `MessageSid` is idempotent (no double processing)
 - [ ] `singletonKey: conversationId` ensures one processing job per conversation
-- [ ] Unknown phone numbers get an error reply, not silence
+- [ ] Unregistered phone numbers get a registration prompt reply, not silence
+- [ ] Phone→user resolution uses the unique index on `users.phone`
 - [ ] Send failures retry with backoff; non-retryable errors don't retry
 - [ ] Stub handler makes full pipeline testable (inbound → job → outbound)
 - [ ] Route excluded from rate limiting

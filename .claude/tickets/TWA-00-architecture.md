@@ -2,7 +2,7 @@
 
 ## Vision
 
-Every BON feature is accessible via WhatsApp. A business owner texts in Hebrew, an LLM understands intent, calls internal services via tools, and replies conversationally. Invoice creation is first. Customer management, payments, reports, and settings follow — each as a new tool registration, not a new architecture.
+Every BON feature is accessible via WhatsApp. A user texts in Hebrew, an LLM understands intent, calls internal services via tools, and replies conversationally. Invoice creation is first. Customer management, payments, reports, and settings follow — each as a new tool registration, not a new architecture.
 
 ## The fundamental constraint
 
@@ -19,6 +19,8 @@ Twilio webhook
 POST /webhooks/whatsapp
     │ validate signature (HMAC-SHA1, timingSafeEqual)
     │ parse inbound (From, Body, MessageSid)
+    │ resolve phone → user (via users.phone unique index)
+    │ resolve/create conversation for this user
     │ INSERT whatsapp_messages ON CONFLICT (twilioSid) DO NOTHING
     │ boss.send('process-whatsapp-message', { conversationId, messageId })
     │ return 200 immediately (~5ms)
@@ -60,19 +62,44 @@ Two separate jobs for processing and sending. If Twilio is down, the LLM respons
 - **`teamSize: 5`**: At most 5 concurrent LLM calls. With ~5s average latency, throughput is ~1 msg/sec. 100 simultaneous messages drain in ~100 seconds. WhatsApp is async — this is acceptable.
 - **Anthropic rate limits**: Sonnet at 5 concurrent × ~4K tokens/call ≈ 60 RPM, ~240K tokens/min. Well within production tier limits. Scale by increasing `teamSize` and upgrading Anthropic tier.
 
+## Identity model: phone → user → business
+
+```
+inbound phone (+972521234567)
+    │
+    ▼
+users.phone (unique index, E.164 normalized)
+    │  → resolves to a specific user
+    │
+    ▼
+user_businesses (userId + businessId + role)
+    │
+    ├── 1 business  → auto-select, store as activeBusinessId on conversation
+    └── N businesses → LLM asks user to pick via select_business tool
+                       → store selection as activeBusinessId on conversation
+```
+
+This gives us:
+- **Identity**: `userId` for audit trails (`recordedByUserId` on payments, etc.)
+- **Role enforcement**: check `user_businesses.role` before destructive operations
+- **Multi-tenant**: user picks which business to operate on; can switch mid-conversation
+
 ## Database schema
 
 ### `whatsapp_conversations`
 
 ```
-id              uuid PK
-businessId      uuid FK → businesses
-phone           text NOT NULL (E.164 format)
-status          enum: active | idle | blocked
-lastActivityAt  timestamp with tz
-createdAt       timestamp with tz
+id                uuid PK
+userId            uuid FK → users (NOT businesses)
+phone             text NOT NULL (E.164 format)
+activeBusinessId  uuid FK → businesses NULLABLE
+                  -- set on first message (auto if 1 business, or after user picks)
+                  -- user can switch with select_business tool
+status            enum: active | idle | blocked
+lastActivityAt    timestamp with tz
+createdAt         timestamp with tz
 
-UNIQUE (phone)  -- one phone = one business
+UNIQUE (userId)   -- one conversation per user
 INDEX ON (phone)
 ```
 
@@ -122,7 +149,9 @@ interface ToolHandler {
 }
 
 interface ToolContext {
-  businessId: string;
+  userId: string;
+  businessId: string;    // from conversation.activeBusinessId (must be set before tools run)
+  userRole: BusinessRole; // from user_businesses — checked before destructive operations
   conversationId: string;
   logger: FastifyBaseLogger;
   boss?: PgBoss;  // Needed by tools that enqueue jobs (e.g., SHAAM allocation after finalize)
@@ -149,8 +178,8 @@ Tools call the existing service layer directly (not HTTP). They run in the same 
 ## System prompt
 
 ```
-אתה עוזר BON לעסק "{businessName}".
-תפקידך לעזור לנהל את העסק דרך WhatsApp.
+אתה עוזר BON של {userName}.
+העסק הפעיל: "{businessName}" (תפקיד: {userRole}).
 
 תאריך היום: {date}
 שיעור מע"מ: 17%
@@ -161,9 +190,10 @@ Tools call the existing service layer directly (not HTTP). They run in the same 
 - אל תחשוף מידע רגיש
 - אם הבקשה לא ברורה, שאל שאלה אחת מדויקת
 - פרמט סכומים כ-₪X,XXX
+- אם המשתמש שייך ליותר מעסק אחד, הוא יכול להחליף עסק עם "עבור לעסק X"
 ```
 
-Business name injected at runtime. No data preloaded — tools fetch on demand.
+User name, business name, and role injected at runtime. No data preloaded — tools fetch on demand.
 
 ## Failure taxonomy
 
@@ -178,6 +208,9 @@ Business name injected at runtime. No data preloaded — tools fetch on demand.
 | Finalize without confirmation | `finalize_invoice` checks pending_actions | Returns error, Claude explains to user |
 | Pending action expired | 10-min TTL checked | Claude explains, asks to start over |
 | Twilio send fails (transient) | `send-whatsapp-reply` throws | pg-boss retries ×5; LLM response safe in DB |
+| Phone not registered to any user | `users.phone` lookup returns null | Reply with "מספר זה לא מחובר לחשבון BON" via direct Twilio send, return 200 |
+| User has no businesses | `user_businesses` empty for userId | Reply with "אין עסקים מחוברים לחשבון שלך" |
+| User lacks permission for action | `userRole` check in tool handler | Return Hebrew error: "אין לך הרשאה לפעולה זו" — Claude relays to user |
 | User opted out (Twilio 63032) | Error code check | Mark conversation `blocked`, stop sending |
 | Job exhausts all retries | pg-boss marks `failed` | Best-effort direct apology message via Twilio |
 | DB connection lost | Transaction rolls back | pg-boss retries; all operations idempotent |
@@ -185,16 +218,16 @@ Business name injected at runtime. No data preloaded — tools fetch on demand.
 ## Ticket breakdown
 
 ```
-TWA-01: Phone required on onboarding         ✓ (committed, needs merge)
+TWA-01: Phone on user profile + unique index  (user identity for WhatsApp)
 TWA-02: Twilio infrastructure                 (service layer, plugin, env vars, phone normalization)
-TWA-03: Webhook + job queue wiring            (inbound route, signature verification, two job types)
-TWA-04: Conversation state                    (DB migration, repositories, context builder)
+TWA-03: Webhook + job queue wiring            (inbound route, phone→user→business resolution, two job types)
+TWA-04: Conversation state                    (DB migration, repositories, context builder, business selection)
 TWA-05: LLM integration core                  (Claude client, tool loop, system prompt, tool registry)
-TWA-06: Invoice creation tools                (find_customer, create_draft, add_line_item, confirm, finalize)
-TWA-07: Proactive outbound notifications      (invoice sent, payment received, overdue alerts)
+TWA-06: Invoice creation tools                (find_customer, create_draft, add_line_item, confirm, finalize + select_business)
+TWA-07: Proactive outbound notifications      (invoice sent, payment received, overdue alerts — sent to user phone)
 ```
 
-Each ticket is independently mergeable. TWA-02→03→04→05 must be sequential. TWA-06 depends on TWA-05. TWA-07 is independent after TWA-02.
+Each ticket is independently mergeable. TWA-02→03→05 must be sequential. TWA-04 can run in parallel with TWA-02/03. TWA-06 depends on TWA-05. TWA-07 is independent after TWA-02+04.
 
 ## Known codebase constraints
 
@@ -208,7 +241,7 @@ These were discovered during a deep review of the existing codebase. Every ticke
 
 4. **`finalize()` can require a `vatExemptionReason`.** If VAT total is zero and the business is not an exempt dealer, it throws `unprocessableEntity` with code `missing_vat_exemption_reason`.
 
-5. **`businesses.phone` is nullable with no unique constraint.** Multiple businesses could share the same phone. The webhook handler must handle ambiguity (zero, one, or multiple matches).
+5. **`users.phone` exists but needs a unique index.** Column is nullable text with no constraint. TWA-01 adds a partial unique index (`WHERE phone IS NOT NULL`) to enable unambiguous phone→user lookup.
 
 6. **Rate limiting only excludes `/health`.** The Meshulam webhook is NOT excluded from rate limiting despite what some comments suggest. The `allowList` function in `app.ts` must be updated to exclude webhook routes.
 
@@ -226,7 +259,7 @@ These were discovered during a deep review of the existing codebase. Every ticke
 
 - Media messages (images, voice, PDFs) from users
 - Group chats
-- Multiple WhatsApp numbers per business
+- Multiple WhatsApp numbers per user
 - Bot persona customization
 - Inline payment via WhatsApp Pay
 - Customer-facing WhatsApp (B2C) — this is B2B only (business owner interacts)

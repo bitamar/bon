@@ -47,7 +47,9 @@ This is the core of the WhatsApp experience. The tool loop is the most complex p
    }
 
    interface ToolContext {
-     businessId: string;
+     userId: string;
+     businessId: string;    // from conversation.activeBusinessId
+     userRole: BusinessRole; // from user_businesses — for permission checks
      conversationId: string;
      logger: FastifyBaseLogger;
      boss?: PgBoss;  // Needed by tools that enqueue jobs (e.g., finalize_invoice → SHAAM allocation)
@@ -65,8 +67,9 @@ This is the core of the WhatsApp experience. The tool loop is the most complex p
 ### System Prompt Builder
 
 5. **`api/src/services/whatsapp/system-prompt.ts`**:
-   - `buildSystemPrompt(businessName: string, date: string): string`
-   - Returns the Hebrew system prompt from TWA-00 with `{businessName}` and `{date}` interpolated
+   - `buildSystemPrompt(params: { userName: string; businessName: string; userRole: string; date: string }): string`
+   - Returns the Hebrew system prompt from TWA-00 with all fields interpolated
+   - When `businessName` is null (no active business selected), omit business line and add: `"עדיין לא נבחר עסק. השתמש בכלי select_business כדי לבחור."`
    - Pure function, no side effects
 
 ### Tool Loop
@@ -100,12 +103,19 @@ This is the core of the WhatsApp experience. The tool loop is the most complex p
 ### Updated Process Handler
 
 7. **`api/src/jobs/handlers/process-whatsapp-message.ts`** — Replace TWA-03 stub:
-   - Load conversation from DB (get `businessId`)
-   - Load business name from `findBusinessById`
+   - Load conversation from DB (get `userId`, `activeBusinessId`)
+   - Load user from `findUserById(userId)` (for user name)
+   - **Business resolution**:
+     - If `activeBusinessId` is set → load business name, look up user's role via `user_businesses`
+     - If `activeBusinessId` is null → load user's businesses from `user_businesses`:
+       - If exactly 1 → auto-set `activeBusinessId` on conversation, proceed
+       - If 0 → reply with "אין עסקים מחוברים לחשבון שלך. צרו עסק באפליקציה." (no LLM call)
+       - If > 1 → system prompt tells LLM to ask user to pick (via `select_business` tool, defined in TWA-06)
    - Load recent messages via `findRecentMessages(conversationId, 40)`
    - Build Claude message array via `buildClaudeMessages()`
    - Trim to token budget via `trimToTokenBudget(messages, 100_000)`
-   - Build system prompt via `buildSystemPrompt(businessName, isoDate)`
+   - Build system prompt via `buildSystemPrompt({ userName, businessName, userRole, isoDate })`
+   - Build `ToolContext` with `userId`, `businessId`, `userRole`, `conversationId`, `boss`
    - Run tool loop
    - Update `lastActivityAt` on conversation
    - Enqueue `send-whatsapp-reply` with the final text response
@@ -128,7 +138,8 @@ This is the core of the WhatsApp experience. The tool loop is the most complex p
    - All tests mock `ClaudeClient` (no real API calls)
 
 9. **`api/tests/services/whatsapp/system-prompt.test.ts`**:
-   - Interpolates business name and date
+   - Interpolates user name, business name, role, and date
+   - Null business name → prompt includes "עדיין לא נבחר עסק"
    - Output is valid string (no template variables remaining)
 
 10. **`api/tests/services/whatsapp/tool-registry.test.ts`**:
@@ -137,7 +148,9 @@ This is the core of the WhatsApp experience. The tool loop is the most complex p
     - Handler throws → returns error string (does not propagate)
 
 11. **`api/tests/jobs/handlers/process-whatsapp-message.test.ts`**:
-    - Happy path: inbound message → LLM called → reply enqueued
+    - Happy path: user with 1 business → auto-select → LLM called → reply enqueued
+    - User with 0 businesses → error reply, no LLM call
+    - User with 2+ businesses and no `activeBusinessId` → LLM called with select_business prompt
     - LLM 429 → throws (for pg-boss retry)
     - LLM 400 → sends apology, does not throw
 
@@ -149,7 +162,11 @@ This is the core of the WhatsApp experience. The tool loop is the most complex p
 - [ ] Tool errors returned as strings to Claude (never crash the loop)
 - [ ] 429/5xx from Anthropic → retry via pg-boss
 - [ ] 400/401 from Anthropic → apology message, no retry
-- [ ] System prompt includes business name and current date
+- [ ] System prompt includes user name, business name, role, and current date
+- [ ] System prompt handles null business (no active selection)
+- [ ] Single-business users auto-resolve `activeBusinessId` without LLM prompt
+- [ ] Multi-business users are prompted to select a business
+- [ ] `ToolContext` includes `userId` and `userRole` for permission enforcement
 - [ ] Tool registry is extensible — new tools registered without modifying the loop
 - [ ] All tests use mocked Claude client (no real API calls in CI)
 - [ ] `npm run check` passes

@@ -1,57 +1,72 @@
-# TWA-01: Require Phone Number on Business Onboarding
+# TWA-01: Require Phone Number on User Profile
 
 ## Status: ⬜ Not started
 
 ## Summary
 
-Make phone number a required field during business onboarding. This phone number will serve as the WhatsApp channel for the business owner to interact with BON (create invoices, receive notifications).
+Make phone number a required field on the user profile (not the business). This phone number identifies the user for WhatsApp interactions — it's how BON knows *who* is texting, resolves their businesses and roles, and sends notifications.
 
 ## Why
 
-The WhatsApp integration (TWA-02+) requires a verified phone number per business. Collecting it at onboarding ensures every business is WhatsApp-ready from day one. Currently `phone` is optional on the business schema.
+The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **user**, not a business. A user may belong to multiple businesses with different roles. Tying the phone to the user gives us:
+- **Identity**: we know who is acting (audit trail, `recordedByUserId`)
+- **Role enforcement**: we can check their role before destructive operations
+- **Multi-tenant**: one phone, multiple businesses — user picks which one
+
+`users.phone` already exists in the schema (nullable text, no unique constraint). We need to make it required for new users and add a unique constraint.
 
 ## Scope
 
 ### Schema Changes
 
-1. **`types/src/businesses.ts`** — Add `phone` as required in `createBusinessBodySchema`:
-   - Use `israeliPhoneSchema` (already exists: `z.string().trim().min(9).max(10).regex(/^0[2-9]\d{7,8}$/)`)
-   - Keep it optional in `updateBusinessBodySchema` (can be changed later, but not removed)
+1. **`types/src/users.ts`** (or wherever user schemas live) — Add phone validation:
+   - `israeliPhoneSchema` for phone format (`z.string().trim().min(9).max(10).regex(/^0[2-9]\d{7,8}$/)`)
+   - Add `phone` as required in any user profile update schema
 
-2. **`api/src/db/schema.ts`** — No change needed. Column is already nullable text; we enforce at the Zod level, not the DB level (existing businesses without phone should still work).
+2. **`api/src/db/schema.ts`** — Add unique index on `users.phone` (where phone is not null):
+   ```typescript
+   uniqueIndex('users_phone_unique').on(users.phone).where(sql`phone IS NOT NULL`)
+   ```
+   This ensures no two users share a phone (required for unambiguous WhatsApp lookup) while allowing existing users without a phone to remain valid.
+
+3. **Migration** — `npm run db:generate -w api` to create the migration.
 
 ### Backend Changes
 
-3. **`api/src/services/business-service.ts`** — No changes needed (phone already passed through).
-
-4. **`api/src/routes/businesses.ts`** — Verify phone is included in the create response. No route changes expected.
+4. **`api/src/routes/users.ts`** (or equivalent) — Add/verify a profile update endpoint that accepts phone:
+   - Validate Israeli phone format
+   - Reject duplicates (unique constraint will throw → catch and return 409)
 
 ### Frontend Changes
 
-5. **`front/src/pages/Onboarding.tsx`** — Add phone field to the onboarding form:
+5. **Phone prompt on first WhatsApp-relevant action** — Rather than blocking onboarding, add a phone field to the user's profile/settings page:
    - `TextInput` with placeholder `05X-XXXXXXX` and `dir="ltr"`
-   - Position: after business name / registration number, before submit
    - Label: `טלפון נייד (WhatsApp)`
-   - Validation: show inline error on invalid format
-   - Helper text: `מספר זה ישמש לשליחת חשבוניות ועדכונים ב-WhatsApp`
+   - Helper text: `מספר זה ישמש לזיהוי שלך ב-WhatsApp`
+   - Validation: inline error on invalid format or duplicate
+
+6. **Optional**: If the user tries to use a WhatsApp-dependent feature in the web UI without a phone set, show a prompt to add one. Not blocking for this ticket.
 
 ### Tests
 
-6. **API test**: business creation without phone → 400 validation error
-7. **API test**: business creation with valid phone → 201 (already covered, just verify phone in response)
-8. **Frontend test**: onboarding form shows phone field, submit without phone shows error
+7. **API test**: profile update with valid phone → 200, phone stored
+8. **API test**: profile update with duplicate phone → 409
+9. **API test**: profile update with invalid format → 400
+10. **Frontend test**: profile page shows phone field with validation
 
 ## Acceptance Criteria
 
-- [ ] Phone is required on business creation (API returns 400 without it)
-- [ ] Onboarding form has phone field with Israeli format validation
-- [ ] Existing businesses without phone are unaffected (no migration needed)
-- [ ] Phone field uses `dir="ltr"` for proper number display in RTL layout
-- [ ] Helper text explains WhatsApp usage
+- [ ] `users.phone` has a partial unique index (unique where not null)
+- [ ] User can set their phone via profile update
+- [ ] Duplicate phone is rejected with 409
+- [ ] Phone field uses Israeli format validation and `dir="ltr"`
+- [ ] Existing users without phone are unaffected
+- [ ] Migration runs cleanly on existing data
+- [ ] `npm run check` passes
 
 ## Size
 
-~100 lines changed. Small ticket.
+~120 lines changed. Small ticket.
 
 ## Dependencies
 

@@ -22,12 +22,13 @@ The LLM needs conversation history to maintain context. Pending actions table pr
 
    **`whatsapp_conversations`**:
    - `id` uuid PK (default `gen_random_uuid()`)
-   - `businessId` uuid FK → businesses (ON DELETE CASCADE)
+   - `userId` uuid FK → users (ON DELETE CASCADE) — the user who owns this conversation
    - `phone` text NOT NULL — E.164 format (`+972521234567`)
+   - `activeBusinessId` uuid FK → businesses NULLABLE — the currently selected business (null until user picks or auto-resolved)
    - `status` pgEnum `whatsapp_conversation_status`: `active`, `idle`, `blocked`
    - `lastActivityAt` timestamp with tz NOT NULL
    - `createdAt` timestamp with tz NOT NULL
-   - UNIQUE constraint on `phone`
+   - UNIQUE constraint on `userId` (one conversation per user)
 
    **`whatsapp_messages`**:
    - `id` uuid PK
@@ -53,8 +54,9 @@ The LLM needs conversation history to maintain context. Pending actions table pr
 ### Repositories
 
 3. **`api/src/repositories/whatsapp-conversation-repository.ts`**:
-   - `findConversationByPhone(phone: string): Promise<ConversationRecord | null>`
+   - `findConversationByUserId(userId: string): Promise<ConversationRecord | null>`
    - `insertConversation(data: ConversationInsert): Promise<ConversationRecord>`
+   - `updateActiveBusiness(id: string, businessId: string): Promise<void>` — sets `activeBusinessId`
    - `updateConversationStatus(id: string, status: string): Promise<void>`
    - `updateLastActivity(id: string): Promise<void>`
 
@@ -100,7 +102,7 @@ The LLM needs conversation history to maintain context. Pending actions table pr
 
 ### Tests
 
-8. **`api/tests/repositories/whatsapp-conversation-repository.test.ts`** — CRUD + phone lookup
+8. **`api/tests/repositories/whatsapp-conversation-repository.test.ts`** — CRUD + userId lookup + active business update
 9. **`api/tests/repositories/whatsapp-message-repository.test.ts`** — Insert, duplicate detection, recent messages ordering
 10. **`api/tests/repositories/whatsapp-pending-action-repository.test.ts`** — Insert, expiry filtering, cleanup
 11. **`api/tests/services/whatsapp/context-builder.test.ts`**:
