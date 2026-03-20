@@ -233,6 +233,7 @@ export function AddressAutocomplete({
           required={required}
           placeholder="5"
           style={{ width: 88 }}
+          maxLength={10}
           value={houseNumber}
           onChange={(e) => {
             const value = e.target.value;
@@ -247,6 +248,7 @@ export function AddressAutocomplete({
       <TextInput
         label="דירה / כניסה / קומה"
         placeholder="כניסה א׳, דירה 5"
+        maxLength={50}
         value={aptDetails}
         onChange={(e) => {
           const value = e.target.value;
@@ -261,6 +263,7 @@ export function AddressAutocomplete({
         label="מיקוד"
         description="7 ספרות"
         placeholder="1234567"
+        maxLength={7}
         value={postalInputProps.value ?? ''}
         onChange={postalInputProps.onChange}
         onBlur={postalInputProps.onBlur}

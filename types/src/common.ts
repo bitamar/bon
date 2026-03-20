@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const uuidSchema = z.string().uuid();
 
-export const nonEmptyString = z.string().trim().min(1);
+export const nonEmptyString = z.string().trim().min(1).max(255);
 
 export const nullableString = z.union([nonEmptyString, z.literal(null)]);
 

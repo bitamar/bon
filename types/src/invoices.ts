@@ -48,7 +48,7 @@ export const allocationStatusSchema = z.enum(ALLOCATION_STATUSES);
 
 export const lineItemInputSchema = z.object({
   description: nonEmptyString,
-  catalogNumber: z.string().trim().optional(),
+  catalogNumber: z.string().trim().max(100).optional(),
   quantity: z.number().positive(),
   unitPriceMinorUnits: z.number().int().nonnegative(),
   discountPercent: z.number().min(0).max(100).default(0),
@@ -62,8 +62,8 @@ export const createInvoiceDraftBodySchema = z
     customerId: uuidSchema.optional(),
     invoiceDate: dateString.optional(),
     dueDate: dateString.optional(),
-    notes: z.string().trim().optional(),
-    internalNotes: z.string().trim().optional(),
+    notes: z.string().trim().max(2000).optional(),
+    internalNotes: z.string().trim().max(2000).optional(),
     items: z.array(lineItemInputSchema).optional(),
   })
   .strict();
@@ -74,8 +74,8 @@ export const updateInvoiceDraftBodySchema = z
     documentType: documentTypeSchema.optional(),
     invoiceDate: dateString.optional(),
     dueDate: nullableDateString.optional(),
-    notes: z.union([z.string().trim(), z.literal(null)]).optional(),
-    internalNotes: z.union([z.string().trim(), z.literal(null)]).optional(),
+    notes: z.union([z.string().trim().max(2000), z.literal(null)]).optional(),
+    internalNotes: z.union([z.string().trim().max(2000), z.literal(null)]).optional(),
     items: z.array(lineItemInputSchema).optional(),
   })
   .strict();

@@ -179,7 +179,7 @@ export const emergencyNumberSchema = z.object({
 export type EmergencyNumber = z.infer<typeof emergencyNumberSchema>;
 
 export const addEmergencyNumbersBodySchema = z.object({
-  numbers: z.array(z.string().trim().min(1)).min(1).max(100),
+  numbers: z.array(z.string().trim().min(1).max(50)).min(1).max(100),
 });
 
 export type AddEmergencyNumbersBody = z.infer<typeof addEmergencyNumbersBodySchema>;

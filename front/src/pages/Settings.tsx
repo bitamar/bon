@@ -114,11 +114,13 @@ export function Settings() {
             <TextInput
               label="שם"
               required
+              maxLength={255}
               value={name}
               onChange={({ currentTarget }) => setName(currentTarget.value)}
             />
             <TextInput
               label="טלפון"
+              maxLength={10}
               value={phone}
               onChange={({ currentTarget }) => setPhone(currentTarget.value)}
             />

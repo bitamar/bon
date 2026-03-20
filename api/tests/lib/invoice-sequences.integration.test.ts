@@ -54,7 +54,7 @@ describe('assignInvoiceNumber — concurrency (real PG)', () => {
     // Numbers should be sequential from 1..50
     const sorted = [...numbers].sort((a, b) => a - b);
     expect(sorted[0]).toBe(1);
-    expect(sorted[sorted.length - 1]).toBe(CONCURRENCY);
+    expect(sorted.at(-1)).toBe(CONCURRENCY);
 
     // Verify documentNumber format
     for (const result of results) {

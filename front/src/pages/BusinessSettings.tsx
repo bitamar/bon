@@ -184,7 +184,7 @@ export function BusinessSettingsSection() {
             </Text>
           </Stack>
 
-          <TextInput label="שם העסק" required {...form.getInputProps('name')} />
+          <TextInput label="שם העסק" required maxLength={255} {...form.getInputProps('name')} />
 
           <TextInput label="מספר רישום" disabled {...form.getInputProps('registrationNumber')} />
 
@@ -210,13 +210,22 @@ export function BusinessSettingsSection() {
 
           <Divider label="פרטי קשר" labelPosition="center" />
 
-          <TextInput label="טלפון" placeholder="05XXXXXXXX" {...form.getInputProps('phone')} />
+          <TextInput
+            label="טלפון"
+            placeholder="05XXXXXXXX"
+            maxLength={10}
+            {...form.getInputProps('phone')}
+          />
 
           <TextInput label="אימייל" type="email" {...form.getInputProps('email')} />
 
           <Divider label="הגדרות חשבוניות" labelPosition="center" />
 
-          <TextInput label="קידומת מספר חשבונית" {...form.getInputProps('invoiceNumberPrefix')} />
+          <TextInput
+            label="קידומת מספר חשבונית"
+            maxLength={255}
+            {...form.getInputProps('invoiceNumberPrefix')}
+          />
 
           <NumberInput
             label='שיעור מע"מ'
