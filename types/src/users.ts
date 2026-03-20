@@ -7,6 +7,7 @@ export const userSchema = z.object({
   name: nullableString,
   avatarUrl: nullableString,
   phone: nullableString,
+  whatsappEnabled: z.boolean(),
 });
 
 export const settingsResponseSchema = z.object({
@@ -17,6 +18,7 @@ export const updateSettingsBodySchema = z
   .object({
     name: optionalNullableString,
     phone: optionalNullableString,
+    whatsappEnabled: z.boolean().optional(),
   })
   .strict();
 

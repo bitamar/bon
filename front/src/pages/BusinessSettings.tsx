@@ -1,5 +1,16 @@
 import { useEffect } from 'react';
-import { Button, Divider, Group, NumberInput, Paper, Stack, Text, TextInput } from '@mantine/core';
+import {
+  Button,
+  Divider,
+  Group,
+  NumberInput,
+  Paper,
+  Stack,
+  Text,
+  TextInput,
+  Tooltip,
+} from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
 import { FormSkeleton } from '../components/FormSkeleton';
 import { StatusCard } from '../components/StatusCard';
@@ -211,9 +222,14 @@ export function BusinessSettingsSection() {
           <Divider label="פרטי קשר" labelPosition="center" />
 
           <TextInput
-            label="טלפון"
+            label="טלפון לחשבונית"
             placeholder="05XXXXXXXX"
             maxLength={10}
+            rightSection={
+              <Tooltip label="מספר זה מוצג על גבי החשבונית בלבד ואינו קשור ל-WhatsApp">
+                <IconInfoCircle size={16} style={{ cursor: 'help' }} />
+              </Tooltip>
+            }
             {...form.getInputProps('phone')}
           />
 

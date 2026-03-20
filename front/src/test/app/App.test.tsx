@@ -11,6 +11,7 @@ const mockUser: AuthUser = {
   name: 'Test User',
   avatarUrl: null,
   phone: null,
+  whatsappEnabled: true,
 };
 
 vi.mock('../../auth/api');

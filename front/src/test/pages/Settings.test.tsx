@@ -35,6 +35,15 @@ import { activeBusinessStub } from '../utils/businessStubs';
 
 // ── helpers ──
 
+const DEFAULT_USER = {
+  id: 'u1',
+  email: 'user@example.com',
+  name: 'User Test',
+  avatarUrl: null,
+  phone: '050-9999999',
+  whatsappEnabled: true,
+};
+
 function mockUseBusinessWith(
   overrides: Partial<typeof activeBusinessStub> & { role?: string } = {}
 ) {
@@ -56,15 +65,7 @@ describe('Settings page', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockUseBusinessWith();
-    getSettingsMock.mockResolvedValue({
-      user: {
-        id: 'u1',
-        email: 'user@example.com',
-        name: 'User Test',
-        avatarUrl: null,
-        phone: '050-9999999',
-      },
-    });
+    getSettingsMock.mockResolvedValue({ user: DEFAULT_USER });
     mantineMocks.useMantineColorSchemeMock.mockReturnValue({
       colorScheme: 'light',
       setColorScheme: vi.fn(),
@@ -75,23 +76,24 @@ describe('Settings page', () => {
     mantineMocks.useMantineColorSchemeMock.mockReset();
   });
 
-  it('renders user settings form with fetched data', async () => {
+  it('renders user settings form with fetched data including WhatsApp fields', async () => {
     renderWithProviders(<Settings />);
 
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
     expect(await screen.findByRole('heading', { name: 'הגדרות' })).toBeInTheDocument();
     expect(await screen.findByLabelText(/שם/)).toHaveValue('User Test');
-    expect(await screen.findByLabelText(/טלפון/)).toHaveValue('050-9999999');
+    expect(await screen.findByLabelText(/טלפון נייד/)).toHaveValue('050-9999999');
+    expect(await screen.findByLabelText(/קבלת הודעות WhatsApp/)).toBeChecked();
   });
 
-  it('submits updated settings', async () => {
+  it('submits updated settings with whatsappEnabled', async () => {
     renderWithProviders(<Settings />);
 
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
     const nameInput = await screen.findByLabelText(/שם/);
-    const phoneInput = await screen.findByLabelText(/טלפון/);
+    const phoneInput = await screen.findByLabelText(/טלפון נייד/);
 
     fireEvent.change(nameInput, { target: { value: 'New Name' } });
     fireEvent.change(phoneInput, { target: { value: '050-1111111' } });
@@ -104,7 +106,51 @@ describe('Settings page', () => {
     expect(updateSettingsMock.mock.calls[0]?.[0]).toEqual({
       name: 'New Name',
       phone: '050-1111111',
+      whatsappEnabled: true,
     });
+  });
+
+  it('toggles whatsappEnabled off and submits', async () => {
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    const user = userEvent.setup();
+    const whatsappToggle = await screen.findByLabelText(/קבלת הודעות WhatsApp/);
+    await user.click(whatsappToggle);
+
+    await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
+
+    await waitFor(() => expect(updateSettingsMock).toHaveBeenCalled());
+    expect(updateSettingsMock.mock.calls[0]?.[0]).toMatchObject({
+      whatsappEnabled: false,
+    });
+  });
+
+  it('shows phone validation error for invalid format', async () => {
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    const phoneInput = await screen.findByLabelText(/טלפון נייד/);
+    fireEvent.change(phoneInput, { target: { value: '123' } });
+    fireEvent.blur(phoneInput);
+
+    expect(await screen.findByText('מספר טלפון לא תקין')).toBeInTheDocument();
+  });
+
+  it('does not submit when phone validation fails', async () => {
+    renderWithProviders(<Settings />);
+
+    await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
+
+    const phoneInput = await screen.findByLabelText(/טלפון נייד/);
+    fireEvent.change(phoneInput, { target: { value: 'abc' } });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
+
+    expect(updateSettingsMock).not.toHaveBeenCalled();
   });
 
   it('toggles color scheme between light and dark', async () => {
@@ -116,7 +162,7 @@ describe('Settings page', () => {
 
     renderWithProviders(<Settings />);
 
-    const themeToggle = await screen.findByRole('switch');
+    const themeToggle = await screen.findByRole('switch', { name: '' });
     const user = userEvent.setup();
     await user.click(themeToggle);
 
@@ -125,15 +171,7 @@ describe('Settings page', () => {
 
   it('displays error message when fetch fails', async () => {
     getSettingsMock.mockRejectedValueOnce(new Error('Network error'));
-    getSettingsMock.mockResolvedValueOnce({
-      user: {
-        id: 'u1',
-        email: 'user@example.com',
-        name: 'Recovered User',
-        avatarUrl: null,
-        phone: '050-9999999',
-      },
-    });
+    getSettingsMock.mockResolvedValueOnce({ user: DEFAULT_USER });
 
     renderWithProviders(<Settings />);
 
@@ -152,6 +190,7 @@ describe('Settings page', () => {
         name: null,
         avatarUrl: null,
         phone: null,
+        whatsappEnabled: true,
       },
     });
 
@@ -160,7 +199,7 @@ describe('Settings page', () => {
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
     expect(await screen.findByLabelText(/שם/)).toHaveValue('');
-    expect(await screen.findByLabelText(/טלפון/)).toHaveValue('');
+    expect(await screen.findByLabelText(/טלפון נייד/)).toHaveValue('');
   });
 
   it('submits null for name and phone when inputs are blank or whitespace-only', async () => {
@@ -169,7 +208,7 @@ describe('Settings page', () => {
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
     const nameInput = await screen.findByLabelText(/שם/);
-    const phoneInput = await screen.findByLabelText(/טלפון/);
+    const phoneInput = await screen.findByLabelText(/טלפון נייד/);
 
     fireEvent.change(nameInput, { target: { value: '   ' } });
     fireEvent.change(phoneInput, { target: { value: '   ' } });
@@ -182,13 +221,18 @@ describe('Settings page', () => {
         name: null,
         avatarUrl: null,
         phone: null,
+        whatsappEnabled: true,
       },
     });
 
     await user.click(screen.getByRole('button', { name: 'שמור שינויים' }));
 
     await waitFor(() => expect(updateSettingsMock).toHaveBeenCalled());
-    expect(updateSettingsMock.mock.calls[0]?.[0]).toEqual({ name: null, phone: null });
+    expect(updateSettingsMock.mock.calls[0]?.[0]).toEqual({
+      name: null,
+      phone: null,
+      whatsappEnabled: true,
+    });
   });
 
   it('shows business settings section for owner', async () => {
