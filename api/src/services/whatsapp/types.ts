@@ -1,6 +1,9 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { PgBoss } from 'pg-boss';
 import type { BusinessRole } from '@bon/types/businesses';
+import type { ToolDefinition } from '@bon/types/whatsapp';
+
+export type { ToolDefinition };
 
 export interface ToolContext {
   userId: string;
@@ -9,12 +12,6 @@ export interface ToolContext {
   conversationId: string;
   logger: FastifyBaseLogger;
   boss?: PgBoss;
-}
-
-export interface ToolDefinition {
-  name: string;
-  description: string;
-  input_schema: Record<string, unknown>;
 }
 
 export type ToolHandler = (input: unknown, context: ToolContext) => Promise<string>;

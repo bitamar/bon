@@ -94,6 +94,7 @@ export async function insertMessage(
   return rows[0] ?? null;
 }
 
+/** Returns messages in reverse-chronological order (newest first). Caller must reverse for LLM context. */
 export async function findRecentMessages(
   conversationId: string,
   limit: number = 40,

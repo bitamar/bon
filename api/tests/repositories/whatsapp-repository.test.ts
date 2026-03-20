@@ -246,7 +246,7 @@ describe('whatsapp-repository', () => {
       expect(count).toBe(2);
     });
 
-    it('deletes old messages', async () => {
+    it('does not delete recent messages', async () => {
       const { conversation } = await setupUserAndConversation();
 
       await insertMessage({
@@ -256,12 +256,29 @@ describe('whatsapp-repository', () => {
         body: 'recent message',
       });
 
-      // deleteOldMessages defaults to 90 days — a just-inserted message should not be deleted
       const deleted = await deleteOldMessages(90);
       expect(deleted).toBe(0);
 
       const recent = await findRecentMessages(conversation.id);
       expect(recent).toHaveLength(1);
+    });
+
+    it('deletes messages older than the cutoff', async () => {
+      const { conversation } = await setupUserAndConversation();
+
+      await insertMessage({
+        conversationId: conversation.id,
+        direction: 'inbound',
+        llmRole: 'user',
+        body: 'will be deleted',
+      });
+
+      // olderThanDays=0 means cutoff is now — all existing messages are older
+      const deleted = await deleteOldMessages(0);
+      expect(deleted).toBe(1);
+
+      const remaining = await findRecentMessages(conversation.id);
+      expect(remaining).toHaveLength(0);
     });
   });
 

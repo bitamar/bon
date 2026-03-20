@@ -47,7 +47,7 @@ export const whatsappMessageSchema = z.object({
   toolName: nullableString,
   toolCallId: nullableString,
   body: nonEmptyString,
-  metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
   createdAt: isoDateTime,
 });
 
