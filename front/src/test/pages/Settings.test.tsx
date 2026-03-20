@@ -268,9 +268,9 @@ describe('Settings page', () => {
     await waitFor(() => expect(getSettingsMock).toHaveBeenCalled());
 
     const phoneInput = await screen.findByLabelText(/טלפון נייד/);
-    const describedById = phoneInput.getAttribute('aria-describedby');
+    const describedById = phoneInput.getAttribute('aria-describedby') ?? '';
     expect(describedById).toBeTruthy();
-    const descEl = document.getElementById(describedById!);
+    const descEl = document.getElementById(describedById);
     expect(descEl?.textContent).toContain('WhatsApp');
   });
 

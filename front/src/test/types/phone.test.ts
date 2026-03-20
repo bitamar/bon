@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeIsraeliPhone, toE164 } from '@bon/types/phone';
 
+// ── helpers ──
+function expectNormalized(input: string, expected: string) {
+  expect(normalizeIsraeliPhone(input)).toBe(expected);
+}
+
+function expectInvalid(input: string) {
+  expect(() => normalizeIsraeliPhone(input)).toThrow('Invalid Israeli phone number');
+}
+
 describe('phone utilities', () => {
   describe('normalizeIsraeliPhone', () => {
-    // ── helpers ──
-    function expectNormalized(input: string, expected: string) {
-      expect(normalizeIsraeliPhone(input)).toBe(expected);
-    }
-
-    function expectInvalid(input: string) {
-      expect(() => normalizeIsraeliPhone(input)).toThrow('Invalid Israeli phone number');
-    }
-
     it('accepts 10-digit mobile as-is', () => {
       expectNormalized('0521234567', '0521234567');
     });
