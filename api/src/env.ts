@@ -74,6 +74,10 @@ const Env = z
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
       z.string().optional()
     ),
+    METRICS_SECRET: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().min(16).optional()
+    ),
   })
   .superRefine((data, ctx) => {
     function requireFields(mode: string, modeField: string, fields: readonly string[]): void {
