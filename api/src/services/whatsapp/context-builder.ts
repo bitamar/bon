@@ -43,8 +43,8 @@ export function buildClaudeMessages(messages: MessageRecord[]): ClaudeMessage[] 
     const block = toContentBlock(msg);
     const role = msg.llmRole === 'assistant' || msg.llmRole === 'tool_call' ? 'assistant' : 'user';
 
-    const last = result[result.length - 1];
-    if (last && last.role === role) {
+    const last = result.at(-1);
+    if (last?.role === role) {
       // Merge into previous message
       last.content = ensureArray(last.content);
       last.content.push(block);
@@ -116,10 +116,12 @@ export function trimToTokenBudget(
   let trimCount = 0;
 
   while (trimmed.length > 0 && estimateTokens(trimmed) > maxTokens) {
-    // Find the first droppable message (skip tool_result at index 0 that pairs with a prior tool_call)
-    const dropIndex = findDroppableIndex(trimmed);
-    if (dropIndex < 0) break;
-    trimmed.splice(dropIndex, 1);
+    const dropIndices = findDroppableIndices(trimmed);
+    if (dropIndices.length === 0) break;
+    // Remove in reverse order to avoid index shifting
+    for (let j = dropIndices.length - 1; j >= 0; j--) {
+      trimmed.splice(dropIndices[j]!, 1);
+    }
     trimCount++;
   }
 
@@ -147,35 +149,29 @@ function estimateTokens(messages: ClaudeMessage[]): number {
 }
 
 /**
- * Finds the index of the oldest droppable message.
- * A message is not droppable if removing it would break a tool_call/tool_result pair:
- * - An assistant message with tool_use blocks must be dropped together with its following tool_result user message
- * - A user message with tool_result blocks that follows an assistant tool_use message is part of a pair
+ * Returns indices of the oldest droppable message(s) without mutating the array.
+ * Tool_call + tool_result pairs are returned together so callers can drop both.
  */
-function findDroppableIndex(messages: ClaudeMessage[]): number {
+function findDroppableIndices(messages: ClaudeMessage[]): number[] {
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i]!;
 
-    // If this is an assistant message with tool_use, check if next is its tool_result pair
     if (hasToolUse(msg)) {
       const next = messages[i + 1];
       if (next && hasToolResult(next)) {
-        // Drop both as a pair
-        messages.splice(i + 1, 1); // remove the tool_result first (higher index)
-        return i; // then caller removes this one
+        return [i, i + 1];
       }
-      return i;
+      return [i];
     }
 
-    // If this is a tool_result user message, it should have been paired above.
-    // Skip it — don't drop a tool_result without its tool_call.
+    // Skip orphaned tool_result — don't drop without its tool_call
     if (hasToolResult(msg)) {
       continue;
     }
 
-    return i;
+    return [i];
   }
-  return -1;
+  return [];
 }
 
 function hasToolUse(msg: ClaudeMessage): boolean {

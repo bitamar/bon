@@ -43,12 +43,16 @@ async function createMessage(conversationId: string, createdAt: Date, body: stri
   return row!;
 }
 
-async function createPendingAction(conversationId: string, expiresAt: Date) {
+async function createPendingAction(
+  conversationId: string,
+  expiresAt: Date,
+  actionType = 'finalize_invoice'
+) {
   const [row] = await db
     .insert(whatsappPendingActions)
     .values({
       conversationId,
-      actionType: 'finalize_invoice',
+      actionType,
       payload: '{"invoiceId": "inv-1"}',
       expiresAt,
     })
@@ -65,6 +69,15 @@ async function runHandler() {
 }
 
 describe('whatsapp-message-cleanup handler', () => {
+  // ── helpers ──
+
+  function expectCompletionLog(deletedMessages: number, deletedActions: number) {
+    expect(logger.info).toHaveBeenCalledWith(
+      { deletedMessages, deletedActions },
+      'whatsapp-message-cleanup: completed'
+    );
+  }
+
   beforeEach(async () => {
     await resetDb();
     logger = makeLogger();
@@ -76,8 +89,12 @@ describe('whatsapp-message-cleanup handler', () => {
   it('deletes old messages and expired pending actions', async () => {
     const oldMsg = await createMessage(conversationId, daysAgo(100), 'old message');
     const recentMsg = await createMessage(conversationId, daysAgo(10), 'recent message');
-    const expiredAction = await createPendingAction(conversationId, daysAgo(1));
-    const validAction = await createPendingAction(conversationId, new Date(Date.now() + 60_000));
+    const expiredAction = await createPendingAction(conversationId, daysAgo(1), 'finalize_invoice');
+    const validAction = await createPendingAction(
+      conversationId,
+      new Date(Date.now() + 60_000),
+      'delete_draft'
+    );
 
     await runHandler();
 
@@ -91,18 +108,12 @@ describe('whatsapp-message-cleanup handler', () => {
     expect(remainingActions[0]!.id).toBe(validAction.id);
     expect(remainingActions.some((a) => a.id === expiredAction.id)).toBe(false);
 
-    expect(logger.info).toHaveBeenCalledWith(
-      { deletedMessages: 1, deletedActions: 1 },
-      'whatsapp-message-cleanup: completed'
-    );
+    expectCompletionLog(1, 1);
   });
 
   it('handles empty tables gracefully', async () => {
     await runHandler();
 
-    expect(logger.info).toHaveBeenCalledWith(
-      { deletedMessages: 0, deletedActions: 0 },
-      'whatsapp-message-cleanup: completed'
-    );
+    expectCompletionLog(0, 0);
   });
 });

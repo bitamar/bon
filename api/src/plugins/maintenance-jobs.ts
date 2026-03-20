@@ -54,7 +54,7 @@ const maintenanceJobsPluginFn: FastifyPluginAsync = async (app) => {
     runJob('whatsapp-message-cleanup', createWhatsappMessageCleanupHandler(app.log), app.log)
   );
 
-  app.log.info('maintenance-jobs: all 5 cron jobs registered');
+  app.log.info('maintenance-jobs: 4 cron jobs + 1 worker-only queue (overdue-digest) registered');
 };
 
 export const maintenanceJobsPlugin = fp(maintenanceJobsPluginFn);
