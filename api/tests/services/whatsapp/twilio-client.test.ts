@@ -6,11 +6,9 @@ import { TwilioWhatsAppClient } from '../../../src/services/whatsapp/twilio-clie
 const mockCreate = vi.fn();
 
 vi.mock('twilio', () => ({
-  default: {
-    Twilio: vi.fn().mockImplementation(function () {
-      return { messages: { create: mockCreate } };
-    }),
-  },
+  default: vi.fn().mockImplementation(() => ({
+    messages: { create: mockCreate },
+  })),
 }));
 
 beforeEach(() => {
@@ -19,6 +17,17 @@ beforeEach(() => {
 
 function createClient(): TwilioWhatsAppClient {
   return new TwilioWhatsAppClient('ACtest', 'token123', 'whatsapp:+15555550100');
+}
+
+// ── helpers ──
+
+async function sendAndExpectFailure(to: string, body: string) {
+  const client = createClient();
+  const result = await client.sendMessage(to, body);
+
+  expect(result.status).toBe('failed');
+  if (result.status !== 'failed') throw new Error('unreachable');
+  return result;
 }
 
 describe('TwilioWhatsAppClient', () => {
@@ -53,26 +62,18 @@ describe('TwilioWhatsAppClient', () => {
     it('maps invalid number (21211) to non-retryable', async () => {
       mockCreate.mockRejectedValue(Object.assign(new Error('Invalid number'), { code: 21211 }));
 
-      const client = createClient();
-      const result = await client.sendMessage('+972521234567', 'Test');
+      const result = await sendAndExpectFailure('+972521234567', 'Test');
 
-      expect(result.status).toBe('failed');
-      if (result.status === 'failed') {
-        expect(result.retryable).toBe(false);
-        expect(result.error).toBe('Invalid number');
-      }
+      expect(result.retryable).toBe(false);
+      expect(result.error).toBe('Invalid number');
     });
 
     it('maps opted-out (63032) to non-retryable', async () => {
       mockCreate.mockRejectedValue(Object.assign(new Error('User opted out'), { code: 63032 }));
 
-      const client = createClient();
-      const result = await client.sendMessage('+972521234567', 'Test');
+      const result = await sendAndExpectFailure('+972521234567', 'Test');
 
-      expect(result.status).toBe('failed');
-      if (result.status === 'failed') {
-        expect(result.retryable).toBe(false);
-      }
+      expect(result.retryable).toBe(false);
     });
 
     it('maps outside-24h-window (63016) to non-retryable', async () => {
@@ -80,64 +81,44 @@ describe('TwilioWhatsAppClient', () => {
         Object.assign(new Error('Outside session window'), { code: 63016 })
       );
 
-      const client = createClient();
-      const result = await client.sendMessage('+972521234567', 'Test');
+      const result = await sendAndExpectFailure('+972521234567', 'Test');
 
-      expect(result.status).toBe('failed');
-      if (result.status === 'failed') {
-        expect(result.retryable).toBe(false);
-      }
+      expect(result.retryable).toBe(false);
     });
 
     it('maps rate limit (20429) to retryable', async () => {
       mockCreate.mockRejectedValue(Object.assign(new Error('Rate limited'), { code: 20429 }));
 
-      const client = createClient();
-      const result = await client.sendMessage('+972521234567', 'Test');
+      const result = await sendAndExpectFailure('+972521234567', 'Test');
 
-      expect(result.status).toBe('failed');
-      if (result.status === 'failed') {
-        expect(result.retryable).toBe(true);
-      }
+      expect(result.retryable).toBe(true);
     });
 
     it('treats unknown error codes as retryable', async () => {
       mockCreate.mockRejectedValue(Object.assign(new Error('Server error'), { code: 50000 }));
 
-      const client = createClient();
-      const result = await client.sendMessage('+972521234567', 'Test');
+      const result = await sendAndExpectFailure('+972521234567', 'Test');
 
-      expect(result.status).toBe('failed');
-      if (result.status === 'failed') {
-        expect(result.retryable).toBe(true);
-        expect(result.error).toBe('Server error');
-      }
+      expect(result.retryable).toBe(true);
+      expect(result.error).toBe('Server error');
     });
 
     it('handles errors without a code as retryable', async () => {
       mockCreate.mockRejectedValue(new Error('Network error'));
 
-      const client = createClient();
-      const result = await client.sendMessage('+972521234567', 'Test');
+      const result = await sendAndExpectFailure('+972521234567', 'Test');
 
-      expect(result.status).toBe('failed');
-      if (result.status === 'failed') {
-        expect(result.retryable).toBe(true);
-        expect(result.error).toBe('Network error');
-      }
+      expect(result.retryable).toBe(true);
+      expect(result.error).toBe('Network error');
     });
 
     it('handles errors without a message', async () => {
       mockCreate.mockRejectedValue({ code: 99999 });
 
-      const client = createClient();
-      const result = await client.sendMessage('+972521234567', 'Test');
+      const result = await sendAndExpectFailure('+972521234567', 'Test');
 
-      expect(result.status).toBe('failed');
-      if (result.status === 'failed') {
-        expect(result.error).toBe('Unknown Twilio error');
-        expect(result.retryable).toBe(true);
-      }
+      expect(result.error).toBe('Unknown Twilio error');
+      expect(result.retryable).toBe(true);
     });
   });
 });

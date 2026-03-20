@@ -14,7 +14,7 @@ export class TwilioWhatsAppClient implements WhatsAppService {
   private readonly from: string;
 
   constructor(accountSid: string, authToken: string, from: string) {
-    this.client = new Twilio.Twilio(accountSid, authToken);
+    this.client = Twilio(accountSid, authToken);
     this.from = from;
   }
 
@@ -28,9 +28,11 @@ export class TwilioWhatsAppClient implements WhatsAppService {
 
       return { status: 'sent', messageSid: message.sid };
     } catch (err: unknown) {
-      const twilioError = err as { code?: number; message?: string };
-      const code = twilioError.code ?? 0;
-      const errorMessage = twilioError.message ?? 'Unknown Twilio error';
+      const code =
+        err !== null && typeof err === 'object' && 'code' in err && typeof err.code === 'number'
+          ? err.code
+          : 0;
+      const errorMessage = err instanceof Error ? err.message : 'Unknown Twilio error';
 
       return {
         status: 'failed',

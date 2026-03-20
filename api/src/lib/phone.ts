@@ -12,12 +12,14 @@ export function stripWhatsAppPrefix(twilioFrom: string): string {
 }
 
 /**
- * Format a bare E.164 phone number for Twilio WhatsApp messaging.
- * Prepends `whatsapp:` prefix.
+ * Format a phone number for Twilio WhatsApp messaging.
+ * Ensures `whatsapp:+<digits>` format (E.164 with prefix).
  */
-export function formatWhatsAppTo(e164: string): string {
-  if (e164.startsWith(WHATSAPP_PREFIX)) {
-    return e164;
+export function formatWhatsAppTo(phone: string): string {
+  if (phone.startsWith(WHATSAPP_PREFIX)) {
+    const number = phone.slice(WHATSAPP_PREFIX.length);
+    return number.startsWith('+') ? phone : `${WHATSAPP_PREFIX}+${number}`;
   }
+  const e164 = phone.startsWith('+') ? phone : `+${phone}`;
   return `${WHATSAPP_PREFIX}${e164}`;
 }

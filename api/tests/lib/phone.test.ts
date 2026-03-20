@@ -37,6 +37,6 @@ describe('formatWhatsAppTo', () => {
   });
 
   it('handles a number without the plus sign', () => {
-    expect(formatWhatsAppTo('972521234567')).toBe('whatsapp:972521234567');
+    expect(formatWhatsAppTo('972521234567')).toBe('whatsapp:+972521234567');
   });
 });
