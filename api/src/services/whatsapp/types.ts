@@ -3,7 +3,7 @@ import type { PgBoss } from 'pg-boss';
 import type { BusinessRole } from '@bon/types/businesses';
 import type { ToolDefinition } from '@bon/types/whatsapp';
 
-export type { ToolDefinition };
+export type { ToolDefinition } from '@bon/types/whatsapp';
 
 export interface ToolContext {
   userId: string;
