@@ -5,6 +5,7 @@ import { createDraftCleanupHandler } from '../jobs/handlers/draft-cleanup.js';
 import { createSessionCleanupHandler } from '../jobs/handlers/session-cleanup.js';
 import { createOverdueDetectionHandler } from '../jobs/handlers/overdue-detection.js';
 import { createOverdueDigestHandler } from '../jobs/handlers/overdue-digest.js';
+import { createWhatsappMessageCleanupHandler } from '../jobs/handlers/whatsapp-message-cleanup.js';
 
 const maintenanceJobsPluginFn: FastifyPluginAsync = async (app) => {
   if (!app.boss) {
@@ -45,7 +46,15 @@ const maintenanceJobsPluginFn: FastifyPluginAsync = async (app) => {
     runJob('overdue-digest', createOverdueDigestHandler(app.log), app.log)
   );
 
-  app.log.info('maintenance-jobs: all 4 cron jobs registered');
+  // WhatsApp message cleanup — 5:00 AM daily (Israel time)
+  await app.boss.createQueue('whatsapp-message-cleanup');
+  await app.boss.schedule('whatsapp-message-cleanup', '0 5 * * *', {}, { tz: 'Asia/Jerusalem' });
+  await app.boss.work(
+    'whatsapp-message-cleanup',
+    runJob('whatsapp-message-cleanup', createWhatsappMessageCleanupHandler(app.log), app.log)
+  );
+
+  app.log.info('maintenance-jobs: 4 cron jobs + 1 worker-only queue (overdue-digest) registered');
 };
 
 export const maintenanceJobsPlugin = fp(maintenanceJobsPluginFn);

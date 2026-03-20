@@ -84,11 +84,7 @@ export async function insertMessage(
   txOrDb: DbOrTx = db
 ): Promise<MessageRecord | null> {
   // ON CONFLICT (twilioSid) DO NOTHING for idempotency
-  const rows = await txOrDb
-    .insert(whatsappMessages)
-    .values(data)
-    .onConflictDoNothing()
-    .returning();
+  const rows = await txOrDb.insert(whatsappMessages).values(data).onConflictDoNothing().returning();
   return rows[0] ?? null;
 }
 
