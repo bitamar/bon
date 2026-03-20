@@ -23,6 +23,7 @@ const userRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         name: req.user.name,
         avatarUrl: req.user.avatarUrl,
         phone: req.user.phone,
+        whatsappEnabled: req.user.whatsappEnabled,
       });
     }
   );
@@ -41,8 +42,12 @@ const userRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req) => {
       ensureAuthed(req);
-      const { name, phone } = req.body;
-      return updateSettingsForUser(req.user.id, { name: name ?? null, phone: phone ?? null });
+      const { name, phone, whatsappEnabled } = req.body;
+      return updateSettingsForUser(req.user.id, {
+        name: name ?? null,
+        phone: phone ?? null,
+        whatsappEnabled,
+      });
     }
   );
 };

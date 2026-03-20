@@ -76,6 +76,7 @@ describe('AuthContext', () => {
         name: 'Test User',
         avatarUrl: null,
         phone: null,
+        whatsappEnabled: true,
       },
     });
 

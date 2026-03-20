@@ -15,6 +15,7 @@ const settingsResponse = {
     name: 'Sample User',
     avatarUrl: null,
     phone: null,
+    whatsappEnabled: true,
   },
 };
 

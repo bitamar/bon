@@ -10,23 +10,36 @@ import {
   TextInput,
   useMantineColorScheme,
 } from '@mantine/core';
-import { IconMoon, IconSun } from '@tabler/icons-react';
+import { IconBrandWhatsapp, IconMoon, IconSun } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSettings, updateSettings } from '../auth/api';
 import { FormSkeleton } from '../components/FormSkeleton';
 import { StatusCard } from '../components/StatusCard';
 import { queryKeys } from '../lib/queryKeys';
 import type { SettingsResponse } from '@bon/types/users';
+import { normalizeIsraeliPhone } from '@bon/types/phone';
 import { extractErrorMessage } from '../lib/notifications';
 import { useApiMutation } from '../lib/useApiMutation';
 import { PageTitle } from '../components/PageTitle';
 import { useBusiness } from '../contexts/BusinessContext';
 import { BusinessSettingsSection } from './BusinessSettings';
 
+function validatePhone(value: string): string | null {
+  if (!value.trim()) return null;
+  try {
+    normalizeIsraeliPhone(value);
+    return null;
+  } catch {
+    return 'מספר טלפון לא תקין';
+  }
+}
+
 export function Settings() {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [name, setName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
+  const [whatsappEnabled, setWhatsappEnabled] = useState<boolean>(true);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { activeBusiness } = useBusiness();
 
@@ -39,6 +52,7 @@ export function Settings() {
     if (settingsQuery.data) {
       setName(settingsQuery.data.user.name ?? '');
       setPhone(settingsQuery.data.user.phone ?? '');
+      setWhatsappEnabled(settingsQuery.data.user.whatsappEnabled);
     }
   }, [settingsQuery.data]);
 
@@ -88,9 +102,16 @@ export function Settings() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const error = validatePhone(phone);
+    if (error) {
+      setPhoneError(error);
+      return;
+    }
+    setPhoneError(null);
     await updateSettingsMutation.mutateAsync({
       name: name.trim() ? name.trim() : null,
       phone: phone.trim() ? phone.trim() : null,
+      whatsappEnabled,
     });
   };
 
@@ -104,6 +125,7 @@ export function Settings() {
               פרופיל
             </Text>
             <Switch
+              label="מצב כהה"
               checked={colorScheme === 'dark'}
               onChange={({ currentTarget }) =>
                 setColorScheme(currentTarget.checked ? 'dark' : 'light')
@@ -119,10 +141,26 @@ export function Settings() {
               onChange={({ currentTarget }) => setName(currentTarget.value)}
             />
             <TextInput
-              label="טלפון"
-              maxLength={10}
+              label="טלפון נייד (WhatsApp)"
+              description="מספר זה ישמש לזיהוי שלך ב-WhatsApp"
+              placeholder="05X-XXXXXXX"
+              dir="ltr"
               value={phone}
-              onChange={({ currentTarget }) => setPhone(currentTarget.value)}
+              error={phoneError}
+              onChange={({ currentTarget }) => {
+                setPhone(currentTarget.value);
+                setPhoneError(null);
+              }}
+              onBlur={() => {
+                const error = validatePhone(phone);
+                if (error) setPhoneError(error);
+              }}
+              leftSection={<IconBrandWhatsapp size={16} />}
+            />
+            <Switch
+              label="קבלת הודעות WhatsApp"
+              checked={whatsappEnabled}
+              onChange={({ currentTarget }) => setWhatsappEnabled(currentTarget.checked)}
             />
             <Group justify="flex-end">
               <Button type="submit" loading={updateSettingsMutation.isPending}>

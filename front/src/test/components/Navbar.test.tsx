@@ -18,7 +18,14 @@ vi.mock('../../contexts/BusinessContext', () => ({
 // ── helpers ──
 function setupMocks(role = 'owner') {
   vi.mocked(useAuth).mockReturnValue({
-    user: { id: '1', name: 'Test User', email: 'test@example.com', avatarUrl: null, phone: null },
+    user: {
+      id: '1',
+      name: 'Test User',
+      email: 'test@example.com',
+      avatarUrl: null,
+      phone: null,
+      whatsappEnabled: true,
+    },
     logout: vi.fn(),
     loginWithGoogle: vi.fn(),
     isHydrated: true,

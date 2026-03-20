@@ -43,17 +43,26 @@ export const conversationStatusEnum = pgEnum('conversation_status', CONVERSATION
 export const messageDirectionEnum = pgEnum('message_direction', MESSAGE_DIRECTIONS);
 export const llmRoleEnum = pgEnum('llm_role', LLM_ROLES);
 
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  email: text('email').notNull().unique(),
-  googleId: text('google_id').unique(),
-  name: text('name').notNull(),
-  avatarUrl: text('avatar_url'),
-  phone: text('phone'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
-});
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    email: text('email').notNull().unique(),
+    googleId: text('google_id').unique(),
+    name: text('name').notNull(),
+    avatarUrl: text('avatar_url'),
+    phone: text('phone'),
+    whatsappEnabled: boolean('whatsapp_enabled').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('users_phone_unique')
+      .on(table.phone)
+      .where(sql`phone IS NOT NULL`),
+  ]
+);
 
 export const sessions = pgTable(
   'sessions',

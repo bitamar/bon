@@ -210,6 +210,7 @@ describe('routes/auth', () => {
         name: 'Hello User',
         avatarUrl: null,
         phone: null,
+        whatsappEnabled: true,
         googleId: 'google-user-2',
         createdAt: new Date(),
         updatedAt: new Date(),
