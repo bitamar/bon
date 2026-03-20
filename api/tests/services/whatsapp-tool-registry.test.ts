@@ -1,15 +1,21 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import {
   createToolRegistry,
   registerTool,
   getToolDefinitions,
+  executeTool,
 } from '../../src/services/whatsapp/types.js';
-import type { ToolContext, ToolHandler } from '../../src/services/whatsapp/types.js';
+import type { ToolContext, ToolHandler, Logger } from '../../src/services/whatsapp/types.js';
 
 // ── helpers ──
 
 function makeDummyHandler(response: string): ToolHandler {
   return async () => response;
+}
+
+function makeTestLogger(): Logger {
+  return { info: () => {}, error: () => {}, warn: () => {}, debug: () => {} };
 }
 
 function makeDummyContext(): ToolContext {
@@ -18,7 +24,7 @@ function makeDummyContext(): ToolContext {
     businessId: '00000000-0000-0000-0000-000000000002',
     userRole: 'owner',
     conversationId: '00000000-0000-0000-0000-000000000003',
-    logger: { info: () => {}, error: () => {}, warn: () => {}, debug: () => {} } as never,
+    logger: makeTestLogger(),
   };
 }
 
@@ -75,12 +81,10 @@ describe('ToolRegistry', () => {
     registerTool(
       registry,
       { name: 'greet', description: 'Say hello', input_schema: {} },
-      async (input, ctx) => `Hello ${ctx.userId}`
+      async (_input, ctx) => `Hello ${ctx.userId}`
     );
 
-    const tool = registry.get('greet')!;
-    const result = await tool.handler({}, makeDummyContext());
-
+    const result = await executeTool(registry, 'greet', {}, makeDummyContext());
     expect(result).toBe('Hello 00000000-0000-0000-0000-000000000001');
   });
 
@@ -100,5 +104,57 @@ describe('ToolRegistry', () => {
 
     expect(registry.size).toBe(1);
     expect(registry.get('dup')!.definition.description).toBe('second');
+  });
+
+  it('validates input against Zod schema before executing', async () => {
+    const registry = createToolRegistry();
+    const inputSchema = z.object({ query: z.string().min(1) });
+
+    registerTool(
+      registry,
+      { name: 'search', description: 'Search', input_schema: {} },
+      async (input) => `searched: ${(input as { query: string }).query}`,
+      inputSchema
+    );
+
+    const result = await executeTool(registry, 'search', { query: 'test' }, makeDummyContext());
+    expect(result).toBe('searched: test');
+  });
+
+  it('rejects invalid input when Zod schema is provided', async () => {
+    const registry = createToolRegistry();
+    const inputSchema = z.object({ query: z.string().min(1) });
+
+    registerTool(
+      registry,
+      { name: 'search', description: 'Search', input_schema: {} },
+      makeDummyHandler('should not reach'),
+      inputSchema
+    );
+
+    await expect(
+      executeTool(registry, 'search', { query: '' }, makeDummyContext())
+    ).rejects.toThrow();
+  });
+
+  it('throws for unknown tool name', async () => {
+    const registry = createToolRegistry();
+
+    await expect(executeTool(registry, 'nonexistent', {}, makeDummyContext())).rejects.toThrow(
+      'Unknown tool: nonexistent'
+    );
+  });
+
+  it('skips validation when no inputSchema is provided', async () => {
+    const registry = createToolRegistry();
+
+    registerTool(
+      registry,
+      { name: 'simple', description: 'No schema', input_schema: {} },
+      async (input) => JSON.stringify(input)
+    );
+
+    const result = await executeTool(registry, 'simple', { anything: true }, makeDummyContext());
+    expect(result).toBe('{"anything":true}');
   });
 });

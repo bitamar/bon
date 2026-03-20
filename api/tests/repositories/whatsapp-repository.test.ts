@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { resetDb } from '../utils/db.js';
 import { createUser, createTestBusiness, addUserToBusiness } from '../utils/businesses.js';
 import {
@@ -30,10 +30,6 @@ async function setupUserAndConversation() {
 
 describe('whatsapp-repository', () => {
   beforeEach(async () => {
-    await resetDb();
-  });
-
-  afterEach(async () => {
     await resetDb();
   });
 

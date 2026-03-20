@@ -539,7 +539,7 @@ export const whatsappConversations = pgTable(
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).defaultNow().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index('whatsapp_conversations_phone_idx').on(table.phone)]
+  (table) => [uniqueIndex('whatsapp_conversations_phone_unique').on(table.phone)]
 );
 
 export const whatsappConversationsRelations = relations(whatsappConversations, ({ one, many }) => ({

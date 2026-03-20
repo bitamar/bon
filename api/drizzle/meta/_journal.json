@@ -22,6 +22,13 @@
       "when": 1774009176001,
       "tag": "0002_cultured_marvel_zombies",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774013250623,
+      "tag": "0003_short_bushwacker",
+      "breakpoints": true
     }
   ]
 }
