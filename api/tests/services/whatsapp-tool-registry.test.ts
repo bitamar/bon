@@ -64,7 +64,9 @@ describe('ToolRegistry', () => {
 
     const defs = getToolDefinitions(registry);
     expect(defs).toHaveLength(2);
-    expect(defs.map((d) => d.name).sort()).toEqual(['tool_a', 'tool_b']);
+    const names = defs.map((d) => d.name);
+    expect(names).toContain('tool_a');
+    expect(names).toContain('tool_b');
   });
 
   it('executes a tool handler with context', async () => {
