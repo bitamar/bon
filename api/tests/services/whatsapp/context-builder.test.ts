@@ -265,4 +265,70 @@ describe('trimToTokenBudget', () => {
       'context trimmed to budget'
     );
   });
+
+  it('drops tool_use + tool_result pair together when over budget', () => {
+    const messages: ClaudeMessage[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'tc-1', name: 'tool', input: { x: 'A'.repeat(100) } }],
+      },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'tc-1', content: 'B'.repeat(100) }],
+      },
+      { role: 'assistant', content: 'done' },
+    ];
+
+    // Very tight budget — must drop the tool pair but keep 'done'
+    const result = trimToTokenBudget(messages, 5);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.content).toBe('done');
+  });
+
+  it('drops standalone tool_use without a following tool_result', () => {
+    const messages: ClaudeMessage[] = [
+      {
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', id: 'tc-1', name: 'tool', input: { x: 'A'.repeat(100) } },
+        ],
+      },
+      { role: 'assistant', content: 'fallback' },
+    ];
+
+    const result = trimToTokenBudget(messages, 10);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.content).toBe('fallback');
+  });
+
+  it('stops trimming when only orphaned tool_results remain', () => {
+    const messages: ClaudeMessage[] = [
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'tc-1', content: 'A'.repeat(100) }],
+      },
+    ];
+
+    // Over budget but nothing droppable — returns as-is
+    const result = trimToTokenBudget(messages, 1);
+    expect(result).toHaveLength(1);
+  });
+
+  it('skips orphaned tool_result and drops next droppable message', () => {
+    // Orphaned tool_result (no preceding tool_use) followed by a plain message
+    const messages: ClaudeMessage[] = [
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'tc-orphan', content: 'X'.repeat(100) }],
+      },
+      { role: 'assistant', content: 'Y'.repeat(100) },
+      { role: 'user', content: 'short' },
+    ];
+
+    // Budget allows ~1 message; should skip orphaned tool_result and drop the assistant message
+    const result = trimToTokenBudget(messages, 55);
+    expect(result).toHaveLength(2);
+    expect(result[0]!.role).toBe('user');
+    expect(result[1]!.content).toBe('short');
+  });
 });

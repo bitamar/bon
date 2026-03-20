@@ -94,10 +94,7 @@ function safeJsonParse(body: string): unknown {
 }
 
 function ensureArray(content: string | ContentBlock[]): ContentBlock[] {
-  if (typeof content === 'string') {
-    return [{ type: 'text', text: content }];
-  }
-  return content;
+  return typeof content === 'string' ? [{ type: 'text', text: content }] : content;
 }
 
 /**

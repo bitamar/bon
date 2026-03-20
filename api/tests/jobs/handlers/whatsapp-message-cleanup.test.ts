@@ -68,16 +68,14 @@ async function runHandler() {
   await handler(makeJob('whatsapp-message-cleanup'));
 }
 
+function expectCompletionLog(deletedMessages: number, deletedActions: number) {
+  expect(logger.info).toHaveBeenCalledWith(
+    { deletedMessages, deletedActions },
+    'whatsapp-message-cleanup: completed'
+  );
+}
+
 describe('whatsapp-message-cleanup handler', () => {
-  // ── helpers ──
-
-  function expectCompletionLog(deletedMessages: number, deletedActions: number) {
-    expect(logger.info).toHaveBeenCalledWith(
-      { deletedMessages, deletedActions },
-      'whatsapp-message-cleanup: completed'
-    );
-  }
-
   beforeEach(async () => {
     await resetDb();
     logger = makeLogger();
@@ -87,9 +85,9 @@ describe('whatsapp-message-cleanup handler', () => {
   });
 
   it('deletes old messages and expired pending actions', async () => {
-    const oldMsg = await createMessage(conversationId, daysAgo(100), 'old message');
+    await createMessage(conversationId, daysAgo(100), 'old message');
     const recentMsg = await createMessage(conversationId, daysAgo(10), 'recent message');
-    const expiredAction = await createPendingAction(conversationId, daysAgo(1), 'finalize_invoice');
+    await createPendingAction(conversationId, daysAgo(1), 'finalize_invoice');
     const validAction = await createPendingAction(
       conversationId,
       new Date(Date.now() + 60_000),
@@ -101,12 +99,10 @@ describe('whatsapp-message-cleanup handler', () => {
     const remainingMessages = await db.select().from(whatsappMessages);
     expect(remainingMessages).toHaveLength(1);
     expect(remainingMessages[0]!.id).toBe(recentMsg.id);
-    expect(remainingMessages.some((m) => m.id === oldMsg.id)).toBe(false);
 
     const remainingActions = await db.select().from(whatsappPendingActions);
     expect(remainingActions).toHaveLength(1);
     expect(remainingActions[0]!.id).toBe(validAction.id);
-    expect(remainingActions.some((a) => a.id === expiredAction.id)).toBe(false);
 
     expectCompletionLog(1, 1);
   });
