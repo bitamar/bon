@@ -4,7 +4,11 @@
 
 ## Summary
 
-Add an optional phone number field to the user profile for WhatsApp identity. Phone lives **only on users** — the `businesses.phone` column is removed entirely. This phone number identifies the user for WhatsApp interactions — it's how BON knows *who* is texting, resolves their businesses and roles, and sends notifications.
+Add an optional phone number field to the user profile for WhatsApp identity. This phone number identifies the user for WhatsApp interactions — it's how BON knows *who* is texting, resolves their businesses and roles, and sends notifications.
+
+**Two separate phone fields, two separate purposes:**
+- `users.phone` — WhatsApp identity (E.164, unique, used for inbound message resolution)
+- `businesses.phone` — display-only, printed on invoice PDFs (local format, not unique, no WhatsApp role)
 
 ## Why
 
@@ -13,7 +17,7 @@ The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **u
 - **Role enforcement**: we can check their role before destructive operations
 - **Multi-tenant**: one phone, multiple businesses — user picks which one
 
-`users.phone` already exists in the schema (nullable text, no unique constraint). We need to add a unique constraint, normalize to E.164 format, and remove the business-level phone column.
+`users.phone` already exists in the schema (nullable text, no unique constraint). We need to add a unique constraint and normalize to E.164 format. `businesses.phone` stays as-is — it's only for invoice display and has no interaction with WhatsApp.
 
 ## Scope
 
@@ -35,8 +39,8 @@ The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **u
      uniqueIndex('users_phone_unique').on(users.phone).where(sql`phone IS NOT NULL`)
      ```
    - Add `whatsappEnabled` boolean column (default `true`)
-   - **Remove `businesses.phone` column** — phone only exists on users
-   - **Storage format**: E.164 (`+972521234567`) — no format conversion needed for WhatsApp lookup
+   - **`businesses.phone` stays unchanged** — it's display-only for invoice PDFs, no schema changes needed
+   - **`users.phone` storage format**: E.164 (`+972521234567`) — no format conversion needed for WhatsApp lookup
 
 4. **Migration** — `npm run db:generate -w api` to create the migration.
 
@@ -47,23 +51,13 @@ The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **u
    - Reject duplicates (unique constraint will throw → catch and return 409)
    - Accept `whatsappEnabled` boolean
 
-6. **Remove `businesses.phone`** — the column is referenced in multiple layers. All must be updated:
-
-   **Schema & types:**
-   - `api/src/db/schema.ts` — drop `phone` column from `businesses` table
-   - `types/src/businesses.ts` — remove `phone` from `businessSchema` (`phone: nullableString`), `createBusinessBodySchema` (`israeliPhoneSchema.optional()`), and `updateBusinessBodySchema` (`z.union([israeliPhoneSchema, z.literal(null)]).optional()`)
-
-   **PDF generation** (phone currently renders in invoice headers):
-   - `types/src/pdf.ts` — remove `phone` from `pdfBusinessDataSchema` (`phone: z.string().nullable()`)
-   - `api/src/services/pdf-service.ts` — remove `phone: business.phone ?? null` from the `PdfBusinessData` construction (~line 114)
-   - `pdf/src/pdf/InvoiceTemplate.tsx` — remove the conditional phone block in the business header (`{business.phone && (<div>טל: <span dir="ltr">{business.phone}</span></div>)}` around lines 80–84)
-   - `pdf/tests/fixtures.ts` — remove `phone: '0501234567'` from `makeBusiness()` fixture
+6. **Clarify `businesses.phone` as invoice-display-only** — no schema or backend changes needed (column, types, PDF rendering, and service serialization all stay as-is). Only the frontend label needs a tweak:
 
    **Frontend:**
-   - `front/src/pages/BusinessSettings.tsx` — remove the phone `TextInput` field (~line 109 loads `phone: business.phone ?? ''`, line 160 saves it, and there's a TextInput with label "טלפון")
-
-   **Business service:**
-   - `api/src/services/business-service.ts` — remove phone from serialization (~lines 40, 53, 71, 96, 165)
+   - `front/src/pages/BusinessSettings.tsx` — update the phone `TextInput` (~line 109):
+     - Label: `טלפון לחשבונית` (instead of plain `טלפון`)
+     - Add tooltip (Mantine `Tooltip` wrapping an info icon): `"מספר זה מוצג על גבי החשבונית בלבד ואינו קשור ל-WhatsApp"`
+     - Keep existing validation and save logic unchanged
 
 ### Frontend Changes
 
@@ -90,8 +84,8 @@ The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **u
 
 - [ ] `users.phone` has a partial unique index (unique where not null)
 - [ ] `users.phone` stores E.164 format (`+972521234567`)
-- [ ] `businesses.phone` column is removed from schema, routes, frontend, and PDF generation
-- [ ] Invoice PDF renders without phone (no blank line or broken layout)
+- [ ] `businesses.phone` remains unchanged — display-only for invoice PDFs
+- [ ] Business settings phone field labeled `טלפון לחשבונית` with tooltip clarifying it's for invoices only
 - [ ] User can set their phone via profile update (accepts formatted input, normalizes)
 - [ ] Duplicate phone is rejected with 409
 - [ ] Phone field uses Israeli format validation and `dir="ltr"`
@@ -102,7 +96,7 @@ The WhatsApp integration (TWA-02+) needs to map an inbound phone number to a **u
 
 ## Size
 
-~250 lines changed. Medium ticket (larger due to business phone removal across schema, PDF, frontend, and services).
+~180 lines changed. Small-medium ticket.
 
 ## Dependencies
 

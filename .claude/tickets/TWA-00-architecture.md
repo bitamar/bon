@@ -64,7 +64,7 @@ Two separate jobs for processing and sending. If Twilio is down, the LLM respons
 
 ## Identity model: phone → user → business
 
-Phone lives **only on `users`** — not on businesses. `businesses.phone` column is removed (TWA-01). WhatsApp identity is always user-level: one phone, one user, potentially many businesses.
+WhatsApp identity lives on `users.phone` (E.164, unique). `businesses.phone` is a separate, unrelated field — it's display-only text printed on invoice PDFs and has no role in the WhatsApp flow. The two must never be confused.
 
 ```
 inbound phone (+972521234567)
@@ -237,7 +237,7 @@ User name, business name, and role injected at runtime. No data preloaded — to
 ## Ticket breakdown
 
 ```
-TWA-01: Phone on user profile + unique index  (user identity for WhatsApp, remove businesses.phone)
+TWA-01: Phone on user profile + unique index  (user identity for WhatsApp)
 TWA-02: Twilio infrastructure                 (service layer, plugin, env vars, phone normalization)
 TWA-03: Webhook + job queue wiring            (inbound route, phone→user→business resolution, two job types)
 TWA-04: Conversation state                    (DB migration, repositories, context builder, message cleanup cron)
@@ -260,7 +260,7 @@ These were discovered during a deep review of the existing codebase. Every ticke
 
 4. **`finalize()` can require a `vatExemptionReason`.** If VAT total is zero and the business is not an exempt dealer, it throws `unprocessableEntity` with code `missing_vat_exemption_reason`.
 
-5. **`users.phone` exists but needs a unique index and E.164 format.** Column is nullable text with no constraint. TWA-01 adds a partial unique index (`WHERE phone IS NOT NULL`), normalizes to E.164 (`+972521234567`) before storing, and removes `businesses.phone` entirely.
+5. **`users.phone` exists but needs a unique index and E.164 format.** Column is nullable text with no constraint. TWA-01 adds a partial unique index (`WHERE phone IS NOT NULL`) and normalizes to E.164 (`+972521234567`) before storing. `businesses.phone` is a separate, unrelated field used only for invoice PDF display — it stays unchanged.
 
 6. **Rate limiting only excludes `/health`.** The Meshulam webhook is NOT excluded from rate limiting despite what some comments suggest. The `allowList` function in `app.ts` must be updated to exclude webhook routes.
 
