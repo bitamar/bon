@@ -5,7 +5,7 @@ import { createSendWhatsAppReplyHandler } from '../../../src/jobs/handlers/send-
 import type {
   WhatsAppService,
   WhatsAppSendResult,
-} from '../../../src/services/whatsapp/whatsapp-service.js';
+} from '../../../src/services/whatsapp/whatsapp-types.js';
 
 // ── module-scope mocks ──
 

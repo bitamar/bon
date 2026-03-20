@@ -119,7 +119,6 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(shaamPlugin);
   await app.register(whatsappPlugin);
   await app.register(maintenanceJobsPlugin);
-  await app.register(whatsappPlugin);
 
   // Register job handlers when pg-boss is available (skipped in test mode)
   if (app.boss) {
