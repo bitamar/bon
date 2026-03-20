@@ -10,6 +10,7 @@ import {
   insertMessage,
   findRecentMessages,
   countRecentInboundMessages,
+  deleteOldMessages,
   upsertPendingAction,
   findPendingAction,
   deletePendingAction,
@@ -243,6 +244,24 @@ describe('whatsapp-repository', () => {
 
       const count = await countRecentInboundMessages(conversation.id, 60);
       expect(count).toBe(2);
+    });
+
+    it('deletes old messages', async () => {
+      const { conversation } = await setupUserAndConversation();
+
+      await insertMessage({
+        conversationId: conversation.id,
+        direction: 'inbound',
+        llmRole: 'user',
+        body: 'recent message',
+      });
+
+      // deleteOldMessages defaults to 90 days — a just-inserted message should not be deleted
+      const deleted = await deleteOldMessages(90);
+      expect(deleted).toBe(0);
+
+      const recent = await findRecentMessages(conversation.id);
+      expect(recent).toHaveLength(1);
     });
   });
 
