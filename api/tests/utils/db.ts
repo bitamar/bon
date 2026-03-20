@@ -6,7 +6,7 @@ import { sessions, users } from '../../src/db/schema.js';
 export async function resetDb() {
   // Use TRUNCATE CASCADE to handle all FK chains atomically.
   await db.execute(
-    sql`TRUNCATE users, sessions, businesses, user_businesses, customers, invoices, invoice_items, invoice_sequences, business_shaam_credentials, emergency_allocation_numbers CASCADE`
+    sql`TRUNCATE users, sessions, businesses, user_businesses, customers, invoices, invoice_items, invoice_sequences, business_shaam_credentials, emergency_allocation_numbers, whatsapp_conversations, whatsapp_messages, whatsapp_pending_actions CASCADE`
   );
 }
 

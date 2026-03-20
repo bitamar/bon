@@ -27,6 +27,7 @@ import {
 } from '@bon/types/invoices';
 import { PAYMENT_METHODS } from '@bon/types/payments';
 import { SUBSCRIPTION_PLANS, SUBSCRIPTION_STATUSES } from '@bon/types/subscriptions';
+import { CONVERSATION_STATUSES, MESSAGE_DIRECTIONS, LLM_ROLES } from '@bon/types/whatsapp';
 
 export const businessTypeEnum = pgEnum('business_type', BUSINESS_TYPES);
 export const businessRoleEnum = pgEnum('business_role', BUSINESS_ROLES);
@@ -38,6 +39,9 @@ export const allocationStatusEnum = pgEnum('allocation_status', ALLOCATION_STATU
 export const paymentMethodEnum = pgEnum('payment_method', PAYMENT_METHODS);
 export const subscriptionPlanEnum = pgEnum('subscription_plan', SUBSCRIPTION_PLANS);
 export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUSES);
+export const conversationStatusEnum = pgEnum('conversation_status', CONVERSATION_STATUSES);
+export const messageDirectionEnum = pgEnum('message_direction', MESSAGE_DIRECTIONS);
+export const llmRoleEnum = pgEnum('llm_role', LLM_ROLES);
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -514,5 +518,97 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   business: one(businesses, {
     fields: [subscriptions.businessId],
     references: [businesses.id],
+  }),
+}));
+
+// ── WhatsApp ──
+
+export const whatsappConversations = pgTable(
+  'whatsapp_conversations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' })
+      .unique(),
+    phone: text('phone').notNull(),
+    activeBusinessId: uuid('active_business_id').references(() => businesses.id, {
+      onDelete: 'set null',
+    }),
+    status: conversationStatusEnum('status').notNull().default('active'),
+    lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('whatsapp_conversations_phone_idx').on(table.phone)]
+);
+
+export const whatsappConversationsRelations = relations(whatsappConversations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [whatsappConversations.userId],
+    references: [users.id],
+  }),
+  activeBusiness: one(businesses, {
+    fields: [whatsappConversations.activeBusinessId],
+    references: [businesses.id],
+  }),
+  messages: many(whatsappMessages),
+  pendingActions: many(whatsappPendingActions),
+}));
+
+export const whatsappMessages = pgTable(
+  'whatsapp_messages',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => whatsappConversations.id, { onDelete: 'cascade' }),
+    twilioSid: text('twilio_sid'),
+    direction: messageDirectionEnum('direction').notNull(),
+    llmRole: llmRoleEnum('llm_role').notNull(),
+    toolName: text('tool_name'),
+    toolCallId: text('tool_call_id'),
+    body: text('body').notNull(),
+    metadata: text('metadata'), // JSON string
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('whatsapp_messages_twilio_sid_unique')
+      .on(table.twilioSid)
+      .where(sql`${table.twilioSid} IS NOT NULL`),
+    index('whatsapp_messages_conversation_created_idx').on(table.conversationId, table.createdAt),
+  ]
+);
+
+export const whatsappMessagesRelations = relations(whatsappMessages, ({ one }) => ({
+  conversation: one(whatsappConversations, {
+    fields: [whatsappMessages.conversationId],
+    references: [whatsappConversations.id],
+  }),
+}));
+
+export const whatsappPendingActions = pgTable(
+  'whatsapp_pending_actions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => whatsappConversations.id, { onDelete: 'cascade' }),
+    actionType: text('action_type').notNull(),
+    payload: text('payload').notNull(), // JSON string
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('whatsapp_pending_actions_conv_type_unique').on(
+      table.conversationId,
+      table.actionType
+    ),
+  ]
+);
+
+export const whatsappPendingActionsRelations = relations(whatsappPendingActions, ({ one }) => ({
+  conversation: one(whatsappConversations, {
+    fields: [whatsappPendingActions.conversationId],
+    references: [whatsappConversations.id],
   }),
 }));
