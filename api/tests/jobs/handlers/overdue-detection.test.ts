@@ -27,7 +27,8 @@ async function createInvoice(
   businessId: string,
   status: InvoiceStatus,
   dueDate: string | null,
-  isOverdue = false
+  isOverdue = false,
+  overrides: Partial<typeof invoices.$inferInsert> = {}
 ) {
   const [row] = await db
     .insert(invoices)
@@ -37,6 +38,7 @@ async function createInvoice(
       status,
       dueDate,
       isOverdue,
+      ...overrides,
     })
     .returning();
   return row!;
@@ -47,7 +49,12 @@ vi.mock('../../../src/jobs/boss.js', async (importOriginal) => {
   return { ...actual, sendJob: vi.fn() };
 });
 
+vi.mock('../../../src/services/whatsapp/notifications.js', () => ({
+  sendOverdueNotifications: vi.fn(),
+}));
+
 import { sendJob } from '../../../src/jobs/boss.js';
+import { sendOverdueNotifications } from '../../../src/services/whatsapp/notifications.js';
 
 let logger: FastifyBaseLogger;
 let businessId: string;
@@ -68,6 +75,7 @@ describe('overdue-detection handler', () => {
     await resetDb();
     logger = makeLogger();
     vi.mocked(sendJob).mockReset();
+    vi.mocked(sendOverdueNotifications).mockReset();
     const user = await createUser();
     const biz = await createTestBusiness(user.id);
     businessId = biz.id;
@@ -152,5 +160,47 @@ describe('overdue-detection handler', () => {
     await runHandler();
 
     expect(sendJob).toHaveBeenCalledWith(mockBoss, 'overdue-digest', {});
+  });
+
+  it('calls sendOverdueNotifications for newly overdue invoices', async () => {
+    const inv = await createInvoice(businessId, 'finalized', daysAgo(5), false, {
+      documentNumber: 'INV-001',
+      customerName: 'Test Customer',
+    });
+
+    await runHandler();
+
+    expect(sendOverdueNotifications).toHaveBeenCalledWith(
+      businessId,
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: inv.id,
+          documentNumber: 'INV-001',
+          customerName: 'Test Customer',
+        }),
+      ]),
+      mockBoss,
+      logger
+    );
+  });
+
+  it('does not call sendOverdueNotifications when no new overdue invoices', async () => {
+    await createInvoice(businessId, 'sent', daysFromNow(10));
+
+    await runHandler();
+
+    expect(sendOverdueNotifications).not.toHaveBeenCalled();
+  });
+
+  it('groups overdue invoices by business for notifications', async () => {
+    const user2 = await createUser();
+    const biz2 = await createTestBusiness(user2.id);
+
+    await createInvoice(businessId, 'finalized', daysAgo(5));
+    await createInvoice(biz2.id, 'sent', daysAgo(3));
+
+    await runHandler();
+
+    expect(sendOverdueNotifications).toHaveBeenCalledTimes(2);
   });
 });
