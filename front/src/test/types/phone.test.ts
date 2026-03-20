@@ -37,11 +37,15 @@ describe('phone utilities', () => {
     });
 
     it('does not leak digits in error message', () => {
-      try {
-        normalizeIsraeliPhone('9991234');
-      } catch (e) {
-        expect((e as Error).message).not.toMatch(/\d/);
-      }
+      expect(() => normalizeIsraeliPhone('9991234')).toThrow();
+      const error = (() => {
+        try {
+          normalizeIsraeliPhone('9991234');
+        } catch (e) {
+          return e as Error;
+        }
+      })();
+      expect(error!.message).not.toMatch(/\d/);
     });
   });
 
