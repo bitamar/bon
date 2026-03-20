@@ -21,8 +21,8 @@ function stripFormatting(input: string): string {
 export function normalizeIsraeliPhone(input: string): string {
   let digits = stripFormatting(input);
 
-  // Handle 972 prefix: exactly 12 or 13 digits (9 or 10 local digits after 972)
-  if (digits.startsWith('972') && (digits.length === 12 || digits.length === 13)) {
+  // Handle 972 prefix: 11-13 digits (8-10 local digits after 972)
+  if (digits.startsWith('972') && digits.length >= 11 && digits.length <= 13) {
     digits = '0' + digits.slice(3);
   }
 

@@ -162,7 +162,7 @@ describe('Settings page', () => {
 
     renderWithProviders(<Settings />);
 
-    const themeToggle = await screen.findByRole('switch', { name: '' });
+    const themeToggle = await screen.findByRole('switch', { name: 'מצב כהה' });
     const user = userEvent.setup();
     await user.click(themeToggle);
 

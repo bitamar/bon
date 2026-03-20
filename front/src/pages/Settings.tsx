@@ -24,6 +24,16 @@ import { PageTitle } from '../components/PageTitle';
 import { useBusiness } from '../contexts/BusinessContext';
 import { BusinessSettingsSection } from './BusinessSettings';
 
+function validatePhone(value: string): string | null {
+  if (!value.trim()) return null;
+  try {
+    normalizeIsraeliPhone(value);
+    return null;
+  } catch {
+    return 'מספר טלפון לא תקין';
+  }
+}
+
 export function Settings() {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [name, setName] = useState<string>('');
@@ -90,16 +100,6 @@ export function Settings() {
     );
   }
 
-  const validatePhone = (value: string): string | null => {
-    if (!value.trim()) return null;
-    try {
-      normalizeIsraeliPhone(value);
-      return null;
-    } catch {
-      return 'מספר טלפון לא תקין';
-    }
-  };
-
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const error = validatePhone(phone);
@@ -125,6 +125,7 @@ export function Settings() {
               פרופיל
             </Text>
             <Switch
+              label="מצב כהה"
               checked={colorScheme === 'dark'}
               onChange={({ currentTarget }) =>
                 setColorScheme(currentTarget.checked ? 'dark' : 'light')

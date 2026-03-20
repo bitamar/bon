@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import {
+  ActionIcon,
   Button,
   Divider,
   Group,
@@ -227,7 +228,9 @@ export function BusinessSettingsSection() {
             maxLength={10}
             rightSection={
               <Tooltip label="מספר זה מוצג על גבי החשבונית בלבד ואינו קשור ל-WhatsApp">
-                <IconInfoCircle size={16} style={{ cursor: 'help' }} />
+                <ActionIcon variant="subtle" size="xs" aria-label="מידע על טלפון לחשבונית">
+                  <IconInfoCircle size={16} />
+                </ActionIcon>
               </Tooltip>
             }
             {...form.getInputProps('phone')}
