@@ -97,13 +97,28 @@ export const CustomerForm = forwardRef<CustomerFormHandle, Readonly<CustomerForm
     const form = useForm<CustomerFormValues>({
       initialValues: { ...DEFAULT_VALUES, ...initialValues },
       validate: {
-        name: (value) => (value.trim() ? null : 'שם נדרש'),
+        name: (value) => {
+          const trimmed = value.trim();
+          if (!trimmed) return 'שם נדרש';
+          if (trimmed.length > 255) return 'השם ארוך מדי (עד 255 תווים)';
+          return null;
+        },
         taxId: (value, values) => {
           if (values.taxIdType === 'none') return null;
           if (!value) return null;
           if (!/^\d{9}$/.test(value)) return 'מספר מזהה חייב להיות 9 ספרות';
           if (values.taxIdType === 'personal_id' && !validateIsraeliId(value))
             return 'מספר ת.ז. לא תקין';
+          return null;
+        },
+        email: (value) => {
+          if (!value) return null;
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'כתובת אימייל לא תקינה';
+          return null;
+        },
+        phone: (value) => {
+          if (!value) return null;
+          if (!/^0[2-9]\d{7,8}$/.test(value)) return 'מספר טלפון לא תקין (לדוגמה: 0501234567)';
           return null;
         },
       },
@@ -140,6 +155,7 @@ export const CustomerForm = forwardRef<CustomerFormHandle, Readonly<CustomerForm
           <TextInput
             label={getNameLabel(form.values.taxIdType)}
             required
+            maxLength={255}
             {...form.getInputProps('name')}
           />
 

@@ -14,6 +14,17 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * Detects raw Fastify/Zod validation messages (e.g. "body/phone Too big; expected...")
+ * and replaces them with a user-friendly Hebrew message.
+ */
+function sanitizeValidationMessage(status: number, message: string): string {
+  if (status === 400 && /^(body|querystring|params)\//.test(message)) {
+    return 'הנתונים שהוזנו אינם תקינים';
+  }
+  return message;
+}
+
 export async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const hasBody = init.body != null;
   const { headers: initHeaders, ...rest } = init;
@@ -29,7 +40,8 @@ export async function fetchJson<T>(path: string, init: RequestInit = {}): Promis
   if (!response.ok) {
     const body = await response.json().catch(() => undefined);
     const typed = body as { error?: string; message?: string } | undefined;
-    const message = typed?.message || typed?.error || `Request failed: ${response.status}`;
+    const raw = typed?.message || typed?.error || `Request failed: ${response.status}`;
+    const message = sanitizeValidationMessage(response.status, raw);
     throw new HttpError(response.status, message, body);
   }
 
@@ -45,7 +57,8 @@ export async function fetchBlob(path: string, init: RequestInit = {}): Promise<R
   if (!response.ok) {
     const body = await response.json().catch(() => undefined);
     const typed = body as { error?: string; message?: string } | undefined;
-    const message = typed?.message || typed?.error || `Request failed: ${response.status}`;
+    const raw = typed?.message || typed?.error || `Request failed: ${response.status}`;
+    const message = sanitizeValidationMessage(response.status, raw);
     throw new HttpError(response.status, message, body);
   }
 
