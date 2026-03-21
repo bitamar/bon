@@ -606,7 +606,7 @@ describe('finalize_invoice', () => {
     expect(result).toContain('לא נמצא אישור תקף');
   });
 
-  it('returns error when pending action is from a different conversation (mismatched invoiceId)', async () => {
+  it('returns error when pending action has mismatched invoiceId', async () => {
     mockFindPendingAction.mockResolvedValue({
       id: 'pa-1',
       conversationId: 'conv-1',
