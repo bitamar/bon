@@ -25,6 +25,51 @@ const APOLOGY_MESSAGE = 'מצטער, משהו השתבש. נסו שוב מאוח
 const TIMEOUT_APOLOGY = 'מצטער, הבקשה לקחה יותר מדי זמן. נסו שוב.';
 const NO_BUSINESS_MESSAGE = 'אין עסקים מחוברים לחשבון שלך. צרו עסק באפליקציה.';
 
+const RETRYABLE_STATUSES = new Set([429, 500, 529]);
+
+interface ResolvedBusiness {
+  businessId: string | null;
+  businessName: string | null;
+  userRole: string | null;
+}
+
+async function resolveBusiness(
+  userId: string,
+  conversationId: string,
+  activeBusinessId: string | null,
+  logger: FastifyBaseLogger
+): Promise<ResolvedBusiness | 'no_businesses'> {
+  let businessId = activeBusinessId;
+
+  if (businessId) {
+    const membership = await findUserBusiness(userId, businessId);
+    if (membership) {
+      const businesses = await findBusinessesForUser(userId);
+      const biz = businesses.find((b) => b.id === businessId);
+      return {
+        businessId,
+        businessName: biz?.name ?? null,
+        userRole: biz?.role ?? membership.role,
+      };
+    }
+    logger.info({ conversationId, businessId }, 'stale business membership, clearing');
+    await updateConversation(conversationId, { activeBusinessId: null });
+    businessId = null;
+  }
+
+  const businesses = await findBusinessesForUser(userId);
+  if (businesses.length === 0) {
+    return 'no_businesses';
+  }
+  if (businesses.length === 1) {
+    const biz = businesses[0]!;
+    await updateConversation(conversationId, { activeBusinessId: biz.id });
+    return { businessId: biz.id, businessName: biz.name, userRole: biz.role };
+  }
+  // > 1: businessId stays null, system prompt tells LLM to use select_business
+  return { businessId: null, businessName: null, userRole: null };
+}
+
 export function createProcessWhatsAppMessageHandler(
   logger: FastifyBaseLogger,
   boss: PgBoss,
@@ -49,41 +94,18 @@ export function createProcessWhatsAppMessageHandler(
       return;
     }
 
-    // Business resolution
-    let businessId: string | null = conversation.activeBusinessId;
-    let businessName: string | null = null;
-    let userRole: string | null = null;
-
-    if (businessId) {
-      // Stale business guard: verify membership
-      const membership = await findUserBusiness(conversation.userId, businessId);
-      if (!membership) {
-        logger.info({ conversationId, businessId }, 'stale business membership, clearing');
-        await updateConversation(conversationId, { activeBusinessId: null });
-        businessId = null;
-      } else {
-        const businesses = await findBusinessesForUser(conversation.userId);
-        const biz = businesses.find((b) => b.id === businessId);
-        businessName = biz?.name ?? null;
-        userRole = biz?.role ?? membership.role;
-      }
+    const resolved = await resolveBusiness(
+      conversation.userId,
+      conversationId,
+      conversation.activeBusinessId,
+      logger
+    );
+    if (resolved === 'no_businesses') {
+      await enqueueReply(boss, conversationId, conversation.phone, NO_BUSINESS_MESSAGE);
+      return;
     }
 
-    if (!businessId) {
-      const businesses = await findBusinessesForUser(conversation.userId);
-      if (businesses.length === 0) {
-        await enqueueReply(boss, conversationId, conversation.phone, NO_BUSINESS_MESSAGE);
-        return;
-      }
-      if (businesses.length === 1) {
-        const biz = businesses[0]!;
-        businessId = biz.id;
-        businessName = biz.name;
-        userRole = biz.role;
-        await updateConversation(conversationId, { activeBusinessId: businessId });
-      }
-      // If > 1: businessId stays null, system prompt tells LLM to use select_business
-    }
+    const { businessId, businessName, userRole } = resolved;
 
     // Load and build message context
     const recentMessages = await findRecentMessages(conversationId, 40);
@@ -140,31 +162,37 @@ export function createProcessWhatsAppMessageHandler(
       await updateConversation(conversationId, { lastActivityAt: new Date() });
       await enqueueReply(boss, conversationId, conversation.phone, replyText);
     } catch (err: unknown) {
-      if (isAbortError(err)) {
-        logger.warn({ conversationId }, 'process-whatsapp-message: timeout');
-        await enqueueReply(boss, conversationId, conversation.phone, TIMEOUT_APOLOGY);
-        return;
-      }
-
-      if (err instanceof Anthropic.APIError) {
-        const status = err.status;
-        if (status === 429 || status === 500 || status === 529) {
-          // Transient — let pg-boss retry
-          throw err;
-        }
-        // 400/401 — config error, no retry
-        logger.error({ status, message: err.message }, 'Claude API non-retryable error');
-        await enqueueReply(boss, conversationId, conversation.phone, APOLOGY_MESSAGE);
-        return;
-      }
-
-      // Unknown error — retry
-      logger.error({ err }, 'process-whatsapp-message: unexpected error');
-      throw err;
+      await handleToolLoopError(err, conversationId, conversation.phone, logger, boss);
     } finally {
       clearTimeout(timeout);
     }
   };
+}
+
+async function handleToolLoopError(
+  err: unknown,
+  conversationId: string,
+  phone: string,
+  logger: FastifyBaseLogger,
+  boss: PgBoss
+): Promise<void> {
+  if (isAbortError(err)) {
+    logger.warn({ conversationId }, 'process-whatsapp-message: timeout');
+    await enqueueReply(boss, conversationId, phone, TIMEOUT_APOLOGY);
+    return;
+  }
+
+  if (err instanceof Anthropic.APIError) {
+    if (RETRYABLE_STATUSES.has(err.status)) {
+      throw err;
+    }
+    logger.error({ status: err.status, message: err.message }, 'Claude API non-retryable error');
+    await enqueueReply(boss, conversationId, phone, APOLOGY_MESSAGE);
+    return;
+  }
+
+  logger.error({ err }, 'process-whatsapp-message: unexpected error');
+  throw err;
 }
 
 async function enqueueReply(
