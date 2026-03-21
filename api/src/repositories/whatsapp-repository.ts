@@ -1,6 +1,12 @@
-import { and, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { whatsappConversations, whatsappMessages, whatsappPendingActions } from '../db/schema.js';
+import {
+  users,
+  userBusinesses,
+  whatsappConversations,
+  whatsappMessages,
+  whatsappPendingActions,
+} from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
 
 export type ConversationRecord = (typeof whatsappConversations)['$inferSelect'];
@@ -131,6 +137,51 @@ export async function deleteOldMessages(
     .where(sql`${whatsappMessages.createdAt} <= ${cutoff}`)
     .returning({ id: whatsappMessages.id });
   return result.length;
+}
+
+// ── Notification helpers ──
+
+export interface EligibleNotificationUser {
+  userId: string;
+  phone: string | null;
+  whatsappEnabled: boolean;
+}
+
+export async function findEligibleNotificationUsers(
+  businessId: string,
+  txOrDb: DbOrTx = db
+): Promise<EligibleNotificationUser[]> {
+  return txOrDb
+    .select({
+      userId: users.id,
+      phone: users.phone,
+      whatsappEnabled: users.whatsappEnabled,
+    })
+    .from(userBusinesses)
+    .innerJoin(users, eq(userBusinesses.userId, users.id))
+    .where(
+      and(
+        eq(userBusinesses.businessId, businessId),
+        inArray(userBusinesses.role, ['owner', 'admin'])
+      )
+    );
+}
+
+export async function findOutboundMessagesSince(
+  conversationId: string,
+  since: Date,
+  txOrDb: DbOrTx = db
+): Promise<Array<{ metadata: string | null }>> {
+  return txOrDb
+    .select({ metadata: whatsappMessages.metadata })
+    .from(whatsappMessages)
+    .where(
+      and(
+        eq(whatsappMessages.conversationId, conversationId),
+        eq(whatsappMessages.direction, 'outbound'),
+        gt(whatsappMessages.createdAt, since)
+      )
+    );
 }
 
 // ── Pending Actions ──

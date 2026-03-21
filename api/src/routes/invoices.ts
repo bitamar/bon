@@ -35,6 +35,8 @@ import {
 } from '../services/invoice-service.js';
 import { generateInvoicePdf } from '../services/pdf-service.js';
 import { assertCanCreateInvoice } from '../services/subscription-service.js';
+import { notifyBusinessUsersViaWhatsApp } from '../services/whatsapp/notifications.js';
+import { formatMinorUnits } from '@bon/types/formatting';
 
 const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.post(
@@ -192,12 +194,24 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req, reply) => {
       ensureBusinessContext(req);
-      const result = await sendInvoice(
-        req.businessContext.businessId,
-        req.params.invoiceId,
-        req.body,
-        app.boss
-      );
+      const { businessId } = req.businessContext;
+      const { invoiceId } = req.params;
+      const result = await sendInvoice(businessId, invoiceId, req.body, app.boss);
+
+      // Fire-and-forget WhatsApp notification
+      if (app.boss && result.documentNumber && result.customerName) {
+        await notifyBusinessUsersViaWhatsApp(
+          businessId,
+          'invoice_sent',
+          {
+            documentNumber: result.documentNumber,
+            customerName: result.customerName,
+          },
+          app.boss,
+          app.log
+        );
+      }
+
       return reply.status(202).send({ ok: true as const, status: result.status });
     }
   );
@@ -285,12 +299,23 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req, reply) => {
       ensureBusinessContext(req);
-      const result = await recordPayment(
-        req.businessContext.businessId,
-        req.params.invoiceId,
-        req.body,
-        req.user!.id
-      );
+      const { businessId } = req.businessContext;
+      const result = await recordPayment(businessId, req.params.invoiceId, req.body, req.user!.id);
+
+      // Fire-and-forget WhatsApp notification
+      if (app.boss && result.invoice.documentNumber) {
+        await notifyBusinessUsersViaWhatsApp(
+          businessId,
+          'payment_received',
+          {
+            amount: formatMinorUnits(req.body.amountMinorUnits),
+            documentNumber: result.invoice.documentNumber,
+          },
+          app.boss,
+          app.log
+        );
+      }
+
       return reply.status(201).send(result);
     }
   );
