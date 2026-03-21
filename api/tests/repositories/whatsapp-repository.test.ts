@@ -266,14 +266,17 @@ describe('whatsapp-repository', () => {
     it('deletes messages older than the cutoff', async () => {
       const { conversation } = await setupUserAndConversation();
 
+      // Backdate the message to avoid race between DB NOW() and JS Date.now()
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
       await insertMessage({
         conversationId: conversation.id,
         direction: 'inbound',
         llmRole: 'user',
         body: 'will be deleted',
+        createdAt: yesterday,
       });
 
-      // olderThanDays=0 means cutoff is now — all existing messages are older
+      // olderThanDays=0 means cutoff is now — the backdated message is older
       const deleted = await deleteOldMessages(0);
       expect(deleted).toBe(1);
 
