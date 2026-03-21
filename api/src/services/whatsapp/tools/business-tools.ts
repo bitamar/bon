@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   findBusinessesForUser,
   findUserBusiness,
@@ -52,8 +53,14 @@ const listBusinessesHandler: ToolHandler = async (_input: unknown, context: Tool
   return businesses.map((b, i) => `${i + 1}. ${b.name} (${displayRole(b.role)})`).join('\n');
 };
 
+const selectBusinessInputSchema = z.object({ businessId: z.string() });
+
 const selectBusinessHandler: ToolHandler = async (input: unknown, context: ToolContext) => {
-  const { businessId } = input as { businessId: string };
+  const parsed = selectBusinessInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return 'שגיאה: נדרש מזהה עסק (businessId).';
+  }
+  const { businessId } = parsed.data;
 
   const membership = await findUserBusiness(context.userId, businessId);
   if (!membership) {

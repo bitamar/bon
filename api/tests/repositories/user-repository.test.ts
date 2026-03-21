@@ -3,7 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { resetDb } from '../utils/db.js';
 import { db } from '../../src/db/client.js';
 import { users } from '../../src/db/schema.js';
-import { updateUserById, findUserByPhone } from '../../src/repositories/user-repository.js';
+import {
+  updateUserById,
+  findUserById,
+  findUserByPhone,
+} from '../../src/repositories/user-repository.js';
 
 async function createTestUser() {
   const [user] = await db
@@ -20,6 +24,24 @@ describe('user-repository', () => {
 
   afterEach(async () => {
     await resetDb();
+  });
+
+  describe('findUserById', () => {
+    it('returns the user for a known id', async () => {
+      const user = await createTestUser();
+
+      const result = await findUserById(user.id);
+
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe(user.id);
+      expect(result?.email).toBe(user.email);
+    });
+
+    it('returns null for an unknown id', async () => {
+      const result = await findUserById(randomUUID());
+
+      expect(result).toBeNull();
+    });
   });
 
   describe('updateUserById', () => {
