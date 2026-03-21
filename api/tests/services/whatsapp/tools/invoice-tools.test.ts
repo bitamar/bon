@@ -81,15 +81,16 @@ describe('business guard', () => {
   });
 });
 
+// ── find_customer helpers ──
+
+async function runFindCustomer(query: string, ctx: ToolContext = makeToolContext()) {
+  const registry = makeRegistry();
+  return executeTool(registry, 'find_customer', { query }, ctx);
+}
+
 // ── find_customer ──
 
 describe('find_customer', () => {
-  // ── helpers ──
-  async function runFindCustomer(query: string, ctx: ToolContext = makeToolContext()) {
-    const registry = makeRegistry();
-    return executeTool(registry, 'find_customer', { query }, ctx);
-  }
-
   it('returns matching customers as JSON', async () => {
     mockListCustomers.mockResolvedValue({
       customers: [
@@ -463,33 +464,36 @@ describe('request_confirmation', () => {
   });
 });
 
+// ── finalize_invoice helpers ──
+
+const DEFAULT_FINALIZE_ARGS: Record<string, unknown> = { invoiceId: 'inv-1' };
+
+function mockValidPendingAction(overrides?: Record<string, unknown>) {
+  mockFindPendingAction.mockResolvedValue({
+    id: 'pa-1',
+    conversationId: 'conv-1',
+    actionType: 'finalize_invoice',
+    payload: JSON.stringify({
+      invoiceId: 'inv-1',
+      draftRevision: '2026-03-21T10:00:00.000Z',
+    }),
+    expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    ...overrides,
+  });
+}
+
+async function runFinalizeTool(
+  args?: Record<string, unknown>,
+  ctxOverrides?: Partial<ToolContext>
+) {
+  const registry = makeRegistry();
+  const ctx = makeToolContext(ctxOverrides);
+  return executeTool(registry, 'finalize_invoice', args ?? DEFAULT_FINALIZE_ARGS, ctx);
+}
+
 // ── finalize_invoice ──
 
 describe('finalize_invoice', () => {
-  // ── helpers ──
-  function mockValidPendingAction(overrides?: Record<string, unknown>) {
-    mockFindPendingAction.mockResolvedValue({
-      id: 'pa-1',
-      conversationId: 'conv-1',
-      actionType: 'finalize_invoice',
-      payload: JSON.stringify({
-        invoiceId: 'inv-1',
-        draftRevision: '2026-03-21T10:00:00.000Z',
-      }),
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-      ...overrides,
-    });
-  }
-
-  async function runFinalizeTool(
-    args: Record<string, unknown> = { invoiceId: 'inv-1' },
-    ctxOverrides?: Partial<ToolContext>
-  ) {
-    const registry = makeRegistry();
-    const ctx = makeToolContext(ctxOverrides);
-    return executeTool(registry, 'finalize_invoice', args, ctx);
-  }
-
   beforeEach(() => {
     mockDeletePendingAction.mockResolvedValue(undefined);
     // Default: getInvoice returns the standard response (for draftRevision check)

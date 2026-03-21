@@ -378,26 +378,73 @@ const requestConfirmationHandler: ToolHandler = async (input: unknown, context: 
   ].join('\n');
 };
 
+const FINALIZE_ROLES: ReadonlyArray<string> = ['owner', 'admin'];
+
+function canFinalize(role: string | null): boolean {
+  return !!role && FINALIZE_ROLES.includes(role);
+}
+
+async function verifyDraftRevision(
+  businessId: string,
+  invoiceId: string,
+  draftRevision: string | undefined
+): Promise<string | null> {
+  if (!draftRevision) return null;
+  let currentInvoice;
+  try {
+    currentInvoice = await getInvoice(businessId, invoiceId);
+  } catch {
+    return 'שגיאה: חשבונית לא נמצאה.';
+  }
+  if (currentInvoice.invoice.updatedAt !== draftRevision) {
+    return 'החשבונית שונתה מאז האישור. יש לבקש אישור מחדש.';
+  }
+  return null;
+}
+
+async function handlePostFinalize(
+  result: { needsAllocation: boolean },
+  context: ToolContext,
+  businessId: string,
+  invoiceId: string,
+  pendingActionId: string
+): Promise<void> {
+  try {
+    if (result.needsAllocation) {
+      if (context.boss) {
+        enqueueShaamAllocation(context.boss, businessId, invoiceId, context.logger);
+      } else {
+        context.logger.warn(
+          { businessId, invoiceId },
+          'SHAAM allocation needed but job queue (boss) is unavailable — allocation must be retried manually'
+        );
+      }
+    }
+    await deletePendingAction(pendingActionId);
+  } catch (postCommitErr) {
+    context.logger.error(
+      { err: postCommitErr, businessId, invoiceId, pendingActionId },
+      'Post-finalize cleanup failed (invoice was already issued successfully)'
+    );
+  }
+}
+
 const finalizeInvoiceHandler: ToolHandler = async (input: unknown, context: ToolContext) => {
   const businessId = requireBusiness(context);
   if (!businessId) return NO_BUSINESS_MSG;
 
-  // Role check — default-deny: only owner and admin may finalize
-  const FINALIZE_ROLES: ReadonlyArray<string> = ['owner', 'admin'];
-  if (!context.userRole || !FINALIZE_ROLES.includes(context.userRole)) {
+  if (!canFinalize(context.userRole)) {
     return 'אין לך הרשאה להפיק חשבוניות. פנה לבעלים או מנהל העסק.';
   }
 
   const parsed = finalizeInputSchema.safeParse(input);
   if (!parsed.success) return 'שגיאה: נדרש מזהה חשבונית (invoiceId).';
 
-  // Check for valid pending action
   const pendingAction = await findPendingAction(context.conversationId, 'finalize_invoice');
   if (!pendingAction) {
     return 'לא נמצא אישור תקף. יש לבקש אישור מחדש.';
   }
 
-  // Verify the pending action matches the requested invoice
   const pendingPayload = JSON.parse(pendingAction.payload) as {
     invoiceId: string;
     draftRevision?: string;
@@ -406,49 +453,19 @@ const finalizeInvoiceHandler: ToolHandler = async (input: unknown, context: Tool
     return 'לא נמצא אישור תקף. יש לבקש אישור מחדש.';
   }
 
-  // Verify draft hasn't changed since approval was requested
-  if (pendingPayload.draftRevision) {
-    let currentInvoice;
-    try {
-      currentInvoice = await getInvoice(businessId, parsed.data.invoiceId);
-    } catch {
-      return 'שגיאה: חשבונית לא נמצאה.';
-    }
-    if (currentInvoice.invoice.updatedAt !== pendingPayload.draftRevision) {
-      return 'החשבונית שונתה מאז האישור. יש לבקש אישור מחדש.';
-    }
-  }
+  const revisionError = await verifyDraftRevision(
+    businessId,
+    parsed.data.invoiceId,
+    pendingPayload.draftRevision
+  );
+  if (revisionError) return revisionError;
 
   try {
     const result = await finalize(businessId, parsed.data.invoiceId, {
       vatExemptionReason: parsed.data.vatExemptionReason,
     });
 
-    // Post-commit best-effort work — finalize() already committed, so failures here
-    // must not turn a successful issuance into an error for the user.
-    try {
-      if (result.needsAllocation) {
-        if (context.boss) {
-          enqueueShaamAllocation(context.boss, businessId, parsed.data.invoiceId, context.logger);
-        } else {
-          context.logger.warn(
-            { businessId, invoiceId: parsed.data.invoiceId },
-            'SHAAM allocation needed but job queue (boss) is unavailable — allocation must be retried manually'
-          );
-        }
-      }
-      await deletePendingAction(pendingAction.id);
-    } catch (postCommitErr) {
-      context.logger.error(
-        {
-          err: postCommitErr,
-          businessId,
-          invoiceId: parsed.data.invoiceId,
-          pendingActionId: pendingAction.id,
-        },
-        'Post-finalize cleanup failed (invoice was already issued successfully)'
-      );
-    }
+    await handlePostFinalize(result, context, businessId, parsed.data.invoiceId, pendingAction.id);
 
     const docNumber = result.invoice.documentNumber ?? '';
     return `חשבונית ${docNumber} הופקה בהצלחה! ✓\nסכום: ${formatCurrency(result.invoice.totalInclVatMinorUnits)}`;
