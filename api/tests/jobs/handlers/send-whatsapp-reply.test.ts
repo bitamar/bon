@@ -1,11 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { Job } from 'pg-boss';
-import type { JobPayloads } from '../../../src/jobs/boss.js';
 import { createSendWhatsAppReplyHandler } from '../../../src/jobs/handlers/send-whatsapp-reply.js';
 import type {
   WhatsAppService,
   WhatsAppSendResult,
 } from '../../../src/services/whatsapp/whatsapp-types.js';
+import { makeLogger, makeJob } from '../../utils/jobs.js';
 
 // ── module-scope mocks ──
 
@@ -17,27 +16,7 @@ vi.mock('../../../src/repositories/whatsapp-repository.js', () => ({
   insertMessage: (...args: unknown[]) => mockInsertMessage(...args),
 }));
 
-const mockLogger = {
-  info: vi.fn(),
-  error: vi.fn(),
-  warn: vi.fn(),
-  debug: vi.fn(),
-  fatal: vi.fn(),
-  trace: vi.fn(),
-  child: vi.fn(),
-  level: 'info',
-  silent: vi.fn(),
-} as never;
-
-function makeJob(
-  data: JobPayloads['send-whatsapp-reply']
-): Job<JobPayloads['send-whatsapp-reply']> {
-  return {
-    id: 'job-1',
-    name: 'send-whatsapp-reply',
-    data,
-  } as Job<JobPayloads['send-whatsapp-reply']>;
-}
+const mockLogger = makeLogger();
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -49,7 +28,13 @@ describe('send-whatsapp-reply handler', () => {
     mockInsertMessage.mockResolvedValue({ id: 'msg-1' });
 
     const handler = createSendWhatsAppReplyHandler(mockWhatsApp, mockLogger);
-    await handler(makeJob({ conversationId: 'conv-1', body: 'שלום', to: '+972521234567' }));
+    await handler(
+      makeJob('send-whatsapp-reply', {
+        conversationId: 'conv-1',
+        body: 'שלום',
+        to: '+972521234567',
+      })
+    );
 
     expect(mockSendMessage).toHaveBeenCalledWith('+972521234567', 'שלום');
     expect(mockInsertMessage).toHaveBeenCalledWith(
@@ -69,7 +54,13 @@ describe('send-whatsapp-reply handler', () => {
     const handler = createSendWhatsAppReplyHandler(mockWhatsApp, mockLogger);
 
     await expect(
-      handler(makeJob({ conversationId: 'conv-1', body: 'test', to: '+972521234567' }))
+      handler(
+        makeJob('send-whatsapp-reply', {
+          conversationId: 'conv-1',
+          body: 'test',
+          to: '+972521234567',
+        })
+      )
     ).rejects.toThrow('retryable');
 
     expect(mockInsertMessage).not.toHaveBeenCalled();
@@ -85,7 +76,13 @@ describe('send-whatsapp-reply handler', () => {
     const handler = createSendWhatsAppReplyHandler(mockWhatsApp, mockLogger);
 
     await expect(
-      handler(makeJob({ conversationId: 'conv-1', body: 'test', to: '+972521234567' }))
+      handler(
+        makeJob('send-whatsapp-reply', {
+          conversationId: 'conv-1',
+          body: 'test',
+          to: '+972521234567',
+        })
+      )
     ).resolves.toBeUndefined();
 
     expect(mockInsertMessage).not.toHaveBeenCalled();

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { Job } from 'pg-boss';
-import type { JobPayloads } from '../../../src/jobs/boss.js';
 import { createProcessWhatsAppMessageHandler } from '../../../src/jobs/handlers/process-whatsapp-message.js';
+import { makeLogger, makeJob } from '../../utils/jobs.js';
 
 // ── module-scope mocks ──
 
@@ -19,29 +18,8 @@ vi.mock('../../../src/jobs/boss.js', async (importOriginal) => {
   };
 });
 
-const mockLogger = {
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  fatal: vi.fn(),
-  trace: vi.fn(),
-  child: vi.fn(),
-  level: 'info',
-  silent: vi.fn(),
-} as never;
-
+const mockLogger = makeLogger();
 const mockBoss = {} as never;
-
-function makeJob(
-  data: JobPayloads['process-whatsapp-message']
-): Job<JobPayloads['process-whatsapp-message']> {
-  return {
-    id: 'job-1',
-    name: 'process-whatsapp-message',
-    data,
-  } as Job<JobPayloads['process-whatsapp-message']>;
-}
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -55,7 +33,9 @@ describe('process-whatsapp-message handler', () => {
     });
 
     const handler = createProcessWhatsAppMessageHandler(mockLogger, mockBoss);
-    await handler(makeJob({ conversationId: 'conv-1', messageId: 'msg-1' }));
+    await handler(
+      makeJob('process-whatsapp-message', { conversationId: 'conv-1', messageId: 'msg-1' })
+    );
 
     expect(mockSendJob).toHaveBeenCalledWith(
       mockBoss,
@@ -77,7 +57,9 @@ describe('process-whatsapp-message handler', () => {
     mockFindConversationById.mockResolvedValue(null);
 
     const handler = createProcessWhatsAppMessageHandler(mockLogger, mockBoss);
-    await handler(makeJob({ conversationId: 'conv-missing', messageId: 'msg-1' }));
+    await handler(
+      makeJob('process-whatsapp-message', { conversationId: 'conv-missing', messageId: 'msg-1' })
+    );
 
     expect(mockSendJob).not.toHaveBeenCalled();
   });

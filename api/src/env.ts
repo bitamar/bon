@@ -56,7 +56,10 @@ const Env = z
     ),
     TWILIO_WHATSAPP_FROM: z.preprocess(
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
-      z.string().optional()
+      z
+        .string()
+        .regex(/^whatsapp:\+\d{1,15}$/, 'must be in whatsapp:+E.164 format')
+        .optional()
     ),
     MESHULAM_MODE: z.enum(MESHULAM_MODES).default('mock'),
     MESHULAM_PAGE_CODE: z.preprocess(

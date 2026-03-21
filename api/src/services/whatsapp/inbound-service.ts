@@ -24,9 +24,10 @@ export async function handleInboundMessage(
   input: InboundMessageInput,
   whatsapp: WhatsAppService,
   boss: PgBoss | undefined,
-  _logger: FastifyBaseLogger
+  logger: FastifyBaseLogger
 ): Promise<void> {
   const { messageSid, from, body: bodyText, numMedia } = input;
+  logger.info({ messageSid, from }, 'inbound WhatsApp message received');
   const e164Phone = stripWhatsAppPrefix(from);
 
   // Media-only: no text body + has media → reply with text-only message

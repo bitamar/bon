@@ -14,11 +14,6 @@ function mockWhatsApp(): MockWhatsAppClient {
   return server.app.whatsapp as MockWhatsAppClient;
 }
 
-async function createUserWithPhone(phone: string, whatsappEnabled = true) {
-  const user = await createUser({ phone, whatsappEnabled });
-  return user;
-}
-
 async function injectWebhook(overrides: Record<string, string> = {}) {
   const params: Record<string, string> = {
     MessageSid: `SM${randomUUID().replaceAll('-', '')}`,
@@ -45,11 +40,11 @@ async function getMessages() {
 
 describe('POST /webhooks/whatsapp', () => {
   beforeEach(() => {
-    mockWhatsApp().sentMessages.length = 0;
+    mockWhatsApp().sentMessages.splice(0);
   });
 
   it('processes valid inbound from registered user → 200 + message inserted', async () => {
-    await createUserWithPhone('+972521234567');
+    await createUser({ phone: '+972521234567', whatsappEnabled: true });
 
     const res = await injectWebhook();
 
@@ -80,7 +75,7 @@ describe('POST /webhooks/whatsapp', () => {
   });
 
   it('handles duplicate MessageSid idempotently → 200 + no double insert', async () => {
-    await createUserWithPhone('+972521234567');
+    await createUser({ phone: '+972521234567', whatsappEnabled: true });
     const sid = `SM${randomUUID().replaceAll('-', '')}`;
 
     await injectWebhook({ MessageSid: sid });
@@ -102,7 +97,7 @@ describe('POST /webhooks/whatsapp', () => {
   });
 
   it('processes text normally when media + text are present', async () => {
-    await createUserWithPhone('+972521234567');
+    await createUser({ phone: '+972521234567', whatsappEnabled: true });
 
     const res = await injectWebhook({
       NumMedia: '1',
@@ -116,7 +111,7 @@ describe('POST /webhooks/whatsapp', () => {
   });
 
   it('replies with opt-out message when whatsappEnabled is false → 200', async () => {
-    await createUserWithPhone('+972521234567', false);
+    await createUser({ phone: '+972521234567', whatsappEnabled: false });
 
     const res = await injectWebhook();
 
@@ -130,7 +125,7 @@ describe('POST /webhooks/whatsapp', () => {
   });
 
   it('rate limits when >10 messages in last 60 seconds → 200 + throttle reply', async () => {
-    await createUserWithPhone('+972521234567');
+    await createUser({ phone: '+972521234567', whatsappEnabled: true });
 
     // Send 10 messages (at the limit)
     for (let i = 0; i < 10; i++) {
@@ -138,7 +133,7 @@ describe('POST /webhooks/whatsapp', () => {
     }
 
     // Clear sent messages to check only the throttle reply
-    mockWhatsApp().sentMessages.length = 0;
+    mockWhatsApp().sentMessages.splice(0);
 
     // 11th message should be throttled
     const res = await injectWebhook({ MessageSid: `SM${randomUUID().replaceAll('-', '')}` });
@@ -149,7 +144,7 @@ describe('POST /webhooks/whatsapp', () => {
   });
 
   it('creates conversation with activeBusinessId = null for user with no businesses', async () => {
-    await createUserWithPhone('+972521234567');
+    await createUser({ phone: '+972521234567', whatsappEnabled: true });
 
     await injectWebhook();
 
