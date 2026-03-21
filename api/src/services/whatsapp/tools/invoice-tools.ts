@@ -349,12 +349,15 @@ const requestConfirmationHandler: ToolHandler = async (input: unknown, context: 
     return 'שגיאה: לא ניתן להפיק חשבונית ללא פריטים.';
   }
 
-  // Upsert pending action with 10-minute expiry
+  // Upsert pending action with 10-minute expiry, including draft revision to detect mid-approval edits
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
   await upsertPendingAction({
     conversationId: context.conversationId,
     actionType: 'finalize_invoice',
-    payload: JSON.stringify({ invoiceId: parsed.data.invoiceId }),
+    payload: JSON.stringify({
+      invoiceId: parsed.data.invoiceId,
+      draftRevision: invoice.invoice.updatedAt,
+    }),
     expiresAt,
   });
 
@@ -379,8 +382,9 @@ const finalizeInvoiceHandler: ToolHandler = async (input: unknown, context: Tool
   const businessId = requireBusiness(context);
   if (!businessId) return NO_BUSINESS_MSG;
 
-  // Role check
-  if (context.userRole === 'user') {
+  // Role check — default-deny: only owner and admin may finalize
+  const FINALIZE_ROLES: ReadonlyArray<string> = ['owner', 'admin'];
+  if (!context.userRole || !FINALIZE_ROLES.includes(context.userRole)) {
     return 'אין לך הרשאה להפיק חשבוניות. פנה לבעלים או מנהל העסק.';
   }
 
@@ -394,9 +398,25 @@ const finalizeInvoiceHandler: ToolHandler = async (input: unknown, context: Tool
   }
 
   // Verify the pending action matches the requested invoice
-  const pendingPayload = JSON.parse(pendingAction.payload) as { invoiceId: string };
+  const pendingPayload = JSON.parse(pendingAction.payload) as {
+    invoiceId: string;
+    draftRevision?: string;
+  };
   if (pendingPayload.invoiceId !== parsed.data.invoiceId) {
     return 'לא נמצא אישור תקף. יש לבקש אישור מחדש.';
+  }
+
+  // Verify draft hasn't changed since approval was requested
+  if (pendingPayload.draftRevision) {
+    let currentInvoice;
+    try {
+      currentInvoice = await getInvoice(businessId, parsed.data.invoiceId);
+    } catch {
+      return 'שגיאה: חשבונית לא נמצאה.';
+    }
+    if (currentInvoice.invoice.updatedAt !== pendingPayload.draftRevision) {
+      return 'החשבונית שונתה מאז האישור. יש לבקש אישור מחדש.';
+    }
   }
 
   try {
@@ -404,13 +424,31 @@ const finalizeInvoiceHandler: ToolHandler = async (input: unknown, context: Tool
       vatExemptionReason: parsed.data.vatExemptionReason,
     });
 
-    // Enqueue SHAAM allocation if needed
-    if (result.needsAllocation && context.boss) {
-      enqueueShaamAllocation(context.boss, businessId, parsed.data.invoiceId, context.logger);
+    // Post-commit best-effort work — finalize() already committed, so failures here
+    // must not turn a successful issuance into an error for the user.
+    try {
+      if (result.needsAllocation) {
+        if (context.boss) {
+          enqueueShaamAllocation(context.boss, businessId, parsed.data.invoiceId, context.logger);
+        } else {
+          context.logger.warn(
+            { businessId, invoiceId: parsed.data.invoiceId },
+            'SHAAM allocation needed but job queue (boss) is unavailable — allocation must be retried manually'
+          );
+        }
+      }
+      await deletePendingAction(pendingAction.id);
+    } catch (postCommitErr) {
+      context.logger.error(
+        {
+          err: postCommitErr,
+          businessId,
+          invoiceId: parsed.data.invoiceId,
+          pendingActionId: pendingAction.id,
+        },
+        'Post-finalize cleanup failed (invoice was already issued successfully)'
+      );
     }
-
-    // Delete the pending action
-    await deletePendingAction(pendingAction.id);
 
     const docNumber = result.invoice.documentNumber ?? '';
     return `חשבונית ${docNumber} הופקה בהצלחה! ✓\nסכום: ${formatCurrency(result.invoice.totalInclVatMinorUnits)}`;

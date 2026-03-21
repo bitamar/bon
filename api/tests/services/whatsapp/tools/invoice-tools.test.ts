@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { registerInvoiceTools } from '../../../../src/services/whatsapp/tools/invoice-tools.js';
 import { createToolRegistry, executeTool } from '../../../../src/services/whatsapp/types.js';
-import type { ToolRegistry } from '../../../../src/services/whatsapp/types.js';
+import type { ToolContext, ToolRegistry } from '../../../../src/services/whatsapp/types.js';
 import { AppError } from '../../../../src/lib/app-error.js';
 import { makeToolContext, makeInvoiceResponse } from './invoice-tools-helpers.js';
 
@@ -84,6 +84,12 @@ describe('business guard', () => {
 // ── find_customer ──
 
 describe('find_customer', () => {
+  // ── helpers ──
+  async function runFindCustomer(query: string, ctx: ToolContext = makeToolContext()) {
+    const registry = makeRegistry();
+    return executeTool(registry, 'find_customer', { query }, ctx);
+  }
+
   it('returns matching customers as JSON', async () => {
     mockListCustomers.mockResolvedValue({
       customers: [
@@ -91,14 +97,8 @@ describe('find_customer', () => {
         { id: 'cust-2', name: 'דוד כהן', taxId: '123456789', city: 'חיפה' },
       ],
     });
-    const registry = makeRegistry();
 
-    const result = await executeTool(
-      registry,
-      'find_customer',
-      { query: 'דוד' },
-      makeToolContext()
-    );
+    const result = await runFindCustomer('דוד');
     const parsed = JSON.parse(result);
 
     expect(parsed).toHaveLength(2);
@@ -113,14 +113,8 @@ describe('find_customer', () => {
 
   it('returns message when no customers found', async () => {
     mockListCustomers.mockResolvedValue({ customers: [] });
-    const registry = makeRegistry();
 
-    const result = await executeTool(
-      registry,
-      'find_customer',
-      { query: 'אין' },
-      makeToolContext()
-    );
+    const result = await runFindCustomer('אין');
 
     expect(result).toContain('לא נמצאו לקוחות');
   });
@@ -241,7 +235,7 @@ describe('add_line_item', () => {
     const items = (
       callArgs[2] as { items: Array<{ vatRateBasisPoints: number; position: number }> }
     ).items;
-    const newItem = items[items.length - 1]!;
+    const newItem = items.at(-1)!;
     expect(newItem.vatRateBasisPoints).toBe(1700);
     expect(newItem.position).toBe(1); // existing has 1 item, new gets position 1
   });
@@ -408,7 +402,7 @@ describe('get_draft_summary', () => {
 // ── request_confirmation ──
 
 describe('request_confirmation', () => {
-  it('upserts pending action and returns summary with confirmation prompt', async () => {
+  it('upserts pending action with draftRevision and returns summary', async () => {
     mockGetInvoice.mockResolvedValue(makeInvoiceResponse());
     mockUpsertPendingAction.mockResolvedValue({ id: 'pa-1' });
     const registry = makeRegistry();
@@ -427,7 +421,10 @@ describe('request_confirmation', () => {
       expect.objectContaining({
         conversationId: 'conv-1',
         actionType: 'finalize_invoice',
-        payload: JSON.stringify({ invoiceId: 'inv-1' }),
+        payload: JSON.stringify({
+          invoiceId: 'inv-1',
+          draftRevision: '2026-03-21T10:00:00.000Z',
+        }),
       })
     );
     // Verify expiry is ~10 minutes from now
@@ -469,27 +466,44 @@ describe('request_confirmation', () => {
 // ── finalize_invoice ──
 
 describe('finalize_invoice', () => {
-  it('finalizes with valid pending action and returns success', async () => {
+  // ── helpers ──
+  function mockValidPendingAction(overrides?: Record<string, unknown>) {
     mockFindPendingAction.mockResolvedValue({
       id: 'pa-1',
       conversationId: 'conv-1',
       actionType: 'finalize_invoice',
-      payload: JSON.stringify({ invoiceId: 'inv-1' }),
+      payload: JSON.stringify({
+        invoiceId: 'inv-1',
+        draftRevision: '2026-03-21T10:00:00.000Z',
+      }),
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      ...overrides,
     });
+  }
+
+  async function runFinalizeTool(
+    args: Record<string, unknown> = { invoiceId: 'inv-1' },
+    ctxOverrides?: Partial<ToolContext>
+  ) {
+    const registry = makeRegistry();
+    const ctx = makeToolContext(ctxOverrides);
+    return executeTool(registry, 'finalize_invoice', args, ctx);
+  }
+
+  beforeEach(() => {
+    mockDeletePendingAction.mockResolvedValue(undefined);
+    // Default: getInvoice returns the standard response (for draftRevision check)
+    mockGetInvoice.mockResolvedValue(makeInvoiceResponse());
+  });
+
+  it('finalizes with valid pending action and returns success', async () => {
+    mockValidPendingAction();
     const finalizedInvoice = makeInvoiceResponse();
     finalizedInvoice.invoice.status = 'finalized';
     finalizedInvoice.invoice.documentNumber = 'INV-0001';
     mockFinalize.mockResolvedValue({ ...finalizedInvoice, needsAllocation: false });
-    mockDeletePendingAction.mockResolvedValue(undefined);
-    const registry = makeRegistry();
 
-    const result = await executeTool(
-      registry,
-      'finalize_invoice',
-      { invoiceId: 'inv-1' },
-      makeToolContext()
-    );
+    const result = await runFinalizeTool();
 
     expect(result).toContain('INV-0001');
     expect(result).toContain('הופקה בהצלחה');
@@ -499,32 +513,50 @@ describe('finalize_invoice', () => {
   });
 
   it('enqueues SHAAM allocation when needsAllocation is true', async () => {
-    mockFindPendingAction.mockResolvedValue({
-      id: 'pa-1',
-      payload: JSON.stringify({ invoiceId: 'inv-1' }),
-    });
+    mockValidPendingAction();
     const finalizedInvoice = makeInvoiceResponse();
     finalizedInvoice.invoice.documentNumber = 'INV-0002';
     mockFinalize.mockResolvedValue({ ...finalizedInvoice, needsAllocation: true });
-    mockDeletePendingAction.mockResolvedValue(undefined);
-    const registry = makeRegistry();
     const ctx = makeToolContext();
+    const registry = makeRegistry();
 
     await executeTool(registry, 'finalize_invoice', { invoiceId: 'inv-1' }, ctx);
 
     expect(mockEnqueueShaamAllocation).toHaveBeenCalledWith(ctx.boss, 'biz-1', 'inv-1', ctx.logger);
   });
 
-  it('returns error without pending action', async () => {
-    mockFindPendingAction.mockResolvedValue(null);
+  it('logs warning when needsAllocation but boss is absent', async () => {
+    mockValidPendingAction();
+    const finalizedInvoice = makeInvoiceResponse();
+    finalizedInvoice.invoice.documentNumber = 'INV-0002';
+    mockFinalize.mockResolvedValue({ ...finalizedInvoice, needsAllocation: true });
+    const ctx = makeToolContext({ boss: undefined });
     const registry = makeRegistry();
 
-    const result = await executeTool(
-      registry,
-      'finalize_invoice',
-      { invoiceId: 'inv-1' },
-      makeToolContext()
-    );
+    const result = await executeTool(registry, 'finalize_invoice', { invoiceId: 'inv-1' }, ctx);
+
+    // Invoice still issued successfully even without boss
+    expect(result).toContain('הופקה בהצלחה');
+    expect(mockEnqueueShaamAllocation).not.toHaveBeenCalled();
+  });
+
+  it('returns success even if deletePendingAction fails', async () => {
+    mockValidPendingAction();
+    const finalizedInvoice = makeInvoiceResponse();
+    finalizedInvoice.invoice.documentNumber = 'INV-0005';
+    mockFinalize.mockResolvedValue({ ...finalizedInvoice, needsAllocation: false });
+    mockDeletePendingAction.mockRejectedValue(new Error('DB error'));
+
+    const result = await runFinalizeTool();
+
+    // Invoice was already committed — user sees success
+    expect(result).toContain('הופקה בהצלחה');
+  });
+
+  it('returns error without pending action', async () => {
+    mockFindPendingAction.mockResolvedValue(null);
+
+    const result = await runFinalizeTool();
 
     expect(result).toContain('לא נמצא אישור תקף');
     expect(mockFinalize).not.toHaveBeenCalled();
@@ -533,91 +565,72 @@ describe('finalize_invoice', () => {
   it('returns error with expired pending action (findPendingAction filters by expiry)', async () => {
     // findPendingAction already filters expired rows, so it returns null
     mockFindPendingAction.mockResolvedValue(null);
-    const registry = makeRegistry();
 
-    const result = await executeTool(
-      registry,
-      'finalize_invoice',
-      { invoiceId: 'inv-1' },
-      makeToolContext()
-    );
+    const result = await runFinalizeTool();
 
     expect(result).toContain('לא נמצא אישור תקף');
   });
 
   it('returns error when pending action has mismatched invoiceId', async () => {
-    mockFindPendingAction.mockResolvedValue({
-      id: 'pa-1',
-      conversationId: 'conv-1',
-      actionType: 'finalize_invoice',
-      payload: JSON.stringify({ invoiceId: 'inv-OTHER' }),
+    mockValidPendingAction({
+      payload: JSON.stringify({
+        invoiceId: 'inv-OTHER',
+        draftRevision: '2026-03-21T10:00:00.000Z',
+      }),
     });
-    const registry = makeRegistry();
 
-    const result = await executeTool(
-      registry,
-      'finalize_invoice',
-      { invoiceId: 'inv-1' },
-      makeToolContext()
-    );
+    const result = await runFinalizeTool();
 
     expect(result).toContain('לא נמצא אישור תקף');
     expect(mockFinalize).not.toHaveBeenCalled();
   });
 
-  it('rejects users with role "user"', async () => {
-    const registry = makeRegistry();
+  it('returns error when draft was modified after approval', async () => {
+    mockValidPendingAction();
+    // Return an invoice with a different updatedAt than the stored draftRevision
+    const modifiedInvoice = makeInvoiceResponse({ updatedAt: '2026-03-21T11:00:00.000Z' });
+    mockGetInvoice.mockResolvedValue(modifiedInvoice);
 
-    const result = await executeTool(
-      registry,
-      'finalize_invoice',
-      { invoiceId: 'inv-1' },
-      makeToolContext({ userRole: 'user' })
-    );
+    const result = await runFinalizeTool();
+
+    expect(result).toContain('שונתה מאז האישור');
+    expect(mockFinalize).not.toHaveBeenCalled();
+  });
+
+  it('rejects users with role "user"', async () => {
+    const result = await runFinalizeTool({ invoiceId: 'inv-1' }, { userRole: 'user' });
 
     expect(result).toContain('אין לך הרשאה');
     expect(mockFinalize).not.toHaveBeenCalled();
     expect(mockFindPendingAction).not.toHaveBeenCalled();
   });
 
+  it('rejects null role (default-deny)', async () => {
+    const result = await runFinalizeTool({ invoiceId: 'inv-1' }, { userRole: null });
+
+    expect(result).toContain('אין לך הרשאה');
+    expect(mockFinalize).not.toHaveBeenCalled();
+  });
+
   it('returns Hebrew prompt for zero-VAT without exemption reason', async () => {
-    mockFindPendingAction.mockResolvedValue({
-      id: 'pa-1',
-      payload: JSON.stringify({ invoiceId: 'inv-1' }),
-    });
+    mockValidPendingAction();
     mockFinalize.mockRejectedValue(
       new AppError({ statusCode: 422, code: 'missing_vat_exemption_reason' })
     );
-    const registry = makeRegistry();
 
-    const result = await executeTool(
-      registry,
-      'finalize_invoice',
-      { invoiceId: 'inv-1' },
-      makeToolContext()
-    );
+    const result = await runFinalizeTool();
 
     expect(result).toContain('ללא מע"מ');
     expect(result).toContain('סיבת פטור');
   });
 
   it('succeeds with vatExemptionReason for zero-VAT invoice', async () => {
-    mockFindPendingAction.mockResolvedValue({
-      id: 'pa-1',
-      payload: JSON.stringify({ invoiceId: 'inv-1' }),
-    });
+    mockValidPendingAction();
     const finalizedInvoice = makeInvoiceResponse();
     finalizedInvoice.invoice.documentNumber = 'INV-0003';
     mockFinalize.mockResolvedValue({ ...finalizedInvoice, needsAllocation: false });
-    mockDeletePendingAction.mockResolvedValue(undefined);
-    const registry = makeRegistry();
 
-    const result = await executeTool(
-      registry,
-      'finalize_invoice',
-      { invoiceId: 'inv-1', vatExemptionReason: 'עסקה פטורה' },
-      makeToolContext()
-    );
+    const result = await runFinalizeTool({ invoiceId: 'inv-1', vatExemptionReason: 'עסקה פטורה' });
 
     expect(result).toContain('הופקה בהצלחה');
     expect(mockFinalize).toHaveBeenCalledWith('biz-1', 'inv-1', {
@@ -626,22 +639,12 @@ describe('finalize_invoice', () => {
   });
 
   it('allows admin role to finalize', async () => {
-    mockFindPendingAction.mockResolvedValue({
-      id: 'pa-1',
-      payload: JSON.stringify({ invoiceId: 'inv-1' }),
-    });
+    mockValidPendingAction();
     const finalizedInvoice = makeInvoiceResponse();
     finalizedInvoice.invoice.documentNumber = 'INV-0004';
     mockFinalize.mockResolvedValue({ ...finalizedInvoice, needsAllocation: false });
-    mockDeletePendingAction.mockResolvedValue(undefined);
-    const registry = makeRegistry();
 
-    const result = await executeTool(
-      registry,
-      'finalize_invoice',
-      { invoiceId: 'inv-1' },
-      makeToolContext({ userRole: 'admin' })
-    );
+    const result = await runFinalizeTool({ invoiceId: 'inv-1' }, { userRole: 'admin' });
 
     expect(result).toContain('הופקה בהצלחה');
   });
