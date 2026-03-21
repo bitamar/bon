@@ -39,6 +39,8 @@ import { createSendInvoiceEmailHandler } from './jobs/handlers/send-invoice-emai
 import { createSendWhatsAppReplyHandler } from './jobs/handlers/send-whatsapp-reply.js';
 import { createProcessWhatsAppMessageHandler } from './jobs/handlers/process-whatsapp-message.js';
 import { runJob } from './jobs/boss.js';
+import { createClaudeClient } from './services/llm/claude-client.js';
+import { toolRegistryPluginExport } from './plugins/tool-registry.js';
 
 export async function buildServer(options: FastifyServerOptions = {}) {
   const { logger: providedLogger, genReqId, ...rest } = options;
@@ -118,6 +120,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(jobsPlugin);
   await app.register(shaamPlugin);
   await app.register(whatsappPlugin);
+  await app.register(toolRegistryPluginExport);
   await app.register(maintenanceJobsPlugin);
 
   // Register job handlers when pg-boss is available (skipped in test mode)
@@ -149,14 +152,29 @@ export async function buildServer(options: FastifyServerOptions = {}) {
       runJob('send-whatsapp-reply', whatsappReplyHandler, app.log)
     );
 
-    // WhatsApp message processing job
-    await app.boss.createQueue('process-whatsapp-message');
-    const processWhatsappHandler = createProcessWhatsAppMessageHandler(app.log, app.boss);
-    await app.boss.work(
-      'process-whatsapp-message',
-      { includeMetadata: true },
-      runJob('process-whatsapp-message', processWhatsappHandler, app.log)
-    );
+    // WhatsApp message processing job (queue + worker require ANTHROPIC_API_KEY)
+    if (env.ANTHROPIC_API_KEY) {
+      const claudeClient = createClaudeClient(
+        { apiKey: env.ANTHROPIC_API_KEY, model: env.LLM_MODEL, maxTokens: env.LLM_MAX_TOKENS },
+        app.log
+      );
+      await app.boss.createQueue('process-whatsapp-message');
+      const processWhatsappHandler = createProcessWhatsAppMessageHandler(
+        app.log,
+        app.boss,
+        claudeClient,
+        app.toolRegistry
+      );
+      await app.boss.work(
+        'process-whatsapp-message',
+        { includeMetadata: true },
+        runJob('process-whatsapp-message', processWhatsappHandler, app.log)
+      );
+    } else {
+      app.log.warn(
+        'ANTHROPIC_API_KEY not set — process-whatsapp-message queue and handler disabled'
+      );
+    }
 
     // SHAAM emergency report job
     await app.boss.createQueue('shaam-emergency-report');

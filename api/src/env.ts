@@ -61,6 +61,13 @@ const Env = z
         .regex(/^whatsapp:\+[1-9]\d{1,14}$/, 'must be in whatsapp:+E.164 format')
         .optional()
     ),
+    // Optional: when absent, process-whatsapp-message handler is disabled (see app.ts)
+    ANTHROPIC_API_KEY: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+      z.string().optional()
+    ),
+    LLM_MODEL: z.string().default('claude-sonnet-4-6'),
+    LLM_MAX_TOKENS: z.coerce.number().int().positive().default(1024),
     MESHULAM_MODE: z.enum(MESHULAM_MODES).default('mock'),
     MESHULAM_PAGE_CODE: z.preprocess(
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
