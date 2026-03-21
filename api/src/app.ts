@@ -105,9 +105,8 @@ export async function buildServer(options: FastifyServerOptions = {}) {
     max: env.RATE_LIMIT_MAX,
     timeWindow: env.RATE_LIMIT_TIME_WINDOW,
     allowList: (req) =>
-      req.url === '/health' ||
-      req.url === '/health/ready' ||
-      req.url === '/metrics' ||
+      (req.method === 'GET' &&
+        (req.url === '/health' || req.url === '/health/ready' || req.url === '/metrics')) ||
       req.url.startsWith('/webhooks/'),
     errorResponseBuilder: (request, context) => ({
       statusCode: 429,

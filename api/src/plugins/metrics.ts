@@ -62,7 +62,7 @@ const metricsPluginFn: FastifyPluginAsync = async (app) => {
       requestStartTimes.delete(request);
     }
 
-    const route = request.routeOptions?.url ?? request.url;
+    const route = request.routeOptions?.url ?? 'unmatched';
     const method = request.method;
     const statusCode = String(reply.statusCode);
     const durationSec = typeof start === 'number' ? (performance.now() - start) / 1000 : undefined;

@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { buildServer } from '../../src/app.js';
 
 describe('metrics plugin', () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
+    delete process.env.METRICS_SECRET;
+    vi.resetModules();
+    const { buildServer } = await import('../../src/app.js');
     app = await buildServer({ logger: false });
     await app.ready();
   });
@@ -23,6 +25,18 @@ describe('metrics plugin', () => {
     return res.body;
   }
 
+  function parseHealthCount(metricsBody: string): number {
+    const line = metricsBody
+      .split('\n')
+      .find(
+        (l: string) =>
+          l.startsWith('http_requests_total') &&
+          l.includes('route="/health"') &&
+          l.includes('status_code="200"')
+      );
+    return line ? Number(line.split(' ').pop()) : 0;
+  }
+
   it('exposes /metrics endpoint with prometheus format', async () => {
     const res = await app.inject({ method: 'GET', url: '/metrics' });
 
@@ -35,22 +49,13 @@ describe('metrics plugin', () => {
   });
 
   it('increments http_requests_total on each request', async () => {
+    const baseline = parseHealthCount(await getMetrics());
+
     await app.inject({ method: 'GET', url: '/health' });
     await app.inject({ method: 'GET', url: '/health' });
 
-    const body = await getMetrics();
-    const healthLine = body
-      .split('\n')
-      .find(
-        (l: string) =>
-          l.startsWith('http_requests_total') &&
-          l.includes('route="/health"') &&
-          l.includes('status_code="200"')
-      );
-
-    expect(healthLine).toBeDefined();
-    const count = Number(healthLine!.split(' ').pop());
-    expect(count).toBeGreaterThanOrEqual(2);
+    const after = parseHealthCount(await getMetrics());
+    expect(after - baseline).toBe(2);
   });
 
   it('tracks error responses in http_errors_total', async () => {
@@ -73,8 +78,8 @@ describe('metrics plugin with METRICS_SECRET', () => {
   beforeEach(async () => {
     vi.stubEnv('METRICS_SECRET', secret);
     vi.resetModules();
-    const { buildServer: build } = await import('../../src/app.js');
-    app = await build({ logger: false });
+    const { buildServer } = await import('../../src/app.js');
+    app = await buildServer({ logger: false });
     await app.ready();
   });
 

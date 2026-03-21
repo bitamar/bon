@@ -236,9 +236,11 @@ Already have `shaam_audit_log` table — mine it for metrics:
 |--------|------|--------|--------|
 | `shaam_requests_total` | Counter | `result` (approved/rejected/deferred/error/emergency) | Audit log |
 | `shaam_request_duration_seconds` | Histogram | — | Measured in handler |
-| `shaam_token_expires_in_seconds` | Gauge | `business_id` | `business_shaam_credentials.token_expires_at` |
-| `shaam_emergency_numbers_available` | Gauge | `business_id` | Count `used=false` per business |
+| `shaam_token_min_ttl_seconds` | Gauge | — | Shortest TTL across all business credentials (alerts on near-expiry) |
+| `shaam_emergency_numbers_available_total` | Gauge | — | Total unused emergency numbers across all businesses |
 | `shaam_needs_reauth_total` | Gauge | — | Count of `needs_reauth=true` |
+
+> **Cardinality note**: Per-business breakdowns (`business_id`) are intentionally omitted from Prometheus labels to avoid cardinality explosion. Use structured logs (Pino → Loki) with `businessId` for per-business debugging.
 
 **Alerts:**
 - SHAAM error rate > 20% in 1h → Critical
@@ -315,7 +317,7 @@ These are domain-specific metrics that track the health of the invoicing busines
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `auth_attempts_total` | Counter | `result` (success/failure/expired) | Login attempts |
-| `rate_limit_exceeded_total` | Counter | `route`, `ip_hash` | Rate limit violations |
+| `rate_limit_exceeded_total` | Counter | `route` | Rate limit violations (per-IP detail in logs only) |
 | `session_created_total` | Counter | — | New session creation |
 | `session_expired_total` | Counter | — | Session expirations |
 | `unauthorized_access_total` | Counter | `route` | 401/403 responses |
