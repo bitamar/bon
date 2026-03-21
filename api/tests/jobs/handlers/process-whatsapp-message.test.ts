@@ -119,6 +119,15 @@ function setupHappyPath() {
   mockSendJob.mockResolvedValue('job-1');
 }
 
+function makeHandler() {
+  return createProcessWhatsAppMessageHandler(
+    mockLogger,
+    mockBoss,
+    makeClaudeClient(),
+    makeToolRegistry()
+  );
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
 });
@@ -126,12 +135,7 @@ beforeEach(() => {
 describe('process-whatsapp-message handler', () => {
   it('happy path: user with 1 business → auto-select → LLM called → reply enqueued', async () => {
     setupHappyPath();
-    const handler = createProcessWhatsAppMessageHandler(
-      mockLogger,
-      mockBoss,
-      makeClaudeClient(),
-      makeToolRegistry()
-    );
+    const handler = makeHandler();
 
     await handler(
       makeJob('process-whatsapp-message', { conversationId: 'conv-1', messageId: 'msg-1' })
@@ -160,12 +164,7 @@ describe('process-whatsapp-message handler', () => {
 
   it('does nothing when conversation is not found', async () => {
     mockFindConversationById.mockResolvedValue(null);
-    const handler = createProcessWhatsAppMessageHandler(
-      mockLogger,
-      mockBoss,
-      makeClaudeClient(),
-      makeToolRegistry()
-    );
+    const handler = makeHandler();
 
     await handler(
       makeJob('process-whatsapp-message', { conversationId: 'missing', messageId: 'msg-1' })
@@ -178,12 +177,7 @@ describe('process-whatsapp-message handler', () => {
   it('does nothing when user is not found', async () => {
     mockFindConversationById.mockResolvedValue(makeConversation());
     mockFindUserById.mockResolvedValue(null);
-    const handler = createProcessWhatsAppMessageHandler(
-      mockLogger,
-      mockBoss,
-      makeClaudeClient(),
-      makeToolRegistry()
-    );
+    const handler = makeHandler();
 
     await handler(
       makeJob('process-whatsapp-message', { conversationId: 'conv-1', messageId: 'msg-1' })
@@ -197,12 +191,7 @@ describe('process-whatsapp-message handler', () => {
     mockFindConversationById.mockResolvedValue(makeConversation());
     mockFindUserById.mockResolvedValue(makeUser());
     mockFindBusinessesForUser.mockResolvedValue([]);
-    const handler = createProcessWhatsAppMessageHandler(
-      mockLogger,
-      mockBoss,
-      makeClaudeClient(),
-      makeToolRegistry()
-    );
+    const handler = makeHandler();
 
     await handler(
       makeJob('process-whatsapp-message', { conversationId: 'conv-1', messageId: 'msg-1' })
@@ -230,12 +219,7 @@ describe('process-whatsapp-message handler', () => {
     mockUpdateConversation.mockResolvedValue({});
     mockSendJob.mockResolvedValue('job-1');
 
-    const handler = createProcessWhatsAppMessageHandler(
-      mockLogger,
-      mockBoss,
-      makeClaudeClient(),
-      makeToolRegistry()
-    );
+    const handler = makeHandler();
 
     await handler(
       makeJob('process-whatsapp-message', { conversationId: 'conv-1', messageId: 'msg-1' })
@@ -259,12 +243,7 @@ describe('process-whatsapp-message handler', () => {
     mockUpdateConversation.mockResolvedValue({});
     mockSendJob.mockResolvedValue('job-1');
 
-    const handler = createProcessWhatsAppMessageHandler(
-      mockLogger,
-      mockBoss,
-      makeClaudeClient(),
-      makeToolRegistry()
-    );
+    const handler = makeHandler();
 
     await handler(
       makeJob('process-whatsapp-message', { conversationId: 'conv-1', messageId: 'msg-1' })
@@ -286,12 +265,7 @@ describe('process-whatsapp-message handler', () => {
     );
     mockRunToolLoop.mockRejectedValue(apiError);
 
-    const handler = createProcessWhatsAppMessageHandler(
-      mockLogger,
-      mockBoss,
-      makeClaudeClient(),
-      makeToolRegistry()
-    );
+    const handler = makeHandler();
 
     await expect(
       handler(makeJob('process-whatsapp-message', { conversationId: 'conv-1', messageId: 'msg-1' }))
@@ -308,12 +282,7 @@ describe('process-whatsapp-message handler', () => {
     );
     mockRunToolLoop.mockRejectedValue(apiError);
 
-    const handler = createProcessWhatsAppMessageHandler(
-      mockLogger,
-      mockBoss,
-      makeClaudeClient(),
-      makeToolRegistry()
-    );
+    const handler = makeHandler();
 
     await handler(
       makeJob('process-whatsapp-message', { conversationId: 'conv-1', messageId: 'msg-1' })
@@ -332,12 +301,7 @@ describe('process-whatsapp-message handler', () => {
     const abortError = new DOMException('aborted', 'AbortError');
     mockRunToolLoop.mockRejectedValue(abortError);
 
-    const handler = createProcessWhatsAppMessageHandler(
-      mockLogger,
-      mockBoss,
-      makeClaudeClient(),
-      makeToolRegistry()
-    );
+    const handler = makeHandler();
 
     await handler(
       makeJob('process-whatsapp-message', { conversationId: 'conv-1', messageId: 'msg-1' })

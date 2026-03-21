@@ -14,6 +14,7 @@ import {
   insertMessage,
   updateConversation,
 } from '../../repositories/whatsapp-repository.js';
+import { isAbortError } from '../../lib/abort-error.js';
 import type { ClaudeClient } from '../../services/llm/claude-client.js';
 import { buildClaudeMessages, trimToTokenBudget } from '../../services/whatsapp/context-builder.js';
 import { buildSystemPrompt } from '../../services/whatsapp/system-prompt.js';
@@ -25,7 +26,7 @@ const APOLOGY_MESSAGE = 'מצטער, משהו השתבש. נסו שוב מאוח
 const TIMEOUT_APOLOGY = 'מצטער, הבקשה לקחה יותר מדי זמן. נסו שוב.';
 const NO_BUSINESS_MESSAGE = 'אין עסקים מחוברים לחשבון שלך. צרו עסק באפליקציה.';
 
-const RETRYABLE_STATUSES = new Set([429, 500, 529]);
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 529]);
 
 interface ResolvedBusiness {
   businessId: string | null;
@@ -130,7 +131,7 @@ export function createProcessWhatsAppMessageHandler(
     };
 
     const storeMessage = async (
-      role: string,
+      role: 'assistant' | 'tool_call' | 'tool_result',
       toolName: string | null,
       toolCallId: string | null,
       body: string
@@ -138,7 +139,7 @@ export function createProcessWhatsAppMessageHandler(
       await insertMessage({
         conversationId,
         direction: 'outbound',
-        llmRole: role as 'assistant' | 'tool_call' | 'tool_result',
+        llmRole: role,
         toolName,
         toolCallId,
         body,
@@ -207,10 +208,4 @@ async function enqueueReply(
     { conversationId, body, to },
     { retryLimit: 5, retryDelay: 10, retryBackoff: true }
   );
-}
-
-function isAbortError(err: unknown): boolean {
-  if (err instanceof DOMException && err.name === 'AbortError') return true;
-  if (err instanceof Error && err.name === 'AbortError') return true;
-  return false;
 }

@@ -1,4 +1,5 @@
 import type { ContentBlock } from '@anthropic-ai/sdk/resources/messages/messages.js';
+import { isAbortError } from '../../lib/abort-error.js';
 import type { ClaudeClient, ClaudeResponse } from '../llm/claude-client.js';
 import type { ClaudeMessage } from './context-builder.js';
 import type { ToolContext, ToolRegistry } from './types.js';
@@ -15,7 +16,7 @@ export interface ToolLoopParams {
   messages: ClaudeMessage[];
   context: ToolContext;
   storeMessage: (
-    role: string,
+    role: 'assistant' | 'tool_call' | 'tool_result',
     toolName: string | null,
     toolCallId: string | null,
     body: string
@@ -136,10 +137,4 @@ async function sendWithAbortHandling(
     }
     throw err;
   }
-}
-
-function isAbortError(err: unknown): boolean {
-  if (err instanceof DOMException && err.name === 'AbortError') return true;
-  if (err instanceof Error && err.name === 'AbortError') return true;
-  return false;
 }

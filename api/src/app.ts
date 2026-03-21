@@ -152,15 +152,13 @@ export async function buildServer(options: FastifyServerOptions = {}) {
       runJob('send-whatsapp-reply', whatsappReplyHandler, app.log)
     );
 
-    // WhatsApp message processing job
-    await app.boss.createQueue('process-whatsapp-message');
-    const claudeClient = env.ANTHROPIC_API_KEY
-      ? createClaudeClient(
-          { apiKey: env.ANTHROPIC_API_KEY, model: env.LLM_MODEL, maxTokens: env.LLM_MAX_TOKENS },
-          app.log
-        )
-      : undefined;
-    if (claudeClient) {
+    // WhatsApp message processing job (queue + worker require ANTHROPIC_API_KEY)
+    if (env.ANTHROPIC_API_KEY) {
+      const claudeClient = createClaudeClient(
+        { apiKey: env.ANTHROPIC_API_KEY, model: env.LLM_MODEL, maxTokens: env.LLM_MAX_TOKENS },
+        app.log
+      );
+      await app.boss.createQueue('process-whatsapp-message');
       const processWhatsappHandler = createProcessWhatsAppMessageHandler(
         app.log,
         app.boss,
@@ -173,7 +171,9 @@ export async function buildServer(options: FastifyServerOptions = {}) {
         runJob('process-whatsapp-message', processWhatsappHandler, app.log)
       );
     } else {
-      app.log.warn('ANTHROPIC_API_KEY not set — process-whatsapp-message handler disabled');
+      app.log.warn(
+        'ANTHROPIC_API_KEY not set — process-whatsapp-message queue and handler disabled'
+      );
     }
 
     // SHAAM emergency report job
