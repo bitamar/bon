@@ -101,7 +101,6 @@ export async function handleInboundMessage(
         messageId: message.id,
       },
       {
-        singletonKey: conversation.id,
         retryLimit: 3,
         retryDelay: 30,
         retryBackoff: true,

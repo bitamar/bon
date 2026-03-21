@@ -62,5 +62,10 @@ describe('process-whatsapp-message handler', () => {
     );
 
     expect(mockSendJob).not.toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: 'conv-missing' }),
+      expect.stringContaining('conversation not found')
+    );
   });
 });

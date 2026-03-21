@@ -58,7 +58,7 @@ const Env = z
       (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
       z
         .string()
-        .regex(/^whatsapp:\+\d{1,15}$/, 'must be in whatsapp:+E.164 format')
+        .regex(/^whatsapp:\+[1-9]\d{1,14}$/, 'must be in whatsapp:+E.164 format')
         .optional()
     ),
     MESHULAM_MODE: z.enum(MESHULAM_MODES).default('mock'),
