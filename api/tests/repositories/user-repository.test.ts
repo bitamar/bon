@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { resetDb } from '../utils/db.js';
 import { db } from '../../src/db/client.js';
 import { users } from '../../src/db/schema.js';
-import { updateUserById } from '../../src/repositories/user-repository.js';
+import { updateUserById, findUserByPhone } from '../../src/repositories/user-repository.js';
 
 async function createTestUser() {
   const [user] = await db
@@ -36,6 +36,33 @@ describe('user-repository', () => {
 
     it('returns null for an unknown user id', async () => {
       const result = await updateUserById(randomUUID(), { name: 'Ghost User' });
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('findUserByPhone', () => {
+    it('returns the user for a known E.164 phone number', async () => {
+      const user = await createTestUser();
+      await updateUserById(user.id, { phone: '+972521234567' });
+
+      const result = await findUserByPhone('+972521234567');
+
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe(user.id);
+      expect(result?.phone).toBe('+972521234567');
+    });
+
+    it('returns null for an unregistered phone number', async () => {
+      const result = await findUserByPhone('+972599999999');
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when no users have a phone set', async () => {
+      await createTestUser(); // user with phone = null
+
+      const result = await findUserByPhone('+972521234567');
 
       expect(result).toBeNull();
     });

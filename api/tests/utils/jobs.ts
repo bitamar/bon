@@ -18,6 +18,9 @@ export function makeLogger(): FastifyBaseLogger {
   } as unknown as FastifyBaseLogger;
 }
 
-export function makeJob<N extends JobName>(name: N): Job<JobPayloads[N]> {
-  return { id: randomUUID(), name, data: {} } as Job<JobPayloads[N]>;
+export function makeJob<N extends JobName>(
+  name: N,
+  data: JobPayloads[N] = {} as JobPayloads[N]
+): Job<JobPayloads[N]> {
+  return { id: randomUUID(), name, data } as Job<JobPayloads[N]>;
 }
