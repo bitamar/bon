@@ -11,6 +11,14 @@ export async function updateUserById(userId: string, updates: Partial<UserInsert
   return rows[0] ?? null;
 }
 
+export async function findUserById(
+  userId: string,
+  txOrDb: DbOrTx = db
+): Promise<UserRecord | null> {
+  const rows = await txOrDb.select().from(users).where(eq(users.id, userId));
+  return rows[0] ?? null;
+}
+
 export async function findUserByPhone(
   e164Phone: string,
   txOrDb: DbOrTx = db
