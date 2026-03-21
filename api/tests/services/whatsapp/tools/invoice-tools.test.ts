@@ -186,11 +186,16 @@ describe('create_draft_invoice', () => {
 // ── add_line_item ──
 
 describe('add_line_item', () => {
+  beforeEach(() => {
+    mockGetInvoice.mockResolvedValue(makeInvoiceResponse());
+    mockFindBusinessById.mockResolvedValue(makeBusiness());
+    mockUpdateDraft.mockResolvedValue(makeInvoiceResponse());
+  });
+
   it('converts shekel to minor units safely (handles 1.005)', async () => {
     const invoiceResp = makeInvoiceResponse();
     invoiceResp.items = [];
     mockGetInvoice.mockResolvedValue(invoiceResp);
-    mockFindBusinessById.mockResolvedValue(makeBusiness());
 
     const updatedResp = makeInvoiceResponse();
     updatedResp.items = [
@@ -219,10 +224,6 @@ describe('add_line_item', () => {
   });
 
   it('auto-sets vatRateBasisPoints from business default and position from item count', async () => {
-    const invoiceResp = makeInvoiceResponse();
-    mockGetInvoice.mockResolvedValue(invoiceResp);
-    mockFindBusinessById.mockResolvedValue(makeBusiness({ defaultVatRate: 1700 }));
-    mockUpdateDraft.mockResolvedValue(makeInvoiceResponse());
     const registry = makeRegistry();
 
     await executeTool(
@@ -242,10 +243,6 @@ describe('add_line_item', () => {
   });
 
   it('loads existing items and sends full array (not just the new item)', async () => {
-    const invoiceResp = makeInvoiceResponse();
-    mockGetInvoice.mockResolvedValue(invoiceResp);
-    mockFindBusinessById.mockResolvedValue(makeBusiness());
-
     const updatedResp = makeInvoiceResponse();
     updatedResp.items.push({
       id: 'item-2',
@@ -282,8 +279,6 @@ describe('add_line_item', () => {
     const invoiceResp = makeInvoiceResponse({ updatedAt: '2026-03-21T12:00:00.000Z' });
     invoiceResp.items = [];
     mockGetInvoice.mockResolvedValue(invoiceResp);
-    mockFindBusinessById.mockResolvedValue(makeBusiness());
-    mockUpdateDraft.mockResolvedValue(makeInvoiceResponse());
     const registry = makeRegistry();
 
     await executeTool(
@@ -302,7 +297,6 @@ describe('add_line_item', () => {
     const invoiceResp = makeInvoiceResponse();
     invoiceResp.items = [];
     mockGetInvoice.mockResolvedValue(invoiceResp);
-    mockFindBusinessById.mockResolvedValue(makeBusiness());
     mockUpdateDraft.mockRejectedValue(new AppError({ statusCode: 409, code: 'revision_mismatch' }));
     const registry = makeRegistry();
 
@@ -320,8 +314,6 @@ describe('add_line_item', () => {
     const invoiceResp = makeInvoiceResponse();
     invoiceResp.items = [];
     mockGetInvoice.mockResolvedValue(invoiceResp);
-    mockFindBusinessById.mockResolvedValue(makeBusiness());
-    mockUpdateDraft.mockResolvedValue(makeInvoiceResponse());
     const registry = makeRegistry();
 
     const result = await executeTool(
