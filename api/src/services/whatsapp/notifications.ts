@@ -36,9 +36,7 @@ const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 // ── Shared dispatch logic ──
 
-interface DispatchCallback {
-  (conversationId: string, phone: string): Promise<void>;
-}
+type DispatchCallback = (conversationId: string, phone: string) => Promise<void>;
 
 /**
  * Finds eligible users for a business and dispatches to each one with
