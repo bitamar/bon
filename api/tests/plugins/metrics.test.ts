@@ -15,6 +15,14 @@ describe('metrics plugin', () => {
     await app.close();
   });
 
+  // ── helpers ──
+
+  async function getMetrics(): Promise<string> {
+    const res = await app.inject({ method: 'GET', url: '/metrics' });
+    expect(res.statusCode).toBe(200);
+    return res.body;
+  }
+
   it('exposes /metrics endpoint with prometheus format', async () => {
     const res = await app.inject({ method: 'GET', url: '/metrics' });
 
@@ -30,14 +38,15 @@ describe('metrics plugin', () => {
     await app.inject({ method: 'GET', url: '/health' });
     await app.inject({ method: 'GET', url: '/health' });
 
-    const res = await app.inject({ method: 'GET', url: '/metrics' });
-    const lines = res.body.split('\n');
-    const healthLine = lines.find(
-      (l: string) =>
-        l.startsWith('http_requests_total') &&
-        l.includes('route="/health"') &&
-        l.includes('status_code="200"')
-    );
+    const body = await getMetrics();
+    const healthLine = body
+      .split('\n')
+      .find(
+        (l: string) =>
+          l.startsWith('http_requests_total') &&
+          l.includes('route="/health"') &&
+          l.includes('status_code="200"')
+      );
 
     expect(healthLine).toBeDefined();
     const count = Number(healthLine!.split(' ').pop());
@@ -45,11 +54,10 @@ describe('metrics plugin', () => {
   });
 
   it('tracks error responses in http_errors_total', async () => {
-    // /me returns 401 when not authenticated
     await app.inject({ method: 'GET', url: '/me' });
 
-    const res = await app.inject({ method: 'GET', url: '/metrics' });
-    expect(res.body).toContain('http_errors_total');
+    const body = await getMetrics();
+    expect(body).toContain('http_errors_total');
   });
 
   it('decorates app with metricsRegistry', () => {
@@ -60,10 +68,10 @@ describe('metrics plugin', () => {
 
 describe('metrics plugin with METRICS_SECRET', () => {
   let app: FastifyInstance;
+  const secret = 'test-secret-at-least-16-chars';
 
   beforeEach(async () => {
-    vi.stubEnv('METRICS_SECRET', 'test-secret-at-least-16-chars');
-    // Re-import env to pick up the stubbed value
+    vi.stubEnv('METRICS_SECRET', secret);
     vi.resetModules();
     const { buildServer: build } = await import('../../src/app.js');
     app = await build({ logger: false });
@@ -76,26 +84,26 @@ describe('metrics plugin with METRICS_SECRET', () => {
     await app.close();
   });
 
-  it('returns 401 when METRICS_SECRET is set and no auth provided', async () => {
-    const res = await app.inject({ method: 'GET', url: '/metrics' });
+  // ── helpers ──
+
+  async function fetchMetrics(token?: string) {
+    const headers: Record<string, string> = {};
+    if (token) headers.authorization = `Bearer ${token}`;
+    return app.inject({ method: 'GET', url: '/metrics', headers });
+  }
+
+  it('returns 401 without auth', async () => {
+    const res = await fetchMetrics();
     expect(res.statusCode).toBe(401);
   });
 
-  it('returns 401 when bearer token is wrong', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/metrics',
-      headers: { authorization: 'Bearer wrong-token' },
-    });
+  it('returns 401 with wrong token', async () => {
+    const res = await fetchMetrics('wrong-token');
     expect(res.statusCode).toBe(401);
   });
 
-  it('returns metrics when correct bearer token provided', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/metrics',
-      headers: { authorization: 'Bearer test-secret-at-least-16-chars' },
-    });
+  it('returns metrics with correct token', async () => {
+    const res = await fetchMetrics(secret);
     expect(res.statusCode).toBe(200);
     expect(res.body).toContain('http_requests_total');
   });
