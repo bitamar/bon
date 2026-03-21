@@ -163,7 +163,7 @@ const finalizeInputSchema = z.object({
 });
 const pendingActionPayloadSchema = z.object({
   invoiceId: z.string(),
-  draftRevision: z.string().optional(),
+  draftRevision: z.string(),
 });
 
 // ── Handlers ──
@@ -251,10 +251,16 @@ const addLineItemHandler: ToolHandler = async (input: unknown, context: ToolCont
   const allItems = [...existingItems, newItem];
 
   try {
-    const result = await updateDraft(businessId, parsed.data.invoiceId, { items: allItems });
+    const result = await updateDraft(businessId, parsed.data.invoiceId, {
+      items: allItems,
+      expectedUpdatedAt: existingInvoice.invoice.updatedAt,
+    });
     const lineTotal = result.items[result.items.length - 1]!.lineTotalMinorUnits;
     return `נוסף: ${parsed.data.description} × ${parsed.data.quantity} = ${formatCurrency(lineTotal)}\nסה"כ כולל מע"מ: ${formatCurrency(result.invoice.totalInclVatMinorUnits)}`;
   } catch (err) {
+    if (err instanceof AppError && err.code === 'revision_mismatch') {
+      return 'שגיאה: החשבונית שונתה במקביל. נסו שוב.';
+    }
     if (err instanceof AppError) return `שגיאה: ${err.message}`;
     throw err;
   }
@@ -296,9 +302,15 @@ const removeLineItemHandler: ToolHandler = async (input: unknown, context: ToolC
     }));
 
   try {
-    const result = await updateDraft(businessId, parsed.data.invoiceId, { items: remainingItems });
+    const result = await updateDraft(businessId, parsed.data.invoiceId, {
+      items: remainingItems,
+      expectedUpdatedAt: existingInvoice.invoice.updatedAt,
+    });
     return `הוסר: ${removedItem.description}\nסה"כ כולל מע"מ: ${formatCurrency(result.invoice.totalInclVatMinorUnits)}`;
   } catch (err) {
+    if (err instanceof AppError && err.code === 'revision_mismatch') {
+      return 'שגיאה: החשבונית שונתה במקביל. נסו שוב.';
+    }
     if (err instanceof AppError) return `שגיאה: ${err.message}`;
     throw err;
   }
@@ -368,7 +380,7 @@ const requestConfirmationHandler: ToolHandler = async (input: unknown, context: 
   const customerName = invoice.invoice.customerName ?? 'לא נבחר לקוח';
   const lines = invoice.items.map(
     (item, i) =>
-      `${i + 1}. ${item.description} × ${item.quantity} — ${formatCurrency(item.lineTotalMinorUnits)}`
+      `${i}. ${item.description} × ${item.quantity} — ${formatCurrency(item.lineTotalMinorUnits)}`
   );
 
   return [
@@ -391,9 +403,8 @@ function canFinalize(role: string | null): boolean {
 async function verifyDraftRevision(
   businessId: string,
   invoiceId: string,
-  draftRevision: string | undefined
+  draftRevision: string
 ): Promise<string | null> {
-  if (!draftRevision) return null;
   let currentInvoice;
   try {
     currentInvoice = await getInvoice(businessId, invoiceId);
@@ -452,9 +463,13 @@ const finalizeInvoiceHandler: ToolHandler = async (input: unknown, context: Tool
     return 'לא נמצא אישור תקף. יש לבקש אישור מחדש.';
   }
 
-  const pendingPayload = pendingActionPayloadSchema.safeParse(
-    JSON.parse(pendingAction.payload) as unknown
-  );
+  let rawPayload: unknown;
+  try {
+    rawPayload = JSON.parse(pendingAction.payload) as unknown;
+  } catch {
+    return 'לא נמצא אישור תקף. יש לבקש אישור מחדש.';
+  }
+  const pendingPayload = pendingActionPayloadSchema.safeParse(rawPayload);
   if (!pendingPayload.success) {
     return 'לא נמצא אישור תקף. יש לבקש אישור מחדש.';
   }

@@ -28,7 +28,7 @@ import { findCustomerById } from '../repositories/customer-repository.js';
 import { findBusinessById } from '../repositories/business-repository.js';
 import type { CustomerRecord } from '../repositories/customer-repository.js';
 import type { PaymentRecord } from '../repositories/payment-repository.js';
-import { AppError, notFound, unprocessableEntity } from '../lib/app-error.js';
+import { AppError, notFound, unprocessableEntity, conflict } from '../lib/app-error.js';
 import { assignInvoiceNumber, documentTypeToSequenceGroup } from '../lib/invoice-sequences.js';
 import {
   serializeInvoice,
@@ -225,6 +225,7 @@ export type UpdateDraftInput = {
   notes?: string | null | undefined;
   internalNotes?: string | null | undefined;
   items?: LineItemInput[] | undefined;
+  expectedUpdatedAt?: string | undefined;
 };
 
 export async function updateDraft(businessId: string, invoiceId: string, input: UpdateDraftInput) {
@@ -233,6 +234,12 @@ export async function updateDraft(businessId: string, invoiceId: string, input: 
     if (!existing) throw notFound();
     if (existing.status !== 'draft') {
       throw unprocessableEntity({ code: 'not_draft' });
+    }
+    if (
+      input.expectedUpdatedAt !== undefined &&
+      existing.updatedAt.toISOString() !== input.expectedUpdatedAt
+    ) {
+      throw conflict({ code: 'revision_mismatch' });
     }
 
     const now = new Date();

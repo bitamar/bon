@@ -278,6 +278,44 @@ describe('add_line_item', () => {
     expect(result).toContain('פריט חדש');
   });
 
+  it('passes expectedUpdatedAt from getInvoice to updateDraft', async () => {
+    const invoiceResp = makeInvoiceResponse({ updatedAt: '2026-03-21T12:00:00.000Z' });
+    invoiceResp.items = [];
+    mockGetInvoice.mockResolvedValue(invoiceResp);
+    mockFindBusinessById.mockResolvedValue(makeBusiness());
+    mockUpdateDraft.mockResolvedValue(makeInvoiceResponse());
+    const registry = makeRegistry();
+
+    await executeTool(
+      registry,
+      'add_line_item',
+      { invoiceId: 'inv-1', description: 'טסט', quantity: 1, unitPrice: 100 },
+      makeToolContext()
+    );
+
+    const callArgs = mockUpdateDraft.mock.calls[0]!;
+    const input = callArgs[2] as { expectedUpdatedAt: string };
+    expect(input.expectedUpdatedAt).toBe('2026-03-21T12:00:00.000Z');
+  });
+
+  it('returns error on revision mismatch (concurrent edit)', async () => {
+    const invoiceResp = makeInvoiceResponse();
+    invoiceResp.items = [];
+    mockGetInvoice.mockResolvedValue(invoiceResp);
+    mockFindBusinessById.mockResolvedValue(makeBusiness());
+    mockUpdateDraft.mockRejectedValue(new AppError({ statusCode: 409, code: 'revision_mismatch' }));
+    const registry = makeRegistry();
+
+    const result = await executeTool(
+      registry,
+      'add_line_item',
+      { invoiceId: 'inv-1', description: 'טסט', quantity: 1, unitPrice: 100 },
+      makeToolContext()
+    );
+
+    expect(result).toContain('שונתה במקביל');
+  });
+
   it('returns formatted result with totals', async () => {
     const invoiceResp = makeInvoiceResponse();
     invoiceResp.items = [];
@@ -342,6 +380,21 @@ describe('remove_line_item', () => {
     expect(items[0]!.position).toBe(0);
     expect(items[0]!.description).toBe('פריט שני');
     expect(result).toContain('הוסר: ייעוץ');
+  });
+
+  it('returns error on revision mismatch (concurrent edit)', async () => {
+    mockGetInvoice.mockResolvedValue(makeInvoiceResponse());
+    mockUpdateDraft.mockRejectedValue(new AppError({ statusCode: 409, code: 'revision_mismatch' }));
+    const registry = makeRegistry();
+
+    const result = await executeTool(
+      registry,
+      'remove_line_item',
+      { invoiceId: 'inv-1', position: 0 },
+      makeToolContext()
+    );
+
+    expect(result).toContain('שונתה במקביל');
   });
 
   it('returns error for out of bounds position', async () => {
@@ -555,6 +608,36 @@ describe('finalize_invoice', () => {
 
     // Invoice was already committed — user sees success
     expect(result).toContain('הופקה בהצלחה');
+  });
+
+  it('returns error when pending action payload is malformed JSON', async () => {
+    mockFindPendingAction.mockResolvedValue({
+      id: 'pa-1',
+      conversationId: 'conv-1',
+      actionType: 'finalize_invoice',
+      payload: 'NOT-VALID-JSON{{{',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+
+    const result = await runFinalizeTool();
+
+    expect(result).toContain('לא נמצא אישור תקף');
+    expect(mockFinalize).not.toHaveBeenCalled();
+  });
+
+  it('returns error when pending action payload is missing draftRevision', async () => {
+    mockFindPendingAction.mockResolvedValue({
+      id: 'pa-1',
+      conversationId: 'conv-1',
+      actionType: 'finalize_invoice',
+      payload: JSON.stringify({ invoiceId: 'inv-1' }),
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+
+    const result = await runFinalizeTool();
+
+    expect(result).toContain('לא נמצא אישור תקף');
+    expect(mockFinalize).not.toHaveBeenCalled();
   });
 
   it('returns error without pending action', async () => {
