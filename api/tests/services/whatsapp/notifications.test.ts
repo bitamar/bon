@@ -81,6 +81,14 @@ describe('formatTemplate', () => {
     });
     expect(result).toBe('⚠️ חשבונית INV-0010 לכרמל בניה — 15 ימים ללא תשלום');
   });
+
+  it('interpolates shaam_failed template', () => {
+    const result = formatTemplate('shaam_failed', {
+      documentNumber: 'INV-0099',
+      reason: 'timeout from SHAAM server',
+    });
+    expect(result).toBe('⚠️ בעיה עם הקצאת SHAAM לחשבונית INV-0099 — timeout from SHAAM server');
+  });
 });
 
 describe('notifyBusinessUsersViaWhatsApp', () => {

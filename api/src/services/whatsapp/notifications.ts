@@ -1,8 +1,11 @@
 import type { PgBoss } from 'pg-boss';
 import type { FastifyBaseLogger } from 'fastify';
-import { and, eq, gt, inArray } from 'drizzle-orm';
-import { db } from '../../db/client.js';
-import { users, userBusinesses, whatsappConversations, whatsappMessages } from '../../db/schema.js';
+import {
+  findConversationByUserId,
+  findEligibleNotificationUsers,
+  findOutboundMessagesSince,
+  insertMessage,
+} from '../../repositories/whatsapp-repository.js';
 import { sendJob } from '../../jobs/boss.js';
 
 // ── Templates ──
@@ -31,6 +34,41 @@ export function formatTemplate(
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
+// ── Shared dispatch logic ──
+
+interface DispatchCallback {
+  (conversationId: string, phone: string): Promise<void>;
+}
+
+/**
+ * Finds eligible users for a business and dispatches to each one with
+ * an active, non-blocked, within-24h conversation. Errors are caught internally.
+ */
+async function dispatchToEligibleUsers(
+  businessId: string,
+  callback: DispatchCallback,
+  logger: FastifyBaseLogger,
+  context: Record<string, unknown>
+): Promise<void> {
+  try {
+    const eligibleUsers = await findEligibleNotificationUsers(businessId);
+    const cutoff = new Date(Date.now() - TWENTY_FOUR_HOURS_MS);
+
+    for (const user of eligibleUsers) {
+      if (!user.phone || !user.whatsappEnabled) continue;
+
+      const conversation = await findConversationByUserId(user.userId);
+      if (!conversation) continue;
+      if (conversation.status === 'blocked') continue;
+      if (conversation.lastActivityAt.getTime() < cutoff.getTime()) continue;
+
+      await callback(conversation.id, user.phone);
+    }
+  } catch (err: unknown) {
+    logger.error({ err, businessId, ...context }, 'whatsapp notification failed — swallowed');
+  }
+}
+
 // ── Main notification function ──
 
 /**
@@ -47,73 +85,22 @@ export async function notifyBusinessUsersViaWhatsApp(
   template: NotificationTemplate,
   data: Record<string, string>,
   boss: PgBoss,
-  logger: FastifyBaseLogger,
-  metadata?: Record<string, string>
+  logger: FastifyBaseLogger
 ): Promise<void> {
-  try {
-    // Find all owners/admins of this business
-    const eligibleUsers = await db
-      .select({
-        userId: users.id,
-        phone: users.phone,
-        whatsappEnabled: users.whatsappEnabled,
-      })
-      .from(userBusinesses)
-      .innerJoin(users, eq(userBusinesses.userId, users.id))
-      .where(
-        and(
-          eq(userBusinesses.businessId, businessId),
-          inArray(userBusinesses.role, ['owner', 'admin'])
-        )
-      );
+  const message = formatTemplate(template, data);
 
-    const message = formatTemplate(template, data);
-    const cutoff = new Date(Date.now() - TWENTY_FOUR_HOURS_MS);
-
-    for (const user of eligibleUsers) {
-      // Guard: no phone or whatsapp disabled
-      if (!user.phone || !user.whatsappEnabled) continue;
-
-      // Guard: find conversation
-      const [conversation] = await db
-        .select({
-          id: whatsappConversations.id,
-          status: whatsappConversations.status,
-          lastActivityAt: whatsappConversations.lastActivityAt,
-        })
-        .from(whatsappConversations)
-        .where(eq(whatsappConversations.userId, user.userId));
-
-      if (!conversation) continue;
-
-      // Guard: blocked conversation
-      if (conversation.status === 'blocked') continue;
-
-      // Guard: 24-hour window
-      if (conversation.lastActivityAt < cutoff) continue;
-
-      // Enqueue the message
-      const metadataStr = metadata ? JSON.stringify(metadata) : undefined;
+  await dispatchToEligibleUsers(
+    businessId,
+    async (conversationId, phone) => {
       await sendJob(boss, 'send-whatsapp-reply', {
-        conversationId: conversation.id,
+        conversationId,
         body: message,
-        to: user.phone,
+        to: phone,
       });
-
-      // If metadata provided, insert an outbound message record for dedup tracking
-      if (metadataStr) {
-        await db.insert(whatsappMessages).values({
-          conversationId: conversation.id,
-          direction: 'outbound',
-          llmRole: 'assistant',
-          body: message,
-          metadata: metadataStr,
-        });
-      }
-    }
-  } catch (err: unknown) {
-    logger.error({ err, businessId, template }, 'whatsapp notification failed — swallowed');
-  }
+    },
+    logger,
+    { template }
+  );
 }
 
 // ── Overdue notification helpers ──
@@ -129,16 +116,7 @@ export async function wasOverdueNotificationSentToday(
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  const messages = await db
-    .select({ metadata: whatsappMessages.metadata })
-    .from(whatsappMessages)
-    .where(
-      and(
-        eq(whatsappMessages.conversationId, conversationId),
-        eq(whatsappMessages.direction, 'outbound'),
-        gt(whatsappMessages.createdAt, todayStart)
-      )
-    );
+  const messages = await findOutboundMessagesSince(conversationId, todayStart);
 
   return messages.some((msg) => {
     if (!msg.metadata) return false;
@@ -167,49 +145,16 @@ export async function sendOverdueNotifications(
   boss: PgBoss,
   logger: FastifyBaseLogger
 ): Promise<void> {
-  try {
-    // Sort by days overdue descending, take first 5
-    const sorted = [...newlyOverdueInvoices]
-      .sort((a, b) => b.daysOverdue - a.daysOverdue)
-      .slice(0, 5);
+  // Sort by days overdue descending, take first 5
+  const sorted = [...newlyOverdueInvoices]
+    .sort((a, b) => b.daysOverdue - a.daysOverdue)
+    .slice(0, 5);
 
-    // Find all eligible users (owners/admins with phone + whatsapp + active conversation in window)
-    const eligibleUsers = await db
-      .select({
-        userId: users.id,
-        phone: users.phone,
-        whatsappEnabled: users.whatsappEnabled,
-      })
-      .from(userBusinesses)
-      .innerJoin(users, eq(userBusinesses.userId, users.id))
-      .where(
-        and(
-          eq(userBusinesses.businessId, businessId),
-          inArray(userBusinesses.role, ['owner', 'admin'])
-        )
-      );
-
-    const cutoff = new Date(Date.now() - TWENTY_FOUR_HOURS_MS);
-
-    for (const user of eligibleUsers) {
-      if (!user.phone || !user.whatsappEnabled) continue;
-
-      const [conversation] = await db
-        .select({
-          id: whatsappConversations.id,
-          status: whatsappConversations.status,
-          lastActivityAt: whatsappConversations.lastActivityAt,
-        })
-        .from(whatsappConversations)
-        .where(eq(whatsappConversations.userId, user.userId));
-
-      if (!conversation) continue;
-      if (conversation.status === 'blocked') continue;
-      if (conversation.lastActivityAt < cutoff) continue;
-
+  await dispatchToEligibleUsers(
+    businessId,
+    async (conversationId, phone) => {
       for (const invoice of sorted) {
-        // Dedup: check if this invoice's overdue notification was already sent today
-        const alreadySent = await wasOverdueNotificationSentToday(conversation.id, invoice.id);
+        const alreadySent = await wasOverdueNotificationSentToday(conversationId, invoice.id);
         if (alreadySent) continue;
 
         const message = formatTemplate('invoice_overdue', {
@@ -224,22 +169,22 @@ export async function sendOverdueNotifications(
         });
 
         await sendJob(boss, 'send-whatsapp-reply', {
-          conversationId: conversation.id,
+          conversationId,
           body: message,
-          to: user.phone,
+          to: phone,
         });
 
         // Insert message record for dedup tracking
-        await db.insert(whatsappMessages).values({
-          conversationId: conversation.id,
+        await insertMessage({
+          conversationId,
           direction: 'outbound',
           llmRole: 'assistant',
           body: message,
           metadata,
         });
       }
-    }
-  } catch (err: unknown) {
-    logger.error({ err, businessId }, 'overdue whatsapp notifications failed — swallowed');
-  }
+    },
+    logger,
+    {}
+  );
 }

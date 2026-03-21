@@ -35,7 +35,6 @@ import {
 } from '../services/invoice-service.js';
 import { generateInvoicePdf } from '../services/pdf-service.js';
 import { assertCanCreateInvoice } from '../services/subscription-service.js';
-import { findInvoiceById } from '../repositories/invoice-repository.js';
 import { notifyBusinessUsersViaWhatsApp } from '../services/whatsapp/notifications.js';
 import { formatMinorUnits } from '@bon/types/formatting';
 
@@ -200,20 +199,17 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       const result = await sendInvoice(businessId, invoiceId, req.body, app.boss);
 
       // Fire-and-forget WhatsApp notification
-      if (app.boss) {
-        const invoice = await findInvoiceById(invoiceId, businessId);
-        if (invoice?.documentNumber && invoice.customerName) {
-          await notifyBusinessUsersViaWhatsApp(
-            businessId,
-            'invoice_sent',
-            {
-              documentNumber: invoice.documentNumber,
-              customerName: invoice.customerName,
-            },
-            app.boss,
-            app.log
-          );
-        }
+      if (app.boss && result.documentNumber && result.customerName) {
+        await notifyBusinessUsersViaWhatsApp(
+          businessId,
+          'invoice_sent',
+          {
+            documentNumber: result.documentNumber,
+            customerName: result.customerName,
+          },
+          app.boss,
+          app.log
+        );
       }
 
       return reply.status(202).send({ ok: true as const, status: result.status });
