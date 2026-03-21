@@ -20,7 +20,7 @@ async function createUserWithPhone(phone: string, whatsappEnabled = true) {
 }
 
 async function injectWebhook(overrides: Record<string, string> = {}) {
-  const payload: Record<string, string> = {
+  const params: Record<string, string> = {
     MessageSid: `SM${randomUUID().replaceAll('-', '')}`,
     From: 'whatsapp:+972521234567',
     Body: 'שלום',
@@ -31,7 +31,7 @@ async function injectWebhook(overrides: Record<string, string> = {}) {
     method: 'POST',
     url: '/webhooks/whatsapp',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    payload,
+    payload: new URLSearchParams(params).toString(),
   });
 }
 
@@ -171,7 +171,7 @@ describe('POST /webhooks/whatsapp', () => {
       method: 'POST',
       url: '/webhooks/whatsapp',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      payload: { From: 'whatsapp:+972521234567', Body: 'test' },
+      payload: new URLSearchParams({ From: 'whatsapp:+972521234567', Body: 'test' }).toString(),
     });
 
     expect(res.statusCode).toBe(200);
