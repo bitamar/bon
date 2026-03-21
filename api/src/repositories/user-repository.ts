@@ -1,4 +1,4 @@
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { users } from '../db/schema.js';
 import type { DbOrTx } from '../db/types.js';
@@ -15,9 +15,6 @@ export async function findUserByPhone(
   e164Phone: string,
   txOrDb: DbOrTx = db
 ): Promise<UserRecord | null> {
-  const rows = await txOrDb
-    .select()
-    .from(users)
-    .where(and(eq(users.phone, e164Phone), isNotNull(users.phone)));
+  const rows = await txOrDb.select().from(users).where(eq(users.phone, e164Phone));
   return rows[0] ?? null;
 }

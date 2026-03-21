@@ -12,8 +12,9 @@ export async function createUser(overrides: Partial<typeof users.$inferInsert> =
   const [user] = await db
     .insert(users)
     .values({
-      email: overrides.email ?? `user-${randomUUID()}@example.com`,
-      name: overrides.name ?? 'Test User',
+      email: `user-${randomUUID()}@example.com`,
+      name: 'Test User',
+      ...overrides,
     })
     .returning();
   return user!;
