@@ -1,9 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { registerInvoiceTools } from '../../../../src/services/whatsapp/tools/invoice-tools.js';
 import { createToolRegistry, executeTool } from '../../../../src/services/whatsapp/types.js';
-import type { ToolContext, ToolRegistry } from '../../../../src/services/whatsapp/types.js';
-import { makeLogger } from '../../../utils/jobs.js';
+import type { ToolRegistry } from '../../../../src/services/whatsapp/types.js';
 import { AppError } from '../../../../src/lib/app-error.js';
+import { makeToolContext, makeInvoiceResponse } from './invoice-tools-helpers.js';
 
 // ── module-scope mocks ──
 
@@ -41,81 +41,10 @@ vi.mock('../../../../src/repositories/whatsapp-repository.js', () => ({
 
 // ── helpers (module scope per S2004) ──
 
-function makeContext(overrides?: Partial<ToolContext>): ToolContext {
-  return {
-    userId: 'user-1',
-    businessId: 'biz-1',
-    userRole: 'owner',
-    conversationId: 'conv-1',
-    logger: makeLogger(),
-    boss: { send: vi.fn() } as never,
-    ...overrides,
-  };
-}
-
 function makeRegistry(): ToolRegistry {
   const registry = createToolRegistry();
   registerInvoiceTools(registry);
   return registry;
-}
-
-function makeInvoiceResponse(overrides?: Record<string, unknown>) {
-  return {
-    invoice: {
-      id: 'inv-1',
-      businessId: 'biz-1',
-      customerId: 'cust-1',
-      customerName: 'דוד לוי',
-      customerTaxId: null,
-      customerAddress: null,
-      customerEmail: null,
-      documentType: 'tax_invoice',
-      status: 'draft',
-      isOverdue: false,
-      sequenceGroup: null,
-      sequenceNumber: null,
-      documentNumber: null,
-      creditedInvoiceId: null,
-      invoiceDate: '2026-03-21',
-      issuedAt: null,
-      dueDate: null,
-      notes: null,
-      internalNotes: null,
-      currency: 'ILS',
-      vatExemptionReason: null,
-      subtotalMinorUnits: 120000,
-      discountMinorUnits: 0,
-      totalExclVatMinorUnits: 120000,
-      vatMinorUnits: 20400,
-      totalInclVatMinorUnits: 140400,
-      allocationStatus: null,
-      allocationNumber: null,
-      allocationError: null,
-      sentAt: null,
-      paidAt: null,
-      createdAt: '2026-03-21T10:00:00.000Z',
-      updatedAt: '2026-03-21T10:00:00.000Z',
-      ...overrides,
-    },
-    items: [
-      {
-        id: 'item-1',
-        invoiceId: 'inv-1',
-        position: 0,
-        description: 'ייעוץ',
-        catalogNumber: null,
-        quantity: 3,
-        unitPriceMinorUnits: 40000,
-        discountPercent: 0,
-        vatRateBasisPoints: 1700,
-        lineTotalMinorUnits: 120000,
-        vatAmountMinorUnits: 20400,
-        lineTotalInclVatMinorUnits: 140400,
-      },
-    ],
-    payments: [],
-    remainingBalanceMinorUnits: 140400,
-  };
 }
 
 function makeBusiness(overrides?: Record<string, unknown>) {
@@ -147,7 +76,7 @@ describe('business guard', () => {
 
   it.each(toolNames)('%s rejects when no business selected', async (toolName) => {
     const registry = makeRegistry();
-    const result = await executeTool(registry, toolName, {}, makeContext({ businessId: null }));
+    const result = await executeTool(registry, toolName, {}, makeToolContext({ businessId: null }));
     expect(result).toContain('יש לבחור עסק קודם');
   });
 });
@@ -164,7 +93,12 @@ describe('find_customer', () => {
     });
     const registry = makeRegistry();
 
-    const result = await executeTool(registry, 'find_customer', { query: 'דוד' }, makeContext());
+    const result = await executeTool(
+      registry,
+      'find_customer',
+      { query: 'דוד' },
+      makeToolContext()
+    );
     const parsed = JSON.parse(result);
 
     expect(parsed).toHaveLength(2);
@@ -181,7 +115,12 @@ describe('find_customer', () => {
     mockListCustomers.mockResolvedValue({ customers: [] });
     const registry = makeRegistry();
 
-    const result = await executeTool(registry, 'find_customer', { query: 'אין' }, makeContext());
+    const result = await executeTool(
+      registry,
+      'find_customer',
+      { query: 'אין' },
+      makeToolContext()
+    );
 
     expect(result).toContain('לא נמצאו לקוחות');
   });
@@ -202,7 +141,7 @@ describe('create_draft_invoice', () => {
       registry,
       'create_draft_invoice',
       { customerId: 'cust-1' },
-      makeContext()
+      makeToolContext()
     );
     const parsed = JSON.parse(result);
 
@@ -225,7 +164,7 @@ describe('create_draft_invoice', () => {
       registry,
       'create_draft_invoice',
       { customerId: 'cust-1', documentType: 'receipt' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(mockCreateDraft).toHaveBeenCalledWith('biz-1', {
@@ -242,7 +181,7 @@ describe('create_draft_invoice', () => {
       registry,
       'create_draft_invoice',
       { customerId: 'cust-bad' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('שגיאה');
@@ -275,7 +214,7 @@ describe('add_line_item', () => {
       registry,
       'add_line_item',
       { invoiceId: 'inv-1', description: 'טסט', quantity: 1, unitPrice: 1.005 },
-      makeContext()
+      makeToolContext()
     );
 
     // Verify the unit price was converted safely (no floating-point rounding bug)
@@ -295,7 +234,7 @@ describe('add_line_item', () => {
       registry,
       'add_line_item',
       { invoiceId: 'inv-1', description: 'שירות חדש', quantity: 2, unitPrice: 100 },
-      makeContext()
+      makeToolContext()
     );
 
     const callArgs = mockUpdateDraft.mock.calls[0]!;
@@ -334,7 +273,7 @@ describe('add_line_item', () => {
       registry,
       'add_line_item',
       { invoiceId: 'inv-1', description: 'פריט חדש', quantity: 1, unitPrice: 50 },
-      makeContext()
+      makeToolContext()
     );
 
     const callArgs = mockUpdateDraft.mock.calls[0]!;
@@ -356,7 +295,7 @@ describe('add_line_item', () => {
       registry,
       'add_line_item',
       { invoiceId: 'inv-1', description: 'ייעוץ', quantity: 3, unitPrice: 400 },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('נוסף: ייעוץ × 3');
@@ -397,7 +336,7 @@ describe('remove_line_item', () => {
       registry,
       'remove_line_item',
       { invoiceId: 'inv-1', position: 0 },
-      makeContext()
+      makeToolContext()
     );
 
     // Verify the remaining item was re-indexed to position 0
@@ -418,7 +357,7 @@ describe('remove_line_item', () => {
       registry,
       'remove_line_item',
       { invoiceId: 'inv-1', position: 5 },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('שגיאה');
@@ -438,7 +377,7 @@ describe('get_draft_summary', () => {
       registry,
       'get_draft_summary',
       { invoiceId: 'inv-1' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('חשבונית טיוטה');
@@ -459,7 +398,7 @@ describe('get_draft_summary', () => {
       registry,
       'get_draft_summary',
       { invoiceId: 'inv-1' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('לא נבחר לקוח');
@@ -478,7 +417,7 @@ describe('request_confirmation', () => {
       registry,
       'request_confirmation',
       { invoiceId: 'inv-1' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('חשבונית טיוטה');
@@ -503,7 +442,7 @@ describe('request_confirmation', () => {
     mockUpsertPendingAction.mockResolvedValue({ id: 'pa-2' });
     const registry = makeRegistry();
 
-    await executeTool(registry, 'request_confirmation', { invoiceId: 'inv-1' }, makeContext());
+    await executeTool(registry, 'request_confirmation', { invoiceId: 'inv-1' }, makeToolContext());
 
     // Upsert is called (not insert) — the DB handles the conflict
     expect(mockUpsertPendingAction).toHaveBeenCalledTimes(1);
@@ -519,7 +458,7 @@ describe('request_confirmation', () => {
       registry,
       'request_confirmation',
       { invoiceId: 'inv-1' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('ללא פריטים');
@@ -549,7 +488,7 @@ describe('finalize_invoice', () => {
       registry,
       'finalize_invoice',
       { invoiceId: 'inv-1' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('INV-0001');
@@ -569,7 +508,7 @@ describe('finalize_invoice', () => {
     mockFinalize.mockResolvedValue({ ...finalizedInvoice, needsAllocation: true });
     mockDeletePendingAction.mockResolvedValue(undefined);
     const registry = makeRegistry();
-    const ctx = makeContext();
+    const ctx = makeToolContext();
 
     await executeTool(registry, 'finalize_invoice', { invoiceId: 'inv-1' }, ctx);
 
@@ -584,7 +523,7 @@ describe('finalize_invoice', () => {
       registry,
       'finalize_invoice',
       { invoiceId: 'inv-1' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('לא נמצא אישור תקף');
@@ -600,7 +539,7 @@ describe('finalize_invoice', () => {
       registry,
       'finalize_invoice',
       { invoiceId: 'inv-1' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('לא נמצא אישור תקף');
@@ -619,7 +558,7 @@ describe('finalize_invoice', () => {
       registry,
       'finalize_invoice',
       { invoiceId: 'inv-1' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('לא נמצא אישור תקף');
@@ -633,7 +572,7 @@ describe('finalize_invoice', () => {
       registry,
       'finalize_invoice',
       { invoiceId: 'inv-1' },
-      makeContext({ userRole: 'user' })
+      makeToolContext({ userRole: 'user' })
     );
 
     expect(result).toContain('אין לך הרשאה');
@@ -655,7 +594,7 @@ describe('finalize_invoice', () => {
       registry,
       'finalize_invoice',
       { invoiceId: 'inv-1' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('ללא מע"מ');
@@ -677,7 +616,7 @@ describe('finalize_invoice', () => {
       registry,
       'finalize_invoice',
       { invoiceId: 'inv-1', vatExemptionReason: 'עסקה פטורה' },
-      makeContext()
+      makeToolContext()
     );
 
     expect(result).toContain('הופקה בהצלחה');
@@ -701,7 +640,7 @@ describe('finalize_invoice', () => {
       registry,
       'finalize_invoice',
       { invoiceId: 'inv-1' },
-      makeContext({ userRole: 'admin' })
+      makeToolContext({ userRole: 'admin' })
     );
 
     expect(result).toContain('הופקה בהצלחה');
