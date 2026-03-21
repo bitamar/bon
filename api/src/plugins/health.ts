@@ -69,11 +69,9 @@ const healthPluginFn: FastifyPluginAsync = async (app) => {
     const critical = database.status === 'down';
     const degraded = !critical && (pgBoss.status === 'down' || pdfService.status === 'down');
 
-    const status: HealthResponse['status'] = critical
-      ? 'unhealthy'
-      : degraded
-        ? 'degraded'
-        : 'healthy';
+    let status: HealthResponse['status'] = 'healthy';
+    if (critical) status = 'unhealthy';
+    else if (degraded) status = 'degraded';
 
     const body: HealthResponse = {
       status,

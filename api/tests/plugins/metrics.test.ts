@@ -1,6 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 
+function parseHealthCount(metricsBody: string): number {
+  const line = metricsBody
+    .split('\n')
+    .find(
+      (l: string) =>
+        l.startsWith('http_requests_total') &&
+        l.includes('route="/health"') &&
+        l.includes('status_code="200"')
+    );
+  return line ? Number(line.split(' ').pop()) : 0;
+}
+
 describe('metrics plugin', () => {
   let app: FastifyInstance;
 
@@ -23,18 +35,6 @@ describe('metrics plugin', () => {
     const res = await app.inject({ method: 'GET', url: '/metrics' });
     expect(res.statusCode).toBe(200);
     return res.body;
-  }
-
-  function parseHealthCount(metricsBody: string): number {
-    const line = metricsBody
-      .split('\n')
-      .find(
-        (l: string) =>
-          l.startsWith('http_requests_total') &&
-          l.includes('route="/health"') &&
-          l.includes('status_code="200"')
-      );
-    return line ? Number(line.split(' ').pop()) : 0;
   }
 
   it('exposes /metrics endpoint with prometheus format', async () => {
