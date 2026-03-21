@@ -161,6 +161,10 @@ const finalizeInputSchema = z.object({
   invoiceId: z.string(),
   vatExemptionReason: z.string().optional(),
 });
+const pendingActionPayloadSchema = z.object({
+  invoiceId: z.string(),
+  draftRevision: z.string().optional(),
+});
 
 // ── Handlers ──
 
@@ -378,10 +382,10 @@ const requestConfirmationHandler: ToolHandler = async (input: unknown, context: 
   ].join('\n');
 };
 
-const FINALIZE_ROLES: ReadonlyArray<string> = ['owner', 'admin'];
+const FINALIZE_ROLES = new Set(['owner', 'admin']);
 
 function canFinalize(role: string | null): boolean {
-  return !!role && FINALIZE_ROLES.includes(role);
+  return !!role && FINALIZE_ROLES.has(role);
 }
 
 async function verifyDraftRevision(
@@ -393,8 +397,11 @@ async function verifyDraftRevision(
   let currentInvoice;
   try {
     currentInvoice = await getInvoice(businessId, invoiceId);
-  } catch {
-    return 'שגיאה: חשבונית לא נמצאה.';
+  } catch (err) {
+    if (err instanceof AppError && err.statusCode === 404) {
+      return 'שגיאה: חשבונית לא נמצאה.';
+    }
+    throw err;
   }
   if (currentInvoice.invoice.updatedAt !== draftRevision) {
     return 'החשבונית שונתה מאז האישור. יש לבקש אישור מחדש.';
@@ -445,18 +452,20 @@ const finalizeInvoiceHandler: ToolHandler = async (input: unknown, context: Tool
     return 'לא נמצא אישור תקף. יש לבקש אישור מחדש.';
   }
 
-  const pendingPayload = JSON.parse(pendingAction.payload) as {
-    invoiceId: string;
-    draftRevision?: string;
-  };
-  if (pendingPayload.invoiceId !== parsed.data.invoiceId) {
+  const pendingPayload = pendingActionPayloadSchema.safeParse(
+    JSON.parse(pendingAction.payload) as unknown
+  );
+  if (!pendingPayload.success) {
+    return 'לא נמצא אישור תקף. יש לבקש אישור מחדש.';
+  }
+  if (pendingPayload.data.invoiceId !== parsed.data.invoiceId) {
     return 'לא נמצא אישור תקף. יש לבקש אישור מחדש.';
   }
 
   const revisionError = await verifyDraftRevision(
     businessId,
     parsed.data.invoiceId,
-    pendingPayload.draftRevision
+    pendingPayload.data.draftRevision
   );
   if (revisionError) return revisionError;
 
