@@ -48,11 +48,18 @@ async function dispatchToEligibleUsers(
   logger: FastifyBaseLogger,
   context: Record<string, unknown>
 ): Promise<void> {
+  let eligibleUsers;
   try {
-    const eligibleUsers = await findEligibleNotificationUsers(businessId);
-    const cutoff = new Date(Date.now() - TWENTY_FOUR_HOURS_MS);
+    eligibleUsers = await findEligibleNotificationUsers(businessId);
+  } catch (err: unknown) {
+    logger.error({ err, businessId, ...context }, 'whatsapp notification failed — swallowed');
+    return;
+  }
 
-    for (const user of eligibleUsers) {
+  const cutoff = new Date(Date.now() - TWENTY_FOUR_HOURS_MS);
+
+  for (const user of eligibleUsers) {
+    try {
       if (!user.phone || !user.whatsappEnabled) continue;
 
       const conversation = await findConversationByUserId(user.userId);
@@ -60,10 +67,13 @@ async function dispatchToEligibleUsers(
       if (conversation.status === 'blocked') continue;
       if (conversation.lastActivityAt.getTime() < cutoff.getTime()) continue;
 
-      await callback(conversation.id, user.phone);
+      await callback(conversation.id, conversation.phone);
+    } catch (err: unknown) {
+      logger.error(
+        { err, businessId, userId: user.userId, ...context },
+        'whatsapp notification failed for user — swallowed'
+      );
     }
-  } catch (err: unknown) {
-    logger.error({ err, businessId, ...context }, 'whatsapp notification failed — swallowed');
   }
 }
 

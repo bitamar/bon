@@ -98,19 +98,45 @@ describe('notifyBusinessUsersViaWhatsApp', () => {
     vi.mocked(sendJob).mockReset();
   });
 
-  it('sends notification to owner with active conversation within 24h', async () => {
-    const user = await createUserWithPhone('+972521234567');
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-    await createConversation(user.id, '+972521234567');
+  // ── helpers ──
 
+  async function setupEligibleRecipient(
+    opts: {
+      phone?: string | null;
+      role?: 'owner' | 'admin' | 'user';
+      whatsappEnabled?: boolean;
+      conversationStatus?: 'active' | 'idle' | 'blocked';
+      lastActivityAt?: Date;
+      skipConversation?: boolean;
+    } = {}
+  ) {
+    const phone = opts.phone === undefined ? '+972521234567' : opts.phone;
+    const user = await createUserWithPhone(phone, opts.whatsappEnabled ?? true);
+    const biz = await createTestBusiness(user.id);
+    await addUserToBusiness(user.id, biz.id, opts.role ?? 'owner');
+    let conv;
+    if (!opts.skipConversation && phone) {
+      conv = await createConversation(user.id, phone, {
+        status: opts.conversationStatus,
+        lastActivityAt: opts.lastActivityAt,
+      });
+    }
+    return { user, biz, conv };
+  }
+
+  async function notify(businessId: string) {
     await notifyBusinessUsersViaWhatsApp(
-      biz.id,
+      businessId,
       'invoice_sent',
       { documentNumber: 'INV-001', customerName: 'Test' },
       mockBoss,
       logger
     );
+  }
+
+  it('sends notification to owner with active conversation within 24h', async () => {
+    const { biz } = await setupEligibleRecipient();
+    await notify(biz.id);
 
     expect(sendJob).toHaveBeenCalledWith(
       mockBoss,
@@ -128,13 +154,7 @@ describe('notifyBusinessUsersViaWhatsApp', () => {
     await createConversation(owner.id, '+972521111111');
     await createConversation(admin.id, '+972522222222');
 
-    await notifyBusinessUsersViaWhatsApp(
-      biz.id,
-      'invoice_sent',
-      { documentNumber: 'INV-001', customerName: 'Test' },
-      mockBoss,
-      logger
-    );
+    await notify(biz.id);
 
     expect(sendJob).toHaveBeenCalledTimes(2);
   });
@@ -148,13 +168,7 @@ describe('notifyBusinessUsersViaWhatsApp', () => {
     await createConversation(owner.id, '+972521111111');
     await createConversation(regularUser.id, '+972523333333');
 
-    await notifyBusinessUsersViaWhatsApp(
-      biz.id,
-      'invoice_sent',
-      { documentNumber: 'INV-001', customerName: 'Test' },
-      mockBoss,
-      logger
-    );
+    await notify(biz.id);
 
     expect(sendJob).toHaveBeenCalledTimes(1);
     expect(sendJob).toHaveBeenCalledWith(
@@ -165,104 +179,41 @@ describe('notifyBusinessUsersViaWhatsApp', () => {
   });
 
   it('skips user with no phone set', async () => {
-    const user = await createUserWithPhone(null);
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-
-    await notifyBusinessUsersViaWhatsApp(
-      biz.id,
-      'invoice_sent',
-      { documentNumber: 'INV-001', customerName: 'Test' },
-      mockBoss,
-      logger
-    );
-
+    const { biz } = await setupEligibleRecipient({ phone: null });
+    await notify(biz.id);
     expect(sendJob).not.toHaveBeenCalled();
   });
 
   it('skips user with whatsappEnabled = false', async () => {
-    const user = await createUserWithPhone('+972521234567', false);
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-    await createConversation(user.id, '+972521234567');
-
-    await notifyBusinessUsersViaWhatsApp(
-      biz.id,
-      'invoice_sent',
-      { documentNumber: 'INV-001', customerName: 'Test' },
-      mockBoss,
-      logger
-    );
-
+    const { biz } = await setupEligibleRecipient({ whatsappEnabled: false });
+    await notify(biz.id);
     expect(sendJob).not.toHaveBeenCalled();
   });
 
   it('skips user with no conversation', async () => {
-    const user = await createUserWithPhone('+972521234567');
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-    // No conversation created
-
-    await notifyBusinessUsersViaWhatsApp(
-      biz.id,
-      'invoice_sent',
-      { documentNumber: 'INV-001', customerName: 'Test' },
-      mockBoss,
-      logger
-    );
-
+    const { biz } = await setupEligibleRecipient({ skipConversation: true });
+    await notify(biz.id);
     expect(sendJob).not.toHaveBeenCalled();
   });
 
   it('skips user with blocked conversation', async () => {
-    const user = await createUserWithPhone('+972521234567');
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-    await createConversation(user.id, '+972521234567', { status: 'blocked' });
-
-    await notifyBusinessUsersViaWhatsApp(
-      biz.id,
-      'invoice_sent',
-      { documentNumber: 'INV-001', customerName: 'Test' },
-      mockBoss,
-      logger
-    );
-
+    const { biz } = await setupEligibleRecipient({ conversationStatus: 'blocked' });
+    await notify(biz.id);
     expect(sendJob).not.toHaveBeenCalled();
   });
 
   it('skips user with conversation lastActivityAt older than 24h', async () => {
-    const user = await createUserWithPhone('+972521234567');
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-    await createConversation(user.id, '+972521234567', { lastActivityAt: staleActivity() });
-
-    await notifyBusinessUsersViaWhatsApp(
-      biz.id,
-      'invoice_sent',
-      { documentNumber: 'INV-001', customerName: 'Test' },
-      mockBoss,
-      logger
-    );
-
+    const { biz } = await setupEligibleRecipient({ lastActivityAt: staleActivity() });
+    await notify(biz.id);
     expect(sendJob).not.toHaveBeenCalled();
   });
 
   it('catches and logs errors without propagating', async () => {
     vi.mocked(sendJob).mockRejectedValueOnce(new Error('pg-boss down'));
-    const user = await createUserWithPhone('+972521234567');
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-    await createConversation(user.id, '+972521234567');
+    const { biz } = await setupEligibleRecipient();
 
     // Should not throw
-    await notifyBusinessUsersViaWhatsApp(
-      biz.id,
-      'invoice_sent',
-      { documentNumber: 'INV-001', customerName: 'Test' },
-      mockBoss,
-      logger
-    );
+    await notify(biz.id);
 
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ template: 'invoice_sent' }),
@@ -324,11 +275,18 @@ describe('sendOverdueNotifications', () => {
     vi.mocked(sendJob).mockReset();
   });
 
-  it('sends notifications for overdue invoices sorted by days overdue', async () => {
+  // ── helpers ──
+
+  async function setupOverdueRecipient() {
     const user = await createUserWithPhone('+972521234567');
     const biz = await createTestBusiness(user.id);
     await addUserToBusiness(user.id, biz.id, 'owner');
-    await createConversation(user.id, '+972521234567');
+    const conv = await createConversation(user.id, '+972521234567');
+    return { user, biz, conv };
+  }
+
+  it('sends notifications for overdue invoices sorted by days overdue', async () => {
+    const { biz } = await setupOverdueRecipient();
 
     await sendOverdueNotifications(
       biz.id,
@@ -353,10 +311,7 @@ describe('sendOverdueNotifications', () => {
   });
 
   it('limits to max 5 notifications per business', async () => {
-    const user = await createUserWithPhone('+972521234567');
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-    await createConversation(user.id, '+972521234567');
+    const { biz } = await setupOverdueRecipient();
 
     const invoices = Array.from({ length: 8 }, (_, i) => ({
       id: randomUUID(),
@@ -372,11 +327,7 @@ describe('sendOverdueNotifications', () => {
   });
 
   it('skips invoices that already had notifications today', async () => {
-    const user = await createUserWithPhone('+972521234567');
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-    const conv = await createConversation(user.id, '+972521234567');
-
+    const { biz, conv } = await setupOverdueRecipient();
     const invoiceId = randomUUID();
 
     // Simulate already-sent notification
@@ -400,10 +351,7 @@ describe('sendOverdueNotifications', () => {
 
   it('catches errors without propagating', async () => {
     vi.mocked(sendJob).mockRejectedValueOnce(new Error('boom'));
-    const user = await createUserWithPhone('+972521234567');
-    const biz = await createTestBusiness(user.id);
-    await addUserToBusiness(user.id, biz.id, 'owner');
-    await createConversation(user.id, '+972521234567');
+    const { biz } = await setupOverdueRecipient();
 
     await sendOverdueNotifications(
       biz.id,

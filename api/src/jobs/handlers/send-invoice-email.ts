@@ -1,5 +1,6 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { Job, JobWithMetadata } from 'pg-boss';
+import type { PgBoss } from 'pg-boss';
 import type { JobPayloads } from '../boss.js';
 import { findInvoiceById, updateInvoice } from '../../repositories/invoice-repository.js';
 import { findBusinessById } from '../../repositories/business-repository.js';
@@ -10,6 +11,7 @@ import {
   buildInvoiceEmailHtml,
 } from '../../services/email-service.js';
 import { serializeInvoice } from '../../lib/invoice-serializers.js';
+import { notifyBusinessUsersViaWhatsApp } from '../../services/whatsapp/notifications.js';
 
 /**
  * Creates the send-invoice-email job handler.
@@ -25,7 +27,8 @@ import { serializeInvoice } from '../../lib/invoice-serializers.js';
  *   - Status reverts to 'finalized' so the user can retry
  */
 export function createSendInvoiceEmailHandler(
-  logger: FastifyBaseLogger
+  logger: FastifyBaseLogger,
+  boss: PgBoss
 ): (job: Job<JobPayloads['send-invoice-email']>) => Promise<void> {
   return async (job) => {
     const { invoiceId, businessId, recipientEmail } = job.data;
@@ -81,6 +84,20 @@ export function createSendInvoiceEmailHandler(
       });
 
       logger.info({ invoiceId }, 'send-invoice-email: sent successfully');
+
+      // 5. Fire-and-forget WhatsApp notification
+      if (invoice.documentNumber && invoice.customerName) {
+        await notifyBusinessUsersViaWhatsApp(
+          businessId,
+          'invoice_sent',
+          {
+            documentNumber: invoice.documentNumber,
+            customerName: invoice.customerName,
+          },
+          boss,
+          logger
+        );
+      }
     } catch (err: unknown) {
       logger.error({ err, invoiceId, attemptNumber }, 'send-invoice-email: delivery failed');
 

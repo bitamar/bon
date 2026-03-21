@@ -121,7 +121,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   if (app.boss) {
     // Email delivery job
     await app.boss.createQueue('send-invoice-email');
-    const emailHandler = createSendInvoiceEmailHandler(app.log);
+    const emailHandler = createSendInvoiceEmailHandler(app.log, app.boss);
     await app.boss.work(
       'send-invoice-email',
       { includeMetadata: true },

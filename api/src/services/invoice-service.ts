@@ -439,11 +439,7 @@ export async function sendInvoice(
   invoiceId: string,
   body: { recipientEmail?: string | undefined },
   boss: PgBoss | undefined
-): Promise<{
-  status: 'sending' | 'sent';
-  documentNumber: string | null;
-  customerName: string | null;
-}> {
+): Promise<{ status: 'sending' | 'sent' }> {
   if (!boss) {
     throw new AppError({
       statusCode: 503,
@@ -454,8 +450,6 @@ export async function sendInvoice(
 
   // Atomically validate, set status to 'sending', and enqueue the email job
   let recipientEmail!: string;
-  let documentNumber: string | null = null;
-  let customerName: string | null = null;
   await withTransactionalJob(pool, boss, async (tx, jobDb) => {
     const invoice = await findInvoiceByIdForUpdate(invoiceId, businessId, tx);
     if (!invoice) throw notFound();
@@ -469,8 +463,6 @@ export async function sendInvoice(
       throw unprocessableEntity({ code: 'missing_email' });
     }
     recipientEmail = email;
-    documentNumber = invoice.documentNumber;
-    customerName = invoice.customerName;
 
     await updateInvoice(invoiceId, businessId, { status: 'sending', updatedAt: new Date() }, tx);
 
@@ -488,7 +480,7 @@ export async function sendInvoice(
     );
   });
 
-  return { status: 'sending', documentNumber, customerName };
+  return { status: 'sending' };
 }
 
 export async function listInvoices(

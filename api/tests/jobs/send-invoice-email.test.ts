@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { Job, JobWithMetadata } from 'pg-boss';
+import type { PgBoss } from 'pg-boss';
 import type { JobPayloads } from '../../src/jobs/boss.js';
 import type { FastifyBaseLogger } from 'fastify';
 import { createSendInvoiceEmailHandler } from '../../src/jobs/handlers/send-invoice-email.js';
@@ -13,6 +14,7 @@ const mockFindBusinessById = vi.fn();
 const mockUpdateInvoice = vi.fn();
 const mockGenerateInvoicePdf = vi.fn();
 const mockEmailSend = vi.fn();
+const mockNotify = vi.fn();
 
 vi.mock('../../src/repositories/invoice-repository.js', () => ({
   findInvoiceById: (...args: unknown[]) => mockFindInvoiceById(...args),
@@ -35,6 +37,10 @@ vi.mock('../../src/services/email-service.js', () => ({
 
 vi.mock('../../src/lib/invoice-serializers.js', () => ({
   serializeInvoice: (inv: unknown) => inv,
+}));
+
+vi.mock('../../src/services/whatsapp/notifications.js', () => ({
+  notifyBusinessUsersViaWhatsApp: (...args: unknown[]) => mockNotify(...args),
 }));
 
 const logger: FastifyBaseLogger = {
@@ -79,8 +85,10 @@ function makeInvoice(status = 'sending') {
   };
 }
 
+const mockBoss = {} as PgBoss;
+
 describe('send-invoice-email handler', () => {
-  const handler = createSendInvoiceEmailHandler(logger);
+  const handler = createSendInvoiceEmailHandler(logger, mockBoss);
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -135,6 +143,28 @@ describe('send-invoice-email handler', () => {
     mockEmailSend.mockRejectedValue(new Error('SMTP error'));
 
     await expect(handler(makeJob())).rejects.toThrow('SMTP error');
+  });
+
+  it('sends WhatsApp notification after successful delivery', async () => {
+    mockFindInvoiceById.mockResolvedValue(makeInvoice('sending'));
+
+    await handler(makeJob());
+
+    expect(mockNotify).toHaveBeenCalledWith(
+      'biz-1',
+      'invoice_sent',
+      { documentNumber: 'INV-001', customerName: 'Test Customer' },
+      mockBoss,
+      logger
+    );
+  });
+
+  it('skips WhatsApp notification when documentNumber is null', async () => {
+    mockFindInvoiceById.mockResolvedValue({ ...makeInvoice('sending'), documentNumber: null });
+
+    await handler(makeJob());
+
+    expect(mockNotify).not.toHaveBeenCalled();
   });
 
   it('reverts to finalized on last retry', async () => {

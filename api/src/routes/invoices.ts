@@ -197,21 +197,6 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       const { businessId } = req.businessContext;
       const { invoiceId } = req.params;
       const result = await sendInvoice(businessId, invoiceId, req.body, app.boss);
-
-      // Fire-and-forget WhatsApp notification
-      if (app.boss && result.documentNumber && result.customerName) {
-        await notifyBusinessUsersViaWhatsApp(
-          businessId,
-          'invoice_sent',
-          {
-            documentNumber: result.documentNumber,
-            customerName: result.customerName,
-          },
-          app.boss,
-          app.log
-        );
-      }
-
       return reply.status(202).send({ ok: true as const, status: result.status });
     }
   );
@@ -308,7 +293,7 @@ const invoiceRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
           businessId,
           'payment_received',
           {
-            amount: formatMinorUnits(req.body.amountMinorUnits),
+            amount: formatMinorUnits(req.body.amountMinorUnits, result.invoice.currency ?? 'ILS'),
             documentNumber: result.invoice.documentNumber,
           },
           app.boss,
