@@ -32,6 +32,8 @@ import { shaamPlugin } from './plugins/shaam.js';
 import { whatsappPlugin } from './plugins/whatsapp.js';
 import { maintenanceJobsPlugin } from './plugins/maintenance-jobs.js';
 import { jobsPlugin } from './plugins/jobs.js';
+import { metricsPlugin } from './plugins/metrics.js';
+import { healthPlugin } from './plugins/health.js';
 import { createLogger } from './lib/logger.js';
 import { isHostAllowed, parseOriginHeader } from './lib/origin.js';
 import { createShaamAllocationHandler } from './jobs/handlers/shaam-allocation.js';
@@ -104,7 +106,10 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(rateLimit, {
     max: env.RATE_LIMIT_MAX,
     timeWindow: env.RATE_LIMIT_TIME_WINDOW,
-    allowList: (req) => req.url === '/health' || req.url.startsWith('/webhooks/'),
+    allowList: (req) =>
+      (req.method === 'GET' &&
+        (req.url === '/health' || req.url === '/health/ready' || req.url === '/metrics')) ||
+      req.url.startsWith('/webhooks/'),
     errorResponseBuilder: (request, context) => ({
       statusCode: 429,
       error: 'too_many_requests',
@@ -113,6 +118,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
       requestId: request.id,
     }),
   });
+  await app.register(metricsPlugin);
   await app.register(loggingPlugin);
   await app.register(authPlugin);
   await app.register(businessContextPlugin);
@@ -122,6 +128,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(whatsappPlugin);
   await app.register(toolRegistryPluginExport);
   await app.register(maintenanceJobsPlugin);
+  await app.register(healthPlugin);
 
   // Register job handlers when pg-boss is available (skipped in test mode)
   if (app.boss) {

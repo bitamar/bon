@@ -67,6 +67,7 @@ Everything beyond that (payment recording, credit notes, reporting, PCN874) is p
 | [T-OPS-01](./T-OPS-01-ita-simulator-validation.md) | ITA Simulator Validation (BKMV + PCN874) | ⬜ | — |
 | [T-OPS-02](./T-OPS-02-retention-policy.md) | Data Retention Policy (7-year requirement) | ⬜ | — |
 | [T-OPS-03](./T-OPS-03-user-manual.md) | User Manual / Software Documentation | ⬜ | — |
+| [T-OPS-04](./T-OPS-04-monitoring-setup.md) | Production Monitoring Setup (Grafana + alerts) | ⬜ | — |
 
 ### Phase 1 — Customers
 
